@@ -18,6 +18,8 @@
   if (studentId) studentId.value = "";
   if (password) password.value = "";
 
+  const API_BASE = (form && form.dataset && form.dataset.apiBase) || "http://127.0.0.1:8000";
+
   const SAMPLE_USERS = {
     admin: {
       username: "admin",
@@ -117,12 +119,19 @@
 
   if (form) {
     form.addEventListener("submit", async (e) => {
-      e.preventDefault();
+      const isDjangoAuth = form.dataset.auth === "django";
+
+      if (!isDjangoAuth) e.preventDefault();
       if (formStatus) formStatus.textContent = "";
 
       const ok = validateStudentId() & validatePassword();
       if (!ok) {
+        e.preventDefault();
         if (formStatus) formStatus.textContent = "Please fix the highlighted fields.";
+        return;
+      }
+
+      if (isDjangoAuth) {
         return;
       }
 
@@ -133,29 +142,30 @@
       if (formStatus) formStatus.textContent = "Signing in…";
 
       try {
-        await new Promise((r) => setTimeout(r, 450));
+        const res = await fetch(`${API_BASE}/api/login/`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ studentId: inputUser, password: inputPass }),
+        });
 
-        const isAdmin =
-          inputUser === SAMPLE_USERS.admin.username && inputPass === SAMPLE_USERS.admin.password;
-        const isStudent =
-          inputUser === SAMPLE_USERS.student.username && inputPass === SAMPLE_USERS.student.password;
-
-        if (isAdmin) {
-          sessionStorage.setItem("elecom_role", SAMPLE_USERS.admin.role);
-          sessionStorage.setItem("elecom_user", SAMPLE_USERS.admin.username);
-          window.location.href = SAMPLE_USERS.admin.redirect;
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok || !data.ok) {
+          const msg = data.error || "Invalid credentials.";
+          if (formStatus) formStatus.textContent = msg;
+          setFieldError(password, passwordError, msg);
           return;
         }
 
-        if (isStudent) {
-          sessionStorage.setItem("elecom_role", SAMPLE_USERS.student.role);
-          sessionStorage.setItem("elecom_user", SAMPLE_USERS.student.username);
-          window.location.href = SAMPLE_USERS.student.redirect;
-          return;
-        }
+        sessionStorage.setItem("elecom_role", data.role || "user");
+        sessionStorage.setItem("elecom_user", data.username || inputUser);
 
-        if (formStatus) formStatus.textContent = "Invalid credentials. Use the sample credentials below.";
-        setFieldError(password, passwordError, "Invalid password.");
+        const redirectUrl =
+          data.role === "admin" ? "./elecom_admin/admin_dashboard.html" : "./elecom_user/user_dashboard.html";
+        window.location.href = redirectUrl;
+      } catch {
+        if (formStatus) formStatus.textContent = "Cannot connect to server. Make sure Django is running.";
       } finally {
         setBusy(false);
       }

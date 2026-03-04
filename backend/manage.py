@@ -4,6 +4,14 @@ import os
 import sys
 
 
+try:
+    import pymysql
+
+    pymysql.install_as_MySQLdb()
+except Exception:
+    pass
+
+
 def main():
     """Run administrative tasks."""
     os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')

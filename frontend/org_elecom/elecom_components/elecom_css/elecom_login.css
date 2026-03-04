@@ -43,7 +43,26 @@ body {
 @media (max-width: 600px) {
   .page {
     padding: 26px 12px;
-    place-items: start;
+    place-items: center;
+  }
+}
+
+@media (max-width: 899px) {
+  .hero {
+    display: none;
+  }
+
+  .wrap {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+
+  .card {
+    justify-self: center;
+    align-self: start;
+    margin-top: 10px;
+    max-width: 420px;
+    width: min(420px, 100%);
   }
 }
 
@@ -290,6 +309,38 @@ body {
   font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.02em;
+}
+
+@media (max-width: 899px) {
+  .card h3 {
+    text-align: center;
+  }
+}
+
+.mobile-brand {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 2px 0 12px;
+}
+
+.mobile-brand__logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+}
+
+.mobile-brand__wordmark {
+  height: 22px;
+  width: auto;
+  display: block;
+}
+
+@media (max-width: 899px) {
+  .mobile-brand {
+    display: flex;
+  }
 }
 
 form {
