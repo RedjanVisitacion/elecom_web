@@ -44,17 +44,17 @@
         <section class="card">
           <h3>Log in</h3>
 
-          <form id="loginForm" novalidate>
+          <form id="loginForm" novalidate autocomplete="off">
             <div>
               
-              <input class="input" id="studentId" name="studentId" type="text" placeholder="Enter your student ID" required />
+              <input class="input" id="studentId" name="studentId" type="text" placeholder="Enter your student ID" required autocomplete="off" autocapitalize="off" spellcheck="false" />
               <p class="error" id="studentIdError" role="alert" aria-live="polite"></p>
             </div>
 
             <div>
               
-              <div class="row">
-                <input class="input" id="password" name="password" type="password" placeholder="Enter your password" required minlength="6" />
+              <div class="input-wrap">
+                <input class="input" id="password" name="password" type="password" placeholder="Enter your password" required minlength="6" autocomplete="new-password" />
                 <button class="ghost" type="button" id="togglePassword" aria-label="Show password">
                   <i class="bi bi-eye" aria-hidden="true"></i>
                 </button>
@@ -69,7 +69,7 @@
 
             <div class="divider" role="separator" aria-hidden="true"></div>
 
-            <button class="btn btn--secondary" type="button" id="createAccount">Create new account</button>
+            <!-- <button class="btn btn--secondary" type="button" id="createAccount">Create new account</button> -->
 
             <!-- <div class="samples" aria-label="Sample credentials">
               <p class="title">Sample credentials</p>

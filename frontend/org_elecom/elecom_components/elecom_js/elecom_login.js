@@ -15,6 +15,9 @@
 
   if (year) year.textContent = String(new Date().getFullYear());
 
+  if (studentId) studentId.value = "";
+  if (password) password.value = "";
+
   const SAMPLE_USERS = {
     admin: {
       username: "admin",
