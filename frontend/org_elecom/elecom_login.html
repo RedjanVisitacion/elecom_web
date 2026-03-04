@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ELECOM | Login</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link rel="stylesheet" href="./elecom_components/elecom_css/elecom_login.css" />
+  </head>
+  <body>
+    <main class="page">
+      <section class="wrap" aria-label="ELECOM login">
+        <aside class="hero">
+          <div class="hero__grid">
+            <div class="hero__content">
+              <div class="brand">
+                <div class="logo" aria-hidden="true">
+                  <img src="../assets/elecom.png" alt="ELECOM Logo" />
+                </div>
+                <div>
+                  <div class="wordmark" aria-label="ELECOM">
+                    <img src="../assets/img_text/elecom_black1.png" alt="ELECOM" />
+                  </div>
+                  <p>USTP-OROQUIETA Campus Electoral Voting System</p>
+                </div>
+              </div>
+
+              <div class="hero__art" aria-hidden="true"></div>
+
+              <h2>Explore the things you vote for.</h2>
+            </div>
+          </div>
+        </aside>
+
+        <section class="card">
+          <h3>Log in</h3>
+
+          <form id="loginForm" novalidate>
+            <div>
+              
+              <input class="input" id="studentId" name="studentId" type="text" placeholder="Enter your student ID" required />
+              <p class="error" id="studentIdError" role="alert" aria-live="polite"></p>
+            </div>
+
+            <div>
+              
+              <div class="row">
+                <input class="input" id="password" name="password" type="password" placeholder="Enter your password" required minlength="6" />
+                <button class="ghost" type="button" id="togglePassword" aria-label="Show password">
+                  <i class="bi bi-eye" aria-hidden="true"></i>
+                </button>
+              </div>
+              <p class="error" id="passwordError" role="alert" aria-live="polite"></p>
+            </div>
+
+            <button class="btn" id="submitBtn" type="submit">Sign in</button>
+            <p class="status" id="formStatus" role="status" aria-live="polite"></p>
+
+            <a class="link" href="#" id="forgotPassword">Forgot password?</a>
+
+            <div class="divider" role="separator" aria-hidden="true"></div>
+
+            <button class="btn btn--secondary" type="button" id="createAccount">Create new account</button>
+
+            <!-- <div class="samples" aria-label="Sample credentials">
+              <p class="title">Sample credentials</p>
+              <div class="grid">
+                <div class="item">
+                  <p class="k">Admin</p>
+                  <p class="v"><span class="mono">admin</span> / <span class="mono">Admin@123</span></p>
+                  <button class="chip" type="button" id="fillAdmin">Use admin</button>
+                </div>
+                <div class="item">
+                  <p class="k">Student</p>
+                  <p class="v"><span class="mono">2023-00123</span> / <span class="mono">Student@123</span></p>
+                  <button class="chip" type="button" id="fillStudent">Use student</button>
+                </div>
+              </div>
+            </div> -->
+          </form>
+
+          <div class="foot">© <span id="year"></span> rpsv_codes</div>
+        </section>
+      </section>
+    </main>
+    <script src="./elecom_components/elecom_js/elecom_login.js"></script>
+  </body>
+</html>
