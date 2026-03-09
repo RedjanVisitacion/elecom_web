@@ -4,17 +4,9 @@ import os
 import sys
 
 
-try:
-    import pymysql
-
-    pymysql.install_as_MySQLdb()
-except Exception:
-    pass
-
-
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings')
+    os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:
