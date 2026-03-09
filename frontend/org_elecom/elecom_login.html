@@ -1,3 +1,4 @@
+{% load static %}
 <!doctype html>
 <html lang="en">
   <head>
@@ -6,15 +7,15 @@
     <title>ELECOM | Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="icon" href="../assets/elecom.png"/>
+    <link rel="icon" href="{% static 'assets/elecom.png' %}"/>
+    
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
-    />
+   
+    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}" />
+  
     <link rel="stylesheet" href="./elecom_components/elecom_css/elecom_login.css" />
   </head>
   <body>
@@ -25,11 +26,11 @@
             <div class="hero__content">
               <div class="brand">
                 <div class="logo" aria-hidden="true">
-                  <img src="../assets/elecom.png" alt="ELECOM Logo" />
+                  <img src="{% static '/assets/elecom.png'%}" alt="ELECOM Logo" />
                 </div>
                 <div>
                   <div class="wordmark" aria-label="ELECOM">
-                    <img src="../assets/img_text/elecom_black1.png" alt="ELECOM" />
+                    <img src="{% static '/assets/img_text/elecom_black1.png' %}" alt="ELECOM" />
                   </div>
                   <p>USTP-OROQUIETA Campus, Electoral Voting System</p>
                 </div>
