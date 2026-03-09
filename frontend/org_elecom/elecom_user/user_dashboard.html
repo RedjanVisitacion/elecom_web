@@ -1,0 +1,195 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ELECOM | Student Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f3f4f6;
+        --card: #ffffff;
+        --text: #0b0f18;
+        --muted: rgba(11, 15, 24, 0.65);
+        --border: rgba(11, 15, 24, 0.12);
+        --shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+        --accent: #0b0f18;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .topbar__inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .brand img { width: 34px; height: 34px; object-fit: contain; }
+      .brand__text { display: grid; gap: 2px; min-width: 0; }
+      .brand__title { font-weight: 800; letter-spacing: -0.02em; }
+      .brand__sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+      .actions { display: flex; align-items: center; gap: 10px; }
+
+      .chip {
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+      }
+
+      .btn {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .btn--primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 18px 16px 42px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 14px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 16px;
+      }
+
+      .title { margin: 0 0 6px; font-size: 18px; letter-spacing: -0.02em; }
+      .muted { color: var(--muted); margin: 0; }
+
+      .cta {
+        display: grid;
+        gap: 10px;
+        margin-top: 14px;
+      }
+
+      .footer {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand">
+          <img src="../../assets/elecom.png" alt="ELECOM" />
+          <div class="brand__text">
+            <div class="brand__title">ELECOM Student</div>
+            <div class="brand__sub" id="whoami">Loading…</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <span class="chip" id="roleChip">role: student</span>
+          <button class="btn" id="backToLogin" type="button">Back to Login</button>
+          <button class="btn btn--primary" id="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="grid">
+        <section class="card">
+          <h1 class="title">Welcome</h1>
+          <p class="muted">This is a placeholder student dashboard. You can add voting and profile features here.</p>
+
+          <div class="cta">
+            <button class="btn btn--primary" type="button">Go to Voting</button>
+            <button class="btn" type="button">View Candidates</button>
+            <button class="btn" type="button">My Profile</button>
+          </div>
+        </section>
+
+        <aside class="card">
+          <h2 class="title">Status</h2>
+          <p class="muted">No active election detected.</p>
+        </aside>
+      </div>
+
+      <div class="footer">© <span id="year"></span> rpsv_codes</div>
+    </main>
+
+    <script>
+      (() => {
+        const role = sessionStorage.getItem("elecom_role") || "student";
+        const user = sessionStorage.getItem("elecom_user") || "";
+        document.getElementById("year").textContent = String(new Date().getFullYear());
+        document.getElementById("roleChip").textContent = `role: ${role}`;
+        document.getElementById("whoami").textContent = user ? `Signed in as ${user}` : "Signed in";
+
+        const toLogin = () => {
+          const base = window.location.origin;
+          window.location.href = `${base}/login/`;
+        };
+
+        document.getElementById("backToLogin").addEventListener("click", toLogin);
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          sessionStorage.removeItem("elecom_role");
+          sessionStorage.removeItem("elecom_user");
+          toLogin();
+        });
+      })();
+    </script>
+  </body>
+</html>

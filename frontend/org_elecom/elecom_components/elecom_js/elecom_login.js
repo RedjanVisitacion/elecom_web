@@ -18,7 +18,10 @@
   if (studentId) studentId.value = "";
   if (password) password.value = "";
 
-  const API_BASE = (form && form.dataset && form.dataset.apiBase) || "http://127.0.0.1:8000";
+  const API_BASE =
+    (form && form.dataset && form.dataset.apiBase) ||
+    (typeof window !== "undefined" && window.location && window.location.origin) ||
+    "http://127.0.0.1:8000";
 
   const SAMPLE_USERS = {
     admin: {
@@ -142,7 +145,7 @@
       if (formStatus) formStatus.textContent = "Signing in…";
 
       try {
-        const res = await fetch(`${API_BASE}/api/login/`, {
+        const res = await fetch(`${API_BASE}/login/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -159,10 +162,14 @@
         }
 
         sessionStorage.setItem("elecom_role", data.role || "user");
-        sessionStorage.setItem("elecom_user", data.username || inputUser);
+        sessionStorage.setItem("elecom_user", data.student_id || inputUser);
 
+        const isHttp = typeof window !== "undefined" && window.location && window.location.protocol !== "file:";
+        const staticBase = isHttp ? `${API_BASE}/static/org_elecom` : ".";
         const redirectUrl =
-          data.role === "admin" ? "./elecom_admin/admin_dashboard.html" : "./elecom_user/user_dashboard.html";
+          data.role === "admin"
+            ? `${staticBase}/elecom_admin/admin_dashboard.html`
+            : `${staticBase}/elecom_user/user_dashboard.html`;
         window.location.href = redirectUrl;
       } catch {
         if (formStatus) formStatus.textContent = "Cannot connect to server. Make sure Django is running.";

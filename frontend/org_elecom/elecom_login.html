@@ -1,4 +1,4 @@
-{% load static %}
+<!-- {% load static %} -->
 <!doctype html>
 <html lang="en">
   <head>
@@ -15,8 +15,6 @@
     />
    
     <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}" />
-  
-    <link rel="stylesheet" href="./elecom_components/elecom_css/elecom_login.css" />
   </head>
   <body>
     <main class="page">
@@ -26,11 +24,11 @@
             <div class="hero__content">
               <div class="brand">
                 <div class="logo" aria-hidden="true">
-                  <img src="{% static '/assets/elecom.png'%}" alt="ELECOM Logo" />
+                  <img src="{% static 'assets/elecom.png' %}" alt="ELECOM Logo" />
                 </div>
                 <div>
                   <div class="wordmark" aria-label="ELECOM">
-                    <img src="{% static '/assets/img_text/elecom_black1.png' %}" alt="ELECOM" />
+                    <img src="{% static 'assets/img_text/elecom_black1.png' %}" alt="ELECOM" />
                   </div>
                   <p>USTP-OROQUIETA Campus, Electoral Voting System</p>
                 </div>
@@ -81,6 +79,6 @@
         </section>
       </section>
     </main>
-    <script src="./elecom_components/elecom_js/elecom_login.js"></script>
+    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}"></script>
   </body>
 </html>

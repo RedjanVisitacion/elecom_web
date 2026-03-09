@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ELECOM | Admin Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #f3f4f6;
+        --card: #ffffff;
+        --text: #0b0f18;
+        --muted: rgba(11, 15, 24, 0.65);
+        --border: rgba(11, 15, 24, 0.12);
+        --shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+        --accent: #0b0f18;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      .topbar {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid var(--border);
+      }
+
+      .topbar__inner {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 0;
+      }
+
+      .brand img { width: 34px; height: 34px; object-fit: contain; }
+      .brand__text { display: grid; gap: 2px; min-width: 0; }
+      .brand__title { font-weight: 800; letter-spacing: -0.02em; }
+      .brand__sub { font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+      .actions { display: flex; align-items: center; gap: 10px; }
+
+      .chip {
+        font-size: 12px;
+        padding: 6px 10px;
+        border: 1px solid var(--border);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+      }
+
+      .btn {
+        appearance: none;
+        border: 1px solid var(--border);
+        background: #fff;
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 10px;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .btn--primary {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: #fff;
+      }
+
+      .container {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 18px 16px 42px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: 1.2fr 0.8fr;
+        gap: 14px;
+      }
+
+      .card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 16px;
+        box-shadow: var(--shadow);
+        padding: 16px;
+      }
+
+      .title { margin: 0 0 6px; font-size: 18px; letter-spacing: -0.02em; }
+      .muted { color: var(--muted); margin: 0; }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin-top: 12px;
+      }
+
+      .kpi {
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px;
+        background: rgba(0, 0, 0, 0.02);
+      }
+
+      .kpi__label { font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+      .kpi__value { font-weight: 800; font-size: 18px; }
+
+      .list { margin: 12px 0 0; padding-left: 18px; color: var(--muted); }
+      .list li { margin: 6px 0; }
+
+      .footer {
+        margin-top: 14px;
+        font-size: 12px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      @media (max-width: 900px) {
+        .grid { grid-template-columns: 1fr; }
+        .kpis { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar__inner">
+        <div class="brand">
+          <img src="../../assets/elecom.png" alt="ELECOM" />
+          <div class="brand__text">
+            <div class="brand__title">ELECOM Admin</div>
+            <div class="brand__sub" id="whoami">Loading…</div>
+          </div>
+        </div>
+
+        <div class="actions">
+          <span class="chip" id="roleChip">role: admin</span>
+          <button class="btn" id="backToLogin" type="button">Back to Login</button>
+          <button class="btn btn--primary" id="logoutBtn" type="button">Logout</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="container">
+      <div class="grid">
+        <section class="card">
+          <h1 class="title">Dashboard</h1>
+          <p class="muted">Welcome. This is a placeholder admin dashboard you can expand later.</p>
+
+          <div class="kpis">
+            <div class="kpi">
+              <div class="kpi__label">Election Status</div>
+              <div class="kpi__value">Draft</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi__label">Candidates</div>
+              <div class="kpi__value">0</div>
+            </div>
+            <div class="kpi">
+              <div class="kpi__label">Votes Cast</div>
+              <div class="kpi__value">0</div>
+            </div>
+          </div>
+
+          <ol class="list">
+            <li>Create/manage candidates</li>
+            <li>Open/close voting</li>
+            <li>View results</li>
+            <li>Manage announcements</li>
+          </ol>
+        </section>
+
+        <aside class="card">
+          <h2 class="title">Quick Actions</h2>
+          <p class="muted">Buttons are placeholders for now.</p>
+          <div style="display:grid; gap:10px; margin-top:12px;">
+            <button class="btn" type="button">Manage Candidates</button>
+            <button class="btn" type="button">Manage Positions</button>
+            <button class="btn" type="button">View Results</button>
+          </div>
+        </aside>
+      </div>
+
+      <div class="footer">© <span id="year"></span> rpsv_codes</div>
+    </main>
+
+    <script>
+      (() => {
+        const role = sessionStorage.getItem("elecom_role") || "admin";
+        const user = sessionStorage.getItem("elecom_user") || "";
+        document.getElementById("year").textContent = String(new Date().getFullYear());
+        document.getElementById("roleChip").textContent = `role: ${role}`;
+        document.getElementById("whoami").textContent = user ? `Signed in as ${user}` : "Signed in";
+
+        const toLogin = () => {
+          const base = window.location.origin;
+          window.location.href = `${base}/login/`;
+        };
+
+        document.getElementById("backToLogin").addEventListener("click", toLogin);
+        document.getElementById("logoutBtn").addEventListener("click", () => {
+          sessionStorage.removeItem("elecom_role");
+          sessionStorage.removeItem("elecom_user");
+          toLogin();
+        });
+      })();
+    </script>
+  </body>
+</html>
