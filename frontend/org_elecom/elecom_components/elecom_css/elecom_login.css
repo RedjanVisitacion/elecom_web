@@ -152,7 +152,7 @@ body {
   max-width: 100%;
   height: 310px;
   border-radius: 14px;
-  background-image: url("../../../assets/elecom_bg.png");
+  background-image: url("/static/assets/elecom_bg.png");
   background-repeat: no-repeat;
   background-size: contain;
   background-position: center;
@@ -444,6 +444,7 @@ label {
   top: 50%;
   right: 8px;
   transform: translateY(-50%);
+  z-index: 2;
 }
 
 .ghost:hover {
@@ -461,6 +462,7 @@ label {
 .ghost i {
   font-size: 18px;
   line-height: 1;
+  color: rgba(11, 15, 24, 0.72);
 }
 
 .help {
