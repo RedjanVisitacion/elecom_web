@@ -167,3 +167,666 @@ def admin_dashboard_api(request):
             "recent_votes": recent_votes,
         }
     )
+
+
+def _require_admin(request):
+    role = (request.session.get("role") or "").lower()
+    if role != "admin":
+        return JsonResponse({"ok": False, "error": "Forbidden."}, status=403)
+    return None
+
+
+@require_http_methods(["GET"])
+def admin_candidates_list_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    q = (request.GET.get("q") or "").strip()
+
+    where = ""
+    params = []
+    if q:
+        where = (
+            "WHERE (COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'')) ILIKE %s "
+            "OR CAST(student_id AS TEXT) ILIKE %s "
+            "OR COALESCE(position,'') ILIKE %s "
+            "OR COALESCE(organization,'') ILIKE %s "
+            "OR COALESCE(party_name,'') ILIKE %s"
+        )
+        like = f"%{q}%"
+        params = [like, like, like, like, like]
+
+    sql = f"""
+        SELECT id, student_id, first_name, middle_name, last_name,
+               position, organization, program, year_section,
+               photo_url, party_name, candidate_type, party_logo_url
+        FROM candidates_registration
+        {where}
+        ORDER BY party_name, organization, position, last_name, first_name
+        LIMIT 500
+    """
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(sql, params)
+            cols = [c[0] for c in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        return JsonResponse({"ok": True, "candidates": rows})
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to load candidates."}, status=500)
+
+
+@require_http_methods(["GET"])
+def admin_candidates_detail_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    cid = (request.GET.get("id") or "").strip()
+    if not cid:
+        return JsonResponse({"ok": False, "error": "Missing id."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, student_id, first_name, middle_name, last_name,
+                       organization, position, program, year_section,
+                       platform, candidate_type, party_name, photo_url,
+                       party_logo_url
+                FROM candidates_registration
+                WHERE id = %s
+                LIMIT 1
+                """,
+                [cid],
+            )
+            row = cur.fetchone()
+            if not row:
+                return JsonResponse({"ok": False, "error": "Not found."}, status=404)
+            cols = [c[0] for c in cur.description]
+            candidate = dict(zip(cols, row))
+        return JsonResponse({"ok": True, "candidate": candidate})
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to load candidate."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_candidates_update_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    cid = str(payload.get("id") or "").strip()
+    if not cid:
+        return JsonResponse({"ok": False, "error": "Missing id."}, status=400)
+
+    fields = {
+        "first_name": (payload.get("first_name") or "").strip(),
+        "middle_name": (payload.get("middle_name") or "").strip() or None,
+        "last_name": (payload.get("last_name") or "").strip(),
+        "organization": (payload.get("organization") or "").strip(),
+        "position": (payload.get("position") or "").strip(),
+        "program": (payload.get("program") or "").strip(),
+        "year_section": (payload.get("year_section") or "").strip(),
+        "platform": (payload.get("platform") or "").strip(),
+        "photo_url": (payload.get("photo_url") or "").strip() or None,
+        "party_logo_url": (payload.get("party_logo_url") or "").strip() or None,
+    }
+
+    if not fields["first_name"] or not fields["last_name"]:
+        return JsonResponse({"ok": False, "error": "Missing required fields."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE candidates_registration
+                SET first_name = %s,
+                    middle_name = %s,
+                    last_name = %s,
+                    organization = %s,
+                    position = %s,
+                    program = %s,
+                    year_section = %s,
+                    platform = %s,
+                    photo_url = %s,
+                    party_logo_url = %s
+                WHERE id = %s
+                """,
+                [
+                    fields["first_name"],
+                    fields["middle_name"],
+                    fields["last_name"],
+                    fields["organization"],
+                    fields["position"],
+                    fields["program"],
+                    fields["year_section"],
+                    fields["platform"],
+                    fields["photo_url"],
+                    fields["party_logo_url"],
+                    cid,
+                ],
+            )
+        return JsonResponse({"ok": True})
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to update candidate."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_candidates_delete_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    cid = str(payload.get("id") or "").strip()
+    if not cid:
+        return JsonResponse({"ok": False, "error": "Missing id."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute("DELETE FROM candidates_registration WHERE id = %s", [cid])
+        return JsonResponse({"ok": True})
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to delete candidate."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_candidates_bulk_delete_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    ids = payload.get("ids") or []
+    if not isinstance(ids, list) or not ids:
+        return JsonResponse({"ok": False, "error": "Missing ids."}, status=400)
+
+    ids = [str(i) for i in ids if str(i).strip()]
+    if not ids:
+        return JsonResponse({"ok": False, "error": "Missing ids."}, status=400)
+
+    try:
+        placeholders = ",".join(["%s"] * len(ids))
+        with connection.cursor() as cur:
+            cur.execute(f"DELETE FROM candidates_registration WHERE id IN ({placeholders})", ids)
+        return JsonResponse({"ok": True})
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to delete candidates."}, status=500)
+
+
+@require_http_methods(["GET"])
+def admin_results_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT c.id,
+                       c.student_id,
+                       c.first_name,
+                       c.middle_name,
+                       c.last_name,
+                       c.organization,
+                       c.position,
+                       c.program,
+                       c.year_section,
+                       c.party_name,
+                       c.candidate_type,
+                       c.photo_url,
+                       c.party_logo_url,
+                       COALESCE(vv.cnt, 0) AS votes
+                FROM candidates_registration c
+                LEFT JOIN (
+                    SELECT vi.candidate_id AS cid, COUNT(*) AS cnt
+                    FROM vote_items vi
+                    GROUP BY vi.candidate_id
+                ) vv ON vv.cid = c.id
+                ORDER BY c.party_name, c.organization, c.position, c.last_name, c.first_name
+                """
+            )
+            cols = [c[0] for c in cur.description]
+            candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to load results."}, status=500)
+
+    if not candidates:
+        return JsonResponse(
+            {"ok": True, "org_totals": {}, "position_totals": {}, "grouped": []}
+        )
+
+    usg_order = [
+        "President",
+        "Vice President",
+        "General Secretary",
+        "Associate Secretary",
+        "Treasurer",
+        "Auditor",
+        "Public Information Officer",
+        "P.I.O",
+        "IT Representative",
+        "BSIT Representative",
+        "BTLED Representative",
+        "BFPT Representative",
+    ]
+    org_order = [
+        "President",
+        "Vice President",
+        "General Secretary",
+        "Associate Secretary",
+        "Treasurer",
+        "Auditor",
+        "Public Information Officer",
+        "P.I.O",
+    ]
+
+    def pos_index(org: str, pos: str) -> int:
+        org_key = (org or "").upper()
+        lst = org_order if org_key in {"SITE", "PAFE", "AFPROTECHS"} else usg_order
+        pos_s = (pos or "")
+        for i, label in enumerate(lst):
+            if label.lower() in pos_s.lower():
+                return i
+        return 999
+
+    org_totals: dict[str, int] = {}
+    position_totals: dict[str, int] = {}
+    grouped_map: dict[str, dict[str, dict[str, list[dict]]]] = {}
+
+    for c in candidates:
+        party = (c.get("party_name") or "Independent").upper()
+        org = (c.get("organization") or "USG").upper()
+        pos = c.get("position") or "Unspecified"
+        votes = int(c.get("votes") or 0)
+
+        org_totals[org] = org_totals.get(org, 0) + votes
+        position_totals[pos] = position_totals.get(pos, 0) + votes
+
+        grouped_map.setdefault(party, {}).setdefault(org, {}).setdefault(pos, []).append(c)
+
+    party_keys = sorted(grouped_map.keys(), key=lambda p: (1 if p == "INDEPENDENT" else 0, p))
+    org_priority = {"USG": 0, "SITE": 1, "PAFE": 2, "AFPROTECHS": 3}
+
+    grouped_out = []
+    for party in party_keys:
+        party_logo = ""
+        total_party_votes = 0
+        for org, pos_map in grouped_map[party].items():
+            for pos, arr in pos_map.items():
+                for x in arr:
+                    total_party_votes += int(x.get("votes") or 0)
+                    if not party_logo:
+                        u = (x.get("party_logo_url") or "").strip()
+                        if u.startswith("http"):
+                            party_logo = u
+
+        org_keys = sorted(
+            grouped_map[party].keys(),
+            key=lambda o: (org_priority.get(o.upper(), 999), o),
+        )
+
+        org_out = []
+        for org in org_keys:
+            pos_map = grouped_map[party][org]
+            pos_keys = sorted(pos_map.keys(), key=lambda p: (pos_index(org, p), p))
+
+            pos_out = []
+            for pos in pos_keys:
+                arr = pos_map[pos]
+                arr_sorted = sorted(
+                    arr,
+                    key=lambda x: (
+                        -int(x.get("votes") or 0),
+                        str(x.get("last_name") or ""),
+                        str(x.get("first_name") or ""),
+                    ),
+                )
+
+                total_pos_votes = sum(int(x.get("votes") or 0) for x in arr_sorted) or 0
+                cand_out = []
+                for x in arr_sorted:
+                    votes = int(x.get("votes") or 0)
+                    pct = round((votes / total_pos_votes) * 100, 1) if total_pos_votes else 0.0
+                    name = " ".join(
+                        [
+                            p
+                            for p in [x.get("first_name"), x.get("middle_name"), x.get("last_name")]
+                            if p
+                        ]
+                    ).strip()
+
+                    cand_out.append(
+                        {
+                            "id": x.get("id"),
+                            "student_id": str(x.get("student_id") or ""),
+                            "name": name or str(x.get("student_id") or ""),
+                            "program": x.get("program") or "",
+                            "year_section": x.get("year_section") or "",
+                            "photo_url": x.get("photo_url") or "",
+                            "votes": votes,
+                            "percent_in_position": pct,
+                        }
+                    )
+
+                pos_out.append({"position": pos, "candidates": cand_out})
+
+            org_out.append({"organization": org, "positions": pos_out})
+
+        grouped_out.append(
+            {
+                "party_name": party,
+                "party_logo_url": party_logo,
+                "total_votes": int(total_party_votes),
+                "organizations": org_out,
+            }
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "org_totals": org_totals,
+            "position_totals": position_totals,
+            "grouped": grouped_out,
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def admin_election_window_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    def to_local_value(dt):
+        if not dt:
+            return ""
+        try:
+            return dt.strftime("%Y-%m-%dT%H:%M")
+        except Exception:
+            return ""
+
+    if request.method == "GET":
+        try:
+            with connection.cursor() as cur:
+                cur.execute(
+                    "SELECT start_at, end_at, results_at, note FROM vote_windows ORDER BY id DESC LIMIT 1"
+                )
+                row = cur.fetchone()
+            if not row:
+                return JsonResponse({"ok": True, "window": None})
+            start_at, end_at, results_at, note = row
+            return JsonResponse(
+                {
+                    "ok": True,
+                    "window": {
+                        "start_at": start_at.isoformat() if start_at else None,
+                        "end_at": end_at.isoformat() if end_at else None,
+                        "results_at": results_at.isoformat() if results_at else None,
+                        "note": note or "",
+                        "start_at_local": to_local_value(start_at),
+                        "end_at_local": to_local_value(end_at),
+                        "results_at_local": to_local_value(results_at),
+                    },
+                }
+            )
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Failed to load election window."}, status=500)
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    start_at = (payload.get("start_at") or "").strip()
+    end_at = (payload.get("end_at") or "").strip()
+    results_at = (payload.get("results_at") or "").strip() or None
+    note = (payload.get("note") or "").strip()
+    admin_password = (payload.get("admin_password") or "").strip()
+
+    if not start_at or not end_at:
+        return JsonResponse({"ok": False, "error": "Start and End date/time are required."}, status=400)
+
+    if not admin_password:
+        return JsonResponse({"ok": False, "error": "Admin password is required."}, status=400)
+
+    from django.utils.dateparse import parse_datetime
+
+    start_dt = parse_datetime(start_at)
+    end_dt = parse_datetime(end_at)
+    results_dt = parse_datetime(results_at) if results_at else None
+
+    if not start_dt or not end_dt:
+        return JsonResponse({"ok": False, "error": "Invalid date/time format."}, status=400)
+
+    if end_dt <= start_dt:
+        return JsonResponse({"ok": False, "error": "End must be after Start."}, status=400)
+
+    if results_dt and results_dt < end_dt:
+        return JsonResponse({"ok": False, "error": "Results date/time must be on/after End."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO vote_windows (start_at, end_at, results_at, note)
+                VALUES (%s, %s, %s, %s)
+                """,
+                [start_dt, end_dt, results_dt, note or None],
+            )
+        return JsonResponse({"ok": True})
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to save election window."}, status=500)
+
+
+@require_http_methods(["GET"])
+def admin_reports_summary_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    start = (request.GET.get("start") or "").strip()
+    end = (request.GET.get("end") or "").strip()
+
+    # We'll interpret start/end as date-only (YYYY-MM-DD). If provided, we apply inclusive range.
+    start_dt = None
+    end_dt_exclusive = None
+
+    if start:
+        from django.utils.dateparse import parse_date
+
+        d = parse_date(start)
+        if not d:
+            return JsonResponse({"ok": False, "error": "Invalid start date."}, status=400)
+        from datetime import datetime
+
+        start_dt = datetime(d.year, d.month, d.day)
+
+    if end:
+        from django.utils.dateparse import parse_date
+
+        d = parse_date(end)
+        if not d:
+            return JsonResponse({"ok": False, "error": "Invalid end date."}, status=400)
+        from datetime import datetime, timedelta
+
+        end_dt_exclusive = datetime(d.year, d.month, d.day) + timedelta(days=1)
+
+    where_votes = ""
+    params: list = []
+    if start_dt:
+        where_votes += " AND v.created_at >= %s"
+        params.append(start_dt)
+    if end_dt_exclusive:
+        where_votes += " AND v.created_at < %s"
+        params.append(end_dt_exclusive)
+
+    # totals
+    try:
+        with connection.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM votes v WHERE 1=1{where_votes}", params)
+            total_votes = int(cur.fetchone()[0] or 0)
+            cur.execute(
+                f"SELECT COUNT(DISTINCT v.student_id) FROM votes v WHERE 1=1{where_votes}",
+                params,
+            )
+            distinct_voters = int(cur.fetchone()[0] or 0)
+    except Exception:
+        total_votes = 0
+        distinct_voters = 0
+
+    # candidates + votes per candidate
+    candidates = []
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT c.id, c.student_id, c.first_name, c.middle_name, c.last_name,
+                       c.organization, c.position,
+                       COALESCE(vv.cnt, 0) AS votes
+                FROM candidates_registration c
+                LEFT JOIN (
+                  SELECT vi.candidate_id AS cid, COUNT(*) AS cnt
+                  FROM vote_items vi
+                  GROUP BY vi.candidate_id
+                ) vv ON vv.cid = c.id
+                ORDER BY c.organization, c.position, c.last_name, c.first_name
+                """
+            )
+            cols = [c[0] for c in cur.description]
+            candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
+    except Exception:
+        candidates = []
+
+    # breakdowns
+    by_org: dict[str, int] = {}
+    by_pos: dict[str, int] = {}
+    for c in candidates:
+        org = (c.get("organization") or "USG").upper()
+        pos = c.get("position") or "Unspecified"
+        votes = int(c.get("votes") or 0)
+        by_org[org] = by_org.get(org, 0) + votes
+        by_pos[pos] = by_pos.get(pos, 0) + votes
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "range": {"start": start or None, "end": end or None},
+            "totals": {
+                "total_votes": total_votes,
+                "distinct_voters": distinct_voters,
+                "total_candidates": len(candidates),
+            },
+            "by_org": by_org,
+            "by_pos": by_pos,
+            "candidates": candidates,
+        }
+    )
+
+
+@require_http_methods(["GET"])
+def admin_reset_status_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    def safe_count(sql: str) -> int:
+        try:
+            with connection.cursor() as cur:
+                cur.execute(sql)
+                row = cur.fetchone()
+            return int(row[0] or 0) if row else 0
+        except Exception:
+            return 0
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "counts": {
+                "votes": safe_count("SELECT COUNT(*) FROM votes"),
+                "vote_items": safe_count("SELECT COUNT(*) FROM vote_items"),
+                "notifications": safe_count("SELECT COUNT(*) FROM user_notifications"),
+            },
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_reset_votes_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    confirm = (payload.get("confirm") or "").strip().upper()
+    if confirm != "RESET":
+        return JsonResponse({"ok": False, "error": "Type RESET to confirm."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute("BEGIN")
+            # Delete children first
+            cur.execute("DELETE FROM vote_items")
+            try:
+                cur.execute("DELETE FROM vote_results")
+            except Exception:
+                pass
+            cur.execute("DELETE FROM votes")
+            cur.execute("COMMIT")
+        return JsonResponse({"ok": True})
+    except Exception:
+        try:
+            with connection.cursor() as cur:
+                cur.execute("ROLLBACK")
+        except Exception:
+            pass
+        return JsonResponse({"ok": False, "error": "Failed to reset votes."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_reset_notifications_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    confirm = (payload.get("confirm") or "").strip().upper()
+    if confirm != "CLEAR":
+        return JsonResponse({"ok": False, "error": "Type CLEAR to confirm notifications reset."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute("DELETE FROM user_notifications")
+        return JsonResponse({"ok": True})
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to clear notifications."}, status=500)

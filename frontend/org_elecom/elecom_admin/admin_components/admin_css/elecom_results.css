@@ -1,0 +1,33 @@
+.chart-box{
+  height:280px;
+}
+
+.result-party-logo{
+  width:28px;
+  height:28px;
+  object-fit:cover;
+}
+
+.result-party-logo-placeholder{
+  width:28px;
+  height:28px;
+}
+
+.candidate-result-photo{
+  width:40px;
+  height:40px;
+  object-fit:cover;
+}
+
+.candidate-result-photo-placeholder{
+  width:40px;
+  height:40px;
+}
+
+.result-progress{
+  height:6px;
+}
+
+.result-votes-col{
+  min-width:100px;
+}

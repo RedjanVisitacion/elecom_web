@@ -1,0 +1,67 @@
+.search-box{
+  min-width:320px;
+  flex:1 1 auto;
+  max-width:760px;
+}
+
+.candidate-photo-42{
+  width:42px;
+  height:42px;
+  object-fit:cover;
+  display:none;
+}
+
+.cd-platform{
+  min-height:64px;
+}
+
+.search-results{
+  z-index:1050;
+  max-height:320px;
+  overflow:auto;
+  display:none;
+}
+
+.candidate-avatar-img{
+  width:48px;
+  height:48px;
+  object-fit:cover;
+}
+
+.candidate-avatar-placeholder{
+  width:48px;
+  height:48px;
+}
+
+.candidate-card{
+  cursor:pointer;
+}
+
+.party-avatar-img{
+  width:28px;
+  height:28px;
+  object-fit:cover;
+}
+
+.party-avatar-placeholder{
+  width:28px;
+  height:28px;
+}
+
+.vd-photo{
+  width:140px;
+  height:140px;
+  object-fit:cover;
+  display:none;
+}
+
+.vd-party-logo{
+  width:24px;
+  height:24px;
+  object-fit:cover;
+  display:none;
+}
+
+.vd-platform{
+  white-space:pre-wrap;
+}

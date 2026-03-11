@@ -1,0 +1,24 @@
+.report-range-box{
+  background:#f6f7fb;
+}
+
+.format-card{
+  height:100px;
+}
+
+.format-icon{
+  width:48px;
+  height:48px;
+}
+
+.format-icon.text{
+  background:#eef2ff;
+}
+
+.format-icon.pdf{
+  background:#ecfeff;
+}
+
+.format-icon.csv{
+  background:#f0fdf4;
+}

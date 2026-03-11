@@ -1,0 +1,10 @@
+.candidate-photo-42{
+  width:42px;
+  height:42px;
+  object-fit:cover;
+  display:none;
+}
+
+.cd-platform{
+  min-height:64px;
+}

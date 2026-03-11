@@ -1,9 +1,34 @@
 from django.contrib import admin
 from django.urls import path
-from .views import admin_dashboard_api, login_view
+from .views import (
+    admin_candidates_bulk_delete_api,
+    admin_candidates_delete_api,
+    admin_candidates_detail_api,
+    admin_candidates_list_api,
+    admin_candidates_update_api,
+    admin_dashboard_api,
+    admin_election_window_api,
+    admin_results_api,
+    admin_reports_summary_api,
+    admin_reset_notifications_api,
+    admin_reset_status_api,
+    admin_reset_votes_api,
+    login_view,
+)
 
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
+    path('api/admin/candidates/list/', admin_candidates_list_api, name='admin_candidates_list_api'),
+    path('api/admin/candidates/detail/', admin_candidates_detail_api, name='admin_candidates_detail_api'),
+    path('api/admin/candidates/update/', admin_candidates_update_api, name='admin_candidates_update_api'),
+    path('api/admin/candidates/delete/', admin_candidates_delete_api, name='admin_candidates_delete_api'),
+    path('api/admin/candidates/bulk-delete/', admin_candidates_bulk_delete_api, name='admin_candidates_bulk_delete_api'),
+    path('api/admin/results/', admin_results_api, name='admin_results_api'),
+    path('api/admin/election-window/', admin_election_window_api, name='admin_election_window_api'),
+    path('api/admin/reports/summary/', admin_reports_summary_api, name='admin_reports_summary_api'),
+    path('api/admin/reset/status/', admin_reset_status_api, name='admin_reset_status_api'),
+    path('api/admin/reset/votes/', admin_reset_votes_api, name='admin_reset_votes_api'),
+    path('api/admin/reset/notifications/', admin_reset_notifications_api, name='admin_reset_notifications_api'),
 ]
