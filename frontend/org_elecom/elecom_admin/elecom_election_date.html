@@ -1,90 +1,13 @@
-<?php
-require_once '../../../db_connection.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
-$role = isset($_SESSION['role']) ? strtolower((string)$_SESSION['role']) : '';
-$full_name = trim($_SESSION['full_name'] ?? '');
-$student_id = $_SESSION['student_id'] ?? '';
-$display_name = $full_name !== '' ? $full_name : ($student_id !== '' ? $student_id : ($role !== '' ? ucfirst($role) : 'User'));
-$display_role = $role !== '' ? ucfirst($role) : 'User';
-$icon_class = ($role === 'admin') ? 'bi bi-person-gear' : 'bi bi-person-circle';
-
-$success = null; $error = null;
-$start_at = ''; $end_at = ''; $results_at = ''; $note = '';
-
-// Load current window if exists
-try {
-    $stmt = $pdo->query('SELECT * FROM vote_windows ORDER BY id DESC LIMIT 1');
-    if ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-        $start_at = $row['start_at'] ? date('Y-m-d\TH:i', strtotime($row['start_at'])) : '';
-        $end_at = $row['end_at'] ? date('Y-m-d\TH:i', strtotime($row['end_at'])) : '';
-        $results_at = $row['results_at'] ? date('Y-m-d\TH:i', strtotime($row['results_at'])) : '';
-        $note = $row['note'] ?? '';
-    }
-} catch (Throwable $e) { /* ignore */ }
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $start_at_in = trim($_POST['start_at'] ?? '');
-    $end_at_in = trim($_POST['end_at'] ?? '');
-    $results_at_in = trim($_POST['results_at'] ?? '');
-    $note_in = trim($_POST['note'] ?? '');
-    $admin_password = (string)($_POST['admin_password'] ?? '');
-
-    if ($start_at_in === '' || $end_at_in === '') {
-        $error = 'Start and End date/time are required.';
-    } elseif (strtotime($end_at_in) <= strtotime($start_at_in)) {
-        $error = 'End date/time must be after Start date/time.';
-    } elseif ($role !== 'admin') {
-        $error = 'Only admins can update election dates.';
-    } else {
-        try {
-            $stmtU = $pdo->prepare('SELECT password_hash FROM users WHERE student_id = ? AND role = ? LIMIT 1');
-            $stmtU->execute([$student_id, 'admin']);
-            $u = $stmtU->fetch(PDO::FETCH_ASSOC);
-            if (!$u) {
-                $error = 'Admin account not found.';
-            } else {
-                $hash = (string)$u['password_hash'];
-                $ok = false;
-                if (preg_match('/^\$2[aby]\$/', $hash)) { $ok = password_verify($admin_password, $hash); }
-                else { $ok = hash_equals($hash, $admin_password); }
-                if (!$ok) {
-                    $error = 'Invalid admin password.';
-                } else {
-                    // Upsert: update latest row if exists else insert
-                    $pdo->beginTransaction();
-                    $current = $pdo->query('SELECT id FROM vote_windows ORDER BY id DESC LIMIT 1')->fetch(PDO::FETCH_ASSOC);
-                    if ($current) {
-                        $upd = $pdo->prepare('UPDATE vote_windows SET start_at = :s, end_at = :e, results_at = :r, note = :n, updated_at = NOW() WHERE id = :id');
-                        $upd->execute([':s'=>$start_at_in, ':e'=>$end_at_in, ':r'=>($results_at_in?:null), ':n'=>($note_in?:null), ':id'=>$current['id']]);
-                    } else {
-                        $ins = $pdo->prepare('INSERT INTO vote_windows (start_at, end_at, results_at, note, created_at) VALUES (:s,:e,:r,:n,NOW())');
-                        $ins->execute([':s'=>$start_at_in, ':e'=>$end_at_in, ':r'=>($results_at_in?:null), ':n'=>($note_in?:null)]);
-                    }
-                    $pdo->commit();
-                    $success = 'Election dates saved.';
-                    $start_at = date('Y-m-d\TH:i', strtotime($start_at_in));
-                    $end_at = date('Y-m-d\TH:i', strtotime($end_at_in));
-                    $results_at = $results_at_in ? date('Y-m-d\TH:i', strtotime($results_at_in)) : '';
-                    $note = $note_in;
-                }
-            }
-        } catch (Throwable $ex) {
-            if ($pdo->inTransaction()) { $pdo->rollBack(); }
-            $error = 'Failed to save election dates.';
-        }
-    }
-}
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Set Election Dates - ELECOM</title>
-    <link rel="icon" href="../../../assets/logo/elecom_2.png" type="image/png">
+    <link rel="icon" href="/static/assets/logo/elecom_2.png" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../assets/css/app.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css">
 </head>
 <body class="theme-elecom">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -92,27 +15,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="sidebar-header">
             <div class="sidebar-header-content">
                 <div class="logo-container">
-                    <img src="../../../assets/logo/elecom_2.png" alt="ELECOM Logo">
-                    <h4>Electoral Commission</h4>
+                    <img class="sidebar-logo" src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                    <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
                 </div>
-                <button class="btn-close-sidebar" id="closeSidebar"><i class="bi bi-x-lg"></i></button>
+                <button class="btn-close-sidebar" id="closeSidebar">
+                    <i class="bi bi-x-lg"></i>
+                </button>
             </div>
         </div>
         <div class="sidebar-menu">
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link" href="elecom_dashboard.php"><i class="bi bi-house-door"></i><span>Home</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_register_candidate.php"><i class="bi bi-person-plus"></i><span>Register Candidate</span></a></li>
-                <li class="nav-item"><a class="nav-link active" href="elecom_election_date.php"><i class="bi bi-calendar-event"></i><span>Set Election Dates</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_candidates.php"><i class="bi bi-people"></i><span>Candidates</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_results.php"><i class="bi bi-graph-up"></i><span>Results</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_reset.php"><i class="bi bi-arrow-counterclockwise"></i><span>Reset Votes</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/admin_dashboard.html"><i class="bi bi-house-door"></i><span>Home</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html"><i class="bi bi-person-plus"></i><span>Register Candidate</span></a></li>
+                <li class="nav-item"><a class="nav-link active" href="/static/org_elecom/elecom_admin/elecom_election_date.html"><i class="bi bi-calendar-event"></i><span>Set Election Dates</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates.html"><i class="bi bi-people"></i><span>Candidates</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html"><i class="bi bi-graph-up"></i><span>Results</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reset.html"><i class="bi bi-arrow-counterclockwise"></i><span>Reset Votes</span></a></li>
                 <li class="nav-item">
-                    <a class="nav-link" href="elecom_reports.php">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html">
                         <i class="bi bi-file-earmark-bar-graph"></i>
                         <span>Generate Reports</span>
                     </a>
                 </li>
-                <a class="nav-link" href="../../../dashboard.php"><i class="bi bi-speedometer2"></i><span>SocieTree Dashboard</span></a>
+                <li class="nav-item"><a class="nav-link" href="#" id="logoutLink"><i class="bi bi-speedometer2"></i><span>Logout</span></a></li>
             </ul>
         </div>
     </div>

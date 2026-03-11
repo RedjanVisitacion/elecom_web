@@ -114,6 +114,22 @@ body {
   gap: 10px;
 }
 
+.logo-container .sidebar-logo {
+  height: 46px;
+  width: 46px;
+  border-radius: 50%;
+  background: #ffffff;
+  object-fit: cover;
+  flex: 0 0 auto;
+}
+
+.logo-container .wordmark {
+  height: 22px;
+  width: auto;
+  max-width: 160px;
+  object-fit: contain;
+}
+
 .sidebar-header img {
   height: 50px;
 }

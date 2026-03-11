@@ -7,6 +7,15 @@ document.addEventListener("DOMContentLoaded", function () {
   const displayName = document.getElementById("displayName");
   const displayRole = document.getElementById("displayRole");
 
+  const kpiCandidates = document.getElementById("kpiCandidates");
+  const kpiVoters = document.getElementById("kpiVoters");
+  const kpiCastVotes = document.getElementById("kpiCastVotes");
+  const kpiNotVoted = document.getElementById("kpiNotVoted");
+  const electionStatus = document.getElementById("electionStatus");
+  const recentVotesEmpty = document.getElementById("recentVotesEmpty");
+  const recentVotesScroll = document.getElementById("recentVotesScroll");
+  const recentVotesList = document.getElementById("recentVotesList");
+
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener("click", function () {
       sidebar.classList.add("active");
@@ -70,6 +79,83 @@ document.addEventListener("DOMContentLoaded", function () {
   } catch (e) {
     // ignore
   }
+
+  const setText = (el, value) => {
+    if (!el) return;
+    el.textContent = value;
+  };
+
+  const setElectionBadge = (status, statusClass) => {
+    if (!electionStatus) return;
+    const cls = statusClass || "secondary";
+    electionStatus.className = `badge bg-${cls}`;
+    electionStatus.textContent = status || "No schedule";
+  };
+
+  const fmt = (n) => {
+    const num = Number(n);
+    if (!Number.isFinite(num)) return "0";
+    return num.toLocaleString();
+  };
+
+  const renderRecentVotes = (items) => {
+    if (!recentVotesList || !recentVotesScroll || !recentVotesEmpty) return;
+    const list = Array.isArray(items) ? items : [];
+
+    if (list.length === 0) {
+      recentVotesEmpty.style.display = "block";
+      recentVotesScroll.style.display = "none";
+      recentVotesList.innerHTML = "";
+      return;
+    }
+
+    recentVotesEmpty.style.display = "none";
+    recentVotesScroll.style.display = "block";
+    recentVotesList.innerHTML = list
+      .map((rv) => {
+        const name = rv.name || rv.student_id || "";
+        const sid = rv.student_id || "";
+        const dt = rv.voted_at ? new Date(rv.voted_at).toLocaleString() : "";
+        return `
+<li class="list-group-item d-flex justify-content-between align-items-center">
+  <div class="d-flex align-items-center gap-2">
+    <i class="bi bi-person-check text-success"></i>
+    <div>
+      <div class="fw-semibold">${name}</div>
+      <div class="small text-muted">${sid}</div>
+    </div>
+  </div>
+  <div class="small text-muted">${dt}</div>
+</li>`;
+      })
+      .join("");
+  };
+
+  const loadDashboard = async () => {
+    try {
+      const res = await fetch("/api/admin/dashboard/", {
+        method: "GET",
+        headers: { Accept: "application/json" },
+        credentials: "same-origin",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return;
+
+      const m = data.metrics || {};
+      setText(kpiCandidates, fmt(m.total_candidates));
+      setText(kpiVoters, fmt(m.total_voters));
+      setText(kpiCastVotes, fmt(m.total_cast_votes));
+      setText(kpiNotVoted, fmt(m.total_not_voted));
+
+      const e = data.election || {};
+      setElectionBadge(e.status, e.status_class);
+      renderRecentVotes(data.recent_votes);
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  void loadDashboard();
 
   const input = document.getElementById("candidateSearch");
   const btn = document.getElementById("candidateSearchBtn");

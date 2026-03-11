@@ -21,7 +21,7 @@
             <div class="sidebar-header-content">
                 <div class="logo-container">
                     <img src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
-                    <h4>Electoral Commission</h4>
+                    <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
                 </div>
                 <button class="btn-close-sidebar" id="closeSidebar">
                     <i class="bi bi-x-lg"></i>
@@ -31,43 +31,43 @@
         <div class="sidebar-menu">
             <ul class="nav flex-column">
                 <li class="nav-item">
-                    <a class="nav-link active" href="#">
+                    <a class="nav-link active" href="/static/org_elecom/elecom_admin/admin_dashboard.html">
                         <i class="bi bi-house-door"></i>
                         <span>Home</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html">
                         <i class="bi bi-person-plus"></i>
                         <span>Register Candidate</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_election_date.html">
                         <i class="bi bi-calendar-event"></i>
                         <span>Set Election Dates</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates.html">
                         <i class="bi bi-people"></i>
                         <span>Candidates</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html">
                         <i class="bi bi-graph-up"></i>
                         <span>Results</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reset.html">
                         <i class="bi bi-arrow-counterclockwise"></i>
                         <span>Reset Votes</span>
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html">
                         <i class="bi bi-file-earmark-bar-graph"></i>
                         <span>Generate Reports</span>
                     </a>
@@ -276,7 +276,10 @@
                     <div class="card shadow-sm border-0 h-100">
                         <div class="card-body">
                             <h5 class="mb-3">Recent Voting History</h5>
-                            <div class="text-muted">No votes have been cast yet.</div>
+                            <div class="text-muted" id="recentVotesEmpty">No votes have been cast yet.</div>
+                            <div style="max-height: 340px; overflow: auto; display:none;" id="recentVotesScroll">
+                                <ul class="list-group list-group-flush" id="recentVotesList"></ul>
+                            </div>
                         </div>
                     </div>
                 </div>

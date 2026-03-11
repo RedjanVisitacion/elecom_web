@@ -1,85 +1,13 @@
-<?php
-require_once '../../../db_connection.php';
-if (session_status() === PHP_SESSION_NONE) { session_start(); }
-$role = isset($_SESSION['role']) ? strtolower((string)$_SESSION['role']) : '';
-$full_name = trim($_SESSION['full_name'] ?? '');
-$student_id = $_SESSION['student_id'] ?? '';
-$display_name = $full_name !== '' ? $full_name : ($student_id !== '' ? $student_id : ($role !== '' ? ucfirst($role) : 'User'));
-$display_role = $role !== '' ? ucfirst($role) : 'User';
-$icon_class = ($role === 'admin') ? 'bi bi-person-gear' : 'bi bi-person-circle';
-
-$success_msg = '';
-$error_msg = '';
-
-function ensure_admin_page() {
-    global $role;
-    if ($role !== 'admin') {
-        http_response_code(403);
-        echo '<!doctype html><html><body><div style="padding:2rem;font-family:sans-serif;">Forbidden</div></body></html>';
-        exit;
-    }
-}
-
-// Handle reset votes
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset']) && $_POST['reset'] === '1') {
-    ensure_admin_page();
-    $confirm = trim($_POST['confirm'] ?? '');
-    if (strtoupper($confirm) !== 'RESET') {
-        $error_msg = 'Type RESET to confirm.';
-    } else {
-        try {
-            $pdo->beginTransaction();
-            // Delete children first
-            $pdo->exec('DELETE FROM vote_items');
-            $pdo->exec('DELETE FROM vote_results');
-            $pdo->exec('DELETE FROM votes');
-            $pdo->commit();
-            $success_msg = 'All votes have been reset.';
-        } catch (Throwable $e) {
-            if ($pdo->inTransaction()) { $pdo->rollBack(); }
-            $error_msg = 'Failed to reset votes.';
-        }
-    }
-}
-
-// Handle reset notifications
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['reset_notifications']) && $_POST['reset_notifications'] === '1') {
-    ensure_admin_page();
-    $confirmN = trim($_POST['confirm_notifications'] ?? '');
-    if (strtoupper($confirmN) !== 'CLEAR') {
-        $error_msg = 'Type CLEAR to confirm notifications reset.';
-    } else {
-        try {
-            $pdo->exec('DELETE FROM user_notifications');
-            $success_msg = 'All notifications have been cleared.';
-        } catch (Throwable $e) {
-            $error_msg = 'Failed to clear notifications.';
-        }
-    }
-}
-
-// Fetch current counts
-$votes_count = 0; $vote_items_count = 0; $notif_count = 0;
-try {
-    $votes_count = (int)$pdo->query('SELECT COUNT(*) FROM votes')->fetchColumn();
-} catch (Throwable $e) { $votes_count = 0; }
-try {
-    $vote_items_count = (int)$pdo->query('SELECT COUNT(*) FROM vote_items')->fetchColumn();
-} catch (Throwable $e) { $vote_items_count = 0; }
-try {
-    $notif_count = (int)$pdo->query('SELECT COUNT(*) FROM user_notifications')->fetchColumn();
-} catch (Throwable $e) { $notif_count = 0; }
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Reset Votes - ELECOM</title>
-    <link rel="icon" href="../../../assets/logo/elecom_2.png" type="image/png">
+    <link rel="icon" href="/static/assets/logo/elecom_2.png" type="image/png">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="../../../assets/css/app.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css">
 </head>
 <body class="theme-elecom">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -87,27 +15,27 @@ try {
         <div class="sidebar-header">
             <div class="sidebar-header-content">
                 <div class="logo-container">
-                    <img src="../../../assets/logo/elecom_2.png" alt="ELECOM Logo">
-                    <h4>Electoral Commission</h4>
+                    <img class="sidebar-logo" src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                    <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
                 </div>
                 <button class="btn-close-sidebar" id="closeSidebar"><i class="bi bi-x-lg"></i></button>
             </div>
         </div>
         <div class="sidebar-menu">
             <ul class="nav flex-column">
-                <li class="nav-item"><a class="nav-link" href="elecom_dashboard.php"><i class="bi bi-house-door"></i><span>Home</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_register_candidate.php"><i class="bi bi-person-plus"></i><span>Register Candidate</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_election_date.php"><i class="bi bi-calendar-event"></i><span>Set Election Dates</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_candidates.php"><i class="bi bi-people"></i><span>Candidates</span></a></li>
-                <li class="nav-item"><a class="nav-link" href="elecom_results.php"><i class="bi bi-graph-up"></i><span>Results</span></a></li>
-                <li class="nav-item"><a class="nav-link active" href="elecom_reset.php"><i class="bi bi-arrow-counterclockwise"></i><span>Reset Votes</span></a>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/admin_dashboard.html"><i class="bi bi-house-door"></i><span>Home</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html"><i class="bi bi-person-plus"></i><span>Register Candidate</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_election_date.html"><i class="bi bi-calendar-event"></i><span>Set Election Dates</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates.html"><i class="bi bi-people"></i><span>Candidates</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html"><i class="bi bi-graph-up"></i><span>Results</span></a></li>
+                <li class="nav-item"><a class="nav-link active" href="/static/org_elecom/elecom_admin/elecom_reset.html"><i class="bi bi-arrow-counterclockwise"></i><span>Reset Votes</span></a>
                 <li class="nav-item">
-                    <a class="nav-link" href="elecom_reports.php">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html">
                         <i class="bi bi-file-earmark-bar-graph"></i>
                         <span>Generate Reports</span>
                     </a>
                 </li>
-                </li><a class="nav-link" href="../../../dashboard.php"><i class="bi bi-speedometer2"></i><span>SocieTree Dashboard</span></a>
+                </li><li class="nav-item"><a class="nav-link" href="#" id="logoutLink"><i class="bi bi-speedometer2"></i><span>Logout</span></a></li>
             </ul>
         </div>
     </div>
