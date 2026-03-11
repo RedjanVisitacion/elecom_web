@@ -8,3 +8,38 @@
 .cd-platform{
   min-height:64px;
 }
+
+.election-window-card{
+  border-radius: 8px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+.election-window-card .form-label{
+  margin-bottom: 6px;
+}
+
+.election-window-card .form-control{
+  height: 44px;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  border-radius: 8px;
+}
+
+.election-window-card .form-control:focus{
+  border-color: #2F80ED;
+  box-shadow: 0 0 0 0.2rem rgba(47, 128, 237, 0.18);
+}
+
+.confirmation-box{
+  background: #f8f9fa;
+  border-radius: 8px;
+}
+
+.btn-save-dates{
+  border-radius: 10px;
+  padding: 10px 20px;
+}
+
+.btn-save-dates:hover{
+  filter: brightness(0.95);
+}

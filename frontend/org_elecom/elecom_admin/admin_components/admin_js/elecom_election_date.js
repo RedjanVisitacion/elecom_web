@@ -48,11 +48,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const successAlert = document.getElementById('successAlert');
   const errorAlert = document.getElementById('errorAlert');
+  const formEl = document.getElementById('electionWindowForm');
+  const submitBtn = formEl ? formEl.querySelector('button[type="submit"]') : null;
 
   function showAlert(el, msg){
     if (!el) return;
+    if (el === successAlert) hideAlert(errorAlert);
+    if (el === errorAlert) hideAlert(successAlert);
     el.textContent = msg;
     el.style.display = 'block';
+    try {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {}
   }
   function hideAlert(el){
     if (!el) return;
@@ -60,12 +67,23 @@ document.addEventListener('DOMContentLoaded', function() {
     el.style.display = 'none';
   }
 
+  function setLoading(loading) {
+    if (!submitBtn) return;
+    submitBtn.disabled = !!loading;
+    if (loading) {
+      submitBtn.dataset.originalText = submitBtn.dataset.originalText || submitBtn.innerHTML;
+      submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Saving...';
+    } else {
+      submitBtn.innerHTML = submitBtn.dataset.originalText || 'Save Dates';
+    }
+  }
+
   const startEl = document.getElementById('startAt');
   const endEl = document.getElementById('endAt');
   const resultsEl = document.getElementById('resultsAt');
   const noteEl = document.getElementById('note');
   const passwordEl = document.getElementById('adminPassword');
-  const formEl = document.getElementById('electionWindowForm');
+  
 
   async function loadWindow(){
     hideAlert(successAlert);
@@ -90,6 +108,8 @@ document.addEventListener('DOMContentLoaded', function() {
       hideAlert(successAlert);
       hideAlert(errorAlert);
 
+      setLoading(true);
+
       const payload = {
         start_at: startEl ? startEl.value : '',
         end_at: endEl ? endEl.value : '',
@@ -105,8 +125,8 @@ document.addEventListener('DOMContentLoaded', function() {
           credentials: 'same-origin',
           body: JSON.stringify(payload),
         });
-        const data = await res.json();
-        if (data && data.ok) {
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data && data.ok) {
           if (passwordEl) passwordEl.value = '';
           showAlert(successAlert, 'Election window saved.');
           await loadWindow();
@@ -114,7 +134,9 @@ document.addEventListener('DOMContentLoaded', function() {
           showAlert(errorAlert, (data && data.error) ? data.error : 'Failed to save election window.');
         }
       } catch (err) {
-        showAlert(errorAlert, 'Failed to save election window.');
+        showAlert(errorAlert, (err && err.message) ? String(err.message) : 'Failed to save election window.');
+      } finally {
+        setLoading(false);
       }
     });
   }

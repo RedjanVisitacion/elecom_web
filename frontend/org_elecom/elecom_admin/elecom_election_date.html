@@ -121,36 +121,38 @@
             <div class="alert alert-success" id="successAlert" role="alert" style="display:none;"></div>
             <div class="alert alert-danger" id="errorAlert" role="alert" style="display:none;"></div>
 
-            <form method="post" class="card p-3 shadow-sm border-0" id="electionWindowForm">
-                <h5 class="mb-3"><i class="bi bi-calendar3 me-2"></i>Election Window</h5>
+            <form method="post" class="card p-4 border-0 election-window-card" id="electionWindowForm">
+                <h5 class="mb-3 fw-bold"><i class="bi bi-calendar3 me-2"></i>Election Window</h5>
                 <div class="row g-3">
                     <div class="col-md-4">
-                        <label class="form-label">Start Date & Time</label>
+                        <label class="form-label fw-medium"><i class="bi bi-calendar-event me-2"></i>Start Date & Time</label>
                         <input type="datetime-local" name="start_at" id="startAt" class="form-control" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">End Date & Time</label>
+                        <label class="form-label fw-medium"><i class="bi bi-calendar2-event me-2"></i>End Date & Time</label>
                         <input type="datetime-local" name="end_at" id="endAt" class="form-control" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Results Date & Time</label>
+                        <label class="form-label fw-medium"><i class="bi bi-calendar-check me-2"></i>Results Date & Time</label>
                         <input type="datetime-local" name="results_at" id="resultsAt" class="form-control">
                     </div>
                     <div class="col-12">
-                        <label class="form-label">Note (optional)</label>
+                        <label class="form-label fw-medium"><i class="bi bi-card-text me-2"></i>Note (optional)</label>
                         <input type="text" name="note" id="note" class="form-control" placeholder="Vote wisely">
                     </div>
                 </div>
 
-                <div class="mt-4 p-3 border rounded bg-light">
-                    <h6 class="mb-3"><i class="bi bi-shield-lock me-2"></i>Confirmation</h6>
+                <div class="mt-4 p-3 border rounded confirmation-box">
+                    <h6 class="mb-3 fw-semibold"><i class="bi bi-shield-lock me-2"></i>Confirmation</h6>
                     <div class="row g-3 align-items-end">
-                        <div class="col-md-6">
-                            <label class="form-label">Admin Password</label>
+                        <div class="col-md-4">
+                            <label class="form-label fw-medium"><i class="bi bi-lock-fill me-2"></i>Admin Password</label>
                             <input type="password" name="admin_password" id="adminPassword" class="form-control" required>
                         </div>
-                        <div class="col-md-6 text-end">
-                            <button type="submit" class="btn btn-primary btn-lg">Save Dates</button>
+                        <div class="col-md-8 text-end">
+                            <button type="submit" class="btn btn-primary btn-lg btn-save-dates">
+                                <i class="bi bi-check2-circle me-2"></i>Save Dates
+                            </button>
                         </div>
                     </div>
                 </div>

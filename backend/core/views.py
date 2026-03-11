@@ -118,6 +118,11 @@ def admin_dashboard_api(request):
                 from django.utils import timezone
 
                 now = timezone.now()
+                if timezone.is_naive(start_at):
+                    start_at = timezone.make_aware(start_at, timezone.get_current_timezone())
+                if timezone.is_naive(end_at):
+                    end_at = timezone.make_aware(end_at, timezone.get_current_timezone())
+
                 if now < start_at:
                     election["status"] = "Upcoming"
                     election["status_class"] = "warning"
@@ -733,7 +738,9 @@ def admin_election_window_api(request):
                     },
                 }
             )
-        except Exception:
+        except Exception as e:
+            if getattr(settings, "DEBUG", False):
+                return JsonResponse({"ok": False, "error": str(e)}, status=500)
             return JsonResponse({"ok": False, "error": "Failed to load election window."}, status=500)
 
     try:
@@ -770,15 +777,33 @@ def admin_election_window_api(request):
 
     try:
         with connection.cursor() as cur:
-            cur.execute(
-                """
-                INSERT INTO vote_windows (start_at, end_at, results_at, note)
-                VALUES (%s, %s, %s, %s)
-                """,
-                [start_dt, end_dt, results_dt, note or None],
-            )
+            cur.execute("SELECT id FROM vote_windows ORDER BY id DESC LIMIT 1")
+            last = cur.fetchone()
+            if last and last[0] is not None:
+                cur.execute(
+                    """
+                    UPDATE vote_windows
+                    SET start_at = %s,
+                        end_at = %s,
+                        results_at = %s,
+                        note = %s,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                    """,
+                    [start_dt, end_dt, results_dt, note or None, last[0]],
+                )
+            else:
+                cur.execute(
+                    """
+                    INSERT INTO vote_windows (start_at, end_at, results_at, note)
+                    VALUES (%s, %s, %s, %s)
+                    """,
+                    [start_dt, end_dt, results_dt, note or None],
+                )
         return JsonResponse({"ok": True})
-    except Exception:
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to save election window."}, status=500)
 
 

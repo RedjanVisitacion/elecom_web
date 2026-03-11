@@ -314,7 +314,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        showAlert("success", `Candidate registered successfully. (ID: ${data.id ?? ""})`);
+        showAlert("success", `Candidate registered successfully.`);
         form.reset();
         populateYearSections();
         filterPositionsByOrg();
