@@ -1,0 +1,56 @@
+-- PostgreSQL version of users table and data
+
+-- Create users table
+CREATE TABLE users (
+  id SERIAL PRIMARY KEY,
+  student_id varchar(64) DEFAULT NULL,
+  password_hash varchar(255) NOT NULL,
+  created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  role varchar(32) NOT NULL DEFAULT 'user',
+  department varchar(128) DEFAULT NULL,
+  year_level smallint DEFAULT NULL,
+  section varchar(50) DEFAULT NULL,
+  position varchar(128) DEFAULT NULL,
+  phone varchar(32) DEFAULT NULL,
+  email varchar(255) DEFAULT NULL,
+  otp_code varchar(255) DEFAULT NULL,
+  otp_expires_at timestamp DEFAULT NULL,
+  terms_accepted_at timestamp DEFAULT NULL,
+  first_name varchar(128) DEFAULT NULL,
+  middle_name varchar(128) DEFAULT NULL,
+  last_name varchar(128) DEFAULT NULL
+);
+
+-- Insert users data
+INSERT INTO users (id, student_id, password_hash, created_at, role, department, year_level, section, position, phone, email, otp_code, otp_expires_at, terms_accepted_at, first_name, middle_name, last_name) VALUES
+(1, '2023304631', '$2y$10$7jOMjNTboHGBd/lzNQpx6eNX46meVzHIm74prjY0sNCJ5xrSZ2D5S', '2025-10-27 10:57:30', 'student', 'BSIT', NULL, NULL, '', '09308288544', 'rpsvcodes@gmail.com', NULL, NULL, '2025-11-25 11:38:55', NULL, NULL, NULL),
+(12, '2023304637', '$2y$10$ns7Q/W8P9nMCoX0rj9hUEOEJSRgrn3iJ8Vr0c07LFNTlXzuSNMKLm', '2025-11-23 04:40:11', 'admin', 'BSIT', 3, 'A', 'ElecomChairPerson', '09534181760', 'rpsvcodes@gmail.com', '', '2025-11-25 11:19:29', '2025-11-25 18:59:20', 'Redjan Phil', 'Seprado', 'Visitacion'),
+(13, '2023304632', '$2y$10$x/hkWNcZ3soEiE2NayC5yeeT73inAfCW5OR8JmKCVDucZPbkXNFY6', '2025-01-31 16:00:00', 'student', 'BTLED', NULL, NULL, NULL, '09534181760', 'rpsvcodes@gmail.com', NULL, NULL, '2025-11-26 19:32:28', NULL, NULL, NULL),
+(14, '2023304633', '$2y$10$q42WMlIagI/q0WC22FdGoeBXpjXqF/ZnAsxfzgyJqMp07BVWNSW3i', '2025-01-31 16:00:00', 'student', 'AFPROTECHS', NULL, NULL, NULL, '09534181760', 'rpsvcodes@gmail.com', NULL, NULL, '2025-11-26 19:34:29', NULL, NULL, NULL),
+(15, '2022309359', '$2y$10$p5I5uRlPX0mif.I/DDzgsOCBIN8XIIMUGprCxJJm8kOXCWXI1J6YK', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09122135471', 'alexanderpepitojr6@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(16, '2022310650', '$2y$10$02MfjTsl3yBzLZd1WSOlg.qJcc.eXbBrp0SaPs.3ezb1zQtwfS.Xa', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09632986745', 'kurtcollinclintm@gmail.com', NULL, NULL, '2025-11-28 08:35:25', NULL, NULL, NULL),
+(17, '2023304604', '$2y$10$Vw.yIHkSVu.TQvTmMmcV4usMIpq0VQppMr2j0I4Syqf99hv3.hDae', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09811284867', 'maerodriguez491@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(18, '2023304615', '$2y$10$BfGJHvHvvfNQO9TBZp9iDuAZ5gDXPvP2aCfk4TFRUEIdoae2gNLFa', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09817149863', 'lesterbulay18@gmail.com', '$2y$10$cMojS2gMsu2zQla/0shRBe0CVJFxNPyC0ilbFRzYok.tF9xqFKw5G', '2025-12-02 14:32:37', '2025-12-02 14:07:55', NULL, NULL, NULL),
+(19, '2023304652', '$2y$10$SVNogaT4VwaBnSr4o7RUhunppeOpjLeLfmacFkMzJADvLLMjZWzY6', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09380324622', 'vincereyclaveria@gmail.com', NULL, NULL, '2025-11-27 21:56:35', NULL, NULL, NULL),
+(20, '2023304665', '2023304665', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09097766612', 'rissaflorarnaiz70@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(21, '2023304673', '2023304673', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '0912962643', 'rodriguezalyssa3@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(22, '2023304700', '2023304700', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09079182482', 'lorietacan427@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(23, '2023304706', '$2y$10$r4g/uhoRk5/8YaNCvGiN.OXxQgflEtXFx0imR.JqExUTlVkntjCyq', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09302903570', 'arlynbaluoys33@gmail.com', NULL, NULL, '2025-11-27 22:06:05', NULL, NULL, NULL),
+(24, '2023304707', '$2y$10$tdE26aApO3ZB2krMktDMSOf12Ex.x7YtPZBcLmW6GGmt8GlzhNtAK', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09510900990', 'jasonbaroro5@gmail.com', NULL, NULL, '2025-11-27 22:29:08', NULL, NULL, NULL),
+(25, '2023304766', '2023304766', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09566726314', 'rullinjastinclaire@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(26, '2023304790', '$2y$10$Y0dgRrCyZlr0j4.lU3dDKepJRDZikmL63/Ne84PXva6nZjUBUmoZm', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09454256483', 'maicahpantua17@gmail.com', NULL, NULL, '2025-11-28 08:29:07', NULL, NULL, NULL),
+(27, '2023304792', '2023304792', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09154589448', 'lenyviepauyon4@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(28, '2023304814', '2023304814', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09639231903', 'gellynrabino5@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(29, '2023304823', '$2y$10$JiQd2EJMfuYoGPI0CE1gJe9mM4Juhzi9q3lEUpZdvPwt6prlS7dP2', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09060735573', 'rizasalubodtual@gmail.com', NULL, NULL, '2025-12-11 09:36:37', NULL, NULL, NULL),
+(30, '2023304832', '$2y$10$NIt1ar21IyWYU.qOmc9qTefF5aVo8WyO4N3p5mTpsYsl/5IwhWX1i', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09558451870', 'junjhey@gmail.com', NULL, NULL, '2025-12-12 00:56:54', NULL, NULL, NULL),
+(31, '2023305014', '$2y$10$mfDvf48Yu1mG5VMVP.W9kOmqnCDeVI1G4k/.ss9BU7CT9VeqD5Aqq', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09663660466', 'kentcarreon19@gmail.com', NULL, NULL, '2025-11-27 22:44:43', NULL, NULL, NULL),
+(32, '2023305025', '2023305025', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09516519480', 'johnyroldan86@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(33, '2023305026', '$2y$10$PWCSqrrLhQIQMPyaoYTSdeq94zo8.RyDuyrN6BKN7LfVTkjlOMuZe', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09509720680', 'roldankenneth47@gmail.com', NULL, NULL, '2025-11-27 21:57:09', NULL, NULL, NULL),
+(34, '2023305178', '$2y$10$vKZMEdandePEPz0./xKfWe9LG8CS1ccUPvcAgynSE/XRgOeLTWqfu', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09451409487', 'markdavepanaguiton12345@gmail.com', NULL, NULL, '2025-12-03 16:21:51', NULL, NULL, NULL),
+(35, '2023305220', '2023305220', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09634794894', 'gumatayaimejean@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(36, '2023305323', '$2y$10$LNAAnBVJZVL/86ujgsT2je1C4vHmhLlzwLbacyKTb6K.wr252/L7a', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09854623478', 'frisellagane62@gmail.com', NULL, NULL, '2025-11-27 23:58:40', NULL, NULL, NULL),
+(37, '2023306312', '2023306312', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09816894516', 'sumoroymarkcyril@gmail.com', NULL, NULL, NULL, NULL, NULL, NULL),
+(38, '2023306356', '$2y$10$02jga9l2fvrjAGA4C.oDM.CGxQ7zsr63AWg4Hjy.q/qrqEywtPDj2', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09286232954', 'kdumz23@gmail.com', NULL, NULL, '2025-11-27 21:58:00', NULL, NULL, NULL),
+(39, '2023306358', '$2y$10$ISumYzWfCEwd7/Oz0Ak3cO57Q.8grn2ou6MuHpLV7VtlHeNI6NmUi', '2025-11-27 05:57:20', 'student', 'BSIT', 3, 'A', NULL, '09392750097', 'palaniajaymark85@gmail.com', NULL, NULL, '2025-11-28 07:25:52', NULL, NULL, NULL),
+(40, '2023305122', '$2y$10$EAt7GqOI0gAXPfm.y2/Up.hHuSvVxTFeu/dMMDV2pD0PnnXrEdv6u', '2025-11-27 06:03:47', 'student', 'BSIT', NULL, NULL, NULL, '0912291136', 'jvbantiad@gmail.com', NULL, NULL, '2025-11-27 14:04:34', NULL, NULL, NULL),
+(41, '2023304755', '$2y$10$5SXHOIQHdUckRdoiDFkfg..WJpuAw/C6DEfxAMAFve/q9ByoqgwFa', '2025-11-27 06:47:51', 'student', 'BSIT', NULL, NULL, NULL, '09464361784', 'queenyvonndalahahay@gmail.com', NULL, NULL, '2025-11-27 14:48:21', NULL, NULL, NULL);
