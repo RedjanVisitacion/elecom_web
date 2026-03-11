@@ -2,10 +2,12 @@ from django.contrib import admin
 from django.urls import path
 from .views import (
     admin_candidates_bulk_delete_api,
+    admin_candidates_create_api,
     admin_candidates_delete_api,
     admin_candidates_detail_api,
     admin_candidates_list_api,
     admin_candidates_update_api,
+    admin_cloudinary_signature_api,
     admin_dashboard_api,
     admin_election_window_api,
     admin_results_api,
@@ -20,8 +22,10 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
+    path('api/admin/cloudinary/signature/', admin_cloudinary_signature_api, name='admin_cloudinary_signature_api'),
     path('api/admin/candidates/list/', admin_candidates_list_api, name='admin_candidates_list_api'),
     path('api/admin/candidates/detail/', admin_candidates_detail_api, name='admin_candidates_detail_api'),
+    path('api/admin/candidates/create/', admin_candidates_create_api, name='admin_candidates_create_api'),
     path('api/admin/candidates/update/', admin_candidates_update_api, name='admin_candidates_update_api'),
     path('api/admin/candidates/delete/', admin_candidates_delete_api, name='admin_candidates_delete_api'),
     path('api/admin/candidates/bulk-delete/', admin_candidates_bulk_delete_api, name='admin_candidates_bulk_delete_api'),

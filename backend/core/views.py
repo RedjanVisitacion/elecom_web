@@ -8,6 +8,8 @@ from django.db import connection
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
+from django.conf import settings
+
 from elecom_auth.models import ElecomUser
 
 
@@ -17,8 +19,8 @@ def _verify_password(stored: str, provided: str) -> bool:
     if provided is None:
         return False
 
-    stored = str(stored)
-    provided = str(provided)
+    stored = str(stored).strip()
+    provided = str(provided).strip()
 
     if stored.startswith("$2y$") or stored.startswith("$2a$") or stored.startswith("$2b$"):
         import bcrypt
@@ -177,6 +179,59 @@ def _require_admin(request):
 
 
 @require_http_methods(["GET"])
+def admin_cloudinary_signature_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "") or ""
+    api_key = getattr(settings, "CLOUDINARY_API_KEY", "") or ""
+    api_secret = getattr(settings, "CLOUDINARY_API_SECRET", "") or ""
+
+    if not cloud_name or not api_key or not api_secret:
+        return JsonResponse(
+            {"ok": False, "error": "Cloudinary is not configured."},
+            status=500,
+        )
+
+    upload_type = (request.GET.get("type") or "").strip() or "candidate_photo"
+    folder_map = {
+        "candidate_photo": "elecom/candidates/photos",
+        "party_logo": "elecom/candidates/party_logos",
+    }
+    folder = folder_map.get(upload_type, folder_map["candidate_photo"])
+
+    try:
+        import time
+        import hashlib
+
+        timestamp = int(time.time())
+        # Cloudinary signature base string is sorted params joined with '&'
+        params_to_sign = {
+            "folder": folder,
+            "timestamp": timestamp,
+        }
+        to_sign = "&".join([f"{k}={params_to_sign[k]}" for k in sorted(params_to_sign.keys())])
+        signature = hashlib.sha1((to_sign + api_secret).encode("utf-8")).hexdigest()
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "cloud_name": cloud_name,
+                "api_key": api_key,
+                "timestamp": timestamp,
+                "folder": folder,
+                "signature": signature,
+            }
+        )
+    except Exception:
+        return JsonResponse(
+            {"ok": False, "error": "Failed to generate upload signature."},
+            status=500,
+        )
+
+
+@require_http_methods(["GET"])
 def admin_candidates_list_api(request):
     forbidden = _require_admin(request)
     if forbidden:
@@ -315,8 +370,96 @@ def admin_candidates_update_api(request):
                 ],
             )
         return JsonResponse({"ok": True})
-    except Exception:
-        return JsonResponse({"ok": False, "error": "Failed to update candidate."}, status=500)
+    except Exception as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_candidates_create_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    if request.content_type and "application/json" in request.content_type:
+        try:
+            payload = json.loads((request.body or b"{}").decode("utf-8"))
+        except Exception:
+            payload = {}
+    else:
+        payload = {}
+        try:
+            for k, v in (request.POST or {}).items():
+                payload[k] = v
+        except Exception:
+            payload = {}
+
+    student_id = str(payload.get("student_id") or "").strip()
+    first_name = str(payload.get("first_name") or "").strip()
+    middle_name = str(payload.get("middle_name") or "").strip() or None
+    last_name = str(payload.get("last_name") or "").strip()
+    organization = str(payload.get("organization") or "").strip()
+    position = str(payload.get("position") or "").strip()
+    program = str(payload.get("program") or "").strip()
+    year_section = str(payload.get("year_section") or "").strip()
+    platform = str(payload.get("platform") or "").strip()
+    photo_url = str(payload.get("photo_url") or "").strip() or None
+    party_name = str(payload.get("party_name") or "").strip() or None
+    candidate_type = str(payload.get("candidate_type") or "").strip() or None
+    party_logo_url = str(payload.get("party_logo_url") or "").strip() or None
+
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Student ID is required."}, status=400)
+    if not first_name or not last_name:
+        return JsonResponse({"ok": False, "error": "First name and Last name are required."}, status=400)
+    if not organization or not position:
+        return JsonResponse({"ok": False, "error": "Organization and Position are required."}, status=400)
+    if not program or not year_section:
+        return JsonResponse({"ok": False, "error": "Program and Year/Section are required."}, status=400)
+    if not platform:
+        return JsonResponse({"ok": False, "error": "Platform is required."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO candidates_registration (
+                    student_id, first_name, middle_name, last_name,
+                    organization, position, program, year_section,
+                    platform, photo_url, party_name, candidate_type, party_logo_url
+                )
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                RETURNING id
+                """,
+                [
+                    student_id,
+                    first_name,
+                    middle_name,
+                    last_name,
+                    organization,
+                    position,
+                    program,
+                    year_section,
+                    platform,
+                    photo_url,
+                    party_name,
+                    candidate_type,
+                    party_logo_url,
+                ],
+            )
+            row = cur.fetchone()
+        return JsonResponse({"ok": True, "id": int(row[0]) if row else None})
+    except Exception as e:
+        msg = str(e) or "Failed to register candidate."
+        if "ux_candidates_registration_student_position" in msg or "duplicate key" in msg.lower():
+            return JsonResponse(
+                {"ok": False, "error": "Candidate already registered for this position."},
+                status=409,
+            )
+
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": msg}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to register candidate."}, status=500)
 
 
 @csrf_exempt
