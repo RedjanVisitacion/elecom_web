@@ -720,22 +720,29 @@ body {
   box-shadow: none;
 }
 
-.reports-page .format-card.btn-outline-primary.active,
-.reports-page .format-card.btn-outline-primary:active {
-  background: #2b292967;
-  border-color: rgb(0, 0, 0);
-  color: #ffffff;
+.reports-page .format-card.active,
+.reports-page .format-card:active {
+  background: #ffffff;
+  border-color: #000000;
+  color: #000000;
 }
 
-.reports-page .format-card.btn-outline-primary.active:hover,
-.reports-page .format-card.btn-outline-primary.active:focus {
-  background: rgba(17, 24, 39, 0.82);
-  border-color: rgba(17, 24, 39, 0.82);
-  color: #ffffff;
+.reports-page .format-card.active:hover,
+.reports-page .format-card.active:focus {
+  background: #ffffff;
+  border-color: #000000;
+  color: #000000;
 }
 
-.reports-page .format-card.btn-outline-primary.active .text-muted {
-  color: rgba(255, 255, 255, 0.78) !important;
+.reports-page .format-card.active .text-muted {
+  color: rgba(0, 0, 0, 0.62) !important;
+}
+
+.reports-page .format-card.active,
+.reports-page .format-card:active,
+.reports-page .format-card.active:hover,
+.reports-page .format-card.active:focus {
+  box-shadow: none;
 }
 
 .reports-page .text-primary {

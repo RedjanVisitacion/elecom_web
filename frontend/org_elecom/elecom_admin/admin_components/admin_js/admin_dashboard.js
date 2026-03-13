@@ -136,22 +136,25 @@ document.addEventListener("DOMContentLoaded", function () {
     return `${y}-${m}-${day}`;
   };
 
-  const legendDot = (color) =>
-    `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};margin-right:8px;flex:0 0 auto;"></span>`;
+  const legendDot = (color) => {
+    const c = String(color || "").trim().toLowerCase();
+    const border = c === "#ffffff" ? "border:2px solid #000000;" : "";
+    return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};${border}margin-right:8px;flex:0 0 auto;"></span>`;
+  };
 
   const renderElectionLegend = () => {
     if (!electionLegend) return;
-    const BLUE = "#2F80ED";
-    const PURPLE = "#9B51E0";
-    const RED = "#EB5757";
+    const WHITE = "#ffffff";
+    const BLUE = "#1D4ED8";
+    const YELLOW = "#FACC15";
     const GRAY = "#E0E0E0";
 
     electionLegend.innerHTML = `
 <div class="small text-muted mb-2">Legend</div>
 <div class="d-flex flex-wrap gap-3">
-  <div class="d-flex align-items-center">${legendDot(BLUE)}<span class="small">Today’s Date</span></div>
-  <div class="d-flex align-items-center">${legendDot(PURPLE)}<span class="small">Election Event Date</span></div>
-  <div class="d-flex align-items-center">${legendDot(RED)}<span class="small">Voting Closed / End Date</span></div>
+  <div class="d-flex align-items-center">${legendDot(WHITE)}<span class="small">Today’s Date</span></div>
+  <div class="d-flex align-items-center">${legendDot(BLUE)}<span class="small">Election Event Date</span></div>
+  <div class="d-flex align-items-center">${legendDot(YELLOW)}<span class="small">Voting Closed / End Date</span></div>
   <div class="d-flex align-items-center">${legendDot(GRAY)}<span class="small">Normal Dates</span></div>
 </div>`;
     electionLegend.style.display = "block";
@@ -167,9 +170,9 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    const BLUE = "#2F80ED";
-    const PURPLE = "#9B51E0";
-    const RED = "#EB5757";
+    const WHITE = "#ffffff";
+    const BLUE = "#1D4ED8";
+    const YELLOW = "#FACC15";
     const GRAY = "#E0E0E0";
 
     const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
@@ -219,20 +222,20 @@ document.addEventListener("DOMContentLoaded", function () {
         let bg = GRAY;
         let fg = "#111";
         if (isToday) {
+          bg = WHITE;
+          fg = "#111";
+        }
+        if (isStart) {
           bg = BLUE;
           fg = "#fff";
         }
-        if (isStart) {
-          bg = PURPLE;
-          fg = "#fff";
-        }
         if (isEnd) {
-          bg = RED;
-          fg = "#fff";
+          bg = YELLOW;
+          fg = "#111";
         }
 
-        const ring = isToday ? `box-shadow:0 0 0 2px ${BLUE}55;` : "";
-        const style = `background:${bg};color:${fg};border-radius:999px;width:30px;height:30px;line-height:30px;display:inline-block;${ring}`;
+        const outline = isToday ? "box-shadow:0 0 0 2px #000000;" : "";
+        const style = `background:${bg};color:${fg};border-radius:999px;width:30px;height:30px;line-height:30px;display:inline-block;${outline}`;
         html += `<td class="text-center" style="border:0;">`;
         html += `<div style="${style}">${dayNum}</div>`;
         html += `</td>`;
