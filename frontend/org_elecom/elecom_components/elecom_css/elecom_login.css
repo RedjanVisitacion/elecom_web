@@ -671,6 +671,39 @@ form {
   gap: 12px;
 }
 
+.checks {
+  display: grid;
+  gap: 8px;
+  margin-top: 2px;
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.35;
+  color: rgba(11, 21, 51, 0.82);
+  user-select: none;
+}
+
+.check input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  margin-top: 2px;
+  accent-color: rgba(11, 21, 51, 1);
+}
+
+.check a.inline-link {
+  color: rgba(11, 21, 51, 1);
+  text-decoration: none;
+  font-weight: 700;
+}
+
+.check a.inline-link:hover {
+  text-decoration: underline;
+}
+
 label {
   display: block;
   font-size: 13px;

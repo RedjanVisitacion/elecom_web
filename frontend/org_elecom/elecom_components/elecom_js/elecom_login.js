@@ -12,11 +12,21 @@
   const passwordError = $("passwordError");
   const formStatus = $("formStatus");
   const year = $("year");
+  const rememberMe = $("rememberMe");
+  const agreeTerms = $("agreeTerms");
 
   if (year) year.textContent = String(new Date().getFullYear());
 
   if (studentId) studentId.value = "";
   if (password) password.value = "";
+
+  try {
+    const remembered = localStorage.getItem("elecom_remember_student_id");
+    if (rememberMe && studentId && remembered) {
+      rememberMe.checked = true;
+      studentId.value = remembered;
+    }
+  } catch {}
 
   const API_BASE =
     (form && form.dataset && form.dataset.apiBase) ||
@@ -132,6 +142,12 @@
       if (!isDjangoAuth) e.preventDefault();
       if (formStatus) formStatus.textContent = "";
 
+      if (agreeTerms && !agreeTerms.checked) {
+        e.preventDefault();
+        if (formStatus) formStatus.textContent = "Please confirm the Terms & Conditions.";
+        return;
+      }
+
       const ok = validateStudentId() & validatePassword();
       if (!ok) {
         e.preventDefault();
@@ -145,6 +161,14 @@
 
       const inputUser = (studentId?.value || "").trim();
       const inputPass = password?.value || "";
+
+      try {
+        if (rememberMe && rememberMe.checked) {
+          localStorage.setItem("elecom_remember_student_id", inputUser);
+        } else {
+          localStorage.removeItem("elecom_remember_student_id");
+        }
+      } catch {}
 
       setBusy(true);
       if (formStatus) formStatus.textContent = "Signing in…";

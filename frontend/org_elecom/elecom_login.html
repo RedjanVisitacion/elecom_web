@@ -79,6 +79,18 @@
               <p class="error" id="passwordError" role="alert" aria-live="polite"></p>
             </div>
 
+            <div class="checks">
+              <label class="check">
+                <input type="checkbox" id="rememberMe" name="rememberMe" />
+                <span>Remember me</span>
+              </label>
+
+              <label class="check">
+                <input type="checkbox" id="agreeTerms" name="agreeTerms" required />
+                <span>I have read and agree to the <a class="inline-link" href="#" id="termsLink">Terms &amp; Conditions</a></span>
+              </label>
+            </div>
+
             <button class="btn" id="submitBtn" type="submit">Sign in</button>
             <p class="status" id="formStatus" role="status" aria-live="polite"></p>
 
