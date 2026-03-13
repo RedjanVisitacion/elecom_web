@@ -45,6 +45,11 @@
     if (togglePassword) togglePassword.disabled = busy;
     if (fillAdmin) fillAdmin.disabled = busy;
     if (fillStudent) fillStudent.disabled = busy;
+
+    if (submitBtn) {
+      submitBtn.classList.toggle("is-loading", !!busy);
+      submitBtn.setAttribute("aria-busy", busy ? "true" : "false");
+    }
   };
 
   const setFieldError = (inputEl, errorEl, message) => {
