@@ -85,14 +85,33 @@
         </nav>
 
         <div class="content-area">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
-                        <div>
-                            <div class="fw-semibold">Profile</div>
-                            <div class="small text-muted" id="profileSubtitle">Account information</div>
+            <div class="profile-fb-header mb-3">
+                <div class="profile-fb-cover"></div>
+                <div class="profile-fb-body">
+                    <div class="profile-fb-identity">
+                        <div class="profile-fb-avatar">
+                            <img id="profileAvatarImg" src="" alt="" style="display:none;">
+                            <i id="profileAvatarIcon" class="bi bi-person-circle" style="font-size:72px; color:#6b7280;"></i>
+                        </div>
+
+                        <div class="profile-fb-title">
+                            <div class="fw-semibold fs-4" id="profileHeaderName">Profile</div>
+                            <div class="text-muted" id="profileSubtitle">Account information</div>
                         </div>
                     </div>
+
+                    <div class="profile-fb-actions">
+                        <input id="profilePhotoFile" type="file" accept="image/*" style="display:none;">
+                        <button type="button" class="btn btn-light border" id="btnChangeProfilePhoto">
+                            <i class="bi bi-camera me-2"></i>Change photo
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="alert alert-success" id="profileSuccess" style="display:none;"></div>
 
                     <div class="alert alert-danger" id="profileError" style="display:none;"></div>
 
@@ -146,12 +165,6 @@
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="pf_role" readonly>
                                 <label for="pf_role">Role</label>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_user_id" readonly>
-                                <label for="pf_user_id">Users Table ID</label>
                             </div>
                         </div>
                         <div class="col-md-4">

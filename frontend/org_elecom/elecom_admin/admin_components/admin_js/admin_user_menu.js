@@ -27,7 +27,8 @@
 <div class="user-info position-relative" id="userMenu">
   <button type="button" class="btn p-0 border-0 bg-transparent d-flex align-items-center gap-2" id="userMenuToggle">
     <div class="user-avatar">
-      <i class="bi bi-person-gear"></i>
+      <img id="userAvatarImg" src="" alt="" style="display:none; width:40px; height:40px; border-radius:50%; object-fit:cover;">
+      <i class="bi bi-person-gear" id="userAvatarIcon"></i>
     </div>
     <div class="user-details user-trigger-details">
       <div class="user-name" id="displayName">Admin</div>
@@ -39,7 +40,8 @@
     <div class="card-body p-3">
       <div class="d-flex align-items-center gap-2 mb-2">
         <div class="user-avatar user-avatar-sm">
-          <i class="bi bi-person-gear"></i>
+          <img id="menuAvatarImg" src="" alt="" style="display:none; width:34px; height:34px; border-radius:50%; object-fit:cover;">
+          <i class="bi bi-person-gear" id="menuAvatarIcon"></i>
         </div>
         <div>
           <div class="fw-semibold" id="menuName">Admin</div>
@@ -90,6 +92,29 @@
     }
   };
 
+  const setAvatarUrl = ({ userAvatarImg, userAvatarIcon, menuAvatarImg, menuAvatarIcon, url }) => {
+    const u = String(url || "").trim();
+    const has = !!(u && /^https?:\/\//i.test(u));
+
+    if (userAvatarImg) {
+      userAvatarImg.src = has ? u : "";
+      userAvatarImg.style.display = has ? "block" : "none";
+    }
+    if (menuAvatarImg) {
+      menuAvatarImg.src = has ? u : "";
+      menuAvatarImg.style.display = has ? "block" : "none";
+    }
+    if (userAvatarIcon) userAvatarIcon.style.display = has ? "none" : "inline-block";
+    if (menuAvatarIcon) menuAvatarIcon.style.display = has ? "none" : "inline-block";
+
+    try {
+      if (has) sessionStorage.setItem("elecom_user_photo_url", u);
+      else sessionStorage.removeItem("elecom_user_photo_url");
+    } catch (e) {
+      // ignore
+    }
+  };
+
   const loadAccountProfileName = async (els) => {
     try {
       const resp = await fetch(API_PROFILE, { method: "GET" });
@@ -120,6 +145,11 @@
     const profileLink = document.getElementById("profileLink");
     const userMenuLogoutLink = document.getElementById("userMenuLogoutLink");
 
+    const userAvatarImg = document.getElementById("userAvatarImg");
+    const userAvatarIcon = document.getElementById("userAvatarIcon");
+    const menuAvatarImg = document.getElementById("menuAvatarImg");
+    const menuAvatarIcon = document.getElementById("menuAvatarIcon");
+
     try {
       const role = sessionStorage.getItem("elecom_role") || "admin";
       const user = sessionStorage.getItem("elecom_user") || "";
@@ -127,6 +157,11 @@
       if (displayRole) displayRole.textContent = role;
       if (menuName) menuName.textContent = user || "Admin";
       if (menuRole) menuRole.textContent = role;
+
+      const cachedPhoto = sessionStorage.getItem("elecom_user_photo_url") || "";
+      if (cachedPhoto) {
+        setAvatarUrl({ userAvatarImg, userAvatarIcon, menuAvatarImg, menuAvatarIcon, url: cachedPhoto });
+      }
     } catch (e) {
       // ignore
     }
@@ -180,6 +215,18 @@
     }
 
     loadAccountProfileName({ displayName, menuName });
+
+    (async () => {
+      try {
+        const resp = await fetch(API_PROFILE, { method: "GET" });
+        if (!resp.ok) return;
+        const data = await resp.json();
+        const photoUrl = data && data.user ? data.user.photo_url : "";
+        setAvatarUrl({ userAvatarImg, userAvatarIcon, menuAvatarImg, menuAvatarIcon, url: photoUrl });
+      } catch (e) {
+        // ignore
+      }
+    })();
   };
 
   window.ElecomAdminUserMenu = {

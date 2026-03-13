@@ -82,19 +82,35 @@ def account_profile_api(request):
     user_row = None
     try:
         with connection.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, student_id, role, created_at,
-                       department, year_level, section, position,
-                       phone, email,
-                       first_name, middle_name, last_name
-                FROM users
-                WHERE student_id::text = %s
-                ORDER BY id DESC
-                LIMIT 1
-                """,
-                [student_id],
-            )
+            try:
+                cur.execute(
+                    """
+                    SELECT id, student_id, role, created_at,
+                           department, year_level, section, position,
+                           phone, email,
+                           first_name, middle_name, last_name,
+                           photo_url
+                    FROM users
+                    WHERE student_id::text = %s
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    [student_id],
+                )
+            except Exception:
+                cur.execute(
+                    """
+                    SELECT id, student_id, role, created_at,
+                           department, year_level, section, position,
+                           phone, email,
+                           first_name, middle_name, last_name
+                    FROM users
+                    WHERE student_id::text = %s
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    [student_id],
+                )
             row = cur.fetchone()
             if row:
                 cols = [c[0] for c in cur.description]
@@ -134,6 +150,49 @@ def account_profile_api(request):
             "student": student_row,
         }
     )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def account_profile_photo_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    photo_url = str(payload.get("photo_url") or "").strip() or None
+
+    if photo_url is not None and len(photo_url) > 2000:
+        return JsonResponse({"ok": False, "error": "Invalid photo URL."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET photo_url = %s
+                WHERE student_id::text = %s
+                """,
+                [photo_url, student_id],
+            )
+        return JsonResponse({"ok": True, "photo_url": photo_url})
+    except Exception as e:
+        msg = str(e) or "Failed to update profile photo."
+        if "photo_url" in msg and "does not exist" in msg:
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "Missing column users.photo_url. Add it in the database then retry.",
+                },
+                status=500,
+            )
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": msg}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to update profile photo."}, status=500)
 
 
 @require_http_methods(["GET"])
@@ -266,6 +325,7 @@ def admin_cloudinary_signature_api(request):
     folder_map = {
         "candidate_photo": "elecom/candidates/photos",
         "party_logo": "elecom/candidates/party_logos",
+        "profile_photo": "elecom/users/photos",
     }
     folder = folder_map.get(upload_type, folder_map["candidate_photo"])
 

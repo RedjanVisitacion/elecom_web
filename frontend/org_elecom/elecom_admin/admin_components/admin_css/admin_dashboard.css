@@ -265,6 +265,80 @@ body {
   text-decoration: none;
 }
 
+.profile-fb-header {
+  border-radius: 14px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow: var(--shadow-1);
+}
+
+.profile-fb-cover {
+  height: 120px;
+  background: linear-gradient(135deg, #1d4ed8 0%, #9333ea 55%, #ec4899 100%);
+  position: relative;
+}
+
+.profile-fb-body {
+  padding: 0 24px 12px;
+  position: relative;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.profile-fb-identity {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 68px;
+}
+
+.profile-fb-avatar {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 5px solid #fff;
+  background: #f3f4f6;
+  position: absolute;
+  top: -55px;
+  left: 0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+}
+
+.profile-fb-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.profile-fb-title {
+  position: absolute;
+  left: 128px;
+  bottom: 0;
+  z-index: 1;
+}
+
+.profile-fb-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  margin-top: 0;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 768px) {
+  .profile-fb-cover { height: 100px; }
+  .profile-fb-body { flex-direction: column; align-items: center; gap: 12px; }
+  .profile-fb-identity { width: 100%; min-height: 112px; }
+  .profile-fb-avatar { left: 50%; transform: translateX(-50%); }
+  .profile-fb-title { position: relative; left: 0; bottom: auto; text-align: center; padding-top: 72px; }
+  .profile-fb-actions { justify-content: center; }
+}
+
 .user-info .user-avatar,
 .user-info .user-details {
   cursor: pointer;
