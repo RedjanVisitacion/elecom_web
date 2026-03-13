@@ -195,6 +195,127 @@ def account_profile_photo_api(request):
         return JsonResponse({"ok": False, "error": "Failed to update profile photo."}, status=500)
 
 
+@csrf_exempt
+@require_http_methods(["POST"])
+def account_profile_update_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    email = str(payload.get("email") or "").strip() or None
+    phone = str(payload.get("phone") or payload.get("phone_number") or "").strip() or None
+
+    if email is not None and len(email) > 255:
+        return JsonResponse({"ok": False, "error": "Invalid email."}, status=400)
+    if phone is not None and len(phone) > 32:
+        return JsonResponse({"ok": False, "error": "Invalid phone."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET email = %s,
+                    phone = %s
+                WHERE student_id::text = %s
+                """,
+                [email, phone, student_id],
+            )
+
+            # Keep student table in sync if present.
+            try:
+                cur.execute(
+                    """
+                    UPDATE student
+                    SET email = %s,
+                        phone_number = %s
+                    WHERE id_number::text = %s
+                    """,
+                    [email, phone, student_id],
+                )
+            except Exception:
+                pass
+
+        return JsonResponse({"ok": True, "email": email, "phone": phone})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to update profile."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def account_profile_password_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    old_password = str(payload.get("old_password") or payload.get("oldPassword") or "")
+    new_password = str(payload.get("new_password") or payload.get("newPassword") or "")
+    confirm_password = str(payload.get("confirm_password") or payload.get("confirmPassword") or "")
+
+    if not old_password or not new_password or not confirm_password:
+        return JsonResponse({"ok": False, "error": "Missing fields."}, status=400)
+    if new_password != confirm_password:
+        return JsonResponse({"ok": False, "error": "Passwords do not match."}, status=400)
+    if len(new_password) < 6:
+        return JsonResponse({"ok": False, "error": "Password must be at least 6 characters."}, status=400)
+
+    try:
+        stored_hash = None
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT password_hash
+                FROM users
+                WHERE student_id::text = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                [student_id],
+            )
+            row = cur.fetchone()
+            if row:
+                stored_hash = row[0]
+
+        if not stored_hash:
+            return JsonResponse({"ok": False, "error": "User not found."}, status=404)
+
+        if not _verify_password(str(stored_hash), old_password):
+            return JsonResponse({"ok": False, "error": "Old password is incorrect."}, status=400)
+
+        import bcrypt
+
+        hashed = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt())
+        hashed_str = hashed.decode("utf-8")
+
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET password_hash = %s
+                WHERE student_id::text = %s
+                """,
+                [hashed_str, student_id],
+            )
+
+        return JsonResponse({"ok": True})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to change password."}, status=500)
+
+
 @require_http_methods(["GET"])
 def admin_dashboard_api(request):
     role = (request.session.get("role") or "").lower()

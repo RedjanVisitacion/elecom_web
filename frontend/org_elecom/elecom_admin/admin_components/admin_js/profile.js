@@ -12,17 +12,35 @@ document.addEventListener("DOMContentLoaded", function () {
   const profileHeaderName = document.getElementById("profileHeaderName");
   const profileAvatarImg = document.getElementById("profileAvatarImg");
   const profileAvatarIcon = document.getElementById("profileAvatarIcon");
+  const profileSubtitle = document.getElementById("profileSubtitle");
   const profilePhotoFile = document.getElementById("profilePhotoFile");
   const btnChangeProfilePhoto = document.getElementById("btnChangeProfilePhoto");
+
+  const profileCoverMenu = document.getElementById("profileCoverMenu");
+  const profileCoverMenuBtn = document.getElementById("profileCoverMenuBtn");
+  const profileCoverMenuDropdown = document.getElementById("profileCoverMenuDropdown");
+  const profileCoverChangePassword = document.getElementById("profileCoverChangePassword");
+  const profileCoverEditInfo = document.getElementById("profileCoverEditInfo");
+
+  const editInfoModalEl = document.getElementById("editInfoModal");
+  const editInfoError = document.getElementById("editInfoError");
+  const editEmail = document.getElementById("edit_email");
+  const editPhone = document.getElementById("edit_phone");
+  const btnSaveEditInfo = document.getElementById("btnSaveEditInfo");
+
+  const changePasswordModalEl = document.getElementById("changePasswordModal");
+  const changePasswordError = document.getElementById("changePasswordError");
+  const cpOldPassword = document.getElementById("cp_old_password");
+  const cpNewPassword = document.getElementById("cp_new_password");
+  const cpConfirmPassword = document.getElementById("cp_confirm_password");
+  const btnSaveChangePassword = document.getElementById("btnSaveChangePassword");
 
   const pfFullName = document.getElementById("pf_full_name");
   const pfStudentId = document.getElementById("pf_student_id");
   const pfCourse = document.getElementById("pf_course");
-  const pfYear = document.getElementById("pf_year");
-  const pfSection = document.getElementById("pf_section");
+  const pfYearSection = document.getElementById("pf_year_section");
   const pfEmail = document.getElementById("pf_email");
   const pfPhone = document.getElementById("pf_phone");
-  const pfRole = document.getElementById("pf_role");
   const pfCreatedAt = document.getElementById("pf_created_at");
 
   if (menuToggle && sidebar && sidebarOverlay) {
@@ -74,6 +92,77 @@ document.addEventListener("DOMContentLoaded", function () {
     window.location.href = `${base}/login/`;
   };
 
+  const openChangePasswordModal = () => {
+    if (!changePasswordModalEl || !window.bootstrap) {
+      showError("Change Password is not available.");
+      return;
+    }
+    clearChangePasswordError();
+
+    if (cpOldPassword) cpOldPassword.value = "";
+    if (cpNewPassword) cpNewPassword.value = "";
+    if (cpConfirmPassword) cpConfirmPassword.value = "";
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(changePasswordModalEl);
+    modal.show();
+  };
+
+  const saveChangePassword = async () => {
+    clearChangePasswordError();
+    const oldVal = cpOldPassword ? String(cpOldPassword.value || "") : "";
+    const newVal = cpNewPassword ? String(cpNewPassword.value || "") : "";
+    const confirmVal = cpConfirmPassword ? String(cpConfirmPassword.value || "") : "";
+
+    if (!oldVal || !newVal || !confirmVal) {
+      showChangePasswordError("Please fill in all fields.");
+      return;
+    }
+    if (newVal !== confirmVal) {
+      showChangePasswordError("New password and confirm password do not match.");
+      return;
+    }
+    if (newVal.length < 6) {
+      showChangePasswordError("Password must be at least 6 characters.");
+      return;
+    }
+
+    if (btnSaveChangePassword) {
+      btnSaveChangePassword.disabled = true;
+      btnSaveChangePassword.dataset.originalText = btnSaveChangePassword.dataset.originalText || btnSaveChangePassword.textContent;
+      btnSaveChangePassword.textContent = "Saving...";
+    }
+
+    try {
+      const res = await fetch("/api/account/profile/password/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          old_password: oldVal,
+          new_password: newVal,
+          confirm_password: confirmVal,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to change password.");
+      }
+
+      showSuccess("Password changed.");
+
+      if (changePasswordModalEl && window.bootstrap) {
+        const modal = window.bootstrap.Modal.getOrCreateInstance(changePasswordModalEl);
+        modal.hide();
+      }
+    } catch (e) {
+      showChangePasswordError(e && e.message ? e.message : "Failed to change password.");
+    } finally {
+      if (btnSaveChangePassword) {
+        btnSaveChangePassword.disabled = false;
+        btnSaveChangePassword.textContent = btnSaveChangePassword.dataset.originalText || "Save";
+      }
+    }
+  };
+
   const showError = (msg) => {
     if (profileSuccess) profileSuccess.style.display = "none";
     if (profileLoading) profileLoading.style.display = "none";
@@ -90,6 +179,88 @@ document.addEventListener("DOMContentLoaded", function () {
     profileSuccess.style.display = "block";
   };
 
+  const showEditInfoError = (msg) => {
+    if (!editInfoError) return;
+    editInfoError.textContent = msg || "Failed to save.";
+    editInfoError.style.display = "block";
+  };
+
+  const clearEditInfoError = () => {
+    if (!editInfoError) return;
+    editInfoError.style.display = "none";
+  };
+
+  const showChangePasswordError = (msg) => {
+    if (!changePasswordError) return;
+    changePasswordError.textContent = msg || "Failed to change password.";
+    changePasswordError.style.display = "block";
+  };
+
+  const clearChangePasswordError = () => {
+    if (!changePasswordError) return;
+    changePasswordError.style.display = "none";
+  };
+
+  const openEditInfoModal = () => {
+    if (!editInfoModalEl || !window.bootstrap) {
+      showError("Edit Information is not available.");
+      return;
+    }
+
+    clearEditInfoError();
+    if (editEmail) editEmail.value = (pfEmail && pfEmail.value ? pfEmail.value : "");
+    if (editPhone) editPhone.value = (pfPhone && pfPhone.value ? pfPhone.value : "");
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(editInfoModalEl);
+    modal.show();
+  };
+
+  const saveEditInfo = async () => {
+    clearEditInfoError();
+    const emailVal = editEmail ? String(editEmail.value || "").trim() : "";
+    const phoneVal = editPhone ? String(editPhone.value || "").trim() : "";
+
+    if (!emailVal && !phoneVal) {
+      showEditInfoError("Please enter email or phone.");
+      return;
+    }
+
+    if (btnSaveEditInfo) {
+      btnSaveEditInfo.disabled = true;
+      btnSaveEditInfo.dataset.originalText = btnSaveEditInfo.dataset.originalText || btnSaveEditInfo.textContent;
+      btnSaveEditInfo.textContent = "Saving...";
+    }
+
+    try {
+      const res = await fetch("/api/account/profile/update/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: emailVal, phone: phoneVal }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || "Failed to update profile.");
+      }
+
+      if (pfEmail) pfEmail.value = data.email || "";
+      if (pfPhone) pfPhone.value = data.phone || "";
+
+      showSuccess("Information updated.");
+
+      if (editInfoModalEl && window.bootstrap) {
+        const modal = window.bootstrap.Modal.getOrCreateInstance(editInfoModalEl);
+        modal.hide();
+      }
+    } catch (e) {
+      showEditInfoError(e && e.message ? e.message : "Failed to update profile.");
+    } finally {
+      if (btnSaveEditInfo) {
+        btnSaveEditInfo.disabled = false;
+        btnSaveEditInfo.textContent = btnSaveEditInfo.dataset.originalText || "Save";
+      }
+    }
+  };
+
   const setAvatar = (url) => {
     const u = String(url || "").trim();
     const has = !!(u && /^https?:\/\//i.test(u));
@@ -99,6 +270,63 @@ document.addEventListener("DOMContentLoaded", function () {
     }
     if (profileAvatarIcon) profileAvatarIcon.style.display = has ? "none" : "inline-block";
   };
+
+  const setCoverMenuOpen = (open) => {
+    if (!profileCoverMenuDropdown) return;
+    profileCoverMenuDropdown.style.display = open ? "block" : "none";
+    profileCoverMenuDropdown.setAttribute("data-open", open ? "1" : "0");
+  };
+
+  if (profileCoverMenuBtn && profileCoverMenuDropdown) {
+    profileCoverMenuBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      const isOpen = profileCoverMenuDropdown.getAttribute("data-open") === "1";
+      setCoverMenuOpen(!isOpen);
+    });
+  }
+
+  document.addEventListener("click", (e) => {
+    if (!profileCoverMenu || !profileCoverMenuDropdown) return;
+    if (profileCoverMenuDropdown.getAttribute("data-open") !== "1") return;
+    if (!profileCoverMenu.contains(e.target)) {
+      setCoverMenuOpen(false);
+    }
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    setCoverMenuOpen(false);
+  });
+
+  if (profileCoverChangePassword) {
+    profileCoverChangePassword.addEventListener("click", (e) => {
+      e.preventDefault();
+      setCoverMenuOpen(false);
+      openChangePasswordModal();
+    });
+  }
+
+  if (profileCoverEditInfo) {
+    profileCoverEditInfo.addEventListener("click", (e) => {
+      e.preventDefault();
+      setCoverMenuOpen(false);
+      openEditInfoModal();
+    });
+  }
+
+  if (btnSaveEditInfo) {
+    btnSaveEditInfo.addEventListener("click", (e) => {
+      e.preventDefault();
+      saveEditInfo();
+    });
+  }
+
+  if (btnSaveChangePassword) {
+    btnSaveChangePassword.addEventListener("click", (e) => {
+      e.preventDefault();
+      saveChangePassword();
+    });
+  }
 
   const getCloudinarySignature = async (type) => {
     const url = `${window.location.origin}/api/admin/cloudinary/signature/?type=${encodeURIComponent(type)}`;
@@ -209,6 +437,9 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (profileHeaderName) profileHeaderName.textContent = fullName || "Profile";
 
+    const roleText = String(user.role || student.role || "").trim();
+    if (profileSubtitle) profileSubtitle.textContent = roleText;
+
     const photoUrl = (user && user.photo_url) ? String(user.photo_url) : "";
     setAvatar(photoUrl);
     try {
@@ -222,13 +453,13 @@ document.addEventListener("DOMContentLoaded", function () {
     setValue(pfStudentId, data.student_id || user.student_id || student.id_number);
 
     setValue(pfCourse, student.course || user.department || "");
-    setValue(pfYear, (student.year != null ? String(student.year) : (user.year_level != null ? String(user.year_level) : "")));
-    setValue(pfSection, student.section || user.section || "");
+    const yearVal = (student.year != null ? String(student.year) : (user.year_level != null ? String(user.year_level) : ""));
+    const sectionVal = (student.section || user.section || "");
+    const yearSection = `${yearVal || ""}${sectionVal || ""}`.trim();
+    setValue(pfYearSection, yearSection);
 
     setValue(pfEmail, student.email || user.email || "");
     setValue(pfPhone, student.phone_number || user.phone || "");
-
-    setValue(pfRole, user.role || student.role || "");
     setValue(pfCreatedAt, fmtCreatedAt(user.created_at));
 
     if (profileLoading) profileLoading.style.display = "none";

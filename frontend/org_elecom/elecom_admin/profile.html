@@ -86,7 +86,19 @@
 
         <div class="content-area">
             <div class="profile-fb-header mb-3">
-                <div class="profile-fb-cover"></div>
+                <div class="profile-fb-cover">
+                    <div class="profile-cover-menu" id="profileCoverMenu">
+                        <button type="button" class="profile-cover-menu-btn" id="profileCoverMenuBtn" aria-label="Profile menu">
+                            <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
+                        </button>
+                        <div class="profile-cover-menu-dropdown card shadow-sm border-0" id="profileCoverMenuDropdown" style="display:none;">
+                            <div class="card-body p-2">
+                                <a href="#" class="dropdown-item" id="profileCoverChangePassword">Change Password</a>
+                                <a href="#" class="dropdown-item" id="profileCoverEditInfo">Edit Information</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
                 <div class="profile-fb-body">
                     <div class="profile-fb-identity">
                         <div class="profile-fb-avatar">
@@ -135,16 +147,10 @@
                                 <label for="pf_course">Course</label>
                             </div>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md-6">
                             <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_year" readonly>
-                                <label for="pf_year">Year</label>
-                            </div>
-                        </div>
-                        <div class="col-md-3">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_section" readonly>
-                                <label for="pf_section">Section</label>
+                                <input type="text" class="form-control" id="pf_year_section" readonly>
+                                <label for="pf_year_section">Year &amp; Section</label>
                             </div>
                         </div>
 
@@ -163,12 +169,6 @@
 
                         <div class="col-md-4">
                             <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_role" readonly>
-                                <label for="pf_role">Role</label>
-                            </div>
-                        </div>
-                        <div class="col-md-4">
-                            <div class="form-floating">
                                 <input type="text" class="form-control" id="pf_created_at" readonly>
                                 <label for="pf_created_at">Created At</label>
                             </div>
@@ -176,6 +176,67 @@
                     </div>
 
                     <div class="text-muted" id="profileLoading">Loading...</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Change Password</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger" id="changePasswordError" style="display:none;"></div>
+
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="cp_old_password" placeholder="Old Password">
+                        <label for="cp_old_password">Old Password</label>
+                    </div>
+
+                    <div class="form-floating mb-3">
+                        <input type="password" class="form-control" id="cp_new_password" placeholder="New Password">
+                        <label for="cp_new_password">New Password</label>
+                    </div>
+
+                    <div class="form-floating">
+                        <input type="password" class="form-control" id="cp_confirm_password" placeholder="Confirm Password">
+                        <label for="cp_confirm_password">Confirm Password</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveChangePassword">Save</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="editInfoModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Information</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger" id="editInfoError" style="display:none;"></div>
+
+                    <div class="form-floating mb-3">
+                        <input type="email" class="form-control" id="edit_email" placeholder="Email">
+                        <label for="edit_email">Email</label>
+                    </div>
+
+                    <div class="form-floating">
+                        <input type="text" class="form-control" id="edit_phone" placeholder="Phone">
+                        <label for="edit_phone">Phone</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="btnSaveEditInfo">Save</button>
                 </div>
             </div>
         </div>

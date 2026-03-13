@@ -274,8 +274,72 @@ body {
 
 .profile-fb-cover {
   height: 120px;
-  background: linear-gradient(135deg, #1d4ed8 0%, #9333ea 55%, #ec4899 100%);
+  background-image:
+    linear-gradient(135deg, rgba(29, 78, 216, 0.60) 0%, rgba(250, 204, 21, 0.55) 100%),
+    url("/static/assets/img_text/elecom_cover_bg.jpg");
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
   position: relative;
+}
+
+.profile-cover-menu {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 30;
+}
+
+.profile-cover-menu-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 0;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.95);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.profile-cover-menu-btn:hover,
+.profile-cover-menu-btn:focus {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.profile-cover-menu-btn:focus {
+  outline: 2px solid rgba(255, 255, 255, 0.5);
+  outline-offset: 2px;
+}
+
+.profile-cover-menu-dropdown {
+  position: absolute;
+  top: 44px;
+  right: 0;
+  min-width: 200px;
+  background: #fff;
+  border-radius: 10px;
+  z-index: 40;
+}
+
+.profile-cover-menu-dropdown .dropdown-item {
+  display: block;
+  padding: 10px 12px;
+  color: #212529;
+  text-decoration: none;
+  border-radius: 8px;
+}
+
+.profile-cover-menu-dropdown .dropdown-item:hover,
+.profile-cover-menu-dropdown .dropdown-item:focus {
+  background: #f8f9fa;
+  color: #212529;
+}
+
+.profile-cover-menu-dropdown .dropdown-item:active,
+.profile-cover-menu-dropdown .dropdown-item.active {
+  background: #e9ecef;
+  color: #212529;
 }
 
 .profile-fb-body {
