@@ -6,8 +6,8 @@
   --text: rgba(10, 20, 40, 0.92);
   --muted: rgba(10, 20, 40, 0.72);
   --muted2: rgba(10, 20, 40, 0.6);
-  --accent: #0b1533;
-  --accent2: #d9a441;
+  --accent: #1d4ed8;
+  --accent2: #60a5fa;
   --danger: #ef4444;
   --radius: 14px;
   --shadow: rgba(0, 0, 0, 0.18);
@@ -34,8 +34,8 @@ body {
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
     "Apple Color Emoji", "Segoe UI Emoji";
   color: var(--text);
-  background: radial-gradient(1000px 740px at 18% 18%, rgba(11, 21, 51, 0.08), transparent 62%),
-    radial-gradient(880px 620px at 86% 16%, rgba(217, 164, 65, 0.14), transparent 58%),
+  background: radial-gradient(980px 720px at 16% 18%, rgba(29, 78, 216, 0.10), transparent 62%),
+    radial-gradient(900px 640px at 88% 16%, rgba(96, 165, 250, 0.18), transparent 58%),
     linear-gradient(180deg, var(--bg0), var(--bg1));
   overflow-x: hidden;
 }
@@ -63,8 +63,8 @@ body {
   inset: 0;
   pointer-events: none;
   background:
-    linear-gradient(135deg, rgba(11, 21, 51, 0.07), rgba(11, 21, 51, 0)) 0 0 / 520px 520px no-repeat,
-    linear-gradient(135deg, rgba(217, 164, 65, 0.10), rgba(217, 164, 65, 0)) 100% 15% / 520px 520px no-repeat;
+    linear-gradient(135deg, rgba(29, 78, 216, 0.08), rgba(29, 78, 216, 0)) 0 0 / 520px 520px no-repeat,
+    linear-gradient(135deg, rgba(96, 165, 250, 0.14), rgba(96, 165, 250, 0)) 100% 15% / 520px 520px no-repeat;
   opacity: 0.8;
   animation: elecom-drift 16s ease-in-out infinite;
 }
@@ -75,9 +75,9 @@ body {
   inset: -1px;
   pointer-events: none;
   background:
-    radial-gradient(70px 70px at 12% 26%, rgba(11, 21, 51, 0.12), transparent 70%),
-    radial-gradient(90px 90px at 78% 20%, rgba(217, 164, 65, 0.14), transparent 72%),
-    radial-gradient(120px 120px at 92% 78%, rgba(11, 21, 51, 0.10), transparent 72%);
+    radial-gradient(70px 70px at 12% 26%, rgba(29, 78, 216, 0.14), transparent 70%),
+    radial-gradient(90px 90px at 78% 20%, rgba(96, 165, 250, 0.18), transparent 72%),
+    radial-gradient(120px 120px at 92% 78%, rgba(29, 78, 216, 0.12), transparent 72%);
   filter: blur(0.2px);
   opacity: 0.9;
   animation: elecom-drift 22s ease-in-out infinite reverse;
@@ -574,6 +574,11 @@ body {
   color: transparent;
 }
 
+.btn.is-loading::before {
+  opacity: 0;
+  animation: none;
+}
+
 .btn.is-loading::after {
   content: "";
   position: absolute;
@@ -691,7 +696,7 @@ form {
   width: 16px;
   height: 16px;
   margin-top: 2px;
-  accent-color: rgba(11, 21, 51, 1);
+  accent-color: rgba(3, 7, 18, 1);
 }
 
 .check a.inline-link {
@@ -754,9 +759,47 @@ label {
   color: #fff;
   font-weight: 700;
   letter-spacing: 0.01em;
-  background: linear-gradient(180deg, rgba(11, 21, 51, 1), rgba(11, 15, 24, 1));
-  box-shadow: 0 14px 30px rgba(11, 21, 51, 0.20);
+  background: linear-gradient(180deg, rgba(17, 24, 39, 1), rgba(3, 7, 18, 1));
+  box-shadow: 0 16px 34px rgba(3, 7, 18, 0.28);
   transition: transform 160ms ease, filter 160ms ease;
+  position: relative;
+  overflow: hidden;
+}
+
+@keyframes elecom-btn-shimmer {
+  0% {
+    transform: translateX(-140%) skewX(-16deg);
+    opacity: 0;
+  }
+  12% {
+    opacity: 0.55;
+  }
+  28% {
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(140%) skewX(-16deg);
+    opacity: 0;
+  }
+}
+
+.btn::before {
+  content: "";
+  position: absolute;
+  top: -40%;
+  left: -60%;
+  width: 55%;
+  height: 180%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.58) 45%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  filter: blur(0.3px);
+  opacity: 0;
+  animation: elecom-btn-shimmer 3.8s ease-in-out infinite;
+  pointer-events: none;
 }
 
 .btn--secondary {
