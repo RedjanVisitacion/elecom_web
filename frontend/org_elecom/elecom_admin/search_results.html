@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Search - ELECOM</title>
+    <link rel="icon" href="/static/assets/elecom.png" type="image/png">
+
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260313">
+</head>
+<body class="theme-elecom">
+
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-header-content">
+                <div class="logo-container">
+                    <img src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                    <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
+                </div>
+                <button class="btn-close-sidebar" id="closeSidebar"><i class="bi bi-x-lg"></i></button>
+            </div>
+        </div>
+        <div class="sidebar-menu">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/admin_dashboard.html">
+                        <i class="bi bi-house-door"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html">
+                        <i class="bi bi-person-plus"></i>
+                        <span>Register Candidate</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_election_date.html">
+                        <i class="bi bi-calendar-event"></i>
+                        <span>Set Election Dates</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates.html">
+                        <i class="bi bi-people"></i>
+                        <span>Candidates</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html">
+                        <i class="bi bi-graph-up"></i>
+                        <span>Results</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reset.html">
+                        <i class="bi bi-arrow-counterclockwise"></i>
+                        <span>Reset Votes</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html">
+                        <i class="bi bi-file-earmark-bar-graph"></i>
+                        <span>Generate Reports</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <nav class="top-navbar">
+            <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
+
+            <form action="/static/org_elecom/elecom_admin/search_results.html" method="GET" class="search-box search-container position-relative" style="min-width:320px; flex:1 1 auto; max-width: 760px;">
+                <div class="input-group input-group-lg search-input-group">
+                    <input id="searchInput" type="text" class="form-control" name="q" placeholder="Search candidate by name, ID, position, or organization..." autocomplete="off">
+                    <button class="btn btn-outline-secondary search-btn" type="submit" id="searchBtn"><i class="bi bi-search"></i></button>
+                </div>
+                <div id="searchSuggestions" class="list-group position-absolute w-100" style="z-index:1050; max-height: 320px; overflow:auto; display:none;"></div>
+            </form>
+            <div id="userMenuMount"></div>
+        </nav>
+
+        <div class="content-area">
+            <div class="card shadow-sm border-0">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                        <div>
+                            <div class="fw-semibold" id="searchTitle">Search Results</div>
+                            <div class="small text-muted" id="searchSubtitle"></div>
+                        </div>
+                        <div class="text-muted small" id="searchCount"></div>
+                    </div>
+
+                    <div id="searchEmpty" class="text-muted" style="display:none;"></div>
+                    <div id="searchList" class="list-group" style="display:none;"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade" id="candidateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div class="d-flex align-items-center gap-2">
+                        <img id="cd_photo" src="" alt="Profile" class="rounded-circle border" style="width:42px;height:42px;object-fit:cover;display:none;">
+                        <h5 class="modal-title mb-0">Candidate Details</h5>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="cd_name" readonly>
+                                <label for="cd_name">Name</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="cd_student_id" readonly>
+                                <label for="cd_student_id">Student ID</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="cd_position" readonly>
+                                <label for="cd_position">Position</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="cd_org" readonly>
+                                <label for="cd_org">Organization</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="cd_program" readonly>
+                                <label for="cd_program">Program</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="cd_year" readonly>
+                                <label for="cd_year">Year/Section</label>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label">Platform</label>
+                            <div class="p-2 border rounded" id="cd_platform" style="min-height:64px;"></div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260313"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/search_results.js?v=20260313"></script>
+</body>
+</html>

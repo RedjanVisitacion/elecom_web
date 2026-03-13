@@ -72,12 +72,6 @@
                         <span>Generate Reports</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="logoutLink">
-                        <i class="bi bi-speedometer2"></i>
-                        <span>Logout</span>
-                    </a>
-                </li>
             </ul>
         </div>
     </div>
@@ -151,27 +145,16 @@
             <button class="menu-toggle" id="menuToggle">
                 <i class="bi bi-list"></i>
             </button>
-            <div class="search-box position-relative" style="min-width:320px; flex:1 1 auto; max-width: 760px;">
-                <div class="input-group input-group-lg">
-                    <input id="candidateSearch" type="text" class="form-control" placeholder="Search candidate by name, ID, position, or organization..." autocomplete="off">
-                    <button class="btn btn-outline-secondary" type="button" id="candidateSearchBtn">
+            <form action="/static/org_elecom/elecom_admin/search_results.html" method="GET" class="search-box search-container position-relative" style="min-width:320px; flex:1 1 auto; max-width: 760px;">
+                <div class="input-group input-group-lg search-input-group">
+                    <input id="candidateSearch" type="text" class="form-control" name="q" placeholder="Search candidate by name, ID, position, or organization..." autocomplete="off">
+                    <button class="btn btn-outline-secondary search-btn" type="submit" id="candidateSearchBtn">
                         <i class="bi bi-search"></i>
                     </button>
                 </div>
                 <div id="searchResults" class="list-group position-absolute w-100" style="z-index:1050; max-height: 320px; overflow:auto; display:none;"></div>
-            </div>
-            <div class="user-info">
-                <!-- <div class="notifications">
-                    <i class="bi bi-bell fs-5"></i>
-                </div> -->
-                <div class="user-avatar">
-                    <i class="bi bi-person-gear"></i>
-                </div>
-                <div class="user-details">
-                    <div class="user-name" id="displayName">Admin</div>
-                    <div class="user-role" id="displayRole">Admin</div>
-                </div>
-            </div>
+            </form>
+            <div id="userMenuMount"></div>
         </nav>
 
         <!-- Content Area -->
@@ -340,6 +323,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260313"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20260313"></script>
 </body>
 </html>

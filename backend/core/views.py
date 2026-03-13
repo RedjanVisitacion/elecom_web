@@ -74,6 +74,69 @@ def login_view(request):
 
 
 @require_http_methods(["GET"])
+def account_profile_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    user_row = None
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, student_id, role, created_at,
+                       department, year_level, section, position,
+                       phone, email,
+                       first_name, middle_name, last_name
+                FROM users
+                WHERE student_id::text = %s
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                [student_id],
+            )
+            row = cur.fetchone()
+            if row:
+                cols = [c[0] for c in cur.description]
+                user_row = dict(zip(cols, row))
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load user."}, status=500)
+
+    student_row = None
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id_number, first_name, middle_name, last_name,
+                       course, year, section, email, phone_number, role
+                FROM student
+                WHERE id_number::text = %s
+                LIMIT 1
+                """,
+                [student_id],
+            )
+            row = cur.fetchone()
+            if row:
+                cols = [c[0] for c in cur.description]
+                student_row = dict(zip(cols, row))
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load student."}, status=500)
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "student_id": student_id,
+            "user": user_row,
+            "student": student_row,
+        }
+    )
+
+
+@require_http_methods(["GET"])
 def admin_dashboard_api(request):
     role = (request.session.get("role") or "").lower()
     if role != "admin":

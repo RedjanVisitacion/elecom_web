@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function(){
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
   const closeSidebar = document.getElementById('closeSidebar');
-  const logoutLink = document.getElementById('logoutLink');
 
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
@@ -20,31 +19,6 @@ document.addEventListener('DOMContentLoaded', function(){
       sidebarOverlay.classList.remove('active');
     }
   });
-
-  const toLogin = () => {
-    try {
-      sessionStorage.removeItem('elecom_role');
-      sessionStorage.removeItem('elecom_user');
-    } catch (e) {}
-    const base = window.location.origin;
-    window.location.href = `${base}/login/`;
-  };
-
-  if (logoutLink) {
-    logoutLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      toLogin();
-    });
-  }
-
-  const displayName = document.getElementById('displayName');
-  const displayRole = document.getElementById('displayRole');
-  try {
-    const role = sessionStorage.getItem('elecom_role') || 'admin';
-    const user = sessionStorage.getItem('elecom_user') || '';
-    if (displayName) displayName.textContent = user || 'Admin';
-    if (displayRole) displayRole.textContent = role;
-  } catch (e) {}
 
   const successAlert = document.getElementById('successAlert');
   const errorAlert = document.getElementById('errorAlert');

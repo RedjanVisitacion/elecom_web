@@ -7,6 +7,7 @@ from .views import (
     admin_candidates_detail_api,
     admin_candidates_list_api,
     admin_candidates_update_api,
+    account_profile_api,
     admin_cloudinary_signature_api,
     admin_dashboard_api,
     admin_election_window_api,
@@ -22,6 +23,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
+    path('api/account/profile/', account_profile_api, name='account_profile_api'),
     path('api/admin/cloudinary/signature/', admin_cloudinary_signature_api, name='admin_cloudinary_signature_api'),
     path('api/admin/candidates/list/', admin_candidates_list_api, name='admin_candidates_list_api'),
     path('api/admin/candidates/detail/', admin_candidates_detail_api, name='admin_candidates_detail_api'),

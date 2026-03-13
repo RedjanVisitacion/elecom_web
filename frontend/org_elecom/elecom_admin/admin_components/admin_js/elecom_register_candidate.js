@@ -3,9 +3,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const sidebar = document.getElementById("sidebar");
   const sidebarOverlay = document.getElementById("sidebarOverlay");
   const closeSidebar = document.getElementById("closeSidebar");
-  const logoutLink = document.getElementById("logoutLink");
-  const displayName = document.getElementById("displayName");
-  const displayRole = document.getElementById("displayRole");
 
   const successAlert = document.getElementById("successAlert");
   const errorAlert = document.getElementById("errorAlert");
@@ -113,33 +110,6 @@ document.addEventListener("DOMContentLoaded", () => {
       sidebarOverlay?.classList.remove("active");
     }
   });
-
-  const toLogin = () => {
-    try {
-      sessionStorage.removeItem("elecom_role");
-      sessionStorage.removeItem("elecom_user");
-    } catch (e) {
-      // ignore
-    }
-    window.location.href = `${window.location.origin}/login/`;
-  };
-
-  if (logoutLink) {
-    logoutLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      toLogin();
-    });
-  }
-
-  // User info
-  try {
-    const role = sessionStorage.getItem("elecom_role") || "admin";
-    const user = sessionStorage.getItem("elecom_user") || "";
-    if (displayName) displayName.textContent = user || "Admin";
-    if (displayRole) displayRole.textContent = role;
-  } catch (e) {
-    // ignore
-  }
 
   // Toggle party fields
   const partyFields = document.querySelectorAll(".party-fields");

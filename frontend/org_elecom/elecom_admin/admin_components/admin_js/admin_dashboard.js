@@ -3,9 +3,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const sidebar = document.getElementById("sidebar");
   const sidebarOverlay = document.getElementById("sidebarOverlay");
   const closeSidebar = document.getElementById("closeSidebar");
-  const logoutLink = document.getElementById("logoutLink");
-  const displayName = document.getElementById("displayName");
-  const displayRole = document.getElementById("displayRole");
 
   const kpiCandidates = document.getElementById("kpiCandidates");
   const kpiVoters = document.getElementById("kpiVoters");
@@ -69,33 +66,6 @@ document.addEventListener("DOMContentLoaded", function () {
       sidebarOverlay.classList.remove("active");
     }
   });
-
-  const toLogin = () => {
-    try {
-      sessionStorage.removeItem("elecom_role");
-      sessionStorage.removeItem("elecom_user");
-    } catch (e) {
-      // ignore
-    }
-    const base = window.location.origin;
-    window.location.href = `${base}/login/`;
-  };
-
-  if (logoutLink) {
-    logoutLink.addEventListener("click", (e) => {
-      e.preventDefault();
-      toLogin();
-    });
-  }
-
-  try {
-    const role = sessionStorage.getItem("elecom_role") || "admin";
-    const user = sessionStorage.getItem("elecom_user") || "";
-    if (displayName) displayName.textContent = user || "Admin";
-    if (displayRole) displayRole.textContent = role;
-  } catch (e) {
-    // ignore
-  }
 
   const setText = (el, value) => {
     if (!el) return;
@@ -445,6 +415,21 @@ document.addEventListener("DOMContentLoaded", function () {
   const results = document.getElementById("searchResults");
   let debounceTimer = null;
 
+  let redirectedToSearch = false;
+
+  function goToSearchPage() {
+    if (redirectedToSearch) return;
+    redirectedToSearch = true;
+    const q = input ? input.value.trim() : "";
+    const url = new URL(
+      "/static/org_elecom/elecom_admin/search_results.html",
+      window.location.origin
+    );
+    url.searchParams.set("focus", "1");
+    if (q) url.searchParams.set("q", q);
+    window.location.href = url.toString();
+  }
+
   function hideResults() {
     if (!results) return;
     results.style.display = "none";
@@ -478,10 +463,25 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    hideResults();
+    try {
+      const url = new URL("/api/admin/candidates/list/", window.location.origin);
+      url.searchParams.set("q", q);
+      const res = await fetch(url.toString(), { credentials: "same-origin" });
+      const data = await res.json().catch(() => ({}));
+      const rows = data && data.ok ? data.candidates || [] : [];
+      showResults(rows.slice(0, 8));
+    } catch (e) {
+      hideResults();
+    }
   }
 
   if (input) {
+    input.addEventListener("focus", () => {
+      goToSearchPage();
+    });
+    input.addEventListener("click", () => {
+      goToSearchPage();
+    });
     input.addEventListener("input", () => {
       clearTimeout(debounceTimer);
       debounceTimer = setTimeout(doSearch, 250);
@@ -489,9 +489,8 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   if (btn) {
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      doSearch();
+    btn.addEventListener("click", () => {
+      goToSearchPage();
     });
   }
 
@@ -503,11 +502,58 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   if (results) {
-    results.addEventListener("click", (e) => {
+    results.addEventListener("click", async (e) => {
       const link = e.target.closest("a[data-id]");
       if (!link) return;
       e.preventDefault();
       hideResults();
+      const id = link.getAttribute("data-id");
+      if (!id) return;
+
+      try {
+        const res = await fetch(
+          `/api/admin/candidates/detail/?id=${encodeURIComponent(id)}`,
+          { credentials: "same-origin" }
+        );
+        const d = await res.json().catch(() => ({}));
+        if (!d || !d.ok || !d.candidate) return;
+
+        const c = d.candidate;
+        const name = [c.first_name, c.middle_name, c.last_name].filter(Boolean).join(" ");
+
+        const cdName = document.getElementById("cd_name");
+        const cdStudentId = document.getElementById("cd_student_id");
+        const cdPosition = document.getElementById("cd_position");
+        const cdOrg = document.getElementById("cd_org");
+        const cdProgram = document.getElementById("cd_program");
+        const cdYear = document.getElementById("cd_year");
+        const cdPlatform = document.getElementById("cd_platform");
+        const cdPhoto = document.getElementById("cd_photo");
+
+        if (cdName) cdName.value = name || "";
+        if (cdStudentId) cdStudentId.value = c.student_id || "";
+        if (cdPosition) cdPosition.value = c.position || "";
+        if (cdOrg) cdOrg.value = c.organization || "";
+        if (cdProgram) cdProgram.value = c.program || "";
+        if (cdYear) cdYear.value = c.year_section || "";
+        if (cdPlatform) cdPlatform.textContent = c.platform || "";
+
+        if (cdPhoto) {
+          if (c.photo_url && String(c.photo_url).startsWith("http")) {
+            cdPhoto.src = c.photo_url;
+            cdPhoto.style.display = "block";
+          } else {
+            cdPhoto.style.display = "none";
+          }
+        }
+
+        const modalEl = document.getElementById("candidateModal");
+        if (modalEl && window.bootstrap && window.bootstrap.Modal) {
+          window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+      } catch (e2) {
+        // ignore
+      }
     });
   }
 

@@ -209,10 +209,65 @@ body {
 
 .search-box { width: 300px; }
 
+.search-container {
+  width: 100%;
+}
+
+.search-input-group {
+  border-radius: 10px;
+  transition: none;
+}
+
+.search-input-group:focus-within {
+  box-shadow: none;
+}
+
+.search-container .form-control {
+  border-right: 0;
+}
+
+.search-container .search-btn {
+  border-left: 0;
+}
+
 .user-info {
   display: flex;
   align-items: center;
   gap: 15px;
+}
+
+#userMenuMount {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+#userMenuToggle {
+  border-radius: 12px;
+  padding: 6px 10px;
+  transition: background-color 0.3s ease;
+  cursor: pointer;
+  color: inherit;
+}
+
+.user-trigger-details {
+  display: none;
+}
+
+#userMenuToggle:hover {
+  background: #f8f9fa7a;
+}
+
+#userMenuToggle:hover,
+#userMenuToggle:focus,
+#userMenuToggle:active {
+  color: inherit;
+  text-decoration: none;
+}
+
+.user-info .user-avatar,
+.user-info .user-details {
+  cursor: pointer;
 }
 
 .user-avatar {
@@ -225,6 +280,84 @@ body {
   justify-content: center;
   color: #ffffff;
   font-weight: bold;
+}
+
+#userMenuToggle .user-avatar {
+  background: rgba(233, 226, 226, 0.404);
+  color: #000;
+  border: 1px solid #706b6b;
+}
+
+.user-avatar.user-avatar-sm {
+  width: 34px;
+  height: 34px;
+}
+
+.user-dropdown .user-avatar.user-avatar-sm {
+  background: rgba(233, 226, 226, 0.404);
+  color: #000;
+  border: 1px solid #706b6b;
+}
+
+.user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(0,0,0,0.08);
+  box-shadow: var(--shadow-1);
+  z-index: 1100;
+}
+
+.user-dropdown .dropdown-item {
+  display: flex;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #222;
+  cursor: pointer;
+}
+
+.user-dropdown .dropdown-item:hover {
+  background: #f8f9fa;
+  color: #222;
+  text-decoration: none;
+}
+
+.user-dropdown .dropdown-item:focus,
+.user-dropdown .dropdown-item:active {
+  color: #222;
+  text-decoration: none;
+}
+
+.user-dropdown .dropdown-divider {
+  height: 1px;
+  background: #eee;
+  margin: 8px 0;
+}
+
+.user-dropdown .dropdown-item-logout {
+  color: #dc3545;
+}
+
+.user-dropdown .dropdown-item-logout:hover {
+  background: #fff0f0;
+  color: #dc3545;
+  text-decoration: none;
+}
+
+.user-dropdown .dropdown-item-logout:focus,
+.user-dropdown .dropdown-item-logout:active {
+  color: #dc3545;
+  text-decoration: none;
+}
+
+.chevron-down {
+  font-size: 0.85rem;
+  opacity: 0.75;
 }
 
 .content-area {

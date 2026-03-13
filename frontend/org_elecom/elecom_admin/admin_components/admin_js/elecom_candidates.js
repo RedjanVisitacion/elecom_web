@@ -3,7 +3,6 @@ document.addEventListener('DOMContentLoaded', function(){
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
   const closeSidebar = document.getElementById('closeSidebar');
-  const logoutLink = document.getElementById('logoutLink');
 
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
@@ -21,28 +20,23 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   });
 
-  const toLogin = () => {
-    try {
-      sessionStorage.removeItem('elecom_role');
-      sessionStorage.removeItem('elecom_user');
-    } catch (e) {}
-    const base = window.location.origin;
-    window.location.href = `${base}/login/`;
-  };
-
-  if (logoutLink) {
-    logoutLink.addEventListener('click', (e) => {
-      e.preventDefault();
-      toLogin();
-    });
-  }
-
   const listEl = document.getElementById('candidatesList');
   const listCount = document.getElementById('listCount');
   const searchInput = document.getElementById('listSearch');
   const searchBtn = document.getElementById('listSearchBtn');
 
   const API_BASE = '/api/admin/candidates/';
+
+  let redirectedToSearch = false;
+  function goToSearchPage() {
+    if (redirectedToSearch) return;
+    redirectedToSearch = true;
+    const q = searchInput ? searchInput.value.trim() : '';
+    const url = new URL('/static/org_elecom/elecom_admin/search_results.html', window.location.origin);
+    url.searchParams.set('focus', '1');
+    if (q) url.searchParams.set('q', q);
+    window.location.href = url.toString();
+  }
 
   function cardTemplate(item){
     const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(' ');
@@ -175,10 +169,20 @@ document.addEventListener('DOMContentLoaded', function(){
 
   let searchDebounce = null;
   if (searchInput) {
-    searchInput.addEventListener('keydown', e=>{ if(e.key==='Enter'){ loadList(); } });
-    searchInput.addEventListener('input', ()=>{ clearTimeout(searchDebounce); searchDebounce = setTimeout(loadList, 300); });
+    searchInput.addEventListener('focus', ()=>{ goToSearchPage(); });
+    searchInput.addEventListener('click', ()=>{ goToSearchPage(); });
+    searchInput.addEventListener('keydown', e=>{
+      if(e.key==='Enter'){
+        goToSearchPage();
+      }
+    });
+    searchInput.addEventListener('input', ()=>{
+      if (redirectedToSearch) return;
+      clearTimeout(searchDebounce);
+      searchDebounce = setTimeout(loadList, 300);
+    });
   }
-  if (searchBtn) searchBtn.addEventListener('click', loadList);
+  if (searchBtn) searchBtn.addEventListener('click', goToSearchPage);
   loadList();
 
   function updateBulkState(){
@@ -231,6 +235,11 @@ document.addEventListener('DOMContentLoaded', function(){
   document.addEventListener('click', async (e)=>{
     const btn = e.target.closest('button[data-action]');
     if (btn) return;
+
+    if (e.target && (e.target.closest('.form-check') || e.target.closest('input.row-check') || e.target.closest('label'))) {
+      return;
+    }
+
     const card = e.target.closest('.candidate-card');
     if(!card) return;
     const id = card.getAttribute('data-id');

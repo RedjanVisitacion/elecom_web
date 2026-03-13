@@ -37,7 +37,6 @@
                         <span>Generate Reports</span>
                     </a>
                 </li>
-        <li class="nav-item"><a class="nav-link" href="#" id="logoutLink"><i class="bi bi-speedometer2"></i><span>Logout</span></a></li>
       </ul>
     </div>
   </div>
@@ -45,13 +44,7 @@
   <div class="main-content">
     <nav class="top-navbar d-flex align-items-center gap-3">
       <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
-      <div class="user-info">
-        <div class="user-avatar"><i class="bi bi-person-gear"></i></div>
-        <div class="user-details">
-          <div class="user-name" id="displayName">Admin</div>
-          <div class="user-role" id="displayRole">admin</div>
-        </div>
-      </div>
+      <div id="userMenuMount"></div>
     </nav>
 
     <div class="content-area">
@@ -86,6 +79,7 @@
   </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260313"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_results.js"></script>
 </body>
 </html>
