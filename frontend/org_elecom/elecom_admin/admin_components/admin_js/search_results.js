@@ -4,6 +4,27 @@ document.addEventListener('DOMContentLoaded', function(){
   const sidebarOverlay = document.getElementById('sidebarOverlay');
   const closeSidebar = document.getElementById('closeSidebar');
 
+  // Guard: if any sidebar link (e.g. Home) accidentally overlaps the main content,
+  // block navigation when the click happens outside the sidebar's visible bounds.
+  document.addEventListener('click', (e) => {
+    if (!sidebar) return;
+    const link = e.target && e.target.closest ? e.target.closest('a') : null;
+    if (!link) return;
+    if (!sidebar.contains(link)) return;
+
+    const rect = sidebar.getBoundingClientRect();
+    const insideSidebar = (
+      e.clientX >= rect.left &&
+      e.clientX <= rect.right &&
+      e.clientY >= rect.top &&
+      e.clientY <= rect.bottom
+    );
+    if (!insideSidebar) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, true);
+
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
   }
