@@ -22,6 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
   const successAlert = document.getElementById('successAlert');
   const errorAlert = document.getElementById('errorAlert');
+  const saveStatusInline = document.getElementById('saveStatusInline');
   const formEl = document.getElementById('electionWindowForm');
   const submitBtn = formEl ? formEl.querySelector('button[type="submit"]') : null;
 
@@ -39,6 +40,24 @@ document.addEventListener('DOMContentLoaded', function() {
     if (!el) return;
     el.textContent = '';
     el.style.display = 'none';
+  }
+
+  function showInlineStatus(type, msg) {
+    if (!saveStatusInline) return;
+    const t = String(type || '').toLowerCase();
+    saveStatusInline.className = 'small mt-2';
+    if (t === 'success') saveStatusInline.classList.add('text-success');
+    else if (t === 'error') saveStatusInline.classList.add('text-danger');
+    else saveStatusInline.classList.add('text-muted');
+    saveStatusInline.textContent = msg || '';
+    saveStatusInline.style.display = msg ? 'block' : 'none';
+  }
+
+  function clearInlineStatus() {
+    if (!saveStatusInline) return;
+    saveStatusInline.textContent = '';
+    saveStatusInline.style.display = 'none';
+    saveStatusInline.className = 'small mt-2';
   }
 
   function setLoading(loading) {
@@ -62,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function() {
   async function loadWindow(){
     hideAlert(successAlert);
     hideAlert(errorAlert);
+    clearInlineStatus();
     try {
       const res = await fetch('/api/admin/election-window/', { credentials: 'same-origin' });
       const data = await res.json();
@@ -81,6 +101,7 @@ document.addEventListener('DOMContentLoaded', function() {
       e.preventDefault();
       hideAlert(successAlert);
       hideAlert(errorAlert);
+      clearInlineStatus();
 
       setLoading(true);
 
@@ -103,12 +124,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (res.ok && data && data.ok) {
           if (passwordEl) passwordEl.value = '';
           showAlert(successAlert, 'Election window saved.');
+          showInlineStatus('success', 'Saved successfully.');
           await loadWindow();
         } else {
-          showAlert(errorAlert, (data && data.error) ? data.error : 'Failed to save election window.');
+          const msg = (data && data.error) ? data.error : 'Failed to save election window.';
+          showAlert(errorAlert, msg);
+          showInlineStatus('error', msg);
         }
       } catch (err) {
-        showAlert(errorAlert, (err && err.message) ? String(err.message) : 'Failed to save election window.');
+        const msg = (err && err.message) ? String(err.message) : 'Failed to save election window.';
+        showAlert(errorAlert, msg);
+        showInlineStatus('error', msg);
       } finally {
         setLoading(false);
       }
