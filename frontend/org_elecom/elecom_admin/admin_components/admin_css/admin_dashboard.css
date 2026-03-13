@@ -589,6 +589,159 @@ body {
   flex: 1;
 }
 
+.reg-candidate-page .main-content {
+  background: #f3f4f6;
+}
+
+.reg-candidate-page .content-area {
+  background: #f3f4f6;
+}
+
+.reg-candidate-page .reg-page-container {
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.reg-candidate-page .reg-form-card {
+  border-radius: 14px;
+  box-shadow: var(--shadow-1);
+}
+
+.reg-candidate-page .reg-form-card .form-label {
+  font-weight: 600;
+  color: #212529;
+  margin-bottom: 8px;
+}
+
+.reg-candidate-page .reg-form-card .form-control,
+.reg-candidate-page .reg-form-card .form-select,
+.reg-candidate-page .reg-form-card textarea.form-control {
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  border-radius: 10px;
+  padding: 12px;
+  box-shadow: none;
+}
+
+.reg-candidate-page .reg-form-card .form-control:focus,
+.reg-candidate-page .reg-form-card .form-select:focus,
+.reg-candidate-page .reg-form-card textarea.form-control:focus {
+  border-color: rgba(0, 0, 0, 0.35);
+  box-shadow: none;
+  outline: none;
+}
+
+.reg-candidate-page .reg-form-card #submitBtn {
+  padding: 10px 18px;
+  border-radius: 10px;
+  font-weight: 600;
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+.reg-candidate-page .reg-form-card #submitBtn:hover,
+.reg-candidate-page .reg-form-card #submitBtn:focus {
+  background: #111111;
+  border-color: #111111;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.reg-candidate-page .reg-form-card #submitBtn:active {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.reg-candidate-page .reg-form-card .form-check-input:checked {
+  background-color: #000000;
+  border-color: #000000;
+}
+
+.reg-candidate-page .reg-form-card .form-check-input:focus {
+  border-color: #000000;
+  box-shadow: none;
+}
+
+.btn-save-dates {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+.btn-save-dates:hover,
+.btn-save-dates:focus {
+  background: #111111;
+  border-color: #111111;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.btn-save-dates:active {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.reports-page .btn-primary {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+}
+
+.reports-page .btn-primary:hover,
+.reports-page .btn-primary:focus {
+  background: #111111;
+  border-color: #111111;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.reports-page .btn-outline-primary {
+  color: #000000;
+  border-color: #000000;
+}
+
+.reports-page .btn-outline-primary:hover,
+.reports-page .btn-outline-primary:focus {
+  background: #000000;
+  border-color: #000000;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.reports-page .btn-outline-primary.active,
+.reports-page .btn-outline-primary:active {
+  background: #2b292967;
+  border-color: #000000;
+  color: #ffffff;
+  box-shadow: none;
+}
+
+.reports-page .format-card.btn-outline-primary.active,
+.reports-page .format-card.btn-outline-primary:active {
+  background: #2b292967;
+  border-color: rgb(0, 0, 0);
+  color: #ffffff;
+}
+
+.reports-page .format-card.btn-outline-primary.active:hover,
+.reports-page .format-card.btn-outline-primary.active:focus {
+  background: rgba(17, 24, 39, 0.82);
+  border-color: rgba(17, 24, 39, 0.82);
+  color: #ffffff;
+}
+
+.reports-page .format-card.btn-outline-primary.active .text-muted {
+  color: rgba(255, 255, 255, 0.78) !important;
+}
+
+.reports-page .text-primary {
+  color: #000000 !important;
+}
+
 /* Content header with action button (USG announcements) */
 .content-header {
   display: flex;

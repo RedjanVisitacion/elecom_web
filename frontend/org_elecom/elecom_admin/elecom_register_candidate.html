@@ -10,7 +10,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css">
 </head>
-<body class="theme-elecom">
+<body class="theme-elecom reg-candidate-page">
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -151,11 +151,12 @@
         <!-- Content Area -->
         <div class="content-area">
 
-            <div class="alert alert-success" id="successAlert" role="alert" style="display:none;"></div>
-            <div class="alert alert-danger" id="errorAlert" role="alert" style="display:none;"></div>
+            <div class="reg-page-container">
+                <div class="alert alert-success" id="successAlert" role="alert" style="display:none;"></div>
+                <div class="alert alert-danger" id="errorAlert" role="alert" style="display:none;"></div>
 
-            <form id="registerCandidateForm" method="post" enctype="multipart/form-data" class="card p-3 shadow-sm border-0">
-                <div class="row g-3">
+                <form id="registerCandidateForm" method="post" enctype="multipart/form-data" class="card p-3 shadow-sm border-0 reg-form-card">
+                    <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Candidate Type</label>
                         <div class="d-flex gap-3">
@@ -255,8 +256,9 @@
                     <div class="col-12 d-flex justify-content-end">
                         <button id="submitBtn" type="submit" class="btn btn-primary">Submit</button>
                     </div>
-                </div>
-            </form>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 

@@ -4,6 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const sidebarOverlay = document.getElementById("sidebarOverlay");
   const closeSidebar = document.getElementById("closeSidebar");
 
+  const candidateSearchInput = document.getElementById("candidateSearch");
+  const candidateSearchBtn = document.getElementById("candidateSearchBtn");
+
   const successAlert = document.getElementById("successAlert");
   const errorAlert = document.getElementById("errorAlert");
 
@@ -74,6 +77,25 @@ document.addEventListener("DOMContentLoaded", () => {
     }
     return String(data.secure_url || data.url || "").trim();
   };
+
+  const redirectToSearchResults = () => {
+    const q = String(candidateSearchInput?.value || "").trim();
+    const url = new URL("/static/org_elecom/elecom_admin/search_results.html", window.location.origin);
+    if (q) url.searchParams.set("q", q);
+    window.location.href = url.toString();
+  };
+
+  if (candidateSearchInput) {
+    candidateSearchInput.addEventListener("focus", redirectToSearchResults);
+    candidateSearchInput.addEventListener("click", redirectToSearchResults);
+  }
+
+  if (candidateSearchBtn) {
+    candidateSearchBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+      redirectToSearchResults();
+    });
+  }
 
   // Sidebar
   if (menuToggle) {
