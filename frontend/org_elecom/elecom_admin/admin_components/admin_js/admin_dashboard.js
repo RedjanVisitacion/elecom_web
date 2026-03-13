@@ -30,65 +30,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const recentVotesScroll = document.getElementById("recentVotesScroll");
   const recentVotesList = document.getElementById("recentVotesList");
 
-  const networkBadge = document.querySelector(".system-status-badge");
-  const networkText = networkBadge ? networkBadge.querySelector(".status-text") : null;
-
-  const NET_LEVELS = {
-    HIGH: "high",
-    LOW: "low",
-    OFFLINE: "offline",
-  };
-
-  const setNetworkUi = (level) => {
-    if (!networkBadge || !networkText) return;
-    networkBadge.classList.remove("is-high", "is-low", "is-offline");
-
-    if (level === NET_LEVELS.OFFLINE) {
-      networkBadge.classList.add("is-offline");
-      networkText.textContent = "Network Offline";
-      networkBadge.setAttribute("title", "No network connection");
-      return;
-    }
-
-    if (level === NET_LEVELS.LOW) {
-      networkBadge.classList.add("is-low");
-      networkText.textContent = "Network Low";
-      networkBadge.setAttribute("title", "Weak/slow connection");
-      return;
-    }
-
-    networkBadge.classList.add("is-high");
-    networkText.textContent = "Network High";
-    networkBadge.setAttribute("title", "Good connection");
-  };
-
-  const getNetworkLevel = () => {
-    if (!navigator.onLine) return NET_LEVELS.OFFLINE;
-
-    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-    if (!conn) return NET_LEVELS.HIGH;
-
-    const effectiveType = String(conn.effectiveType || "").toLowerCase();
-    const downlink = Number(conn.downlink);
-    const rtt = Number(conn.rtt);
-
-    if (effectiveType && effectiveType !== "4g") return NET_LEVELS.LOW;
-    if (Number.isFinite(downlink) && downlink > 0 && downlink < 1.5) return NET_LEVELS.LOW;
-    if (Number.isFinite(rtt) && rtt > 220) return NET_LEVELS.LOW;
-
-    return NET_LEVELS.HIGH;
-  };
-
-  const refreshNetworkUi = () => setNetworkUi(getNetworkLevel());
-  refreshNetworkUi();
-  window.addEventListener("online", refreshNetworkUi);
-  window.addEventListener("offline", refreshNetworkUi);
-
-  const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-  if (conn && typeof conn.addEventListener === "function") {
-    conn.addEventListener("change", refreshNetworkUi);
-  }
-
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener("click", function () {
       sidebar.classList.add("active");
@@ -214,7 +155,7 @@ document.addEventListener("DOMContentLoaded", function () {
   <div class="d-flex align-items-center">${legendDot(WHITE)}<span class="small">Today’s Date</span></div>
   <div class="d-flex align-items-center">${legendDot(BLUE)}<span class="small">Election Event Date</span></div>
   <div class="d-flex align-items-center">${legendDot(YELLOW)}<span class="small">Voting Closed / End Date</span></div>
-  <div class="d-flex align-items-center">${legendDot(GRAY)}<span class="small">Normal Dates</span></div>
+  <div class="d-flex align-items-center">${legendDot(GRAY)}<span class="small">Same Dates</span></div>
 </div>`;
     electionLegend.style.display = "block";
   };
@@ -280,21 +221,28 @@ document.addEventListener("DOMContentLoaded", function () {
 
         let bg = GRAY;
         let fg = "#111";
+        let extra = "";
         if (isToday) {
           bg = WHITE;
           fg = "#111";
         }
-        if (isStart) {
-          bg = BLUE;
+        if (isStart && isEnd) {
+          bg = `linear-gradient(90deg, ${BLUE} 0%, ${BLUE} 50%, ${YELLOW} 50%, ${YELLOW} 100%)`;
           fg = "#fff";
-        }
-        if (isEnd) {
-          bg = YELLOW;
-          fg = "#111";
+          extra = "text-shadow:0 1px 1px rgba(0,0,0,0.35);";
+        } else {
+          if (isStart) {
+            bg = BLUE;
+            fg = "#fff";
+          }
+          if (isEnd) {
+            bg = YELLOW;
+            fg = "#111";
+          }
         }
 
         const outline = isToday ? "box-shadow:0 0 0 2px #000000;" : "";
-        const style = `background:${bg};color:${fg};border-radius:999px;width:30px;height:30px;line-height:30px;display:inline-block;${outline}`;
+        const style = `background:${bg};color:${fg};border-radius:999px;width:30px;height:30px;line-height:30px;display:inline-block;${outline}${extra}`;
         html += `<td class="text-center" style="border:0;">`;
         html += `<div style="${style}">${dayNum}</div>`;
         html += `</td>`;

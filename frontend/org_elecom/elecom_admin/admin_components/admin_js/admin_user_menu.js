@@ -22,9 +22,21 @@
       .replace(/'/g, "&#39;");
   };
 
+  const NET_LEVELS = {
+    HIGH: "high",
+    LOW: "low",
+    OFFLINE: "offline",
+  };
+
   const buildMarkup = () => {
     return `
-<div class="user-info position-relative" id="userMenu">
+<div class="top-navbar-actions">
+  <button type="button" class="notif-bell" aria-label="Notifications">
+    <i class="bi bi-bell"></i>
+    <span class="notif-count" aria-label="3 unread notifications">3</span>
+  </button>
+
+  <div class="user-info position-relative" id="userMenu">
   <button type="button" class="btn p-0 border-0 bg-transparent d-flex align-items-center gap-2" id="userMenuToggle">
     <div class="user-avatar">
       <img id="userAvatarImg" src="" alt="" style="display:none; width:40px; height:40px; border-radius:50%; object-fit:cover;">
@@ -61,7 +73,93 @@
     </div>
   </div>
 </div>
+</div>
 `;
+  };
+
+  const buildNetworkBadge = () => {
+    const wrap = document.createElement("div");
+    wrap.className = "system-status-badge is-high";
+    wrap.setAttribute("title", "Network status");
+    wrap.innerHTML = `
+<span class="status-dot" aria-hidden="true"></span>
+<span class="status-text">Network High</span>
+`.trim();
+    return wrap;
+  };
+
+  const setNetworkUi = ({ networkBadge, networkText, level }) => {
+    if (!networkBadge || !networkText) return;
+    networkBadge.classList.remove("is-high", "is-low", "is-offline");
+
+    if (level === NET_LEVELS.OFFLINE) {
+      networkBadge.classList.add("is-offline");
+      networkText.textContent = "Network Offline";
+      networkBadge.setAttribute("title", "No network connection");
+      return;
+    }
+
+    if (level === NET_LEVELS.LOW) {
+      networkBadge.classList.add("is-low");
+      networkText.textContent = "Network Low";
+      networkBadge.setAttribute("title", "Weak/slow connection");
+      return;
+    }
+
+    networkBadge.classList.add("is-high");
+    networkText.textContent = "Network High";
+    networkBadge.setAttribute("title", "Good connection");
+  };
+
+  const getNetworkLevelFromConnectionApi = () => {
+    const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!conn) return null;
+
+    const effectiveType = String(conn.effectiveType || "").toLowerCase();
+    const downlink = Number(conn.downlink);
+    const rtt = Number(conn.rtt);
+
+    if (effectiveType && effectiveType !== "4g") return NET_LEVELS.LOW;
+    if (Number.isFinite(downlink) && downlink > 0 && downlink < 2.0) return NET_LEVELS.LOW;
+    if (Number.isFinite(rtt) && rtt > 180) return NET_LEVELS.LOW;
+
+    return NET_LEVELS.HIGH;
+  };
+
+  const pingLatencyMs = async () => {
+    const url = new URL(API_PROFILE, window.location.origin);
+    url.searchParams.set("_ping", String(Date.now()));
+
+    const controller = new AbortController();
+    const t0 = performance.now();
+    const timer = setTimeout(() => controller.abort(), 3500);
+
+    try {
+      await fetch(url.toString(), {
+        method: "GET",
+        cache: "no-store",
+        signal: controller.signal,
+      });
+      return performance.now() - t0;
+    } finally {
+      clearTimeout(timer);
+    }
+  };
+
+  const getNetworkLevel = async () => {
+    if (!navigator.onLine) return NET_LEVELS.OFFLINE;
+
+    const fromConn = getNetworkLevelFromConnectionApi();
+    if (fromConn === NET_LEVELS.LOW) return NET_LEVELS.LOW;
+
+    try {
+      const ms = await pingLatencyMs();
+      if (Number.isFinite(ms) && ms > 1200) return NET_LEVELS.LOW;
+    } catch (e) {
+      return NET_LEVELS.OFFLINE;
+    }
+
+    return NET_LEVELS.HIGH;
   };
 
   const setMenuOpen = (userMenuDropdown, open) => {
@@ -132,6 +230,46 @@
 
     mount.innerHTML = buildMarkup();
 
+    const topNav = mount.closest(".top-navbar");
+    let networkBadge = topNav ? topNav.querySelector(".system-status-badge") : null;
+    if (!networkBadge && topNav) {
+      networkBadge = buildNetworkBadge();
+      topNav.insertBefore(networkBadge, mount);
+    }
+    const networkText = networkBadge ? networkBadge.querySelector(".status-text") : null;
+
+    if (topNav) {
+      const actionWraps = Array.from(topNav.querySelectorAll(".top-navbar-actions"));
+      actionWraps.forEach((el) => {
+        if (!mount.contains(el)) el.remove();
+      });
+
+      const bells = Array.from(topNav.querySelectorAll(".notif-bell"));
+      bells.forEach((el) => {
+        if (!mount.contains(el)) el.remove();
+      });
+    }
+
+    let netRefreshTimer = null;
+    const refreshNetworkUi = async () => {
+      const level = await getNetworkLevel();
+      setNetworkUi({ networkBadge, networkText, level });
+    };
+
+    const startNetworkWatch = () => {
+      if (!networkBadge || !networkText) return;
+      if (netRefreshTimer) clearInterval(netRefreshTimer);
+      refreshNetworkUi();
+      netRefreshTimer = setInterval(refreshNetworkUi, 8000);
+      window.addEventListener("online", refreshNetworkUi);
+      window.addEventListener("offline", refreshNetworkUi);
+
+      const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      if (conn && typeof conn.addEventListener === "function") {
+        conn.addEventListener("change", refreshNetworkUi);
+      }
+    };
+
     const logoutLink = document.getElementById("logoutLink");
     const sidebarLogoutLink = document.getElementById("sidebarLogoutLink");
 
@@ -149,6 +287,8 @@
     const userAvatarIcon = document.getElementById("userAvatarIcon");
     const menuAvatarImg = document.getElementById("menuAvatarImg");
     const menuAvatarIcon = document.getElementById("menuAvatarIcon");
+
+    startNetworkWatch();
 
     try {
       const role = sessionStorage.getItem("elecom_role") || "admin";
