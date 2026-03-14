@@ -471,6 +471,25 @@ def election_window_api(request):
 
 
 @require_http_methods(["GET"])
+def candidates_metrics_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    total_candidates = 0
+    try:
+        with connection.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM candidates_registration")
+            row = cur.fetchone()
+            if row and row[0] is not None:
+                total_candidates = int(row[0])
+    except Exception:
+        total_candidates = 0
+
+    return JsonResponse({"ok": True, "metrics": {"total_candidates": total_candidates}})
+
+
+@require_http_methods(["GET"])
 def vote_status_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:

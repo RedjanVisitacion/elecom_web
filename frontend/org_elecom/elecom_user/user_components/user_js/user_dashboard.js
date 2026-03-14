@@ -34,6 +34,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const omnibusLightboxClose = document.getElementById('omnibusLightboxClose');
     const omnibusLightboxImg = document.getElementById('omnibusLightboxImg');
     const votingStatusContent = document.getElementById('votingStatusContent');
+    const greetingCard = document.querySelector('.greeting-card');
+    const greetingCta = document.getElementById('greetingCta');
+    const omnibusCard = document.getElementById('omnibusCard');
+    const omnibusCompleted = document.getElementById('omnibusCompleted');
+    const totalCandidatesCard = document.getElementById('totalCandidatesCard');
+    const totalCandidatesValue = document.getElementById('totalCandidatesValue');
     const ecDays = document.getElementById('ec_days');
     const ecHours = document.getElementById('ec_hours');
     const ecMins = document.getElementById('ec_mins');
@@ -41,11 +47,29 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const API_PROFILE = '/api/account/profile/';
     const API_VOTE_STATUS = '/api/vote/status/';
+    const API_CANDIDATES_METRICS = '/api/candidates/metrics/';
 
     const NET_LEVELS = {
         HIGH: 'high',
         LOW: 'low',
         OFFLINE: 'offline',
+    };
+
+    const initTotalCandidatesCard = async () => {
+        if (!totalCandidatesValue) return;
+        totalCandidatesValue.textContent = '—';
+
+        try {
+            const res = await fetch(API_CANDIDATES_METRICS, { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (!res.ok || !data || data.ok !== true) throw new Error('Failed');
+            const m = data.metrics || {};
+            const n = Number(m.total_candidates);
+            const safe = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+            totalCandidatesValue.textContent = String(safe);
+        } catch (e) {
+            totalCandidatesValue.textContent = '—';
+        }
     };
 
     const initOmnibusSlideshow = () => {
@@ -170,18 +194,99 @@ document.addEventListener('DOMContentLoaded', function() {
         if (voted) {
             const ts = formatVoteTimestamp(voted_at);
             votingStatusContent.innerHTML = `
-                <div class="voting-status-icon text-success"><i class="bi bi-check-circle-fill"></i></div>
-                <div class="voting-status-title">Vote Cast Successfully</div>
+                <div class="voting-status-icon text-success voting-check-animate"><i class="bi bi-check-circle-fill"></i></div>
+                <div class="voting-status-title">Thank you for voting!</div>
                 <div class="voting-status-meta">Recorded: ${ts || '—'}</div>
             `;
             return;
         }
 
         votingStatusContent.innerHTML = `
-            <div class="voting-status-icon text-danger"><i class="bi bi-x-circle-fill"></i></div>
-            <div class="voting-status-title">You haven’t voted yet</div>
-            <div class="voting-status-meta">Cast your vote while the election is active.</div>
+            <div class="voting-status-icon voting-status-icon--pending"><i class="bi bi-clock-fill"></i></div>
+            <div class="voting-status-title voting-status-title--pending">Awaiting Your Vote</div>
+            <div class="voting-status-meta">Please cast your ballot before the countdown ends.</div>
         `;
+    };
+
+    const applyVotedUiState = ({ voted, voted_at }) => {
+        if (!voted) {
+            if (greetingCard) greetingCard.classList.remove('is-voted');
+            if (omnibusCard) omnibusCard.classList.remove('is-completed');
+            if (omnibusCompleted) omnibusCompleted.setAttribute('aria-hidden', 'true');
+            if (greetingCta) {
+                greetingCta.classList.remove('greeting-verified');
+                greetingCta.classList.add('greeting-cta');
+                greetingCta.textContent = 'Vote Now';
+                greetingCta.setAttribute('href', '/static/org_elecom/elecom_user/user_election.html');
+            }
+            return;
+        }
+
+        if (greetingCard) greetingCard.classList.add('is-voted');
+
+        if (greetingCta) {
+            greetingCta.classList.remove('greeting-cta');
+            greetingCta.classList.add('greeting-verified');
+            greetingCta.textContent = 'Vote Verified';
+            greetingCta.setAttribute('href', '#');
+        }
+
+        if (omnibusCard) omnibusCard.classList.add('is-completed');
+        if (omnibusCompleted) omnibusCompleted.setAttribute('aria-hidden', 'false');
+
+        const key = 'elecom_confetti_voted_at';
+        const votedAtKey = String(voted_at || '');
+        let shouldConfetti = false;
+        try {
+            const prev = localStorage.getItem(key) || '';
+            if (votedAtKey && prev !== votedAtKey) {
+                shouldConfetti = true;
+                localStorage.setItem(key, votedAtKey);
+            }
+        } catch (e) {
+            shouldConfetti = false;
+        }
+
+        if (shouldConfetti) {
+            burstConfetti();
+        }
+    };
+
+    const burstConfetti = () => {
+        const layer = document.createElement('div');
+        layer.className = 'confetti-layer';
+        document.body.appendChild(layer);
+
+        const colors = ['#1d4ed8', '#facc15', '#10b981', '#38bdf8', '#0b2f8a'];
+        const count = 46;
+        const cx = window.innerWidth / 2;
+        const cy = window.innerHeight / 2;
+
+        for (let i = 0; i < count; i += 1) {
+            const p = document.createElement('div');
+            p.className = 'confetti-piece';
+            p.style.left = `${cx}px`;
+            p.style.top = `${cy}px`;
+            p.style.background = colors[i % colors.length];
+
+            const dx = (Math.random() * 2 - 1) * (220 + Math.random() * 220);
+            const dy = 240 + Math.random() * 420;
+            const rot = `${(Math.random() * 2 - 1) * 420}deg`;
+            p.style.setProperty('--dx', `${dx}px`);
+            p.style.setProperty('--dy', `${dy}px`);
+            p.style.setProperty('--rot', rot);
+
+            const size = 7 + Math.random() * 8;
+            p.style.width = `${size}px`;
+            p.style.height = `${size * (0.6 + Math.random() * 0.9)}px`;
+            p.style.animationDelay = `${Math.random() * 120}ms`;
+
+            layer.appendChild(p);
+        }
+
+        window.setTimeout(() => {
+            try { layer.remove(); } catch (e) { /* ignore */ }
+        }, 1550);
     };
 
     const initVotingStatus = async () => {
@@ -192,7 +297,10 @@ document.addEventListener('DOMContentLoaded', function() {
             const res = await fetch(API_VOTE_STATUS, { method: 'GET', cache: 'no-store' });
             const data = await res.json();
             if (!res.ok || !data || data.ok !== true) throw new Error((data && data.error) || 'Failed');
-            renderVotingStatus({ voted: !!data.voted, voted_at: data.voted_at || null });
+            const voted = !!data.voted;
+            const votedAt = data.voted_at || null;
+            renderVotingStatus({ voted, voted_at: votedAt });
+            applyVotedUiState({ voted, voted_at: votedAt });
         } catch (e) {
             votingStatusContent.innerHTML = '<div class="voting-status-meta">Unable to load voting status.</div>';
         }
@@ -208,6 +316,7 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     initVotingStatus();
+    initTotalCandidatesCard();
 
     const setNotifCount = (count) => {
         if (!notifCount) return;
