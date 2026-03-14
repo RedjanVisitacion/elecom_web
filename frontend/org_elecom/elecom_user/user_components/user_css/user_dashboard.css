@@ -430,6 +430,18 @@ body {
   flex: 0 0 auto;
 }
 
+.dashboard-middle-row .middle-stack {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.dashboard-middle-row .middle-stack > .card {
+  flex: 1 1 0;
+}
+
 .greeting-cta {
   height: 45px;
   padding: 0 20px;

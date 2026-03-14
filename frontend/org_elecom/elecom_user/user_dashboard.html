@@ -51,13 +51,7 @@
                 <li class="nav-item">
                     <a class="nav-link" href="#">
                         <i class="bi bi-check2"></i>
-                        <span>Status</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="logoutLink">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Logout</span>
+                        <span>Voting Receipt</span>
                     </a>
                 </li>
             </ul>
@@ -177,11 +171,11 @@
                         </div>
                     </div>
 
-                    <div class="row g-3 align-items-stretch mt-1">
+                    <div class="row g-3 align-items-stretch mt-1 dashboard-middle-row">
                         <div class="col-12 col-md-6 d-flex flex-column">
                             <div class="card shadow-sm border-0 h-100 omnibus-card" id="omnibusCard">
                                 <div class="card-body">
-                                    <div class="fw-semibold mb-1">Omnibus Code</div>
+                                    <div class="small text-muted fw-semibold mb-1">Omnibus Code</div>
                                     <div class="omnibus-completed" id="omnibusCompleted" aria-hidden="true">Completed</div>
                                     <div class="omnibus-slideshow" id="omnibusSlideshow">
                                         <div class="omnibus-preview" id="omnibusPreview" role="button" tabindex="0" aria-label="Open document in full screen">
@@ -199,22 +193,24 @@
                             </div>
                         </div>
 
-                        <div class="col-12 col-md-6 d-flex flex-column">
-                            <div class="card shadow-sm border-0" id="votingStatusCard">
-                                <div class="card-body" id="votingStatusBody">
-                                    <div class="fw-semibold mb-1">Voting Status</div>
-                                    <div class="voting-status-content" id="votingStatusContent"></div>
-                                </div>
-                            </div>
-
-                            <div class="card shadow-sm border-0 mt-3" id="totalCandidatesCard">
-                                <div class="card-body d-flex align-items-center">
-                                    <div class="me-3 text-primary">
-                                        <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                        <div class="col-12 col-md-6 d-flex flex-column h-100">
+                            <div class="middle-stack d-flex flex-column justify-content-between gap-3">
+                                <div class="card shadow-sm border-0" id="votingStatusCard">
+                                    <div class="card-body" id="votingStatusBody">
+                                        <div class="small text-muted fw-semibold mb-1">Voting Status</div>
+                                        <div class="voting-status-content" id="votingStatusContent"></div>
                                     </div>
-                                    <div>
-                                        <div class="small text-muted">Total Candidates</div>
-                                        <div class="h3 mb-0" id="totalCandidatesValue">—</div>
+                                </div>
+
+                                <div class="card shadow-sm border-0" id="totalCandidatesCard">
+                                    <div class="card-body d-flex align-items-center">
+                                        <div class="me-3 text-primary">
+                                            <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                                        </div>
+                                        <div>
+                                            <div class="small text-muted">Total Candidates</div>
+                                            <div class="h3 mb-0" id="totalCandidatesValue">—</div>
+                                        </div>
                                     </div>
                                 </div>
                             </div>

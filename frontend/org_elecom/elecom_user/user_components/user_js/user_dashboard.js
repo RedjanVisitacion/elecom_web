@@ -45,9 +45,17 @@ document.addEventListener('DOMContentLoaded', function() {
     const ecMins = document.getElementById('ec_mins');
     const ecSecs = document.getElementById('ec_secs');
 
+    const ballotRoot = document.getElementById('ballotRoot');
+    const ballotSubtitle = document.getElementById('ballotSubtitle');
+    const ballotProgramLine = document.getElementById('ballotProgramLine');
+    const submitBallotBtn = document.getElementById('submitBallotBtn');
+    const ballotHint = document.getElementById('ballotHint');
+
     const API_PROFILE = '/api/account/profile/';
     const API_VOTE_STATUS = '/api/vote/status/';
     const API_CANDIDATES_METRICS = '/api/candidates/metrics/';
+    const API_BALLOT = '/api/ballot/';
+    const API_VOTE_SUBMIT = '/api/vote/submit/';
 
     const NET_LEVELS = {
         HIGH: 'high',
@@ -308,11 +316,223 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const toLogin = () => {
         try {
-            sessionStorage.removeItem('elecom_role');
             sessionStorage.removeItem('elecom_user');
         } catch (e) { /* ignore */ }
         const base = window.location.origin;
         window.location.href = `${base}/login/`;
+    };
+
+    const initElectionBallot = async () => {
+        if (!ballotRoot) return;
+
+        const state = {
+            selections: {},
+        };
+
+        const setSubmitEnabled = () => {
+            if (!submitBallotBtn) return;
+            const n = Object.keys(state.selections || {}).length;
+            submitBallotBtn.disabled = n === 0;
+        };
+
+        const buildCandidateOption = ({ positionKey, candidate }) => {
+            const wrap = document.createElement('label');
+            wrap.className = 'd-flex align-items-center gap-2 p-2 rounded border';
+            wrap.style.cursor = 'pointer';
+
+            const input = document.createElement('input');
+            input.type = 'radio';
+            input.name = `pos_${positionKey}`;
+            input.value = String(candidate.id);
+            input.className = 'form-check-input m-0';
+
+            const left = document.createElement('div');
+            left.className = 'd-flex align-items-center gap-2 flex-grow-1';
+
+            const avatar = document.createElement('div');
+            avatar.style.width = '34px';
+            avatar.style.height = '34px';
+            avatar.style.borderRadius = '50%';
+            avatar.style.overflow = 'hidden';
+            avatar.style.flex = '0 0 auto';
+            avatar.style.background = '#f3f4f6';
+
+            if (candidate.photo_url) {
+                const img = document.createElement('img');
+                img.src = candidate.photo_url;
+                img.alt = '';
+                img.style.width = '100%';
+                img.style.height = '100%';
+                img.style.objectFit = 'cover';
+                avatar.appendChild(img);
+            } else {
+                const i = document.createElement('i');
+                i.className = 'bi bi-person-circle';
+                i.style.fontSize = '34px';
+                i.style.color = '#9ca3af';
+                i.style.display = 'block';
+                i.style.lineHeight = '34px';
+                i.style.textAlign = 'center';
+                avatar.appendChild(i);
+            }
+
+            const txt = document.createElement('div');
+            const nm = document.createElement('div');
+            nm.className = 'fw-semibold';
+            nm.textContent = candidate.name || 'Candidate';
+            const meta = document.createElement('div');
+            meta.className = 'small text-muted';
+            meta.textContent = candidate.party_name ? String(candidate.party_name) : '';
+            txt.appendChild(nm);
+            if (meta.textContent) txt.appendChild(meta);
+
+            left.appendChild(avatar);
+            left.appendChild(txt);
+            wrap.appendChild(input);
+            wrap.appendChild(left);
+
+            input.addEventListener('change', () => {
+                state.selections[positionKey] = Number(candidate.id);
+                setSubmitEnabled();
+            });
+
+            return wrap;
+        };
+
+        const renderBallot = (ballot) => {
+            ballotRoot.innerHTML = '';
+            const orgTabs = document.createElement('div');
+            orgTabs.className = 'd-flex flex-wrap gap-2 mb-3';
+
+            const orgPanels = document.createElement('div');
+
+            let activeOrg = '';
+
+            const setActive = (org) => {
+                activeOrg = org;
+                Array.from(orgPanels.children).forEach((c) => {
+                    c.style.display = c.getAttribute('data-org') === activeOrg ? '' : 'none';
+                });
+                Array.from(orgTabs.querySelectorAll('button')).forEach((b) => {
+                    const isOn = b.getAttribute('data-org') === activeOrg;
+                    b.classList.toggle('btn-primary', isOn);
+                    b.classList.toggle('btn-outline-primary', !isOn);
+                });
+            };
+
+            (ballot || []).forEach((orgBlock, idx) => {
+                const org = String(orgBlock.organization || '').toUpperCase();
+                if (!org) return;
+                if (!activeOrg) activeOrg = org;
+
+                const tab = document.createElement('button');
+                tab.type = 'button';
+                tab.className = `btn ${idx === 0 ? 'btn-primary' : 'btn-outline-primary'} btn-sm`;
+                tab.textContent = org;
+                tab.setAttribute('data-org', org);
+                tab.addEventListener('click', () => setActive(org));
+                orgTabs.appendChild(tab);
+
+                const panel = document.createElement('div');
+                panel.setAttribute('data-org', org);
+
+                (orgBlock.positions || []).forEach((posBlock) => {
+                    const pos = String(posBlock.position || '');
+                    const positionKey = `${org}::${pos}`;
+
+                    const card = document.createElement('div');
+                    card.className = 'card border-0 shadow-sm mb-3';
+                    const body = document.createElement('div');
+                    body.className = 'card-body';
+
+                    const header = document.createElement('div');
+                    header.className = 'fw-semibold mb-2';
+                    header.textContent = pos;
+
+                    const list = document.createElement('div');
+                    list.className = 'd-grid gap-2';
+
+                    (posBlock.candidates || []).forEach((candidate) => {
+                        list.appendChild(buildCandidateOption({ positionKey, candidate }));
+                    });
+
+                    body.appendChild(header);
+                    body.appendChild(list);
+                    card.appendChild(body);
+                    panel.appendChild(card);
+                });
+
+                orgPanels.appendChild(panel);
+            });
+
+            ballotRoot.appendChild(orgTabs);
+            ballotRoot.appendChild(orgPanels);
+            setActive(activeOrg);
+        };
+
+        const setStatusText = (t) => {
+            if (ballotSubtitle) ballotSubtitle.textContent = t;
+        };
+
+        setStatusText('Loading your eligible ballot...');
+        if (submitBallotBtn) submitBallotBtn.disabled = true;
+
+        let ballotData = null;
+        try {
+            const res = await fetch(API_BALLOT, { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (res.status === 401) {
+                toLogin();
+                return;
+            }
+            if (!res.ok || !data || data.ok !== true) throw new Error('Failed');
+            ballotData = data;
+        } catch (e) {
+            setStatusText('Unable to load ballot.');
+            return;
+        }
+
+        const program = String(ballotData.program_code || '').trim();
+        if (program && ballotProgramLine) {
+            ballotProgramLine.style.display = '';
+            ballotProgramLine.textContent = `Program: ${program}`;
+        }
+
+        renderBallot(ballotData.ballot || []);
+        setStatusText('Select one candidate per position, then submit.');
+        if (ballotHint) ballotHint.style.display = '';
+        setSubmitEnabled();
+
+        if (submitBallotBtn) {
+            submitBallotBtn.addEventListener('click', async () => {
+                submitBallotBtn.disabled = true;
+                try {
+                    const res = await fetch(API_VOTE_SUBMIT, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                        credentials: 'same-origin',
+                        body: JSON.stringify({ selections: state.selections }),
+                    });
+                    const data = await res.json().catch(() => ({}));
+                    if (res.status === 401) {
+                        toLogin();
+                        return;
+                    }
+                    if (!res.ok || !data || data.ok !== true) {
+                        const msg = (data && data.error) ? data.error : 'Failed to submit vote.';
+                        setStatusText(msg);
+                        setSubmitEnabled();
+                        return;
+                    }
+
+                    setStatusText('Vote submitted successfully.');
+                    if (ballotRoot) ballotRoot.innerHTML = '';
+                } catch (e) {
+                    setStatusText('Failed to submit vote.');
+                    setSubmitEnabled();
+                }
+            });
+        }
     };
 
     initVotingStatus();
@@ -814,4 +1034,6 @@ document.addEventListener('DOMContentLoaded', function() {
     };
 
     void loadElectionWindow();
+
+    void initElectionBallot();
 });

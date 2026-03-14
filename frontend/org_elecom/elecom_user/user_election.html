@@ -51,13 +51,7 @@
                 <li class="nav-item">
                     <a class="nav-link" href="#">
                         <i class="bi bi-check2"></i>
-                        <span>Status</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="#" id="logoutLink">
-                        <i class="bi bi-box-arrow-right"></i>
-                        <span>Logout</span>
+                        <span>Voting Receipt</span>
                     </a>
                 </li>
             </ul>
@@ -121,10 +115,22 @@
                     <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
                         <div>
                             <div class="fw-semibold">Election</div>
-                            <div class="text-muted small">Voting page is under construction.</div>
+                            <div class="text-muted small" id="ballotSubtitle">Loading your eligible ballot...</div>
                         </div>
                         <a href="/static/org_elecom/elecom_user/user_dashboard.html" class="btn btn-outline-secondary">Back</a>
                     </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm border-0 mt-3">
+                <div class="card-body">
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+                        <div class="fw-semibold" id="ballotHeader">Your Ballot</div>
+                        <button type="button" class="btn btn-primary" id="submitBallotBtn" disabled>Submit Vote</button>
+                    </div>
+                    <div class="text-muted small mb-3" id="ballotProgramLine" style="display:none;"></div>
+                    <div id="ballotRoot"></div>
+                    <div class="text-muted small mt-3" id="ballotHint" style="display:none;">Your selections are final after submission.</div>
                 </div>
             </div>
         </div>

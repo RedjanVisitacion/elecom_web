@@ -13,6 +13,80 @@ from django.conf import settings
 from elecom_auth.models import ElecomUser
 
 
+def _get_student_program_code(student_id: str) -> str:
+    sid = (student_id or "").strip()
+    if not sid:
+        return ""
+
+    raw = ""
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT course
+                FROM student
+                WHERE id_number::text = %s
+                LIMIT 1
+                """,
+                [sid],
+            )
+            row = cur.fetchone()
+            if row and row[0] is not None:
+                raw = str(row[0])
+    except Exception:
+        raw = ""
+
+    if not raw:
+        try:
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT department
+                    FROM users
+                    WHERE student_id::text = %s
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    [sid],
+                )
+                row = cur.fetchone()
+                if row and row[0] is not None:
+                    raw = str(row[0])
+        except Exception:
+            raw = ""
+
+    s = (raw or "").upper()
+    if "BSIT" in s or "B.S.I.T" in s or "INFORMATION TECHNOLOGY" in s:
+        return "BSIT"
+    if "BTLED" in s or "B.T.L.E.D" in s or "LIVELIHOOD" in s:
+        return "BTLED"
+    if "BFPT" in s or "B.F.P.T" in s or "FOOD PROCESS" in s:
+        return "BFPT"
+    return ""
+
+
+def _eligible_orgs_for_program(program_code: str) -> list[str]:
+    code = (program_code or "").upper()
+    if code == "BSIT":
+        return ["USG", "SITE"]
+    if code == "BTLED":
+        return ["USG", "PAFE"]
+    if code == "BFPT":
+        return ["USG", "AFPROTECHS"]
+    return ["USG"]
+
+
+def _usg_allowed_representative_positions(program_code: str) -> set[str]:
+    code = (program_code or "").upper()
+    if code == "BSIT":
+        return {"IT REPRESENTATIVE", "BSIT REPRESENTATIVE"}
+    if code == "BTLED":
+        return {"BTLED REPRESENTATIVE"}
+    if code == "BFPT":
+        return {"BFPT REPRESENTATIVE"}
+    return set()
+
+
 def _verify_password(stored: str, provided: str) -> bool:
     if stored is None:
         return False
@@ -432,12 +506,9 @@ def election_window_api(request):
         "end_at": None,
         "results_at": None,
     }
-
     try:
         with connection.cursor() as cur:
-            cur.execute(
-                "SELECT start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
-            )
+            cur.execute("SELECT start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1")
             row = cur.fetchone()
 
         if row:
@@ -521,6 +592,206 @@ def vote_status_api(request):
             "voted_at": voted_at.isoformat() if voted_at else None,
         }
     )
+
+
+@require_http_methods(["GET"])
+def eligible_ballot_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    program_code = _get_student_program_code(student_id)
+    eligible_orgs = _eligible_orgs_for_program(program_code)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, first_name, middle_name, last_name,
+                       organization, position, program, year_section,
+                       photo_url, party_name, candidate_type, party_logo_url
+                FROM candidates_registration
+                WHERE UPPER(organization) = ANY(%s)
+                ORDER BY organization, position, last_name, first_name
+                """,
+                [eligible_orgs],
+            )
+            cols = [c[0] for c in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to load ballot."}, status=500)
+
+    grouped: dict[str, dict[str, list[dict]]] = {}
+    for r in rows:
+        org = (r.get("organization") or "USG").upper()
+        pos = (r.get("position") or "").strip() or "Unspecified"
+        grouped.setdefault(org, {}).setdefault(pos, []).append(r)
+
+    allowed_rep = _usg_allowed_representative_positions(program_code)
+    if "USG" in grouped and allowed_rep:
+        filtered_usg: dict[str, list[dict]] = {}
+        for pos, arr in grouped["USG"].items():
+            if "REPRESENTATIVE" in pos.upper():
+                if any(k in pos.upper() for k in allowed_rep):
+                    filtered_usg[pos] = arr
+            else:
+                filtered_usg[pos] = arr
+        grouped["USG"] = filtered_usg
+
+    org_priority = {"USG": 0, "SITE": 1, "PAFE": 2, "AFPROTECHS": 3}
+    orgs_out = []
+    for org in sorted(grouped.keys(), key=lambda o: (org_priority.get(o.upper(), 999), o)):
+        pos_map = grouped[org]
+        positions_out = []
+        for pos in sorted(pos_map.keys()):
+            cands = []
+            for x in pos_map[pos]:
+                name = " ".join(
+                    [p for p in [x.get("first_name"), x.get("middle_name"), x.get("last_name")] if p]
+                ).strip()
+                cands.append(
+                    {
+                        "id": x.get("id"),
+                        "name": name,
+                        "organization": (x.get("organization") or "").upper(),
+                        "position": x.get("position") or "",
+                        "program": x.get("program") or "",
+                        "year_section": x.get("year_section") or "",
+                        "photo_url": x.get("photo_url") or "",
+                        "party_name": x.get("party_name") or "",
+                        "party_logo_url": x.get("party_logo_url") or "",
+                    }
+                )
+            positions_out.append({"position": pos, "candidates": cands})
+        orgs_out.append({"organization": org, "positions": positions_out})
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "student_id": student_id,
+            "program_code": program_code,
+            "eligible_organizations": eligible_orgs,
+            "ballot": orgs_out,
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def vote_submit_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    selections = payload.get("selections")
+    if not isinstance(selections, dict) or not selections:
+        return JsonResponse({"ok": False, "error": "No selections provided."}, status=400)
+
+    program_code = _get_student_program_code(student_id)
+    eligible_orgs = _eligible_orgs_for_program(program_code)
+    allowed_rep = _usg_allowed_representative_positions(program_code)
+
+    requested: list[tuple[str, str, int]] = []
+    for key, cid in selections.items():
+        k = str(key or "").strip()
+        if "::" not in k:
+            return JsonResponse({"ok": False, "error": "Invalid selection key."}, status=400)
+        org, pos = [p.strip() for p in k.split("::", 1)]
+        org_u = org.upper()
+        if org_u not in eligible_orgs:
+            return JsonResponse({"ok": False, "error": "Not eligible for this organization."}, status=403)
+        if org_u == "USG" and "REPRESENTATIVE" in pos.upper() and allowed_rep:
+            if not any(x in pos.upper() for x in allowed_rep):
+                return JsonResponse({"ok": False, "error": "Not eligible for this position."}, status=403)
+        try:
+            cid_i = int(cid)
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Invalid candidate id."}, status=400)
+        requested.append((org_u, pos, cid_i))
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute("BEGIN")
+
+            for org_u, pos, _cid in requested:
+                position_key = f"{org_u}::{pos}"
+                cur.execute(
+                    """
+                    SELECT 1
+                    FROM vote_items vi
+                    JOIN votes v ON v.id = vi.vote_id
+                    WHERE v.student_id::text = %s AND vi.position = %s
+                    LIMIT 1
+                    """,
+                    [student_id, position_key],
+                )
+                if cur.fetchone():
+                    cur.execute("ROLLBACK")
+                    return JsonResponse(
+                        {"ok": False, "error": f"Already voted for {position_key}."},
+                        status=409,
+                    )
+
+            cur.execute(
+                """
+                INSERT INTO votes (student_id, created_at)
+                VALUES (%s, NOW())
+                RETURNING id
+                """,
+                [student_id],
+            )
+            row = cur.fetchone()
+            vote_id = int(row[0]) if row and row[0] is not None else None
+            if not vote_id:
+                cur.execute("ROLLBACK")
+                return JsonResponse({"ok": False, "error": "Failed to create vote."}, status=500)
+
+            for org_u, pos, cid_i in requested:
+                position_key = f"{org_u}::{pos}"
+                cur.execute(
+                    """
+                    SELECT organization, position
+                    FROM candidates_registration
+                    WHERE id = %s
+                    LIMIT 1
+                    """,
+                    [cid_i],
+                )
+                cand_row = cur.fetchone()
+                if not cand_row:
+                    cur.execute("ROLLBACK")
+                    return JsonResponse({"ok": False, "error": "Candidate not found."}, status=404)
+                cand_org = (cand_row[0] or "").upper()
+                cand_pos = (cand_row[1] or "").strip()
+                if cand_org != org_u or cand_pos != pos:
+                    cur.execute("ROLLBACK")
+                    return JsonResponse({"ok": False, "error": "Candidate does not match selection."}, status=400)
+
+                cur.execute(
+                    """
+                    INSERT INTO vote_items (vote_id, position, candidate_id, created_at)
+                    VALUES (%s, %s, %s, NOW())
+                    """,
+                    [vote_id, position_key, cid_i],
+                )
+
+            cur.execute("COMMIT")
+    except Exception as e:
+        try:
+            with connection.cursor() as cur:
+                cur.execute("ROLLBACK")
+        except Exception:
+            pass
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to submit vote."}, status=500)
+
+    return JsonResponse({"ok": True})
 
 
 @require_http_methods(["GET"])
@@ -610,7 +881,6 @@ def admin_cloudinary_signature_api(request):
         import hashlib
 
         timestamp = int(time.time())
-        # Cloudinary signature base string is sorted params joined with '&'
         params_to_sign = {
             "folder": folder,
             "timestamp": timestamp,
