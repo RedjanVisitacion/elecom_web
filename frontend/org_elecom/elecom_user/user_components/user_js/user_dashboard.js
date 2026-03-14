@@ -10,6 +10,10 @@ document.addEventListener('DOMContentLoaded', function() {
     const userMenuLogoutLink = document.getElementById('userMenuLogoutLink');
     const menuName = document.getElementById('menuName');
     const menuRole = document.getElementById('menuRole');
+    const userAvatarImg = document.getElementById('userAvatarImg');
+    const userAvatarIcon = document.getElementById('userAvatarIcon');
+    const menuAvatarImg = document.getElementById('menuAvatarImg');
+    const menuAvatarIcon = document.getElementById('menuAvatarIcon');
     const modalLogout = document.getElementById('modalLogout');
     const electionHelperText = document.getElementById('electionHelperText');
     const ecDays = document.getElementById('ec_days');
@@ -44,12 +48,36 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) { /* ignore */ }
     };
 
+    const setAvatarUrl = (url) => {
+        const u = String(url || '').trim();
+        const has = !!(u && /^https?:\/\//i.test(u));
+
+        if (userAvatarImg) {
+            userAvatarImg.src = has ? u : '';
+            userAvatarImg.style.display = has ? 'block' : 'none';
+        }
+        if (menuAvatarImg) {
+            menuAvatarImg.src = has ? u : '';
+            menuAvatarImg.style.display = has ? 'block' : 'none';
+        }
+        if (userAvatarIcon) userAvatarIcon.style.display = has ? 'none' : 'inline-block';
+        if (menuAvatarIcon) menuAvatarIcon.style.display = has ? 'none' : 'inline-block';
+
+        try {
+            if (has) sessionStorage.setItem('elecom_user_photo_url', u);
+            else sessionStorage.removeItem('elecom_user_photo_url');
+        } catch (e) { /* ignore */ }
+    };
+
     const loadAccountProfileName = async () => {
         try {
             const res = await fetch('/api/account/profile/', { method: 'GET', headers: { Accept: 'application/json' } });
             if (!res.ok) return;
             const data = await res.json().catch(() => ({}));
             applyProfileName(data);
+
+            const photoUrl = data && data.user ? data.user.photo_url : '';
+            if (photoUrl) setAvatarUrl(photoUrl);
         } catch (e) { /* ignore */ }
     };
 
@@ -100,6 +128,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const user = (sessionStorage.getItem('elecom_user') || '').trim();
         if (menuName) menuName.textContent = user || 'Student';
         if (menuRole) menuRole.textContent = role;
+
+        const cachedPhoto = (sessionStorage.getItem('elecom_user_photo_url') || '').trim();
+        if (cachedPhoto) setAvatarUrl(cachedPhoto);
     } catch (e) { /* ignore */ }
 
     void loadAccountProfileName();

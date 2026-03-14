@@ -470,6 +470,57 @@ def election_window_api(request):
     return JsonResponse({"ok": True, "election": election})
 
 
+@require_http_methods(["GET"])
+def cloudinary_signature_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    cloud_name = getattr(settings, "CLOUDINARY_CLOUD_NAME", "") or ""
+    api_key = getattr(settings, "CLOUDINARY_API_KEY", "") or ""
+    api_secret = getattr(settings, "CLOUDINARY_API_SECRET", "") or ""
+
+    if not cloud_name or not api_key or not api_secret:
+        return JsonResponse(
+            {"ok": False, "error": "Cloudinary is not configured."},
+            status=500,
+        )
+
+    upload_type = (request.GET.get("type") or "").strip() or "profile_photo"
+    if upload_type != "profile_photo":
+        return JsonResponse({"ok": False, "error": "Forbidden."}, status=403)
+
+    folder = "elecom/users/photos"
+
+    try:
+        import time
+        import hashlib
+
+        timestamp = int(time.time())
+        params_to_sign = {
+            "folder": folder,
+            "timestamp": timestamp,
+        }
+        to_sign = "&".join([f"{k}={params_to_sign[k]}" for k in sorted(params_to_sign.keys())])
+        signature = hashlib.sha1((to_sign + api_secret).encode("utf-8")).hexdigest()
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "cloud_name": cloud_name,
+                "api_key": api_key,
+                "timestamp": timestamp,
+                "folder": folder,
+                "signature": signature,
+            }
+        )
+    except Exception:
+        return JsonResponse(
+            {"ok": False, "error": "Failed to generate upload signature."},
+            status=500,
+        )
+
+
 def _require_admin(request):
     role = (request.session.get("role") or "").lower()
     if role != "admin":
