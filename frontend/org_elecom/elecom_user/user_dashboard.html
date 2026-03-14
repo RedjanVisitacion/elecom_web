@@ -9,12 +9,6 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css">
-
-    <!-- Popup Modal for APK Download -->
-    <style>
-      .modal-header .app-logo { width: 36px; height: 36px; }
-    </style>
-    
 </head>
 <body class="theme-elecom">
 
@@ -27,8 +21,7 @@
             <div class="sidebar-header-content">
                 <div class="logo-container">
                     <img src="/static/assets/elecom.png" alt="ELECOM Logo">
-
-                    <h4>Electoral Commission</h4>
+                    <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
                 </div>
                 <button class="btn-close-sidebar" id="closeSidebar">
                     <i class="bi bi-x-lg"></i>
@@ -78,24 +71,9 @@
             <button class="menu-toggle" id="menuToggle">
                 <i class="bi bi-list"></i>
             </button>
-            <div class="search-box">
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Search...">
-                    <button class="btn btn-outline-secondary" type="button">
-                        <i class="bi bi-search"></i>
-                    </button>
-                </div>
-            </div>
-            <div class="user-info">
-                <div class="notifications">
-                    <i class="bi bi-bell fs-5"></i>
-                </div>
-                <div class="user-avatar">
+            <div class="user-info" style="margin-left:auto;">
+                <div class="user-avatar user-avatar--nav" role="button" tabindex="0" aria-label="Profile">
                     <i class="bi bi-person-circle"></i>
-                </div>
-                <div class="user-details">
-                    <div class="user-name" id="userName">Student</div>
-                    <div class="user-role" id="userRole">student</div>
                 </div>
             </div>
         </nav>
@@ -147,82 +125,7 @@
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    
-    <!-- Custom JavaScript -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
-            const closeSidebar = document.getElementById('closeSidebar');
-            const logoutLink = document.getElementById('logoutLink');
-            const modalLogout = document.getElementById('modalLogout');
-            const userName = document.getElementById('userName');
-            const userRole = document.getElementById('userRole');
 
-            const toLogin = () => {
-                try {
-                    sessionStorage.removeItem('elecom_role');
-                    sessionStorage.removeItem('elecom_user');
-                } catch (e) { /* ignore */ }
-                const base = window.location.origin;
-                window.location.href = `${base}/login/`;
-            };
-
-            try {
-                const user = sessionStorage.getItem('elecom_user');
-                const role = sessionStorage.getItem('elecom_role') || 'student';
-                if (userName) userName.textContent = user || 'Student';
-                if (userRole) userRole.textContent = role;
-            } catch (e) { /* ignore */ }
-
-            if (logoutLink) logoutLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                toLogin();
-            });
-            if (modalLogout) modalLogout.addEventListener('click', (e) => {
-                e.preventDefault();
-                toLogin();
-            });
-            
-            // Toggle sidebar on menu button click
-            menuToggle.addEventListener('click', function() {
-                sidebar.classList.add('active');
-                sidebarOverlay.classList.add('active');
-            });
-            
-            // Close sidebar methods:
-            
-            // 1. Close button click
-            closeSidebar.addEventListener('click', function() {
-                sidebar.classList.remove('active');
-                sidebarOverlay.classList.remove('active');
-            });
-            
-            // 2. Overlay click
-            sidebarOverlay.addEventListener('click', function() {
-                sidebar.classList.remove('active');
-                sidebarOverlay.classList.remove('active');
-            });
-
-            // 3. Auto-close when clicking menu links
-            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-                link.addEventListener('click', function() {
-                    if (window.innerWidth <= 992) {
-                        sidebar.classList.remove('active');
-                        sidebarOverlay.classList.remove('active');
-                    }
-                });
-            });
-            
-            // 4. Window resize (close on desktop)
-            window.addEventListener('resize', function() {
-                if (window.innerWidth > 992) {
-                    sidebar.classList.remove('active');
-                    sidebarOverlay.classList.remove('active');
-                }
-            });
-        });
-    </script>
+    <script src="/static/org_elecom/elecom_user/user_components/user_js/user_dashboard.js"></script>
 </body>
 </html>
