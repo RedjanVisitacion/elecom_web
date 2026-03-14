@@ -136,10 +136,27 @@ document.addEventListener("DOMContentLoaded", function () {
     return `${y}-${m}-${day}`;
   };
 
+  const getElectionResultIso = (election) => {
+    const iso = election && (election.result_at || election.result_date || election.results_at);
+    if (iso) {
+      const d = new Date(iso);
+      if (Number.isFinite(d.getTime())) return iso;
+    }
+
+    const endIso = election && election.end_at;
+    if (!endIso) return "";
+    const end = new Date(endIso);
+    if (!Number.isFinite(end.getTime())) return "";
+
+    const r = new Date(end);
+    r.setDate(r.getDate() + 1);
+    return r.toISOString();
+  };
+
   const legendDot = (color) => {
     const c = String(color || "").trim().toLowerCase();
-    const border = c === "#ffffff" ? "border:2px solid #000000;" : "";
-    return `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${color};${border}margin-right:8px;flex:0 0 auto;"></span>`;
+    const border = c === "#ffffff" ? "border:2px solid #000000;" : "box-shadow:0 0 0 1px rgba(0,0,0,0.28);";
+    return `<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${color};${border}flex:0 0 auto;"></span>`;
   };
 
   const renderElectionLegend = () => {
@@ -147,20 +164,30 @@ document.addEventListener("DOMContentLoaded", function () {
     const WHITE = "#ffffff";
     const BLUE = "#1D4ED8";
     const YELLOW = "#FACC15";
+    const RED = "#DC2626";
     const GRAY = "#E0E0E0";
+    const PIE2 = `conic-gradient(${BLUE} 0deg 180deg, ${YELLOW} 180deg 360deg)`;
+    const PIE2_END_RESULT = `conic-gradient(${YELLOW} 0deg 180deg, ${RED} 180deg 360deg)`;
+    const PIE3 = `conic-gradient(${BLUE} 0deg 120deg, ${YELLOW} 120deg 240deg, ${RED} 240deg 360deg)`;
 
     electionLegend.innerHTML = `
-<div class="small text-muted mb-2">Legend</div>
-<div class="d-flex flex-wrap gap-3">
-  <div class="d-flex align-items-center">${legendDot(WHITE)}<span class="small">Today’s Date</span></div>
-  <div class="d-flex align-items-center">${legendDot(BLUE)}<span class="small">Election Event Date</span></div>
-  <div class="d-flex align-items-center">${legendDot(YELLOW)}<span class="small">Voting Closed / End Date</span></div>
-  <div class="d-flex align-items-center">${legendDot(GRAY)}<span class="small">Same Dates</span></div>
+<div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:11px;line-height:1.1;">
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px 12px;align-items:center;width:100%;">
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(WHITE)}<span style="white-space:nowrap;">Today</span></div>
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(BLUE)}<span style="white-space:nowrap;">Event</span></div>
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(YELLOW)}<span style="white-space:nowrap;">End</span></div>
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(RED)}<span style="white-space:nowrap;">Result</span></div>
+
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(GRAY)}<span style="white-space:nowrap;">Normal</span></div>
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(PIE2)}<span style="white-space:nowrap;">Same E+End</span></div>
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(PIE2_END_RESULT)}<span style="white-space:nowrap;">Same End+R</span></div>
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(PIE3)}<span style="white-space:nowrap;">Same E+End+R</span></div>
+  </div>
 </div>`;
     electionLegend.style.display = "block";
   };
 
-  const renderElectionCalendar = (startIso, endIso) => {
+  const renderElectionCalendar = (startIso, endIso, resultIso) => {
     if (!electionCalendar) return;
     const start = startIso ? new Date(startIso) : null;
     const end = endIso ? new Date(endIso) : null;
@@ -173,7 +200,11 @@ document.addEventListener("DOMContentLoaded", function () {
     const WHITE = "#ffffff";
     const BLUE = "#1D4ED8";
     const YELLOW = "#FACC15";
+    const RED = "#DC2626";
     const GRAY = "#E0E0E0";
+
+    const result = resultIso ? new Date(resultIso) : null;
+    const resultKey = result && Number.isFinite(result.getTime()) ? dateOnlyKey(result) : "";
 
     const monthStart = new Date(start.getFullYear(), start.getMonth(), 1);
     const monthEnd = new Date(start.getFullYear(), start.getMonth() + 1, 0);
@@ -218,6 +249,9 @@ document.addEventListener("DOMContentLoaded", function () {
         const isStart = k === startKey;
         const isEnd = k === endKey;
         const isToday = k === todayKey;
+        const isResult = !!(resultKey && k === resultKey);
+        const isTripleSame = isStart && isEnd && isResult;
+        const isEndResultSame = !isTripleSame && isEnd && isResult;
 
         let bg = GRAY;
         let fg = "#111";
@@ -226,8 +260,16 @@ document.addEventListener("DOMContentLoaded", function () {
           bg = WHITE;
           fg = "#111";
         }
-        if (isStart && isEnd) {
-          bg = `linear-gradient(90deg, ${BLUE} 0%, ${BLUE} 50%, ${YELLOW} 50%, ${YELLOW} 100%)`;
+        if (isTripleSame) {
+          bg = `conic-gradient(${BLUE} 0deg 120deg, ${YELLOW} 120deg 240deg, ${RED} 240deg 360deg)`;
+          fg = "#fff";
+          extra = "text-shadow:0 1px 1px rgba(0,0,0,0.35);";
+        } else if (isEndResultSame) {
+          bg = `conic-gradient(${YELLOW} 0deg 180deg, ${RED} 180deg 360deg)`;
+          fg = "#fff";
+          extra = "text-shadow:0 1px 1px rgba(0,0,0,0.35);";
+        } else if (isStart && isEnd) {
+          bg = `conic-gradient(${BLUE} 0deg 180deg, ${YELLOW} 180deg 360deg)`;
           fg = "#fff";
           extra = "text-shadow:0 1px 1px rgba(0,0,0,0.35);";
         } else {
@@ -239,6 +281,11 @@ document.addEventListener("DOMContentLoaded", function () {
             bg = YELLOW;
             fg = "#111";
           }
+        }
+
+        if (isResult && !isTripleSame && !isEndResultSame) {
+          bg = RED;
+          fg = "#fff";
         }
 
         const outline = isToday ? "box-shadow:0 0 0 2px #000000;" : "";
@@ -307,7 +354,12 @@ document.addEventListener("DOMContentLoaded", function () {
       return;
     }
 
-    renderElectionCalendar(election.start_at, election.end_at);
+    renderElectionLegend();
+    renderElectionCalendar(
+      election.start_at,
+      election.end_at,
+      getElectionResultIso(election)
+    );
   };
 
   const pad2 = (n) => String(Math.max(0, Math.floor(Number(n) || 0))).padStart(2, "0");

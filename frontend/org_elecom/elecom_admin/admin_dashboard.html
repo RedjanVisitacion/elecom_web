@@ -288,22 +288,41 @@
                                 <span class="badge bg-secondary" id="electionStatus">No schedule</span>
                             </div>
                             <div class="mt-3" id="electionCalendar" style="display:none;"></div>
-                            <div class="mt-3 d-flex flex-wrap justify-content-between gap-3" style="font-size: 0.8rem;">
-                                <div class="d-flex align-items-center gap-2">
-                                    <span style="width:10px;height:10px;border-radius:50%;background:#ffffff;border:2px solid #000000;display:inline-block;"></span>
-                                    <span class="text-muted">Today’s Date</span>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span style="width:10px;height:10px;border-radius:50%;background:#1D4ED8;display:inline-block;"></span>
-                                    <span class="text-muted">Election Event Date</span>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span style="width:10px;height:10px;border-radius:50%;background:#FACC15;display:inline-block;"></span>
-                                    <span class="text-muted">Voting Closed / End Date</span>
-                                </div>
-                                <div class="d-flex align-items-center gap-2">
-                                    <span style="width:10px;height:10px;border-radius:50%;background:linear-gradient(90deg, #1D4ED8 0%, #1D4ED8 50%, #FACC15 50%, #FACC15 100%);display:inline-block;"></span>
-                                    <span class="text-muted">Same Dates</span>
+                            <div class="mt-3" style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:11px;line-height:1.1;">
+                                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px 12px;align-items:center;width:100%;">
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#ffffff;border:2px solid #000000;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Today</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#1D4ED8;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Event</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#FACC15;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,0.28);"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">End</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#DC2626;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Result</span>
+                                    </div>
+
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#E0E0E0;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Normal</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#1D4ED8 0deg 180deg, #FACC15 180deg 360deg);display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Same E+End</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#FACC15 0deg 180deg, #DC2626 180deg 360deg);display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,0.28);"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Same End+R</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#1D4ED8 0deg 120deg, #FACC15 120deg 240deg, #DC2626 240deg 360deg);display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Same E+End+R</span>
+                                    </div>
                                 </div>
                             </div>
                         </div>
