@@ -174,7 +174,7 @@ document.addEventListener("DOMContentLoaded", function () {
 <div style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:11px;line-height:1.1;">
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px 12px;align-items:center;width:100%;">
     <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(WHITE)}<span style="white-space:nowrap;">Today</span></div>
-    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(BLUE)}<span style="white-space:nowrap;">Event</span></div>
+    <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(BLUE)}<span style="white-space:nowrap;">Election</span></div>
     <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(YELLOW)}<span style="white-space:nowrap;">End</span></div>
     <div style="display:inline-flex;align-items:center;gap:6px;min-width:0;">${legendDot(RED)}<span style="white-space:nowrap;">Result</span></div>
 
