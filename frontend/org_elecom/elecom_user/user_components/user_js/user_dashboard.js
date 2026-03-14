@@ -329,9 +329,19 @@ document.addEventListener('DOMContentLoaded', function() {
             selections: {},
         };
 
+        const isMultiSelectPositionKey = (positionKey) => {
+            const k = String(positionKey || '').toUpperCase();
+            return k.startsWith('USG::') && k.includes('REPRESENTATIVE');
+        };
+
         const setSubmitEnabled = () => {
             if (!submitBallotBtn) return;
-            const n = Object.keys(state.selections || {}).length;
+            const vals = Object.values(state.selections || {});
+            const n = vals.reduce((acc, v) => {
+                if (Array.isArray(v)) return acc + (v.length || 0);
+                if (v === null || v === undefined || v === '') return acc;
+                return acc + 1;
+            }, 0);
             submitBallotBtn.disabled = n === 0;
         };
 
@@ -340,8 +350,10 @@ document.addEventListener('DOMContentLoaded', function() {
             wrap.className = 'd-flex align-items-center gap-2 p-2 rounded border';
             wrap.style.cursor = 'pointer';
 
+            const isMulti = isMultiSelectPositionKey(positionKey);
+
             const input = document.createElement('input');
-            input.type = 'radio';
+            input.type = isMulti ? 'checkbox' : 'radio';
             input.name = `pos_${positionKey}`;
             input.value = String(candidate.id);
             input.className = 'form-check-input m-0';
@@ -392,7 +404,48 @@ document.addEventListener('DOMContentLoaded', function() {
             wrap.appendChild(left);
 
             input.addEventListener('change', () => {
-                state.selections[positionKey] = Number(candidate.id);
+                const cid = Number(candidate.id);
+                if (!Number.isFinite(cid)) return;
+
+                if (!isMulti) {
+                    state.selections[positionKey] = cid;
+                    setSubmitEnabled();
+                    return;
+                }
+
+                const cur = state.selections[positionKey];
+                const arr = Array.isArray(cur) ? cur.slice() : [];
+
+                if (input.checked) {
+                    if (arr.length >= 2) {
+                        input.checked = false;
+                        return;
+                    }
+                    if (!arr.includes(cid)) arr.push(cid);
+                } else {
+                    const idx = arr.indexOf(cid);
+                    if (idx >= 0) arr.splice(idx, 1);
+                }
+
+                if (!arr.length) {
+                    delete state.selections[positionKey];
+                } else {
+                    state.selections[positionKey] = arr;
+                }
+
+                // Keep UI consistent with max-2 rule.
+                if (isMulti) {
+                    const all = document.querySelectorAll(`input[name="pos_${positionKey}"]`);
+                    const hasTwo = Array.isArray(state.selections[positionKey]) && state.selections[positionKey].length >= 2;
+                    Array.from(all).forEach((el) => {
+                        if (el.type !== 'checkbox') return;
+                        if (el.checked) {
+                            el.disabled = false;
+                            return;
+                        }
+                        el.disabled = hasTwo;
+                    });
+                }
                 setSubmitEnabled();
             });
 
@@ -507,11 +560,21 @@ document.addEventListener('DOMContentLoaded', function() {
             submitBallotBtn.addEventListener('click', async () => {
                 submitBallotBtn.disabled = true;
                 try {
+                    // Ensure representative selections are arrays and non-representative are numbers.
+                    const out = {};
+                    Object.entries(state.selections || {}).forEach(([k, v]) => {
+                        if (isMultiSelectPositionKey(k)) {
+                            if (Array.isArray(v)) out[k] = v.slice(0, 2);
+                            return;
+                        }
+                        if (!Array.isArray(v)) out[k] = v;
+                    });
+
                     const res = await fetch(API_VOTE_SUBMIT, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
                         credentials: 'same-origin',
-                        body: JSON.stringify({ selections: state.selections }),
+                        body: JSON.stringify({ selections: out }),
                     });
                     const data = await res.json().catch(() => ({}));
                     if (res.status === 401) {

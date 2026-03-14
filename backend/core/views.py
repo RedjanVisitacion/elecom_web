@@ -18,42 +18,95 @@ def _get_student_program_code(student_id: str) -> str:
     if not sid:
         return ""
 
-    raw = ""
+    raw_department = ""
     try:
         with connection.cursor() as cur:
             cur.execute(
                 """
-                SELECT course
-                FROM student
-                WHERE id_number::text = %s
+                SELECT department
+                FROM public.users
+                WHERE student_id::text = %s
+                ORDER BY id DESC
                 LIMIT 1
                 """,
                 [sid],
             )
             row = cur.fetchone()
             if row and row[0] is not None:
-                raw = str(row[0])
+                raw_department = str(row[0])
     except Exception:
-        raw = ""
+        raw_department = ""
 
-    if not raw:
-        try:
-            with connection.cursor() as cur:
-                cur.execute(
+    s_dept = (raw_department or "").upper()
+    if "BSIT" in s_dept or "B.S.I.T" in s_dept or "INFORMATION TECHNOLOGY" in s_dept:
+        return "BSIT"
+    if "BTLED" in s_dept or "B.T.L.E.D" in s_dept or "LIVELIHOOD" in s_dept:
+        return "BTLED"
+    if "BFPT" in s_dept or "B.F.P.T" in s_dept or "FOOD PROCESS" in s_dept:
+        return "BFPT"
+
+    raw = ""
+    try:
+        with connection.cursor() as cur:
+            attempts: list[tuple[str, list]] = []
+            if sid.isdigit():
+                attempts.append(
+                    (
+                        """
+                        SELECT course
+                        FROM public.student
+                        WHERE id_number = %s
+                        LIMIT 1
+                        """,
+                        [int(sid)],
+                    )
+                )
+                attempts.append(
+                    (
+                        """
+                        SELECT course
+                        FROM student
+                        WHERE id_number = %s
+                        LIMIT 1
+                        """,
+                        [int(sid)],
+                    )
+                )
+
+            attempts.append(
+                (
                     """
-                    SELECT department
-                    FROM users
-                    WHERE student_id::text = %s
-                    ORDER BY id DESC
+                    SELECT course
+                    FROM public.student
+                    WHERE id_number::text = %s
                     LIMIT 1
                     """,
                     [sid],
                 )
-                row = cur.fetchone()
-                if row and row[0] is not None:
-                    raw = str(row[0])
-        except Exception:
-            raw = ""
+            )
+            attempts.append(
+                (
+                    """
+                    SELECT course
+                    FROM student
+                    WHERE id_number::text = %s
+                    LIMIT 1
+                    """,
+                    [sid],
+                )
+            )
+
+            for sql, params in attempts:
+                try:
+                    cur.execute(sql, params)
+                    row = cur.fetchone()
+                    if row and row[0] is not None:
+                        raw = str(row[0])
+                        break
+                except Exception:
+                    continue
+    except Exception:
+        raw = ""
 
     s = (raw or "").upper()
     if "BSIT" in s or "B.S.I.T" in s or "INFORMATION TECHNOLOGY" in s:
@@ -77,14 +130,12 @@ def _eligible_orgs_for_program(program_code: str) -> list[str]:
 
 
 def _usg_allowed_representative_positions(program_code: str) -> set[str]:
-    code = (program_code or "").upper()
-    if code == "BSIT":
-        return {"IT REPRESENTATIVE", "BSIT REPRESENTATIVE"}
-    if code == "BTLED":
-        return {"BTLED REPRESENTATIVE"}
-    if code == "BFPT":
-        return {"BFPT REPRESENTATIVE"}
-    return set()
+    return {
+        "IT REPRESENTATIVE",
+        "BSIT REPRESENTATIVE",
+        "BTLED REPRESENTATIVE",
+        "BFPT REPRESENTATIVE",
+    }
 
 
 def _verify_password(stored: str, provided: str) -> bool:
@@ -639,11 +690,38 @@ def eligible_ballot_api(request):
         grouped["USG"] = filtered_usg
 
     org_priority = {"USG": 0, "SITE": 1, "PAFE": 2, "AFPROTECHS": 3}
+
+    position_priority = [
+        "PRESIDENT",
+        "VICE PRESIDENT",
+        "GENERAL SECRETARY",
+        "ASSOCIATE SECRETARY",
+        "TREASURER",
+        "AUDITOR",
+        "PUBLIC INFORMATION OFFICER",
+        "P.I.O",
+        "PIO",
+    ]
+
+    def position_sort_key(pos: str):
+        up = (pos or "").strip().upper()
+        normalized = (
+            up.replace("PUBLIC INFORMATION OFFICER", "PUBLIC INFORMATION OFFICER")
+            .replace("P.I.O", "PIO")
+            .replace("P. I. O", "PIO")
+        )
+        if "REPRESENTATIVE" in normalized:
+            return (1000, normalized)
+        for i, p in enumerate(position_priority):
+            if normalized == p or normalized == p.replace("P.I.O", "PIO"):
+                return (i, normalized)
+        return (500, normalized)
+
     orgs_out = []
     for org in sorted(grouped.keys(), key=lambda o: (org_priority.get(o.upper(), 999), o)):
         pos_map = grouped[org]
         positions_out = []
-        for pos in sorted(pos_map.keys()):
+        for pos in sorted(pos_map.keys(), key=position_sort_key):
             cands = []
             for x in pos_map[pos]:
                 name = " ".join(
@@ -696,6 +774,11 @@ def vote_submit_api(request):
     eligible_orgs = _eligible_orgs_for_program(program_code)
     allowed_rep = _usg_allowed_representative_positions(program_code)
 
+    def _is_multi_select_position(org_u: str, pos: str) -> bool:
+        if (org_u or "").upper() != "USG":
+            return False
+        return "REPRESENTATIVE" in (pos or "").upper()
+
     requested: list[tuple[str, str, int]] = []
     for key, cid in selections.items():
         k = str(key or "").strip()
@@ -708,34 +791,77 @@ def vote_submit_api(request):
         if org_u == "USG" and "REPRESENTATIVE" in pos.upper() and allowed_rep:
             if not any(x in pos.upper() for x in allowed_rep):
                 return JsonResponse({"ok": False, "error": "Not eligible for this position."}, status=403)
-        try:
-            cid_i = int(cid)
-        except Exception:
-            return JsonResponse({"ok": False, "error": "Invalid candidate id."}, status=400)
-        requested.append((org_u, pos, cid_i))
+
+        if _is_multi_select_position(org_u, pos):
+            if not isinstance(cid, list):
+                return JsonResponse({"ok": False, "error": "Invalid candidate id."}, status=400)
+            if len(cid) < 1 or len(cid) > 2:
+                return JsonResponse({"ok": False, "error": "You may select up to 2 candidates for this position."}, status=400)
+            seen: set[int] = set()
+            for x in cid:
+                try:
+                    cid_i = int(x)
+                except Exception:
+                    return JsonResponse({"ok": False, "error": "Invalid candidate id."}, status=400)
+                if cid_i in seen:
+                    continue
+                seen.add(cid_i)
+                requested.append((org_u, pos, cid_i))
+        else:
+            if isinstance(cid, list):
+                return JsonResponse({"ok": False, "error": "Invalid candidate id."}, status=400)
+            try:
+                cid_i = int(cid)
+            except Exception:
+                return JsonResponse({"ok": False, "error": "Invalid candidate id."}, status=400)
+            requested.append((org_u, pos, cid_i))
 
     try:
         with connection.cursor() as cur:
             cur.execute("BEGIN")
 
+            uniq_position_keys: set[str] = set()
             for org_u, pos, _cid in requested:
-                position_key = f"{org_u}::{pos}"
+                uniq_position_keys.add(f"{org_u}::{pos}")
+
+            for position_key in sorted(uniq_position_keys):
+                is_rep = position_key.upper().startswith("USG::") and "REPRESENTATIVE" in position_key.upper()
+                limit = 2 if is_rep else 1
+                chosen = len([1 for (o, p, _c) in requested if f"{o}::{p}" == position_key])
                 cur.execute(
                     """
-                    SELECT 1
+                    SELECT COUNT(*)
                     FROM vote_items vi
                     JOIN votes v ON v.id = vi.vote_id
                     WHERE v.student_id::text = %s AND vi.position = %s
-                    LIMIT 1
                     """,
                     [student_id, position_key],
                 )
-                if cur.fetchone():
+                row = cur.fetchone()
+                already = int(row[0]) if row and row[0] is not None else 0
+                if already >= limit:
                     cur.execute("ROLLBACK")
                     return JsonResponse(
                         {"ok": False, "error": f"Already voted for {position_key}."},
                         status=409,
                     )
+
+                if chosen > limit:
+                    cur.execute("ROLLBACK")
+                    msg = (
+                        f"You may select up to 2 candidates for {position_key}."
+                        if is_rep
+                        else f"You may select only 1 candidate for {position_key}."
+                    )
+                    return JsonResponse({"ok": False, "error": msg}, status=400)
+
+                if already + chosen > limit:
+                    cur.execute("ROLLBACK")
+                    if is_rep:
+                        msg = f"You can only vote {limit} time(s) for {position_key}."
+                    else:
+                        msg = f"Already voted for {position_key}."
+                    return JsonResponse({"ok": False, "error": msg}, status=409)
 
             cur.execute(
                 """
