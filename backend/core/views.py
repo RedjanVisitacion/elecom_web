@@ -419,6 +419,57 @@ def admin_dashboard_api(request):
     )
 
 
+@require_http_methods(["GET"])
+def election_window_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    election = {
+        "status": "No schedule",
+        "status_class": "secondary",
+        "start_at": None,
+        "end_at": None,
+        "results_at": None,
+    }
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+
+        if row:
+            start_at, end_at, results_at = row
+            election["start_at"] = start_at.isoformat() if start_at else None
+            election["end_at"] = end_at.isoformat() if end_at else None
+            election["results_at"] = results_at.isoformat() if results_at else None
+
+            if start_at and end_at:
+                from django.utils import timezone
+
+                now = timezone.now()
+                if timezone.is_naive(start_at):
+                    start_at = timezone.make_aware(start_at, timezone.get_current_timezone())
+                if timezone.is_naive(end_at):
+                    end_at = timezone.make_aware(end_at, timezone.get_current_timezone())
+
+                if now < start_at:
+                    election["status"] = "Upcoming"
+                    election["status_class"] = "warning"
+                elif start_at <= now <= end_at:
+                    election["status"] = "Active"
+                    election["status_class"] = "success"
+                else:
+                    election["status"] = "Closed"
+                    election["status_class"] = "danger"
+    except Exception:
+        pass
+
+    return JsonResponse({"ok": True, "election": election})
+
+
 def _require_admin(request):
     role = (request.session.get("role") or "").lower()
     if role != "admin":
