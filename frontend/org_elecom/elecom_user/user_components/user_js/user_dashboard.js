@@ -16,12 +16,22 @@ document.addEventListener('DOMContentLoaded', function() {
     const menuAvatarIcon = document.getElementById('menuAvatarIcon');
     const notifBell = document.getElementById('notifBell');
     const notifCount = document.getElementById('notifCount');
+    const systemStatusBadge = document.getElementById('systemStatusBadge');
+    const systemStatusText = document.getElementById('systemStatusText');
     const modalLogout = document.getElementById('modalLogout');
     const electionHelperText = document.getElementById('electionHelperText');
     const ecDays = document.getElementById('ec_days');
     const ecHours = document.getElementById('ec_hours');
     const ecMins = document.getElementById('ec_mins');
     const ecSecs = document.getElementById('ec_secs');
+
+    const API_PROFILE = '/api/account/profile/';
+
+    const NET_LEVELS = {
+        HIGH: 'high',
+        LOW: 'low',
+        OFFLINE: 'offline',
+    };
 
     const toLogin = () => {
         try {
@@ -39,6 +49,100 @@ document.addEventListener('DOMContentLoaded', function() {
         notifCount.textContent = String(safe);
         notifCount.style.display = safe > 0 ? 'inline-block' : 'none';
         notifCount.setAttribute('aria-label', `${safe} unread notifications`);
+    };
+
+    const setNetworkUi = ({ level }) => {
+        if (!systemStatusBadge || !systemStatusText) return;
+        systemStatusBadge.classList.remove('is-high', 'is-low', 'is-offline');
+
+        if (level === NET_LEVELS.OFFLINE) {
+            systemStatusBadge.classList.add('is-offline');
+            systemStatusText.textContent = 'Network Offline';
+            systemStatusBadge.setAttribute('title', 'No network connection');
+            return;
+        }
+
+        if (level === NET_LEVELS.LOW) {
+            systemStatusBadge.classList.add('is-low');
+            systemStatusText.textContent = 'Network Low';
+            systemStatusBadge.setAttribute('title', 'Weak/slow connection');
+            return;
+        }
+
+        systemStatusBadge.classList.add('is-high');
+        systemStatusText.textContent = 'Network High';
+        systemStatusBadge.setAttribute('title', 'Good connection');
+    };
+
+    const getNetworkLevelFromConnectionApi = () => {
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (!conn) return null;
+
+        const effectiveType = String(conn.effectiveType || '').toLowerCase();
+        const downlink = Number(conn.downlink);
+        const rtt = Number(conn.rtt);
+
+        if (effectiveType && effectiveType !== '4g') return NET_LEVELS.LOW;
+        if (Number.isFinite(downlink) && downlink > 0 && downlink < 2.0) return NET_LEVELS.LOW;
+        if (Number.isFinite(rtt) && rtt > 180) return NET_LEVELS.LOW;
+
+        return NET_LEVELS.HIGH;
+    };
+
+    const pingLatencyMs = async () => {
+        const url = new URL(API_PROFILE, window.location.origin);
+        url.searchParams.set('_ping', String(Date.now()));
+
+        const controller = new AbortController();
+        const t0 = performance.now();
+        const timer = setTimeout(() => controller.abort(), 3500);
+
+        try {
+            await fetch(url.toString(), {
+                method: 'GET',
+                cache: 'no-store',
+                signal: controller.signal,
+            });
+            return performance.now() - t0;
+        } finally {
+            clearTimeout(timer);
+        }
+    };
+
+    const getNetworkLevel = async () => {
+        if (!navigator.onLine) return NET_LEVELS.OFFLINE;
+
+        const fromConn = getNetworkLevelFromConnectionApi();
+        if (fromConn === NET_LEVELS.LOW) return NET_LEVELS.LOW;
+
+        try {
+            const ms = await pingLatencyMs();
+            if (Number.isFinite(ms) && ms > 1200) return NET_LEVELS.LOW;
+        } catch (e) {
+            return NET_LEVELS.OFFLINE;
+        }
+
+        return NET_LEVELS.HIGH;
+    };
+
+    let netRefreshTimer = null;
+    const refreshNetworkUi = async () => {
+        const level = await getNetworkLevel();
+        setNetworkUi({ level });
+    };
+
+    const startNetworkWatch = () => {
+        if (!systemStatusBadge || !systemStatusText) return;
+        if (netRefreshTimer) clearInterval(netRefreshTimer);
+        refreshNetworkUi();
+        netRefreshTimer = setInterval(refreshNetworkUi, 8000);
+        window.addEventListener('online', refreshNetworkUi);
+        window.addEventListener('offline', refreshNetworkUi);
+
+        const conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+        if (conn && typeof conn.addEventListener === 'function') {
+            conn.addEventListener('change', refreshNetworkUi);
+        }
     };
 
     const applyProfileName = (data) => {
@@ -152,6 +256,8 @@ document.addEventListener('DOMContentLoaded', function() {
             // Placeholder until notifications feature exists
         });
     }
+
+    startNetworkWatch();
 
     void loadAccountProfileName();
 
