@@ -12,6 +12,7 @@ from .views import (
     account_profile_update_api,
     account_profile_password_api,
     election_window_api,
+    vote_status_api,
     cloudinary_signature_api,
     admin_cloudinary_signature_api,
     admin_dashboard_api,
@@ -29,6 +30,7 @@ urlpatterns = [
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
     path('api/election/window/', election_window_api, name='election_window_api'),
+    path('api/vote/status/', vote_status_api, name='vote_status_api'),
     path('api/cloudinary/signature/', cloudinary_signature_api, name='cloudinary_signature_api'),
     path('api/account/profile/', account_profile_api, name='account_profile_api'),
     path('api/account/profile/photo/', account_profile_photo_api, name='account_profile_photo_api'),

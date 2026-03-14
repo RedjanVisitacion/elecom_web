@@ -64,6 +64,16 @@
         </div>
     </div>
 
+    <div class="omnibus-lightbox" id="omnibusLightbox" aria-hidden="true">
+        <div class="omnibus-lightbox-backdrop" id="omnibusLightboxBackdrop"></div>
+        <div class="omnibus-lightbox-content" role="dialog" aria-modal="true" aria-label="Document preview">
+            <button type="button" class="omnibus-lightbox-close" id="omnibusLightboxClose" aria-label="Close">
+                <i class="bi bi-x-lg" aria-hidden="true"></i>
+            </button>
+            <img class="omnibus-lightbox-img" id="omnibusLightboxImg" src="" alt="">
+        </div>
+    </div>
+
     <!-- Main Content -->
     <div class="main-content">
         <!-- Top Navbar -->
@@ -146,8 +156,105 @@
                                     <div class="small">sec</div>
                                 </div>
                             </div>
-                            <div>
-                                <a href="/static/org_elecom/elecom_user/user_election.html" class="btn btn-light text-primary fw-semibold">Vote Now</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row g-3 align-items-stretch">
+                <div class="col-12 col-lg-6 d-flex flex-column">
+                    <div class="card shadow-sm border-0 greeting-card">
+                        <div class="card-body">
+                            <div class="greeting-card-row">
+                                <div class="greeting-card-text">
+                                    <div class="greeting-title">Hello, <span id="greetingName">Student</span>!</div>
+                                    <div class="greeting-subtext">Welcome back to the USTP Electoral Portal.</div>
+                                </div>
+                                <div class="greeting-card-cta">
+                                    <a class="greeting-cta" href="/static/org_elecom/elecom_user/user_election.html">Vote Now</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row g-3 align-items-stretch mt-1">
+                        <div class="col-12 col-md-6 d-flex flex-column">
+                            <div class="card shadow-sm border-0 h-100">
+                                <div class="card-body">
+                                    <div class="omnibus-slideshow" id="omnibusSlideshow">
+                                        <div class="omnibus-preview" id="omnibusPreview" role="button" tabindex="0" aria-label="Open document in full screen">
+                                            <img class="omnibus-slide" id="omnibusSlideImg" src="/static/assets/omnibus/page01.jpg" alt="">
+                                        </div>
+                                        <button type="button" class="omnibus-nav omnibus-prev" id="omnibusPrev" aria-label="Previous page">
+                                            <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                                        </button>
+                                        <button type="button" class="omnibus-nav omnibus-next" id="omnibusNext" aria-label="Next page">
+                                            <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                                        </button>
+                                        <div class="omnibus-dots" id="omnibusDots" aria-label="Slideshow pagination"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-12 col-md-6 d-flex flex-column">
+                            <div class="card shadow-sm border-0 h-100" id="votingStatusCard">
+                                <div class="card-body" id="votingStatusBody">
+                                    <div class="fw-semibold mb-2">Voting Status</div>
+                                    <div class="voting-status-content" id="votingStatusContent"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12 col-lg-6 d-flex flex-column">
+                    <div class="card shadow-sm border-0 h-100">
+                        <div class="card-body">
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <div class="d-flex align-items-center gap-2">
+                                    <i class="bi bi-calendar-event text-info" style="font-size: 1.5rem;"></i>
+                                    <div class="fw-semibold">Election Calendar</div>
+                                </div>
+                                <span class="badge bg-secondary" id="electionStatus">No schedule</span>
+                            </div>
+                            <div class="mt-3" id="electionCalendar" style="display:none;"></div>
+                            <div class="mt-3" style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:11px;line-height:1.1;">
+                                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px 12px;align-items:center;width:100%;">
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#ffffff;border:2px solid #000000;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Today</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#1D4ED8;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Election</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#FACC15;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,0.28);"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">End</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#DC2626;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Result</span>
+                                    </div>
+
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:#E0E0E0;display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Normal</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#1D4ED8 0deg 180deg, #FACC15 180deg 360deg);display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Same E+End</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#FACC15 0deg 180deg, #DC2626 180deg 360deg);display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,0.28);"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Same End+R</span>
+                                    </div>
+                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
+                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#1D4ED8 0deg 120deg, #FACC15 120deg 240deg, #DC2626 240deg 360deg);display:inline-block;"></span>
+                                        <span class="text-muted" style="white-space:nowrap;">Same E+End+R</span>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>

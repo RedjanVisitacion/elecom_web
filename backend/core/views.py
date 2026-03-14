@@ -471,6 +471,40 @@ def election_window_api(request):
 
 
 @require_http_methods(["GET"])
+def vote_status_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    voted_at = None
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT created_at
+                FROM votes
+                WHERE student_id::text = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                [student_id],
+            )
+            row = cur.fetchone()
+            if row:
+                voted_at = row[0]
+    except Exception:
+        voted_at = None
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "voted": voted_at is not None,
+            "voted_at": voted_at.isoformat() if voted_at else None,
+        }
+    )
+
+
+@require_http_methods(["GET"])
 def cloudinary_signature_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
