@@ -187,6 +187,47 @@ body {
   gap: 15px;
 }
 
+.top-navbar .notif-bell {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #374151;
+  transition: background-color 140ms ease, transform 140ms ease;
+}
+
+.top-navbar .notif-bell:hover {
+  background: #f3f4f6;
+  transform: scale(1.04);
+}
+
+.top-navbar .notif-bell i {
+  font-size: 1.2rem;
+  line-height: 1;
+}
+
+.top-navbar .notif-bell .notif-count {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.7rem;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .user-details {
   display: flex;
   flex-direction: column;

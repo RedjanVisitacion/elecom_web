@@ -14,6 +14,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const userAvatarIcon = document.getElementById('userAvatarIcon');
     const menuAvatarImg = document.getElementById('menuAvatarImg');
     const menuAvatarIcon = document.getElementById('menuAvatarIcon');
+    const notifBell = document.getElementById('notifBell');
+    const notifCount = document.getElementById('notifCount');
     const modalLogout = document.getElementById('modalLogout');
     const electionHelperText = document.getElementById('electionHelperText');
     const ecDays = document.getElementById('ec_days');
@@ -28,6 +30,15 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) { /* ignore */ }
         const base = window.location.origin;
         window.location.href = `${base}/login/`;
+    };
+
+    const setNotifCount = (count) => {
+        if (!notifCount) return;
+        const n = Number(count || 0);
+        const safe = Number.isFinite(n) ? Math.max(0, Math.floor(n)) : 0;
+        notifCount.textContent = String(safe);
+        notifCount.style.display = safe > 0 ? 'inline-block' : 'none';
+        notifCount.setAttribute('aria-label', `${safe} unread notifications`);
     };
 
     const applyProfileName = (data) => {
@@ -132,6 +143,15 @@ document.addEventListener('DOMContentLoaded', function() {
         const cachedPhoto = (sessionStorage.getItem('elecom_user_photo_url') || '').trim();
         if (cachedPhoto) setAvatarUrl(cachedPhoto);
     } catch (e) { /* ignore */ }
+
+    setNotifCount(0);
+
+    if (notifBell) {
+        notifBell.addEventListener('click', (e) => {
+            e.preventDefault();
+            // Placeholder until notifications feature exists
+        });
+    }
 
     void loadAccountProfileName();
 
