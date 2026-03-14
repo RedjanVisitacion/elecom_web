@@ -187,6 +187,25 @@ body {
   gap: 15px;
 }
 
+.user-details {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.05;
+}
+
+.user-name {
+  font-size: 0.95rem;
+}
+
+.user-role {
+  font-size: 0.75rem;
+  color: #6c757d;
+}
+
+.chevron-down {
+  font-size: 0.85rem;
+}
+
 .user-avatar {
   width: 40px;
   height: 40px;
@@ -207,6 +226,118 @@ body {
 .user-avatar--nav i {
   font-size: 22px;
   line-height: 1;
+}
+
+.user-avatar.user-avatar-sm {
+  width: 34px;
+  height: 34px;
+}
+
+.user-dropdown {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 10px);
+  width: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid #eef2f3;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+  z-index: 1100;
+  opacity: 0;
+  transform: translateY(-6px);
+  pointer-events: none;
+  transition: opacity 140ms ease, transform 140ms ease;
+}
+
+.user-dropdown::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  right: 22px;
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid #eef2f3;
+}
+
+.user-dropdown::after {
+  content: "";
+  position: absolute;
+  top: -8px;
+  right: 22px;
+  width: 0;
+  height: 0;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-bottom: 9px solid #ffffff;
+}
+
+.user-dropdown[data-open="1"] {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.user-dropdown #menuName {
+  font-weight: 600;
+}
+
+.user-dropdown #menuRole {
+  font-weight: 400;
+}
+
+.user-dropdown .dropdown-item {
+  display: flex;
+  width: 100%;
+  padding: 12px 14px;
+  border-radius: 10px;
+  text-decoration: none;
+  color: #222;
+  cursor: pointer;
+  align-items: center;
+}
+
+.user-dropdown .dropdown-item i {
+  transition: transform 160ms ease;
+}
+
+.user-dropdown .dropdown-item:hover {
+  background: #f8fafc;
+  color: #222;
+  text-decoration: none;
+}
+
+.user-dropdown .dropdown-item:hover i {
+  transform: translateX(3px);
+}
+
+.user-dropdown .dropdown-item:focus,
+.user-dropdown .dropdown-item:active {
+  color: #222;
+  text-decoration: none;
+}
+
+.user-dropdown .dropdown-divider {
+  height: 1px;
+  background: #eee;
+  margin: 8px 0;
+}
+
+.user-dropdown .dropdown-item-logout {
+  color: #dc3545;
+}
+
+.user-dropdown .dropdown-item-logout:hover {
+  background: #fff0f0;
+  color: #dc3545;
+  text-decoration: none;
+}
+
+.user-dropdown .dropdown-item-logout:focus,
+.user-dropdown .dropdown-item-logout:active {
+  color: #dc3545;
+  text-decoration: none;
 }
 
 .content-area {

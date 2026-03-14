@@ -4,6 +4,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const sidebarOverlay = document.getElementById('sidebarOverlay');
     const closeSidebar = document.getElementById('closeSidebar');
     const logoutLink = document.getElementById('logoutLink');
+    const userMenu = document.getElementById('userMenu');
+    const userMenuToggle = document.getElementById('userMenuToggle');
+    const userMenuDropdown = document.getElementById('userMenuDropdown');
+    const userMenuLogoutLink = document.getElementById('userMenuLogoutLink');
+    const menuName = document.getElementById('menuName');
+    const menuRole = document.getElementById('menuRole');
     const modalLogout = document.getElementById('modalLogout');
     const electionHelperText = document.getElementById('electionHelperText');
     const ecDays = document.getElementById('ec_days');
@@ -20,7 +26,67 @@ document.addEventListener('DOMContentLoaded', function() {
         window.location.href = `${base}/login/`;
     };
 
+    const applyProfileName = (data) => {
+        if (!data || !data.ok) return;
+        const user = data.user || {};
+        const student = data.student || {};
+
+        const firstName = student.first_name || user.first_name || '';
+        const middleName = student.middle_name || user.middle_name || '';
+        const lastName = student.last_name || user.last_name || '';
+        const fullName = [firstName, middleName, lastName].filter(Boolean).join(' ').trim();
+        if (!fullName) return;
+
+        if (menuName) menuName.textContent = fullName;
+
+        try {
+            sessionStorage.setItem('elecom_user', fullName);
+        } catch (e) { /* ignore */ }
+    };
+
+    const loadAccountProfileName = async () => {
+        try {
+            const res = await fetch('/api/account/profile/', { method: 'GET', headers: { Accept: 'application/json' } });
+            if (!res.ok) return;
+            const data = await res.json().catch(() => ({}));
+            applyProfileName(data);
+        } catch (e) { /* ignore */ }
+    };
+
+    const setMenuOpen = (open) => {
+        if (!userMenuDropdown) return;
+        if (open) userMenuDropdown.setAttribute('data-open', '1');
+        else userMenuDropdown.removeAttribute('data-open');
+
+        if (userMenuToggle) userMenuToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    };
+
+    if (userMenuToggle && userMenuDropdown) {
+        userMenuToggle.addEventListener('click', (e) => {
+            e.preventDefault();
+            const isOpen = userMenuDropdown.getAttribute('data-open') === '1';
+            setMenuOpen(!isOpen);
+        });
+    }
+
+    document.addEventListener('click', (e) => {
+        if (!userMenuDropdown || !userMenu) return;
+        if (userMenuDropdown.getAttribute('data-open') !== '1') return;
+        if (!userMenu.contains(e.target)) {
+            setMenuOpen(false);
+        }
+    });
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        setMenuOpen(false);
+    });
+
     if (logoutLink) logoutLink.addEventListener('click', (e) => {
+        e.preventDefault();
+        toLogin();
+    });
+    if (userMenuLogoutLink) userMenuLogoutLink.addEventListener('click', (e) => {
         e.preventDefault();
         toLogin();
     });
@@ -28,6 +94,15 @@ document.addEventListener('DOMContentLoaded', function() {
         e.preventDefault();
         toLogin();
     });
+
+    try {
+        const role = (sessionStorage.getItem('elecom_role') || 'student').trim() || 'student';
+        const user = (sessionStorage.getItem('elecom_user') || '').trim();
+        if (menuName) menuName.textContent = user || 'Student';
+        if (menuRole) menuRole.textContent = role;
+    } catch (e) { /* ignore */ }
+
+    void loadAccountProfileName();
 
     if (menuToggle) {
         menuToggle.addEventListener('click', function() {
