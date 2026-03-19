@@ -353,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const isMulti = isMultiSelectPositionKey(positionKey);
 
             const input = document.createElement('input');
-            input.type = isMulti ? 'checkbox' : 'radio';
+            input.type = 'checkbox';
             input.name = `pos_${positionKey}`;
             input.value = String(candidate.id);
             input.className = 'form-check-input m-0';
@@ -408,7 +408,16 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (!Number.isFinite(cid)) return;
 
                 if (!isMulti) {
-                    state.selections[positionKey] = cid;
+                    if (input.checked) {
+                        const all = document.querySelectorAll(`input[name="pos_${positionKey}"]`);
+                        Array.from(all).forEach((el) => {
+                            if (el === input) return;
+                            el.checked = false;
+                        });
+                        state.selections[positionKey] = cid;
+                    } else {
+                        delete state.selections[positionKey];
+                    }
                     setSubmitEnabled();
                     return;
                 }
@@ -454,40 +463,18 @@ document.addEventListener('DOMContentLoaded', function() {
 
         const renderBallot = (ballot) => {
             ballotRoot.innerHTML = '';
-            const orgTabs = document.createElement('div');
-            orgTabs.className = 'd-flex flex-wrap gap-2 mb-3';
 
-            const orgPanels = document.createElement('div');
-
-            let activeOrg = '';
-
-            const setActive = (org) => {
-                activeOrg = org;
-                Array.from(orgPanels.children).forEach((c) => {
-                    c.style.display = c.getAttribute('data-org') === activeOrg ? '' : 'none';
-                });
-                Array.from(orgTabs.querySelectorAll('button')).forEach((b) => {
-                    const isOn = b.getAttribute('data-org') === activeOrg;
-                    b.classList.toggle('btn-primary', isOn);
-                    b.classList.toggle('btn-outline-primary', !isOn);
-                });
-            };
-
-            (ballot || []).forEach((orgBlock, idx) => {
+            (ballot || []).forEach((orgBlock) => {
                 const org = String(orgBlock.organization || '').toUpperCase();
                 if (!org) return;
-                if (!activeOrg) activeOrg = org;
 
-                const tab = document.createElement('button');
-                tab.type = 'button';
-                tab.className = `btn ${idx === 0 ? 'btn-primary' : 'btn-outline-primary'} btn-sm`;
-                tab.textContent = org;
-                tab.setAttribute('data-org', org);
-                tab.addEventListener('click', () => setActive(org));
-                orgTabs.appendChild(tab);
-
-                const panel = document.createElement('div');
-                panel.setAttribute('data-org', org);
+                const orgHeader = document.createElement('div');
+                orgHeader.className = 'd-flex align-items-center justify-content-between flex-wrap gap-2 mt-2 mb-2';
+                const orgTitle = document.createElement('div');
+                orgTitle.className = 'fw-semibold';
+                orgTitle.textContent = `Organization: ${org}`;
+                orgHeader.appendChild(orgTitle);
+                ballotRoot.appendChild(orgHeader);
 
                 (orgBlock.positions || []).forEach((posBlock) => {
                     const pos = String(posBlock.position || '');
@@ -512,15 +499,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     body.appendChild(header);
                     body.appendChild(list);
                     card.appendChild(body);
-                    panel.appendChild(card);
+                    ballotRoot.appendChild(card);
                 });
-
-                orgPanels.appendChild(panel);
             });
-
-            ballotRoot.appendChild(orgTabs);
-            ballotRoot.appendChild(orgPanels);
-            setActive(activeOrg);
         };
 
         const setStatusText = (t) => {
@@ -551,8 +532,15 @@ document.addEventListener('DOMContentLoaded', function() {
             ballotProgramLine.textContent = `Program: ${program}`;
         }
 
+        const eligibleOrgLine = document.getElementById('eligibleOrgLine');
+        const eligible = Array.isArray(ballotData.eligible_organizations) ? ballotData.eligible_organizations : [];
+        if (eligibleOrgLine && eligible.length) {
+            eligibleOrgLine.style.display = '';
+            eligibleOrgLine.textContent = `Eligible organizations: ${eligible.join(', ')}`;
+        }
+
         renderBallot(ballotData.ballot || []);
-        setStatusText('Select one candidate per position, then submit.');
+        setStatusText('Select candidates per position, then submit.');
         if (ballotHint) ballotHint.style.display = '';
         setSubmitEnabled();
 
