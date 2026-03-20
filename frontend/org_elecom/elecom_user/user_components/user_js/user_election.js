@@ -218,6 +218,95 @@
             updateSelectedCount();
         });
 
+        // Click handler on input itself to enable unselecting radio buttons
+        input.addEventListener('click', (e) => {
+            const cid = Number(candidate.id);
+            if (!Number.isFinite(cid)) return;
+
+            // For radio buttons (single select), allow unselecting by clicking again
+            if (!isMulti && input.checked) {
+                const isSelected = Number(state.selections[positionKey]) === cid;
+                if (isSelected) {
+                    e.preventDefault();
+                    input.checked = false;
+                    wrap.classList.remove('selected');
+                    delete state.selections[positionKey];
+                    updateSelectedCount();
+                }
+            }
+        });
+
+        // Unified click handler for the entire card
+        wrap.addEventListener('click', (e) => {
+            const cid = Number(candidate.id);
+            if (!Number.isFinite(cid)) return;
+
+            // If clicking directly on the input, let the change event handle it
+            if (e.target === input || e.target.closest('input') === input) {
+                return;
+            }
+
+            // For multi-select positions with 2 already selected, don't allow more
+            if (isMulti) {
+                const cur = state.selections[positionKey];
+                const arr = Array.isArray(cur) ? cur : [];
+                const hasTwo = arr.length >= 2;
+                const isThisSelected = arr.includes(cid);
+                if (hasTwo && !isThisSelected) {
+                    e.preventDefault();
+                    return; // Can't select more than 2
+                }
+            }
+
+            // Check if this candidate is currently selected
+            const isSelected = !isMulti 
+                ? Number(state.selections[positionKey]) === cid
+                : (Array.isArray(state.selections[positionKey]) && state.selections[positionKey].includes(cid));
+
+            if (isSelected) {
+                // Unselect this candidate
+                e.preventDefault();
+                input.checked = false;
+                wrap.classList.remove('selected');
+
+                if (!isMulti) {
+                    delete state.selections[positionKey];
+                } else {
+                    const cur = state.selections[positionKey];
+                    const arr = Array.isArray(cur) ? cur.slice() : [];
+                    const idx = arr.indexOf(cid);
+                    if (idx >= 0) arr.splice(idx, 1);
+                    
+                    if (!arr.length) {
+                        delete state.selections[positionKey];
+                    } else {
+                        state.selections[positionKey] = arr;
+                    }
+
+                    // Update disabled state for other checkboxes
+                    const all = document.querySelectorAll(`input[name="pos_${positionKey}"]`);
+                    const hasTwo = Array.isArray(state.selections[positionKey]) && state.selections[positionKey].length >= 2;
+                    all.forEach((el) => {
+                        if (!el.checked) {
+                            el.disabled = hasTwo;
+                            if (hasTwo) {
+                                el.closest('.candidate-option')?.classList.add('disabled');
+                            } else {
+                                el.closest('.candidate-option')?.classList.remove('disabled');
+                            }
+                        }
+                    });
+                }
+
+                updateSelectedCount();
+            } else {
+                // Select this candidate
+                e.preventDefault();
+                input.checked = true;
+                input.dispatchEvent(new Event('change'));
+            }
+        });
+
         return wrap;
     };
 

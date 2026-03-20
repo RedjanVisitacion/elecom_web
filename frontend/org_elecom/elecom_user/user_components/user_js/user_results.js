@@ -394,24 +394,44 @@
                 // Check if this is a representative position
                 const isRepresentativePosition = pos.name.toUpperCase().includes('REPRESENTATIVE');
 
+                // Count how many candidates are tied for first place
+                const tiedCandidatesCount = pos.candidates.filter(c => (c.votes || 0) === maxVotes && maxVotes > 0).length;
+                const isTied = tiedCandidatesCount > 1;
+
                 pos.candidates.forEach((c, index) => {
                     const rank = index + 1;
                     const isWinner = (c.votes || 0) === maxVotes && maxVotes > 0;
                     
+                    // Determine badge text
+                    let badgeHtml = '';
+                    if (isWinner) {
+                        if (isRepresentativePosition && isTied) {
+                            // Representative positions with multiple winners - "Selected Representative"
+                            badgeHtml = '<span class="winner-tag selected-tag">Selected Representative</span>';
+                        } else if (isTied) {
+                            // Competitive positions tied - "Tied for 1st"
+                            badgeHtml = '<span class="winner-tag tie-tag">Tied for 1st</span>';
+                        } else {
+                            // Single winner - "Winner"
+                            badgeHtml = '<span class="winner-tag"><i class="bi bi-trophy-fill"></i>Winner</span>';
+                        }
+                    }
+                    
                     // For representative positions, each elected candidate shows 100%
                     // For competitive positions (President, VP, etc.), calculate percentage normally
                     let percentageOfTotal;
+                    let barWidth;
                     if (isRepresentativePosition) {
                         // Representatives: show 100% if they have any votes (elected)
                         percentageOfTotal = (c.votes || 0) > 0 ? 100.0 : 0.0;
+                        barWidth = (c.votes || 0) > 0 ? 100 : 0;
                     } else {
                         // Competitive positions: calculate as share of total votes
                         percentageOfTotal = totalPositionVotes > 0 
                             ? ((c.votes || 0) / totalPositionVotes * 100).toFixed(1) 
                             : 0;
+                        barWidth = totalPositionVotes > 0 ? ((c.votes || 0) / totalPositionVotes * 100) : 0;
                     }
-                    
-                    const barWidth = maxVotes > 0 ? ((c.votes || 0) / maxVotes * 100) : 0;
 
                     // Rank class
                     let rankClass = 'rank-other';
@@ -428,11 +448,8 @@
                                     : '<i class="bi bi-person-circle"></i>'
                                 }
                             </div>
-                            <div class="candidate-details">
-                                <div class="candidate-name-row">
-                                    <span class="name">${c.name || 'Unknown'}</span>
-                                    ${isWinner ? '<span class="winner-tag"><i class="bi bi-trophy-fill"></i>Winner</span>' : ''}
-                                </div>
+                            <div class="candidate-info">
+                                <div class="candidate-name">${c.name || 'Unknown'}</div>
                                 <div class="candidate-meta">
                                     <span class="party">${c.partyName}</span>
                                 </div>
@@ -441,6 +458,9 @@
                                         <div class="progress-fill" style="width: 0%;" data-width="${barWidth}%"></div>
                                     </div>
                                 </div>
+                            </div>
+                            <div class="winner-section">
+                                ${badgeHtml}
                             </div>
                             <div class="vote-info">
                                 <div class="vote-count">${(c.votes || 0).toLocaleString()}</div>

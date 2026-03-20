@@ -44,7 +44,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_user/user_results.html">
                         <i class="bi bi-file-bar-graph"></i>
                         <span>Results</span>
                     </a>
@@ -134,8 +134,23 @@
                 </div>
             </div>
 
-            <!-- Selection Summary -->
+            <!-- Ballot Content -->
             <div class="card shadow-sm border-0 mb-3">
+                <div class="card-body p-4">
+                    <div id="ballotRoot"></div>
+                    <div class="text-center text-muted mt-4" id="ballotLoading">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Loading your eligible ballot...
+                    </div>
+                    <div class="alert alert-info mt-4" id="ballotHint" style="display:none;">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Your selections are final after submission. Please review carefully before confirming.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Selection Summary - Moved to bottom -->
+            <div class="card shadow-sm border-0">
                 <div class="card-body">
                     <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
                         <div class="d-flex align-items-center gap-3">
@@ -153,21 +168,6 @@
                             <span>Review Ballot</span>
                             <i class="bi bi-arrow-right ms-2"></i>
                         </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Ballot Content -->
-            <div class="card shadow-sm border-0">
-                <div class="card-body p-4">
-                    <div id="ballotRoot"></div>
-                    <div class="text-center text-muted mt-4" id="ballotLoading">
-                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
-                        Loading your eligible ballot...
-                    </div>
-                    <div class="alert alert-info mt-4" id="ballotHint" style="display:none;">
-                        <i class="bi bi-info-circle me-2"></i>
-                        Your selections are final after submission. Please review carefully before confirming.
                     </div>
                 </div>
             </div>

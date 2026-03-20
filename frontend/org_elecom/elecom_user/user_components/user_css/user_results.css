@@ -148,7 +148,7 @@
     padding: 0.5rem 0;
 }
 
-/* Candidate Row */
+/* Candidate Row - Structured Layout */
 .candidate-row {
     display: flex;
     align-items: center;
@@ -166,14 +166,14 @@
     border-bottom: none;
 }
 
-/* Winner Styling */
+/* Winner Row Highlighting */
 .candidate-row.winner {
-    background: linear-gradient(90deg, rgba(251, 191, 36, 0.1) 0%, rgba(251, 191, 36, 0.02) 100%);
+    background: linear-gradient(90deg, rgba(251, 191, 36, 0.08) 0%, rgba(251, 191, 36, 0.02) 100%);
     border-left: 4px solid #fbbf24;
 }
 
 .candidate-row.winner:hover {
-    background: linear-gradient(90deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.05) 100%);
+    background: linear-gradient(90deg, rgba(251, 191, 36, 0.12) 0%, rgba(251, 191, 36, 0.04) 100%);
 }
 
 /* Ranking Badge */
@@ -251,20 +251,16 @@
     box-shadow: 0 0 0 3px rgba(251, 191, 36, 0.3);
 }
 
-/* Candidate Details */
-.candidate-details {
+/* Candidate Info - Flexible grow area */
+.candidate-info {
     flex: 1;
     min-width: 0;
-}
-
-.candidate-name-row {
     display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    margin-bottom: 0.25rem;
+    flex-direction: column;
+    gap: 0.25rem;
 }
 
-.candidate-name-row .name {
+.candidate-name {
     font-weight: 600;
     color: #1e293b;
     font-size: 1rem;
@@ -273,55 +269,81 @@
     text-overflow: ellipsis;
 }
 
-.candidate-row.winner .candidate-name-row .name {
+.candidate-row.winner .candidate-name {
     color: #92400e;
 }
 
-/* Winner Tag */
-.winner-tag {
-    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
-    color: white;
-    padding: 0.25rem 0.75rem;
-    border-radius: 20px;
-    font-size: 0.7rem;
-    font-weight: 700;
-    display: inline-flex;
-    align-items: center;
-    gap: 0.35rem;
-    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
-    animation: pulseWinner 2s infinite;
-    flex-shrink: 0;
-}
-
-@keyframes pulseWinner {
-    0%, 100% { box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4); }
-    50% { box-shadow: 0 4px 20px rgba(251, 191, 36, 0.6); }
-}
-
-/* Candidate Meta (Org & Party) */
 .candidate-meta {
     display: flex;
     align-items: center;
     gap: 0.5rem;
     font-size: 0.8rem;
     color: #64748b;
-    margin-bottom: 0.5rem;
-}
-
-.org-badge {
-    background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-    color: #1e40af;
-    padding: 0.2rem 0.6rem;
-    border-radius: 12px;
-    font-weight: 600;
-    font-size: 0.75rem;
 }
 
 .party {
     color: #64748b;
 }
 
-/* Vote Info */
+/* Winner Section - Fixed width container for consistent alignment */
+.winner-section {
+    width: 100px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+/* Winner Tag - Refined styling */
+.winner-tag {
+    background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%);
+    color: white;
+    padding: 0.35rem 0.875rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    box-shadow: 0 4px 12px rgba(251, 191, 36, 0.35);
+    white-space: nowrap;
+    animation: pulseWinner 2s infinite;
+}
+
+.winner-tag i {
+    font-size: 0.8rem;
+}
+
+/* Tie Tag - Different styling for tied candidates */
+.tie-tag {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.35);
+    animation: pulseTie 2s infinite;
+}
+
+/* Selected Representative Tag - Green styling */
+.selected-tag {
+    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35);
+    animation: pulseSelected 2s infinite;
+}
+
+@keyframes pulseWinner {
+    0%, 100% { box-shadow: 0 4px 12px rgba(251, 191, 36, 0.35); }
+    50% { box-shadow: 0 4px 16px rgba(251, 191, 36, 0.55); }
+}
+
+@keyframes pulseTie {
+    0%, 100% { box-shadow: 0 4px 12px rgba(100, 116, 139, 0.35); }
+    50% { box-shadow: 0 4px 16px rgba(100, 116, 139, 0.55); }
+}
+
+@keyframes pulseSelected {
+    0%, 100% { box-shadow: 0 4px 12px rgba(16, 185, 129, 0.35); }
+    50% { box-shadow: 0 4px 16px rgba(16, 185, 129, 0.55); }
+}
+
+/* Vote Info - Fixed width for alignment */
 .vote-info {
     display: flex;
     flex-direction: column;
@@ -334,6 +356,7 @@
     font-weight: 700;
     color: #1e3a8a;
     font-size: 1.1rem;
+    line-height: 1.2;
 }
 
 .vote-percent {
