@@ -211,12 +211,12 @@
                     <div class="receipt-section security-section">
                         <div class="d-flex align-items-center gap-3">
                             <div class="security-icon">
-                                <i class="bi bi-shield-lock"></i>
+                                <i class="bi bi-shield-check"></i>
                             </div>
                             <div>
-                                <h6 class="mb-1">Secure & Anonymous</h6>
-                                <p class="mb-0 text-muted small">
-                                    Your vote has been encrypted and stored securely. Your identity is separated from your ballot to ensure anonymity.
+                                <h6 class="mb-1">Secure & Anonymous Voting</h6>
+                                <p class="mb-0">
+                                    Your vote has been cryptographically secured and permanently recorded. Your identity is cryptographically separated from your ballot selections to guarantee absolute anonymity. This receipt confirms your participation while preserving the confidentiality of your choices.
                                 </p>
                             </div>
                         </div>
@@ -226,18 +226,20 @@
                 <div class="receipt-footer">
                     <div class="row align-items-center">
                         <div class="col-md-6">
-                            <small class="text-muted">
-                                <i class="bi bi-info-circle me-1"></i>
+                            <small>
+                                <i class="bi bi-info-circle"></i>
                                 This receipt serves as proof of participation only. How you voted remains secret.
                             </small>
                         </div>
                         <div class="col-md-6 text-md-end">
-                            <button class="btn btn-outline-primary btn-sm" id="printReceiptBtn">
-                                <i class="bi bi-printer me-2"></i>Print Receipt
-                            </button>
-                            <button class="btn btn-primary btn-sm" id="saveReceiptBtn">
-                                <i class="bi bi-download me-2"></i>Save as Image
-                            </button>
+                            <div class="receipt-actions">
+                                <button class="btn btn-outline-primary" id="printReceiptBtn">
+                                    <i class="bi bi-printer"></i>Print Receipt
+                                </button>
+                                <button class="btn btn-primary" id="saveReceiptBtn">
+                                    <i class="bi bi-download"></i>Save as Image
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

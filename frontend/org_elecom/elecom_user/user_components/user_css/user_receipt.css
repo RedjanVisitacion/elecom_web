@@ -1,66 +1,100 @@
-/* Receipt Page Styles */
+/* Professional Voting Receipt Styles */
 
-/* Success Banner */
-.success-icon-large {
-    font-size: 3rem;
-    color: #198754;
-}
-
-/* Receipt Card */
+/* Receipt Container */
 .receipt-card {
-    background: white;
+    background: #ffffff;
     border-radius: 16px;
     overflow: hidden;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06), 0 0 0 1px rgba(0, 0, 0, 0.05);
+    max-width: 800px;
+    margin: 0 auto;
 }
 
+/* Receipt Header */
 .receipt-header {
+    background: linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 50%, #3b82f6 100%);
+    padding: 2rem 2.5rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 1.5rem;
-    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
-    color: white;
+    position: relative;
+}
+
+.receipt-header::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+    opacity: 0.5;
 }
 
 .receipt-brand {
     display: flex;
     align-items: center;
     gap: 1rem;
+    position: relative;
+    z-index: 1;
 }
 
 .receipt-logo {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: white;
-    padding: 4px;
+    width: 56px;
+    height: 56px;
+    border-radius: 12px;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 8px;
+    backdrop-filter: blur(10px);
+    border: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .receipt-brand-text h5 {
+    color: #ffffff;
+    font-size: 1.25rem;
     font-weight: 700;
-    color: white;
+    letter-spacing: -0.025em;
+    margin-bottom: 0.25rem;
 }
 
 .receipt-brand-text small {
     color: rgba(255, 255, 255, 0.8);
+    font-size: 0.875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
 }
 
-.receipt-status .status-badge {
+.receipt-status {
+    position: relative;
+    z-index: 1;
+}
+
+.status-badge {
     display: inline-flex;
     align-items: center;
-    padding: 0.5rem 1rem;
-    border-radius: 20px;
-    font-weight: 600;
+    gap: 0.375rem;
+    padding: 0.625rem 1rem;
+    border-radius: 9999px;
     font-size: 0.875rem;
+    font-weight: 600;
+    backdrop-filter: blur(10px);
+    border: 2px solid;
 }
 
 .status-badge.verified {
-    background: rgba(255, 255, 255, 0.2);
-    color: white;
+    background: rgba(34, 197, 94, 0.2);
+    border-color: rgba(34, 197, 94, 0.4);
+    color: #86efac;
 }
 
+.status-badge i {
+    font-size: 1rem;
+}
+
+/* Receipt Body */
 .receipt-body {
-    padding: 2rem;
+    padding: 2rem 2.5rem;
 }
 
 .receipt-section {
@@ -71,120 +105,171 @@
     margin-bottom: 0;
 }
 
-/* Reference Section */
+/* Reference Section - Prominent */
 .reference-section {
-    background: #f8f9fa;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 2px solid #e2e8f0;
     border-radius: 12px;
-    padding: 1.5rem;
-    border-left: 4px solid #0d6efd;
+    padding: 1.75rem 2rem;
+    position: relative;
+}
+
+.reference-section::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 4px;
+    background: linear-gradient(180deg, #1d4ed8 0%, #3b82f6 100%);
+    border-radius: 12px 0 0 12px;
 }
 
 .reference-label {
     font-size: 0.75rem;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #6c757d;
+    letter-spacing: 0.1em;
+    color: #64748b;
     margin-bottom: 0.5rem;
 }
 
 .reference-number {
-    font-family: 'Courier New', monospace;
-    font-size: 1.5rem;
+    font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', Consolas, 'Courier New', monospace;
+    font-size: 1.75rem;
     font-weight: 700;
-    color: #1e3a8a;
-    letter-spacing: 1px;
+    color: #0f172a;
+    letter-spacing: 0.02em;
+    margin-bottom: 0.5rem;
 }
 
 .reference-hint {
-    font-size: 0.8rem;
-    color: #6c757d;
-    margin-top: 0.25rem;
+    font-size: 0.875rem;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
 }
 
+.reference-hint::before {
+    content: '\f430';
+    font-family: 'bootstrap-icons';
+    font-size: 0.875rem;
+    color: #f59e0b;
+}
+
+/* Receipt Meta */
 .receipt-meta {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.75rem;
 }
 
 .meta-item {
-    font-size: 0.9rem;
+    display: flex;
+    justify-content: flex-end;
+    align-items: baseline;
+    gap: 0.75rem;
 }
 
 .meta-label {
-    color: #6c757d;
-    margin-right: 0.5rem;
+    font-size: 0.875rem;
+    color: #64748b;
+    font-weight: 500;
 }
 
 .meta-value {
+    font-size: 0.9375rem;
+    color: #0f172a;
     font-weight: 600;
-    color: #212529;
 }
 
 /* Section Title */
 .section-title {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    font-size: 1.125rem;
     font-weight: 700;
-    color: #1e3a8a;
-    margin-bottom: 1rem;
+    color: #0f172a;
+    margin-bottom: 1.25rem;
     padding-bottom: 0.75rem;
-    border-bottom: 2px solid #e7f1ff;
+    border-bottom: 2px solid #e2e8f0;
 }
 
-/* Receipt Content */
+.section-title i {
+    color: #1d4ed8;
+    font-size: 1.25rem;
+}
+
+/* Vote Summary Cards */
 .receipt-org-section {
     margin-bottom: 1.5rem;
 }
 
 .receipt-org-header {
+    background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+    color: #ffffff;
+    padding: 0.875rem 1.25rem;
+    border-radius: 10px 10px 0 0;
     font-weight: 700;
-    color: #1e3a8a;
-    font-size: 1.1rem;
-    margin-bottom: 1rem;
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.receipt-org-header::before {
-    content: '';
-    width: 4px;
-    height: 24px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 2px;
+    font-size: 0.9375rem;
+    letter-spacing: 0.025em;
+    text-transform: uppercase;
 }
 
 .receipt-position {
-    margin-bottom: 1rem;
-    padding-left: 1rem;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-top: none;
+    padding: 1.25rem;
+}
+
+.receipt-position:last-child {
+    border-radius: 0 0 10px 10px;
 }
 
 .receipt-position-title {
-    font-weight: 600;
-    color: #495057;
-    font-size: 0.9rem;
-    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: #475569;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px dashed #cbd5e1;
 }
 
 .receipt-candidate {
     display: flex;
     align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    background: white;
-    border-radius: 8px;
-    border: 1px solid #e9ecef;
+    gap: 1rem;
+    padding: 0.875rem;
+    background: #f8fafc;
+    border-radius: 10px;
+    border: 1px solid #e2e8f0;
+    transition: all 0.2s ease;
     margin-bottom: 0.5rem;
 }
 
+.receipt-candidate:last-child {
+    margin-bottom: 0;
+}
+
+.receipt-candidate:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    transform: translateX(4px);
+}
+
 .receipt-candidate-avatar {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     border-radius: 50%;
     overflow: hidden;
-    background: #f8f9fa;
-    display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-shrink: 0;
+    border: 2px solid #e2e8f0;
+    background: #ffffff;
 }
 
 .receipt-candidate-avatar img {
@@ -194,160 +279,292 @@
 }
 
 .receipt-candidate-avatar i {
-    font-size: 1.75rem;
-    color: #adb5bd;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e1 100%);
+    color: #64748b;
+    font-size: 1.5rem;
 }
 
 .receipt-candidate-info {
     flex: 1;
+    min-width: 0;
 }
 
 .receipt-candidate-name {
     font-weight: 600;
-    color: #212529;
+    color: #0f172a;
+    font-size: 1rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .receipt-candidate-party {
-    font-size: 0.85rem;
-    color: #6c757d;
+    font-size: 0.875rem;
+    color: #64748b;
+    margin-top: 0.25rem;
 }
 
 .receipt-check-icon {
-    color: #198754;
-    font-size: 1.25rem;
+    color: #22c55e;
+    font-size: 1.5rem;
+    flex-shrink: 0;
 }
 
 /* Security Section */
 .security-section {
-    background: #f8f9fa;
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #bbf7d0;
     border-radius: 12px;
-    padding: 1.25rem;
-    border: 1px solid #e9ecef;
+    padding: 1.5rem;
+    position: relative;
+}
+
+.security-section::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+    background: linear-gradient(90deg, #22c55e, #16a34a);
+    border-radius: 12px 12px 0 0;
 }
 
 .security-icon {
     width: 48px;
     height: 48px;
-    border-radius: 50%;
-    background: #e7f1ff;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #0d6efd;
-    font-size: 1.5rem;
     flex-shrink: 0;
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.3);
+}
+
+.security-icon i {
+    color: #ffffff;
+    font-size: 1.5rem;
+}
+
+.security-section h6 {
+    font-weight: 700;
+    color: #14532d;
+    font-size: 1rem;
+}
+
+.security-section p {
+    color: #166534;
+    line-height: 1.6;
+    font-size: 0.9375rem;
 }
 
 /* Receipt Footer */
 .receipt-footer {
-    padding: 1rem 1.5rem;
-    background: #f8f9fa;
-    border-top: 1px solid #e9ecef;
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+    border-top: 1px solid #e2e8f0;
+    padding: 1.5rem 2.5rem;
 }
 
-/* Progress Steps (completed state) */
-.voting-progress {
+.receipt-footer small {
+    font-size: 0.875rem;
+    color: #64748b;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+
+.receipt-footer small i {
+    color: #1d4ed8;
+    margin-top: 0.125rem;
+    flex-shrink: 0;
+}
+
+/* Success Banner */
+#successBanner {
+    background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%);
+    border: 1px solid #bbf7d0;
+    border-radius: 12px;
+    padding: 1.5rem;
+    max-width: 800px;
+    margin: 0 auto 1.5rem;
+}
+
+#successBanner .success-icon-large {
+    width: 56px;
+    height: 56px;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+    border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
-    gap: 0;
-    padding: 1rem 0;
+    flex-shrink: 0;
+    box-shadow: 0 4px 6px -1px rgba(34, 197, 94, 0.3);
 }
 
-.progress-step {
+#successBanner .success-icon-large i {
+    color: #ffffff;
+    font-size: 1.75rem;
+}
+
+#successBanner h5 {
+    color: #14532d;
+    font-weight: 700;
+    font-size: 1.125rem;
+}
+
+#successBanner p {
+    color: #166534;
+    font-size: 0.9375rem;
+}
+
+/* Action Buttons */
+.receipt-actions {
     display: flex;
-    flex-direction: column;
+    gap: 0.75rem;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+}
+
+.receipt-actions .btn {
+    padding: 0.625rem 1.25rem;
+    font-weight: 600;
+    font-size: 0.875rem;
+    border-radius: 8px;
+    display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    opacity: 0.5;
-    transition: all 0.3s ease;
+    transition: all 0.2s ease;
 }
 
-.progress-step.completed {
-    opacity: 1;
+.receipt-actions .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+.receipt-actions .btn-primary {
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
+    border: none;
+}
+
+.receipt-actions .btn-outline-primary {
+    border: 2px solid #1d4ed8;
+    color: #1d4ed8;
+}
+
+.receipt-actions .btn-outline-primary:hover {
+    background: #1d4ed8;
+    color: #ffffff;
+}
+
+/* Actions Card */
+#actionsCard {
+    max-width: 800px;
+    margin: 0 auto;
+    border-radius: 12px;
+}
+
+#actionsCard h5 {
+    color: #0f172a;
+    font-weight: 700;
+    font-size: 1.125rem;
+}
+
+#actionsCard .btn {
+    padding: 0.75rem 1rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    border-radius: 8px;
+    transition: all 0.2s ease;
+}
+
+#actionsCard .btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* Progress Steps */
+.voting-progress {
+    max-width: 800px;
+    margin: 0 auto 1.5rem;
 }
 
 .progress-step.completed .step-icon {
-    background: #198754;
-    color: white;
-}
-
-.progress-step.active {
-    opacity: 1;
+    background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
 }
 
 .progress-step.active .step-icon {
-    background: #0d6efd;
-    color: white;
-    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
-}
-
-.step-icon {
-    width: 48px;
-    height: 48px;
-    border-radius: 50%;
-    background: #e9ecef;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 1.25rem;
-    color: #6c757d;
-    transition: all 0.3s ease;
-}
-
-.step-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #6c757d;
-}
-
-.progress-step.completed .step-label,
-.progress-step.active .step-label {
-    color: #198754;
-}
-
-.progress-step.active .step-label {
-    color: #0d6efd;
-}
-
-.progress-connector {
-    width: 60px;
-    height: 2px;
-    background: #dee2e6;
-    margin: 0 0.5rem;
-    position: relative;
-    top: -12px;
-}
-
-.progress-connector.active {
-    background: #198754;
+    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
 }
 
 /* Print Styles */
 @media print {
     .sidebar,
     .top-navbar,
-    .receipt-footer,
-    .voting-progress,
-    #successBanner,
-    .card:last-child {
+    #actionsCard,
+    .receipt-actions,
+    .receipt-footer small {
         display: none !important;
     }
-
+    
+    body {
+        background: #ffffff;
+    }
+    
     .main-content {
-        margin-left: 0 !important;
-        padding: 0 !important;
+        margin-left: 0;
+        padding: 0;
     }
-
+    
+    .content-area {
+        padding: 0;
+    }
+    
     .receipt-card {
-        box-shadow: none !important;
-        border: 2px solid #dee2e6 !important;
+        box-shadow: none;
+        border: 2px solid #000000;
+        max-width: 100%;
+        margin: 0;
     }
-
+    
     .receipt-header {
         background: #1e3a8a !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+    
+    .receipt-body {
+        padding: 1.5rem;
+    }
+    
+    .reference-section {
+        background: #f8fafc;
+        border: 2px solid #000000;
+    }
+    
+    .security-section {
+        background: #f0fdf4;
+        border: 1px solid #000000;
+    }
+    
+    .receipt-footer {
+        background: #f8fafc;
+        border-top: 1px solid #000000;
+    }
+    
+    #successBanner {
+        background: #f0fdf4;
+        border: 1px solid #000000;
+        max-width: 100%;
+    }
+    
+    .receipt-org-header {
+        background: #1e293b !important;
         -webkit-print-color-adjust: exact;
         print-color-adjust: exact;
     }
@@ -356,43 +573,41 @@
 /* Responsive Adjustments */
 @media (max-width: 768px) {
     .receipt-header {
+        padding: 1.5rem;
         flex-direction: column;
         gap: 1rem;
         text-align: center;
     }
-
-    .reference-number {
-        font-size: 1.25rem;
-    }
-
+    
     .receipt-body {
-        padding: 1rem;
+        padding: 1.5rem;
     }
-
-    .reference-section .row {
-        text-align: center;
+    
+    .reference-section {
+        padding: 1.25rem;
     }
-
-    .receipt-meta {
-        text-align: center;
-        margin-top: 1rem;
+    
+    .reference-number {
+        font-size: 1.5rem;
     }
-
-    .step-icon {
-        width: 36px;
-        height: 36px;
-        font-size: 1rem;
+    
+    .receipt-footer {
+        padding: 1.25rem 1.5rem;
     }
-
-    .step-label {
-        font-size: 0.65rem;
+    
+    .meta-item {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 0.25rem;
     }
-
-    .progress-connector {
-        width: 30px;
+    
+    .receipt-actions {
+        flex-direction: column;
+        width: 100%;
     }
-
-    .voting-progress {
-        padding: 0.5rem 0;
+    
+    .receipt-actions .btn {
+        width: 100%;
+        justify-content: center;
     }
 }

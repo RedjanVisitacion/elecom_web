@@ -732,11 +732,41 @@ def vote_receipt_api(request):
                 if pos_name not in orgs[org]["positions"]:
                     orgs[org]["positions"][pos_name] = {"position": pos_name, "candidates": []}
             
-            # Convert to list format
-            for org_name, org_data in orgs.items():
+            # Position priority for sorting (same as eligible_ballot_api)
+            position_priority = [
+                "PRESIDENT",
+                "VICE PRESIDENT",
+                "GENERAL SECRETARY",
+                "ASSOCIATE SECRETARY",
+                "TREASURER",
+                "AUDITOR",
+                "PUBLIC INFORMATION OFFICER",
+                "P.I.O",
+                "PIO",
+            ]
+
+            def position_sort_key(pos: str):
+                up = (pos or "").strip().upper()
+                normalized = (
+                    up.replace("PUBLIC INFORMATION OFFICER", "PUBLIC INFORMATION OFFICER")
+                    .replace("P.I.O", "PIO")
+                    .replace("P. I. O", "PIO")
+                )
+                if "REPRESENTATIVE" in normalized:
+                    return (1000, normalized)
+                for i, p in enumerate(position_priority):
+                    if normalized == p or normalized == p.replace("P.I.O", "PIO"):
+                        return (i, normalized)
+                return (500, normalized)
+
+            org_priority = {"USG": 0, "SITE": 1, "PAFE": 2, "AFPROTECHS": 3}
+
+            # Convert to list format with proper sorting
+            for org_name in sorted(orgs.keys(), key=lambda o: (org_priority.get(o.upper(), 999), o)):
+                org_data = orgs[org_name]
                 positions = []
-                for pos_name, pos_data in org_data["positions"].items():
-                    positions.append(pos_data)
+                for pos_name in sorted(org_data["positions"].keys(), key=position_sort_key):
+                    positions.append(org_data["positions"][pos_name])
                 ballot_data["ballot"].append({
                     "organization": org_name,
                     "positions": positions
@@ -1602,6 +1632,196 @@ def admin_results_api(request):
     return JsonResponse(
         {
             "ok": True,
+            "org_totals": org_totals,
+            "position_totals": position_totals,
+            "grouped": grouped_out,
+        }
+    )
+
+
+@require_http_methods(["GET"])
+def user_results_api(request):
+    """Public results API for students - only returns data if results are published."""
+    # Check if results should be available (results_at date has passed)
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
+            )
+            row = cur.fetchone()
+        
+        if not row or not row[0]:
+            return JsonResponse(
+                {"ok": True, "published": False, "message": "Results not yet scheduled."}
+            )
+        
+        results_at = row[0]
+        from django.utils import timezone
+        
+        if timezone.is_naive(results_at):
+            results_at = timezone.make_aware(results_at, timezone.get_current_timezone())
+        
+        now = timezone.now()
+        if now < results_at:
+            return JsonResponse(
+                {
+                    "ok": True, 
+                    "published": False, 
+                    "results_at": results_at.isoformat(),
+                    "message": "Results will be available after the scheduled time."
+                }
+            )
+    except Exception:
+        pass  # If we can't check, proceed to return results anyway
+
+    # Return the same data structure as admin_results_api
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT c.id,
+                       c.student_id,
+                       c.first_name,
+                       c.middle_name,
+                       c.last_name,
+                       c.organization,
+                       c.position,
+                       c.program,
+                       c.year_section,
+                       c.party_name,
+                       c.candidate_type,
+                       c.photo_url,
+                       c.party_logo_url,
+                       COALESCE(vv.cnt, 0) AS votes
+                FROM candidates_registration c
+                LEFT JOIN (
+                    SELECT vi.candidate_id AS cid, COUNT(*) AS cnt
+                    FROM vote_items vi
+                    GROUP BY vi.candidate_id
+                ) vv ON vv.cid = c.id
+                ORDER BY c.party_name, c.organization, c.position, c.last_name, c.first_name
+                """
+            )
+            cols = [c[0] for c in cur.description]
+            candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to load results."}, status=500)
+
+    if not candidates:
+        return JsonResponse(
+            {"ok": True, "published": True, "org_totals": {}, "position_totals": {}, "grouped": []}
+        )
+
+    usg_order = [
+        "President", "Vice President", "General Secretary", "Associate Secretary",
+        "Treasurer", "Auditor", "Public Information Officer", "P.I.O",
+        "IT Representative", "BSIT Representative", "BTLED Representative", "BFPT Representative",
+    ]
+    org_order = [
+        "President", "Vice President", "General Secretary", "Associate Secretary",
+        "Treasurer", "Auditor", "Public Information Officer", "P.I.O",
+    ]
+
+    def pos_index(org: str, pos: str) -> int:
+        org_key = (org or "").upper()
+        lst = org_order if org_key in {"SITE", "PAFE", "AFPROTECHS"} else usg_order
+        pos_s = (pos or "")
+        for i, label in enumerate(lst):
+            if label.lower() in pos_s.lower():
+                return i
+        return 999
+
+    org_totals: dict[str, int] = {}
+    position_totals: dict[str, int] = {}
+    grouped_map: dict[str, dict[str, dict[str, list[dict]]]] = {}
+
+    for c in candidates:
+        party = (c.get("party_name") or "Independent").upper()
+        org = (c.get("organization") or "USG").upper()
+        pos = c.get("position") or "Unspecified"
+        votes = int(c.get("votes") or 0)
+
+        org_totals[org] = org_totals.get(org, 0) + votes
+        position_totals[pos] = position_totals.get(pos, 0) + votes
+        grouped_map.setdefault(party, {}).setdefault(org, {}).setdefault(pos, []).append(c)
+
+    party_keys = sorted(grouped_map.keys(), key=lambda p: (1 if p == "INDEPENDENT" else 0, p))
+    org_priority = {"USG": 0, "SITE": 1, "PAFE": 2, "AFPROTECHS": 3}
+
+    grouped_out = []
+    for party in party_keys:
+        party_logo = ""
+        total_party_votes = 0
+        for org, pos_map in grouped_map[party].items():
+            for pos, arr in pos_map.items():
+                for x in arr:
+                    total_party_votes += int(x.get("votes") or 0)
+                    if not party_logo:
+                        u = (x.get("party_logo_url") or "").strip()
+                        if u.startswith("http"):
+                            party_logo = u
+
+        org_keys = sorted(
+            grouped_map[party].keys(),
+            key=lambda o: (org_priority.get(o.upper(), 999), o),
+        )
+
+        org_out = []
+        for org in org_keys:
+            pos_map = grouped_map[party][org]
+            pos_keys = sorted(pos_map.keys(), key=lambda p: (pos_index(org, p), p))
+
+            pos_out = []
+            for pos in pos_keys:
+                arr = pos_map[pos]
+                arr_sorted = sorted(
+                    arr,
+                    key=lambda x: (
+                        -int(x.get("votes") or 0),
+                        str(x.get("last_name") or ""),
+                        str(x.get("first_name") or ""),
+                    ),
+                )
+
+                total_pos_votes = sum(int(x.get("votes") or 0) for x in arr_sorted) or 1
+                cand_out = []
+                for x in arr_sorted:
+                    votes = int(x.get("votes") or 0)
+                    pct = round((votes / total_pos_votes) * 100, 1) if total_pos_votes else 0.0
+                    name = " ".join(
+                        [p for p in [x.get("first_name"), x.get("middle_name"), x.get("last_name")] if p]
+                    ).strip()
+
+                    cand_out.append(
+                        {
+                            "id": x.get("id"),
+                            "student_id": str(x.get("student_id") or ""),
+                            "name": name or str(x.get("student_id") or ""),
+                            "program": x.get("program") or "",
+                            "year_section": x.get("year_section") or "",
+                            "photo_url": x.get("photo_url") or "",
+                            "votes": votes,
+                            "percent_in_position": pct,
+                        }
+                    )
+
+                pos_out.append({"position": pos, "candidates": cand_out})
+
+            org_out.append({"organization": org, "positions": pos_out})
+
+        grouped_out.append(
+            {
+                "party_name": party,
+                "party_logo_url": party_logo,
+                "total_votes": int(total_party_votes),
+                "organizations": org_out,
+            }
+        )
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "published": True,
             "org_totals": org_totals,
             "position_totals": position_totals,
             "grouped": grouped_out,
