@@ -343,9 +343,6 @@
                 const posHeader = document.createElement('div');
                 posHeader.className = 'position-header';
                 posHeader.innerHTML = `
-                    <div class="position-icon">
-                        <i class="bi bi-person-badge"></i>
-                    </div>
                     <span class="position-title">${pos}</span>
                     ${isMulti ? '<span class="position-badge">Select up to 2</span>' : '<span class="position-badge">Select 1</span>'}
                 `;
