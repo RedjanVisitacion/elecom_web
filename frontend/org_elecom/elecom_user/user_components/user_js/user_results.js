@@ -299,13 +299,12 @@
     };
 
     const getOrgPriority = (org) => {
-        const priorities = {
-            'USG': 0,
-            'SITE': 1,
-            'PAFE': 2,
-            'AFPROTECHS': 3
-        };
-        return priorities[org?.toUpperCase()] || 999;
+        const up = (org || '').toUpperCase().trim();
+        if (up === 'USG' || up.includes('USG')) return 0;
+        if (up === 'SITE' || up.includes('SITE')) return 1;
+        if (up === 'PAFE' || up.includes('PAFE')) return 2;
+        if (up === 'AFPROTECHS' || up.includes('AFPROTECHS')) return 3;
+        return 999;
     };
 
     const renderResults = (grouped) => {
@@ -392,12 +391,26 @@
 
                 html += `<div class="candidates-list">`;
 
+                // Check if this is a representative position
+                const isRepresentativePosition = pos.name.toUpperCase().includes('REPRESENTATIVE');
+
                 pos.candidates.forEach((c, index) => {
                     const rank = index + 1;
                     const isWinner = (c.votes || 0) === maxVotes && maxVotes > 0;
-                    const percentageOfTotal = totalPositionVotes > 0 
-                        ? ((c.votes || 0) / totalPositionVotes * 100).toFixed(1) 
-                        : 0;
+                    
+                    // For representative positions, each elected candidate shows 100%
+                    // For competitive positions (President, VP, etc.), calculate percentage normally
+                    let percentageOfTotal;
+                    if (isRepresentativePosition) {
+                        // Representatives: show 100% if they have any votes (elected)
+                        percentageOfTotal = (c.votes || 0) > 0 ? 100.0 : 0.0;
+                    } else {
+                        // Competitive positions: calculate as share of total votes
+                        percentageOfTotal = totalPositionVotes > 0 
+                            ? ((c.votes || 0) / totalPositionVotes * 100).toFixed(1) 
+                            : 0;
+                    }
+                    
                     const barWidth = maxVotes > 0 ? ((c.votes || 0) / maxVotes * 100) : 0;
 
                     // Rank class
