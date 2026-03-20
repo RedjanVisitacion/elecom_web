@@ -4,7 +4,7 @@ import json
 
 from django.http import JsonResponse
 from django.shortcuts import render
-from django.db import connection
+from django.db import connection, transaction
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -1752,22 +1752,49 @@ def admin_reset_votes_api(request):
 
     try:
         with connection.cursor() as cur:
-            cur.execute("BEGIN")
-            # Delete children first
+            # Check initial counts
+            cur.execute("SELECT COUNT(*) FROM vote_items")
+            items_before = cur.fetchone()[0] or 0
+            cur.execute("SELECT COUNT(*) FROM votes")
+            votes_before = cur.fetchone()[0] or 0
+            
+            # Delete from child table first (vote_items has FK to votes)
             cur.execute("DELETE FROM vote_items")
+            items_deleted = cur.rowcount
+            
+            # Then delete from parent table
+            cur.execute("DELETE FROM votes")
+            votes_deleted = cur.rowcount
+            
+            # Optional: delete from legacy table
             try:
                 cur.execute("DELETE FROM vote_results")
             except Exception:
                 pass
-            cur.execute("DELETE FROM votes")
-            cur.execute("COMMIT")
-        return JsonResponse({"ok": True})
-    except Exception:
-        try:
-            with connection.cursor() as cur:
-                cur.execute("ROLLBACK")
-        except Exception:
-            pass
+            
+            # Verify counts after deletion
+            cur.execute("SELECT COUNT(*) FROM vote_items")
+            items_after = cur.fetchone()[0] or 0
+            cur.execute("SELECT COUNT(*) FROM votes")
+            votes_after = cur.fetchone()[0] or 0
+        
+        if items_after > 0 or votes_after > 0:
+            return JsonResponse({
+                "ok": False, 
+                "error": f"Failed to delete all votes. Remaining: {votes_after} votes, {items_after} items"
+            }, status=500)
+        
+        return JsonResponse({
+            "ok": True, 
+            "deleted": {
+                "votes": votes_before,
+                "vote_items": items_before
+            }
+        })
+    except Exception as e:
+        error_msg = str(e)
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": error_msg}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to reset votes."}, status=500)
 
 

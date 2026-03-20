@@ -21,7 +21,7 @@ class VoteItem(models.Model):
     class Meta:
         db_table = "vote_items"
         constraints = [
-            models.UniqueConstraint(fields=["vote", "position"], name="ux_vote_items_vote_position"),
+            models.UniqueConstraint(fields=["vote", "position", "candidate_id"], name="ux_vote_items_vote_position_candidate"),
         ]
         indexes = [
             models.Index(fields=["position"]),
