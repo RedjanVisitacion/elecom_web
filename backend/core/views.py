@@ -646,6 +646,121 @@ def vote_status_api(request):
 
 
 @require_http_methods(["GET"])
+def vote_receipt_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        with connection.cursor() as cur:
+            # Get the most recent vote for this student
+            cur.execute(
+                """
+                SELECT id, created_at
+                FROM votes
+                WHERE student_id::text = %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                [student_id],
+            )
+            vote_row = cur.fetchone()
+            
+            if not vote_row:
+                return JsonResponse({"ok": False, "error": "No vote found."}, status=404)
+            
+            vote_id, voted_at = vote_row
+            
+            # Get vote items with candidate details
+            cur.execute(
+                """
+                SELECT vi.position, vi.candidate_id,
+                       c.first_name, c.middle_name, c.last_name,
+                       c.photo_url, c.party_name
+                FROM vote_items vi
+                JOIN candidates_registration c ON c.id = vi.candidate_id
+                WHERE vi.vote_id = %s
+                ORDER BY vi.position
+                """,
+                [vote_id],
+            )
+            cols = [c[0] for c in cur.description]
+            vote_items = [dict(zip(cols, r)) for r in cur.fetchall()]
+            
+            # Build selections dictionary
+            selections = {}
+            candidates = {}
+            
+            for item in vote_items:
+                position = item.get("position", "")
+                candidate_id = str(item.get("candidate_id"))
+                
+                # Build candidate name
+                name_parts = [item.get("first_name"), item.get("middle_name"), item.get("last_name")]
+                candidate_name = " ".join([p for p in name_parts if p]).strip()
+                
+                # Store candidate info
+                candidates[candidate_id] = {
+                    "id": item.get("candidate_id"),
+                    "name": candidate_name,
+                    "photo_url": item.get("photo_url") or "",
+                    "party_name": item.get("party_name") or ""
+                }
+                
+                # Group by position
+                if position not in selections:
+                    selections[position] = []
+                selections[position].append(item.get("candidate_id"))
+            
+            # Convert single selections to numbers (not arrays)
+            for pos in selections:
+                if len(selections[pos]) == 1:
+                    selections[pos] = selections[pos][0]
+            
+            # Build ballot data structure for receipt
+            ballot_data = {"ballot": []}
+            orgs = {}
+            
+            for item in vote_items:
+                position = item.get("position", "")
+                org = position.split("::")[0] if "::" in position else "USG"
+                pos_name = position.split("::")[1] if "::" in position else position
+                
+                if org not in orgs:
+                    orgs[org] = {"organization": org, "positions": {}}
+                
+                if pos_name not in orgs[org]["positions"]:
+                    orgs[org]["positions"][pos_name] = {"position": pos_name, "candidates": []}
+            
+            # Convert to list format
+            for org_name, org_data in orgs.items():
+                positions = []
+                for pos_name, pos_data in org_data["positions"].items():
+                    positions.append(pos_data)
+                ballot_data["ballot"].append({
+                    "organization": org_name,
+                    "positions": positions
+                })
+            
+            return JsonResponse({
+                "ok": True,
+                "receipt": {
+                    "reference_number": f"ELE-{vote_id}-{student_id[:8]}",
+                    "voted_at": voted_at.isoformat() if voted_at else None,
+                    "total_selections": len(vote_items),
+                    "selections": selections,
+                    "candidates": candidates,
+                    "ballot_data": ballot_data
+                }
+            })
+            
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load receipt."}, status=500)
+
+
+@require_http_methods(["GET"])
 def eligible_ballot_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:

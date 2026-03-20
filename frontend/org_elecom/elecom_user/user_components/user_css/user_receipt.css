@@ -1,0 +1,398 @@
+/* Receipt Page Styles */
+
+/* Success Banner */
+.success-icon-large {
+    font-size: 3rem;
+    color: #198754;
+}
+
+/* Receipt Card */
+.receipt-card {
+    background: white;
+    border-radius: 16px;
+    overflow: hidden;
+}
+
+.receipt-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.5rem;
+    background: linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%);
+    color: white;
+}
+
+.receipt-brand {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.receipt-logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: white;
+    padding: 4px;
+}
+
+.receipt-brand-text h5 {
+    font-weight: 700;
+    color: white;
+}
+
+.receipt-brand-text small {
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.receipt-status .status-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.875rem;
+}
+
+.status-badge.verified {
+    background: rgba(255, 255, 255, 0.2);
+    color: white;
+}
+
+.receipt-body {
+    padding: 2rem;
+}
+
+.receipt-section {
+    margin-bottom: 2rem;
+}
+
+.receipt-section:last-child {
+    margin-bottom: 0;
+}
+
+/* Reference Section */
+.reference-section {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.5rem;
+    border-left: 4px solid #0d6efd;
+}
+
+.reference-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+.reference-number {
+    font-family: 'Courier New', monospace;
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1e3a8a;
+    letter-spacing: 1px;
+}
+
+.reference-hint {
+    font-size: 0.8rem;
+    color: #6c757d;
+    margin-top: 0.25rem;
+}
+
+.receipt-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.meta-item {
+    font-size: 0.9rem;
+}
+
+.meta-label {
+    color: #6c757d;
+    margin-right: 0.5rem;
+}
+
+.meta-value {
+    font-weight: 600;
+    color: #212529;
+}
+
+/* Section Title */
+.section-title {
+    font-weight: 700;
+    color: #1e3a8a;
+    margin-bottom: 1rem;
+    padding-bottom: 0.75rem;
+    border-bottom: 2px solid #e7f1ff;
+}
+
+/* Receipt Content */
+.receipt-org-section {
+    margin-bottom: 1.5rem;
+}
+
+.receipt-org-header {
+    font-weight: 700;
+    color: #1e3a8a;
+    font-size: 1.1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.receipt-org-header::before {
+    content: '';
+    width: 4px;
+    height: 24px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 2px;
+}
+
+.receipt-position {
+    margin-bottom: 1rem;
+    padding-left: 1rem;
+}
+
+.receipt-position-title {
+    font-weight: 600;
+    color: #495057;
+    font-size: 0.9rem;
+    margin-bottom: 0.5rem;
+}
+
+.receipt-candidate {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e9ecef;
+    margin-bottom: 0.5rem;
+}
+
+.receipt-candidate-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    background: #f8f9fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.receipt-candidate-avatar img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.receipt-candidate-avatar i {
+    font-size: 1.75rem;
+    color: #adb5bd;
+}
+
+.receipt-candidate-info {
+    flex: 1;
+}
+
+.receipt-candidate-name {
+    font-weight: 600;
+    color: #212529;
+}
+
+.receipt-candidate-party {
+    font-size: 0.85rem;
+    color: #6c757d;
+}
+
+.receipt-check-icon {
+    color: #198754;
+    font-size: 1.25rem;
+}
+
+/* Security Section */
+.security-section {
+    background: #f8f9fa;
+    border-radius: 12px;
+    padding: 1.25rem;
+    border: 1px solid #e9ecef;
+}
+
+.security-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #e7f1ff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: #0d6efd;
+    font-size: 1.5rem;
+    flex-shrink: 0;
+}
+
+/* Receipt Footer */
+.receipt-footer {
+    padding: 1rem 1.5rem;
+    background: #f8f9fa;
+    border-top: 1px solid #e9ecef;
+}
+
+/* Progress Steps (completed state) */
+.voting-progress {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 1rem 0;
+}
+
+.progress-step {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.5rem;
+    opacity: 0.5;
+    transition: all 0.3s ease;
+}
+
+.progress-step.completed {
+    opacity: 1;
+}
+
+.progress-step.completed .step-icon {
+    background: #198754;
+    color: white;
+}
+
+.progress-step.active {
+    opacity: 1;
+}
+
+.progress-step.active .step-icon {
+    background: #0d6efd;
+    color: white;
+    box-shadow: 0 4px 12px rgba(13, 110, 253, 0.3);
+}
+
+.step-icon {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #e9ecef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    color: #6c757d;
+    transition: all 0.3s ease;
+}
+
+.step-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6c757d;
+}
+
+.progress-step.completed .step-label,
+.progress-step.active .step-label {
+    color: #198754;
+}
+
+.progress-step.active .step-label {
+    color: #0d6efd;
+}
+
+.progress-connector {
+    width: 60px;
+    height: 2px;
+    background: #dee2e6;
+    margin: 0 0.5rem;
+    position: relative;
+    top: -12px;
+}
+
+.progress-connector.active {
+    background: #198754;
+}
+
+/* Print Styles */
+@media print {
+    .sidebar,
+    .top-navbar,
+    .receipt-footer,
+    .voting-progress,
+    #successBanner,
+    .card:last-child {
+        display: none !important;
+    }
+
+    .main-content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+
+    .receipt-card {
+        box-shadow: none !important;
+        border: 2px solid #dee2e6 !important;
+    }
+
+    .receipt-header {
+        background: #1e3a8a !important;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+    }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 768px) {
+    .receipt-header {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+
+    .reference-number {
+        font-size: 1.25rem;
+    }
+
+    .receipt-body {
+        padding: 1rem;
+    }
+
+    .reference-section .row {
+        text-align: center;
+    }
+
+    .receipt-meta {
+        text-align: center;
+        margin-top: 1rem;
+    }
+
+    .step-icon {
+        width: 36px;
+        height: 36px;
+        font-size: 1rem;
+    }
+
+    .step-label {
+        font-size: 0.65rem;
+    }
+
+    .progress-connector {
+        width: 30px;
+    }
+
+    .voting-progress {
+        padding: 0.5rem 0;
+    }
+}

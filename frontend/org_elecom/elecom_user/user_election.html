@@ -9,6 +9,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_election.css">
 </head>
 <body class="theme-elecom">
 
@@ -49,7 +50,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">
+                    <a class="nav-link" href="/static/org_elecom/elecom_user/user_receipt.html">
                         <i class="bi bi-check2"></i>
                         <span>Voting Receipt</span>
                     </a>
@@ -110,28 +111,166 @@
 
         <!-- Content Area -->
         <div class="content-area">
-            <div class="card shadow-sm border-0">
+            <!-- Progress Steps -->
+            <div class="voting-progress mb-4">
+                <div class="progress-step active" data-step="select">
+                    <div class="step-icon"><i class="bi bi-check-circle"></i></div>
+                    <div class="step-label">Select</div>
+                </div>
+                <div class="progress-connector"></div>
+                <div class="progress-step" data-step="review">
+                    <div class="step-icon"><i class="bi bi-eye"></i></div>
+                    <div class="step-label">Review</div>
+                </div>
+                <div class="progress-connector"></div>
+                <div class="progress-step" data-step="confirm">
+                    <div class="step-icon"><i class="bi bi-shield-check"></i></div>
+                    <div class="step-label">Confirm</div>
+                </div>
+                <div class="progress-connector"></div>
+                <div class="progress-step" data-step="receipt">
+                    <div class="step-icon"><i class="bi bi-file-text"></i></div>
+                    <div class="step-label">Receipt</div>
+                </div>
+            </div>
+
+            <!-- Selection Summary -->
+            <div class="card shadow-sm border-0 mb-3">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
-                        <div>
-                            <div class="fw-semibold">Election</div>
-                            <div class="text-muted small" id="ballotSubtitle">Loading your eligible ballot...</div>
+                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2">
+                        <div class="d-flex align-items-center gap-3">
+                            <div class="selection-counter" id="selectionCounter">
+                                <span class="counter-value" id="selectedCount">0</span>
+                                <span class="counter-label">selected</span>
+                            </div>
+                            <div class="ballot-info">
+                                <div class="fw-semibold" id="ballotHeader">Your Ballot</div>
+                                <div class="text-muted small" id="ballotProgramLine" style="display:none;"></div>
+                                <div class="text-muted small" id="eligibleOrgLine" style="display:none;"></div>
+                            </div>
                         </div>
-                        <a href="/static/org_elecom/elecom_user/user_dashboard.html" class="btn btn-outline-secondary">Back</a>
+                        <button type="button" class="btn btn-primary btn-lg" id="reviewBallotBtn" disabled>
+                            <span>Review Ballot</span>
+                            <i class="bi bi-arrow-right ms-2"></i>
+                        </button>
                     </div>
                 </div>
             </div>
 
-            <div class="card shadow-sm border-0 mt-3">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                        <div class="fw-semibold" id="ballotHeader">Your Ballot</div>
-                        <button type="button" class="btn btn-primary" id="submitBallotBtn" disabled>Submit Vote</button>
-                    </div>
-                    <div class="text-muted small mb-3" id="ballotProgramLine" style="display:none;"></div>
+            <!-- Ballot Content -->
+            <div class="card shadow-sm border-0">
+                <div class="card-body p-4">
                     <div id="ballotRoot"></div>
-                    <div class="text-muted small mt-3" id="ballotHint" style="display:none;">Your selections are final after submission.</div>
-                    <div class="text-muted small mt-2" id="eligibleOrgLine" style="display:none;"></div>
+                    <div class="text-center text-muted mt-4" id="ballotLoading">
+                        <div class="spinner-border spinner-border-sm me-2" role="status"></div>
+                        Loading your eligible ballot...
+                    </div>
+                    <div class="alert alert-info mt-4" id="ballotHint" style="display:none;">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Your selections are final after submission. Please review carefully before confirming.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Ballot Modal -->
+    <div class="modal fade" id="reviewModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-primary text-white border-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="step-badge">2</div>
+                        <div>
+                            <h5 class="modal-title mb-0">Review Your Ballot</h5>
+                            <small>Please verify your selections before confirming</small>
+                        </div>
+                    </div>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="review-summary mb-4">
+                        <div class="d-flex align-items-center justify-content-between p-3 bg-light rounded">
+                            <div>
+                                <div class="text-muted small">Total Selections</div>
+                                <div class="fw-bold fs-5" id="reviewTotalCount">0 candidates</div>
+                            </div>
+                            <div class="text-end">
+                                <div class="text-muted small">Organizations</div>
+                                <div class="fw-bold" id="reviewOrgCount">0</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="reviewContent" class="review-content"></div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        <i class="bi bi-arrow-left me-2"></i>Edit Ballot
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg" id="confirmBallotBtn">
+                        <i class="bi bi-shield-check me-2"></i>Confirm & Submit Vote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Vote Modal -->
+    <div class="modal fade" id="confirmModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-success text-white border-0">
+                    <div class="d-flex align-items-center gap-3">
+                        <div class="step-badge bg-white text-success">3</div>
+                        <div>
+                            <h5 class="modal-title mb-0">Confirm Your Vote</h5>
+                            <small>Final confirmation required</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-body p-4 text-center">
+                    <div class="confirm-icon mb-3">
+                        <i class="bi bi-shield-lock-fill"></i>
+                    </div>
+                    <h5 class="mb-2">Are you absolutely sure?</h5>
+                    <p class="text-muted mb-4">
+                        Once submitted, your vote cannot be changed or withdrawn. 
+                        This is your final opportunity to review.
+                    </p>
+                    <div class="alert alert-warning d-flex align-items-start gap-2 text-start">
+                        <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+                        <div>
+                            <strong>Important:</strong> By clicking "Submit Vote", you confirm that:
+                            <ul class="mb-0 mt-1">
+                                <li>You have reviewed all your selections</li>
+                                <li>Your choices reflect your true voting intent</li>
+                                <li>You understand this action is irreversible</li>
+                            </ul>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 justify-content-center gap-2">
+                    <button type="button" class="btn btn-outline-secondary" id="backToReviewBtn">
+                        <i class="bi bi-arrow-left me-2"></i>Go Back
+                    </button>
+                    <button type="button" class="btn btn-success btn-lg" id="finalSubmitBtn">
+                        <i class="bi bi-check-lg me-2"></i>Submit Vote
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Processing Modal -->
+    <div class="modal fade" id="processingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 text-center p-4">
+                <div class="modal-body">
+                    <div class="processing-spinner mb-3">
+                        <div class="spinner-border text-primary" role="status" style="width: 3rem; height: 3rem;"></div>
+                    </div>
+                    <h5 class="mb-2">Processing Your Vote</h5>
+                    <p class="text-muted mb-0">Please wait while we securely record your ballot...</p>
                 </div>
             </div>
         </div>
@@ -140,5 +279,6 @@
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_user/user_components/user_js/user_dashboard.js?v=20260319"></script>
+    <script src="/static/org_elecom/elecom_user/user_components/user_js/user_election.js?v=20260320"></script>
 </body>
 </html>
