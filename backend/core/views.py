@@ -1,4 +1,5 @@
 ﻿from __future__ import annotations
+from datetime import timezone as dt_timezone
 
 import json
 import hashlib
@@ -4745,9 +4746,9 @@ def admin_election_window_api(request):
         return JsonResponse({"ok": False, "error": "Invalid date/time values."}, status=400)
 
     # Compare using aware instants (same wall times the admin chose).
-    start_cmp = timezone.make_aware(start_db, timezone.utc)
-    end_cmp = timezone.make_aware(end_db, timezone.utc)
-    results_cmp = timezone.make_aware(results_db, timezone.utc) if results_db else None
+    start_cmp = timezone.make_aware(start_db, dt_timezone.utc)
+    end_cmp = timezone.make_aware(end_db, dt_timezone.utc)
+    results_cmp = timezone.make_aware(results_db, dt_timezone.utc) if results_db else None
 
     if end_cmp <= start_cmp:
         return JsonResponse({"ok": False, "error": "End must be after Start."}, status=400)
