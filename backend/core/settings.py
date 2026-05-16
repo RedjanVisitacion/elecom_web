@@ -46,7 +46,15 @@ DEBUG = True
 ALLOWED_HOSTS = [
     '192.168.2.7',
     '127.0.0.1',
+    '192.168.101.6',
+    '192.168.2.17',
     '192.168.101.16',
+    '192.168.101.7',
+    '192.168.2.8',
+    '192.168.1.171',
+    '192.168.40.120',
+    '192.168.0.100',
+    '192.168.1.171',
     'localhost',
 ]
 
@@ -99,15 +107,23 @@ WSGI_APPLICATION = 'core.wsgi.application'
 # https://docs.djangoproject.com/en/4.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'elecom_db',      # Name from pgAdmin
-        'USER': 'postgres',       # Default Postgres user
-        'PASSWORD': '123', 
-        'HOST': '127.0.0.1',
-        'PORT': '5432',
+    "default": {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": os.getenv("DB_NAME", "elecom_db"),
+        # Use a least-privileged role in production (see db/ledger_security.sql).
+        "USER": os.getenv("DB_USER", "elecom_backend"),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "127.0.0.1"),
+        "PORT": os.getenv("DB_PORT", "5432"),
     }
 }
+
+# Local dev fallback: if env vars are not set, allow running against the
+# existing local postgres credentials while DEBUG=True.
+if DEBUG:
+    if not DATABASES["default"].get("PASSWORD"):
+        DATABASES["default"]["USER"] = os.getenv("DB_USER", "postgres")
+        DATABASES["default"]["PASSWORD"] = os.getenv("DB_PASSWORD", "123")
 
 
 # Password validation
@@ -160,3 +176,52 @@ STATICFILES_DIRS = [
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
 CLOUDINARY_API_SECRET = os.getenv("CLOUDINARY_API_SECRET", "")
+
+# Face++ (Megvii) — server only; never ship keys in the mobile app.
+FACEPP_API_KEY = os.getenv("FACEPP_API_KEY", "")
+FACEPP_API_SECRET = os.getenv("FACEPP_API_SECRET", "")
+FACEPP_FACESET_OUTER_ID = os.getenv("FACEPP_FACESET_OUTER_ID", "elecom_voters")
+FACEPP_API_BASE = os.getenv(
+    "FACEPP_API_BASE",
+    "https://api-us.faceplusplus.com/facepp/v3",
+)
+try:
+    FACEPP_DUPLICATE_THRESHOLD = float(os.getenv("FACEPP_DUPLICATE_THRESHOLD", "80"))
+except ValueError:
+    FACEPP_DUPLICATE_THRESHOLD = 80.0
+try:
+    FACEPP_VERIFY_THRESHOLD = float(os.getenv("FACEPP_VERIFY_THRESHOLD", "80"))
+except ValueError:
+    FACEPP_VERIFY_THRESHOLD = 80.0
+
+# Minutes a successful face verify remains valid before vote submit (server-enforced).
+FACE_VOTE_VERIFY_SESSION_MINUTES = int(os.getenv("FACE_VOTE_VERIFY_SESSION_MINUTES", "20"))
+
+# -- Email (Forgot Password OTP) -----------------------------------------------
+# Default is console: OTPs are printed to the runserver terminal only — no real
+# inbox delivery. For Gmail (or any SMTP), set in .env on the machine that runs Django:
+#   EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+#   EMAIL_HOST=smtp.gmail.com
+#   EMAIL_PORT=587
+#   EMAIL_USE_TLS=true
+#   EMAIL_HOST_USER=your.address@gmail.com
+#   EMAIL_HOST_PASSWORD=<app password if 2FA, or account password>
+#   DEFAULT_FROM_EMAIL=ELECOM <your.address@gmail.com>
+EMAIL_BACKEND = os.getenv(
+    "EMAIL_BACKEND",
+    "django.core.mail.backends.console.EmailBackend",
+)
+EMAIL_HOST        = os.getenv("EMAIL_HOST", "smtp.gmail.com")
+EMAIL_PORT        = int(os.getenv("EMAIL_PORT", "587"))
+EMAIL_USE_TLS     = os.getenv("EMAIL_USE_TLS", "true").lower() == "true"
+EMAIL_HOST_USER   = os.getenv("EMAIL_HOST_USER", "")
+EMAIL_HOST_PASSWORD = os.getenv("EMAIL_HOST_PASSWORD", "")
+# Gmail copies app passwords as four groups with spaces; SMTP auth needs one string.
+if EMAIL_HOST_PASSWORD:
+    EMAIL_HOST_PASSWORD = EMAIL_HOST_PASSWORD.replace(" ", "")
+DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "ELECOM <noreply@elecom.app>")
+
+# OTP validity window in minutes.
+OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
+# Reset token validity window in minutes (after OTP verified).
+RESET_TOKEN_EXPIRY_MINUTES = int(os.getenv("RESET_TOKEN_EXPIRY_MINUTES", "15"))

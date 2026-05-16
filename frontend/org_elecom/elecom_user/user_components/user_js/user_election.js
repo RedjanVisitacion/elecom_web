@@ -5,6 +5,7 @@
     const API_BALLOT = '/api/ballot/';
     const API_VOTE_SUBMIT = '/api/vote/submit/';
     const API_VOTE_STATUS = '/api/vote/status/';
+    const API_NETWORK_CHECK = '/api/network/check/';
 
     // State
     const state = {
@@ -467,10 +468,27 @@
         state.isSubmitting = true;
 
         modals.confirm?.hide();
-        updateProgressStep('receipt');
         modals.processing?.show();
 
         try {
+            // First check network authorization
+            const networkRes = await fetch(API_NETWORK_CHECK, {
+                method: 'GET',
+                credentials: 'same-origin'
+            });
+
+            const networkData = await networkRes.json().catch(() => ({ ok: true, allowed: true }));
+
+            if (!networkData.ok || !networkData.allowed) {
+                modals.processing?.hide();
+                alert(networkData.message || 'You must be connected to the authorized network to vote. Please connect to the same network as the admin and try again.');
+                state.isSubmitting = false;
+                return;
+            }
+
+            // Network check passed, proceed with vote submission
+            updateProgressStep('receipt');
+
             // Prepare selections
             const out = {};
             Object.entries(state.selections).forEach(([k, v]) => {

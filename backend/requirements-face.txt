@@ -1,0 +1,2 @@
+# Server-side uploads for face enrollment archives (pip install -r requirements-face.txt)
+cloudinary>=1.36.0
