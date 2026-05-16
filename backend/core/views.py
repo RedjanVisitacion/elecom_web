@@ -1456,23 +1456,21 @@ def _is_election_active_now() -> bool:
     try:
         with connection.cursor() as cur:
             cur.execute(
-                "SELECT start_at, end_at FROM vote_windows ORDER BY id DESC LIMIT 1"
+                "SELECT start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
             )
             row = cur.fetchone()
         if not row:
             return False
-        start_at, end_at = row
-        if start_at is None or end_at is None:
-            return False
         now = timezone.now()
-        # vote_windows uses `timestamp without time zone` and is stored as naive UTC
-        # (see _election_naive_utc_from_admin_form). Treat naive timestamps as UTC.
-        if timezone.is_naive(start_at):
-            start_at = timezone.make_aware(start_at, timezone.utc)
-        if timezone.is_naive(end_at):
-            end_at = timezone.make_aware(end_at, timezone.utc)
-        return start_at <= now <= end_at
-    except Exception:
+        vote_phase, _results_state = _compute_election_phases(
+            now=now,
+            start_at=row[0],
+            end_at=row[1],
+            results_at=row[2],
+        )
+        return vote_phase == "active"
+    except Exception as e:
+        logger.exception("Failed to evaluate election active window: %s", e)
         return False
 
 
@@ -1633,7 +1631,7 @@ def vote_submit_api(request):
 
             # Enforce election window inside the transaction (server time).
             cur.execute(
-                "SELECT id, start_at, end_at FROM vote_windows ORDER BY id DESC LIMIT 1"
+                "SELECT id, start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
             )
             wrow = cur.fetchone()
             if not wrow:
@@ -1642,20 +1640,20 @@ def vote_submit_api(request):
                     {"ok": False, "error": "Election schedule not set."},
                     status=403,
                 )
-            election_id, start_at, end_at = wrow
+            election_id, start_at, end_at, results_at = wrow
             if start_at is None or end_at is None:
                 cur.execute("ROLLBACK")
                 return JsonResponse(
                     {"ok": False, "error": "Election schedule not set."},
                     status=403,
                 )
-            now = timezone.now()
-            # vote_windows stores naive UTC timestamps
-            if timezone.is_naive(start_at):
-                start_at = timezone.make_aware(start_at, timezone.utc)
-            if timezone.is_naive(end_at):
-                end_at = timezone.make_aware(end_at, timezone.utc)
-            if not (start_at <= now <= end_at):
+            vote_phase, _results_state = _compute_election_phases(
+                now=timezone.now(),
+                start_at=start_at,
+                end_at=end_at,
+                results_at=results_at,
+            )
+            if vote_phase != "active":
                 cur.execute("ROLLBACK")
                 return JsonResponse(
                     {"ok": False, "error": "Election is not active."},
@@ -3080,9 +3078,8 @@ def _iso_or_none(dt):
         return None
     try:
         if timezone.is_naive(dt):
-            # Most Postgres columns here are `timestamp without time zone` and store UTC values.
-            # Treat naive timestamps as UTC, then convert to server's configured timezone.
-            dt = timezone.make_aware(dt, timezone.utc)
+            # Election schedules are entered as Asia/Manila wall-clock values.
+            dt = timezone.make_aware(dt, timezone.get_current_timezone())
         dt = dt.astimezone(timezone.get_current_timezone())
         return dt.isoformat()
     except Exception:
@@ -3094,32 +3091,29 @@ def _iso_or_none(dt):
 
 def _election_naive_utc_from_admin_form(dt):
     """
-    Admin UI sends HTML datetime-local strings â†’ parse_datetime â†’ naive wall clock in TIME_ZONE.
-    vote_windows uses `timestamp without time zone`; persist as naive UTC so mobile + _iso_or_none match.
+    Admin UI sends HTML datetime-local strings as Asia/Manila wall-clock time.
+    vote_windows uses `timestamp without time zone`; persist the local wall-clock
+    value so mobile, admin, and submit checks all read the same schedule.
     """
     if not dt:
         return None
     try:
         if timezone.is_naive(dt):
-            local_aw = timezone.make_aware(dt, timezone.get_current_timezone())
-        else:
-            local_aw = dt.astimezone(timezone.get_current_timezone())
-        utc_aw = local_aw.astimezone(timezone.utc)
-        return utc_aw.replace(tzinfo=None)
+            return dt
+        return dt.astimezone(timezone.get_current_timezone()).replace(tzinfo=None)
     except Exception:
         return dt
 
 
 def _election_datetime_local_for_admin_form(dt):
-    """datetime-local (YYYY-MM-DDTHH:MM) for the admin form from a DB naive-UTC timestamp."""
+    """datetime-local (YYYY-MM-DDTHH:MM) for the admin form from local DB time."""
     if not dt:
         return ""
     try:
         if timezone.is_naive(dt):
-            utc_aw = timezone.make_aware(dt, timezone.utc)
+            local_aw = timezone.make_aware(dt, timezone.get_current_timezone())
         else:
-            utc_aw = dt.astimezone(timezone.utc)
-        local_aw = utc_aw.astimezone(timezone.get_current_timezone())
+            local_aw = dt.astimezone(timezone.get_current_timezone())
         return local_aw.strftime("%Y-%m-%dT%H:%M")
     except Exception:
         return ""
@@ -3200,14 +3194,14 @@ def _bulk_insert_user_notifications_for_all_accounts(*, notif_type: str, title: 
 
 
 def _vote_window_times_aware(start_at, end_at, results_at):
-    """Interpret naive DB timestamps as UTC (matches _iso_or_none / mobile parsing)."""
+    """Interpret naive DB timestamps as Asia/Manila election schedule values."""
 
     def aware(dt):
         if not dt:
             return None
         if timezone.is_naive(dt):
-            return timezone.make_aware(dt, timezone.utc)
-        return dt
+            return timezone.make_aware(dt, timezone.get_current_timezone())
+        return dt.astimezone(timezone.get_current_timezone())
 
     return aware(start_at), aware(end_at), aware(results_at)
 
@@ -4140,9 +4134,12 @@ def user_results_api(request):
         results_at = row[0]
 
         if timezone.is_naive(results_at):
-            results_at = timezone.make_aware(results_at, timezone.utc)
+            results_at = timezone.make_aware(
+                results_at,
+                timezone.get_current_timezone(),
+            )
         else:
-            results_at = results_at.astimezone(timezone.utc)
+            results_at = results_at.astimezone(timezone.get_current_timezone())
 
         now = timezone.now()
         if now < results_at:
