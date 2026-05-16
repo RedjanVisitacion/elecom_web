@@ -1,5 +1,6 @@
 ﻿from __future__ import annotations
 from datetime import timezone as dt_timezone
+from zoneinfo import ZoneInfo
 
 import json
 import hashlib
