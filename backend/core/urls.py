@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import path
+from django.shortcuts import redirect
 from .views import (
     admin_candidates_bulk_delete_api,
     admin_candidates_create_api,
@@ -55,7 +56,11 @@ from .views import (
     login_view,
 )
 
+def home_redirect(request):
+    return redirect('/login/')
+
 urlpatterns = [
+    path('', home_redirect),
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
