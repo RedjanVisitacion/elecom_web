@@ -56,6 +56,7 @@ ALLOWED_HOSTS = [
     '192.168.0.100',
     '192.168.1.171',
     '45.130.164.201',
+    'el3com.duckdns.org',
     'localhost',
 ]
 
