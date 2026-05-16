@@ -4746,9 +4746,12 @@ def admin_election_window_api(request):
         return JsonResponse({"ok": False, "error": "Invalid date/time values."}, status=400)
 
     # Compare using aware instants (same wall times the admin chose).
-    start_cmp = timezone.make_aware(start_db, dt_timezone.utc)
-    end_cmp = timezone.make_aware(end_db, dt_timezone.utc)
-    results_cmp = timezone.make_aware(results_db, dt_timezone.utc) if results_db else None
+    manila_tz = ZoneInfo("Asia/Manila")
+
+    start_cmp = timezone.make_aware(start_db, manila_tz)
+    end_cmp = timezone.make_aware(end_db, manila_tz)
+    results_cmp = timezone.make_aware(results_db, manila_tz) if results_db else None
+
 
     if end_cmp <= start_cmp:
         return JsonResponse({"ok": False, "error": "End must be after Start."}, status=400)
