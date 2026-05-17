@@ -355,11 +355,11 @@ document.addEventListener('DOMContentLoaded', function(){
     `;
   }
 
-  function candidateRow(candidate, totalPositionVotes, rank) {
+  function candidateRow(candidate, totalPositionVotes, rank, positionName) {
     const name = candidate.name || candidate.student_id || 'Unknown';
     const photo = candidate.photo_url && String(candidate.photo_url).startsWith('http') ? candidate.photo_url : '';
     const votes = Number(candidate.votes || 0);
-    const isRepresentative = String(candidate.position || '').toUpperCase().includes('REPRESENTATIVE');
+    const isRepresentative = String(positionName || candidate.position || '').toUpperCase().includes('REPRESENTATIVE');
     const pct = isRepresentative
       ? (votes > 0 ? 100 : 0)
       : (totalPositionVotes > 0 ? (votes / totalPositionVotes) * 100 : 0);
@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', function(){
               <div class="result-position-block">
                 <div class="result-position-title">${esc(pos.position)}</div>
                 <div class="result-candidate-list">
-                  ${pos.candidates.map((candidate, index) => candidateRow(candidate, totalPositionVotes, index + 1)).join('')}
+                  ${pos.candidates.map((candidate, index) => candidateRow(candidate, totalPositionVotes, index + 1, pos.position)).join('')}
                 </div>
               </div>
             `;
