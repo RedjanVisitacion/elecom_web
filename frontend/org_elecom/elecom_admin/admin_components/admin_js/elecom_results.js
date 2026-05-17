@@ -231,8 +231,8 @@ document.addEventListener('DOMContentLoaded', function(){
           datasets: [{
             label: 'Votes',
             data: positions.map(([, value]) => value),
-            backgroundColor: '#22c55e',
-            borderColor: '#86efac',
+            backgroundColor: '#111827',
+            borderColor: '#111827',
             borderWidth: 1,
             borderRadius: 2,
           }],
@@ -359,7 +359,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const name = candidate.name || candidate.student_id || 'Unknown';
     const photo = candidate.photo_url && String(candidate.photo_url).startsWith('http') ? candidate.photo_url : '';
     const votes = Number(candidate.votes || 0);
-    const pct = totalPositionVotes > 0 ? (votes / totalPositionVotes) * 100 : 0;
+    const isRepresentative = String(candidate.position || '').toUpperCase().includes('REPRESENTATIVE');
+    const pct = isRepresentative
+      ? (votes > 0 ? 100 : 0)
+      : (totalPositionVotes > 0 ? (votes / totalPositionVotes) * 100 : 0);
     const isWinner = rank === 1 && votes > 0;
     const avatar = photo
       ? `<img src="${esc(photo)}" class="result-candidate-avatar" alt="">`
