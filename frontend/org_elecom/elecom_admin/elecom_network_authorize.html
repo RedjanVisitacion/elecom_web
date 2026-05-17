@@ -10,69 +10,90 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css">
     <style>
-        .network-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 1.5rem;
-        }
-        .network-header {
-            display: flex;
-            align-items: center;
-            gap: 0.75rem;
-            margin-bottom: 1.5rem;
-        }
-        .network-icon {
-            width: 48px;
-            height: 48px;
-            border-radius: 10px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: white;
-            font-size: 1.5rem;
-        }
-        .status-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            border-radius: 20px;
-            font-size: 0.875rem;
-            font-weight: 600;
-        }
-        .status-enabled {
-            background: #d1fae5;
-            color: #065f46;
-        }
-        .status-disabled {
-            background: #fee2e2;
-            color: #991b1b;
-        }
-        .form-check-input:checked {
-            background-color: #667eea;
-            border-color: #667eea;
-        }
-        .ip-display {
-            background: #f8f9fa;
-            border: 1px dashed #dee2e6;
+        .network-page { max-width: 1120px; margin: 0 auto; }
+        .network-panel {
+            background: #fff;
+            border: 1px solid #cfcfcf;
             border-radius: 8px;
             padding: 1rem;
-            font-family: monospace;
+        }
+        .network-notice {
+            background: #d7e8ff;
+            border-left: 6px solid #438cff;
+            color: #111827;
+            font-size: 0.95rem;
+            line-height: 1.35;
+            padding: 1.35rem 1.5rem;
+            margin-bottom: 1.9rem;
+        }
+        .authorized-grid {
+            display: grid;
+            grid-template-columns: minmax(240px, 0.8fr) minmax(420px, 1.2fr);
+            border: 1px solid #c8c8c8;
+            min-height: 260px;
+        }
+        .authorized-form {
+            padding: 1.15rem;
+            border-right: 1px solid #c8c8c8;
+        }
+        .authorized-form-title {
+            font-size: 1rem;
+            font-weight: 700;
+            margin-bottom: 1.55rem;
+        }
+        .network-input {
+            border: 1px solid #cfcfcf;
+            border-radius: 0;
+            height: 42px;
             font-size: 0.9rem;
-            color: #495057;
+            margin-bottom: 0.85rem;
         }
-        .info-box {
-            background: #e0f2fe;
-            border-left: 4px solid #0ea5e9;
+        .network-add-btn {
+            width: 100%;
+            height: 42px;
+            border-radius: 4px;
+            background: #050505;
+            border: 0;
+            font-weight: 700;
+        }
+        .authorized-table {
+            margin: 0;
+            table-layout: fixed;
+        }
+        .authorized-table thead th {
+            background: #d1d1d1;
+            border-bottom: 1px solid #bdbdbd;
+            color: #101010;
+            font-size: 0.86rem;
+            padding: 0.9rem 0.75rem;
+        }
+        .authorized-table tbody td {
+            color: #4b5563;
+            font-size: 0.82rem;
+            vertical-align: middle;
+            padding: 0.9rem 0.75rem;
+            border-color: #e2e2e2;
+        }
+        .delete-network-btn {
+            border: 0;
+            background: transparent;
+            color: #ff1f3d;
+            font-size: 1.1rem;
+            line-height: 1;
+            padding: 0.2rem;
+        }
+        .status-text-active { color: #374151; font-weight: 600; }
+        .status-text-disabled { color: #9ca3af; font-weight: 600; }
+        .logs-card {
+            background: #fff;
+            border: 1px solid #d6d6d6;
+            border-radius: 8px;
+            margin-top: 1.5rem;
             padding: 1rem;
-            border-radius: 0 8px 8px 0;
-            margin-bottom: 1rem;
         }
-        .info-box i {
-            color: #0ea5e9;
+        @media (max-width: 900px) {
+            .authorized-grid { grid-template-columns: 1fr; }
+            .authorized-form { border-right: 0; border-bottom: 1px solid #c8c8c8; }
         }
     </style>
 </head>
@@ -150,90 +171,54 @@
 
     <!-- Main Content -->
     <div class="main-content">
-        <!-- Top Header -->
-        <div class="top-header">
-            <div class="d-flex align-items-center gap-3">
-                <button class="btn btn-light d-lg-none" id="toggleSidebar">
-                    <i class="bi bi-list"></i>
-                </button>
-                <h4 class="mb-0">Network Authorization</h4>
-            </div>
-            <div class="d-flex align-items-center gap-3">
-                <div class="dropdown">
-                    <button class="btn btn-light dropdown-toggle d-flex align-items-center gap-2" type="button" id="userDropdown" data-bs-toggle="dropdown">
-                        <i class="bi bi-person-circle fs-5"></i>
-                        <span id="adminName">Admin</span>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="#" id="logoutBtn"><i class="bi bi-box-arrow-right me-2"></i>Logout</a></li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+        <nav class="top-navbar">
+            <button class="menu-toggle" id="menuToggle">
+                <i class="bi bi-list"></i>
+            </button>
+            <div id="userMenuMount"></div>
+        </nav>
 
         <!-- Content Area -->
         <div class="content-area">
-            <div class="container-fluid">
-                <!-- Info Box -->
-                <div class="info-box">
-                    <i class="bi bi-info-circle me-2"></i>
-                    <strong>Network Authorization</strong> allows you to restrict voting to users connected to a specific network. When enabled, only users on the same network as the admin can submit votes.
-                </div>
-
-                <!-- Current Network Status -->
-                <div class="network-card">
-                    <div class="network-header">
-                        <div class="network-icon">
-                            <i class="bi bi-wifi"></i>
-                        </div>
-                        <div>
-                            <h5 class="mb-1">Network Authorization Status</h5>
-                            <span id="statusBadge" class="status-badge status-disabled">
-                                <i class="bi bi-x-circle"></i>
-                                Disabled
-                            </span>
-                        </div>
+            <div class="network-page">
+                <div class="network-panel">
+                    <div class="network-notice">
+                        <strong>Network Authorization</strong> allows you to restrict voting to users connected to a specific network. When enabled, only users on the same network can submit votes.
                     </div>
 
-                    <div class="row">
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Current Admin IP Address</label>
-                            <div class="ip-display" id="adminIp">
-                                <i class="bi bi-arrow-repeat spin"></i> Loading...
-                            </div>
-                            <small class="text-muted">This IP will be used to verify voter network access</small>
+                    <div class="authorized-grid">
+                        <div class="authorized-form">
+                            <div class="authorized-form-title">Authorized network</div>
+                            <input class="form-control network-input" id="networkIpInput" type="text" placeholder="Enter IP" autocomplete="off">
+                            <input class="form-control network-input" id="ssidInput" type="text" placeholder="Enter SSID" autocomplete="off">
+                            <button class="btn btn-dark network-add-btn" id="addNetworkBtn" type="button">Add</button>
                         </div>
-                        <div class="col-md-6 mb-3">
-                            <label class="form-label fw-semibold">Allowed Network Prefix</label>
-                            <div class="ip-display" id="allowedNetwork">
-                                <span class="text-muted">Not configured</span>
-                            </div>
-                            <small class="text-muted">Voters must have an IP matching this prefix</small>
+
+                        <div class="table-responsive">
+                            <table class="table authorized-table">
+                                <thead>
+                                    <tr>
+                                        <th style="width: 24%;">Time</th>
+                                        <th style="width: 26%;">Network IP</th>
+                                        <th style="width: 23%;">SSID</th>
+                                        <th style="width: 17%;">Status</th>
+                                        <th style="width: 10%;"></th>
+                                    </tr>
+                                </thead>
+                                <tbody id="authorizedNetworksBody">
+                                    <tr>
+                                        <td colspan="5" class="text-center text-muted py-4">No authorized networks</td>
+                                    </tr>
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-
-                    <div class="form-check form-switch mb-3">
-                        <input class="form-check-input" type="checkbox" id="networkAuthToggle" style="width: 3rem; height: 1.5rem;">
-                        <label class="form-check-label ms-2 fw-semibold" for="networkAuthToggle" style="font-size: 1rem; margin-top: 0.2rem;">
-                            Enable Network Authorization
-                        </label>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button class="btn btn-primary" id="saveBtn" disabled>
-                            <i class="bi bi-check-lg me-2"></i>Save Settings
-                        </button>
-                        <button class="btn btn-outline-secondary" id="refreshIpBtn">
-                            <i class="bi bi-arrow-clockwise me-2"></i>Refresh IP
-                        </button>
                     </div>
                 </div>
 
-                <!-- Network Logs -->
-                <div class="network-card">
-                    <h5 class="mb-3"><i class="bi bi-journal-text me-2"></i>Recent Network Access Attempts</h5>
+                <div class="logs-card">
+                    <h5 class="mb-3">Recent Network Access Attempts</h5>
                     <div class="table-responsive">
-                        <table class="table table-hover" id="accessLogsTable">
+                        <table class="table table-hover mb-0" id="accessLogsTable">
                             <thead>
                                 <tr>
                                     <th>Time</th>
@@ -257,6 +242,7 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_network_authorize.js"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260313"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_network_authorize.js?v=20260517-2"></script>
 </body>
 </html>

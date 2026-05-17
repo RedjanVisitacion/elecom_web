@@ -5014,8 +5014,58 @@ def admin_reset_notifications_api(request):
         return JsonResponse({"ok": False, "error": "Failed to clear notifications."}, status=500)
 
 
+def _get_request_ip(request) -> str:
+    return (
+        request.META.get("HTTP_X_FORWARDED_FOR")
+        or request.META.get("REMOTE_ADDR")
+        or "127.0.0.1"
+    ).split(",")[0].strip()
+
+
+def _ensure_network_authorization_tables(cur) -> None:
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS authorized_networks (
+            id SERIAL PRIMARY KEY,
+            network_ip INET NOT NULL,
+            ip_prefix VARCHAR(100),
+            ssid VARCHAR(100),
+            status VARCHAR(20) DEFAULT 'Active',
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE TABLE IF NOT EXISTS network_access_attempts (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NULL,
+            student_id VARCHAR(50),
+            ip_address INET NOT NULL,
+            ssid VARCHAR(100),
+            status VARCHAR(20),
+            message TEXT,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS authorized_networks_status_idx
+        ON authorized_networks (status)
+        """
+    )
+    cur.execute(
+        """
+        CREATE INDEX IF NOT EXISTS network_access_attempts_created_at_idx
+        ON network_access_attempts (created_at DESC)
+        """
+    )
+
+
 @csrf_exempt
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "POST", "DELETE"])
 def admin_network_settings_api(request):
     """Get or update network authorization settings."""
     forbidden = _require_admin(request)
@@ -5025,79 +5075,121 @@ def admin_network_settings_api(request):
     if request.method == "GET":
         try:
             with connection.cursor() as cur:
-                # Ensure table exists
-                cur.execute("""
-                    CREATE TABLE IF NOT EXISTS network_auth_settings (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        enabled BOOLEAN DEFAULT 0,
-                        admin_ip VARCHAR(45),
-                        allowed_prefix VARCHAR(45),
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                
-                cur.execute("SELECT enabled, admin_ip, allowed_prefix FROM network_auth_settings ORDER BY id DESC LIMIT 1")
+                _ensure_network_authorization_tables(cur)
+                cur.execute(
+                    """
+                    SELECT id, network_ip::text, ip_prefix, ssid, status, created_at, updated_at
+                    FROM authorized_networks
+                    ORDER BY updated_at DESC, id DESC
+                    """
+                )
+                networks = [
+                    {
+                        "id": row[0],
+                        "network_ip": row[1],
+                        "ip_prefix": row[2],
+                        "ssid": row[3],
+                        "status": row[4],
+                        "created_at": row[5],
+                        "updated_at": row[6],
+                    }
+                    for row in cur.fetchall()
+                ]
+                cur.execute(
+                    """
+                    SELECT network_ip::text, ip_prefix, ssid, status
+                    FROM authorized_networks
+                    ORDER BY updated_at DESC, id DESC
+                    LIMIT 1
+                    """
+                )
                 row = cur.fetchone()
-                
+
                 if row:
+                    enabled = (row[3] or "").lower() == "active"
                     return JsonResponse({
                         "ok": True,
-                        "enabled": bool(row[0]),
-                        "admin_ip": row[1],
-                        "allowed_prefix": row[2]
+                        "enabled": enabled,
+                        "admin_ip": row[0],
+                        "allowed_prefix": row[1],
+                        "ssid": row[2],
+                        "status": row[3],
+                        "networks": networks,
                     })
                 else:
                     return JsonResponse({
                         "ok": True,
                         "enabled": False,
                         "admin_ip": None,
-                        "allowed_prefix": None
+                        "allowed_prefix": None,
+                        "networks": networks,
                     })
         except Exception as e:
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
-    
+
+    if request.method == "DELETE":
+        try:
+            payload = json.loads((request.body or b"{}").decode("utf-8"))
+        except Exception:
+            payload = {}
+
+        network_id = payload.get("id") or request.GET.get("id")
+        if not network_id:
+            return JsonResponse({"ok": False, "error": "Network id is required."}, status=400)
+
+        try:
+            with connection.cursor() as cur:
+                _ensure_network_authorization_tables(cur)
+                cur.execute("DELETE FROM authorized_networks WHERE id = %s", [network_id])
+                deleted = cur.rowcount
+            return JsonResponse({"ok": True, "deleted": deleted})
+        except Exception as e:
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
     # POST - Update settings
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except Exception:
         payload = {}
 
-    enabled = payload.get("enabled", False)
-    
+    enabled = bool(payload.get("enabled", False))
+    requested_ip = (payload.get("network_ip") or "").strip()
+
     # Get admin's IP address
-    admin_ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "")).split(",")[0].strip()
-    
+    admin_ip = requested_ip or _get_request_ip(request)
+
     # Calculate allowed prefix (first 3 octets for /24 network)
-    allowed_prefix = None
+    allowed_prefix = (payload.get("ip_prefix") or "").strip() or None
     if admin_ip and "." in admin_ip:
-        allowed_prefix = ".".join(admin_ip.split(".")[:3])
+        allowed_prefix = allowed_prefix or ".".join(admin_ip.split(".")[:3])
+    elif admin_ip:
+        allowed_prefix = allowed_prefix or admin_ip
 
     try:
         with connection.cursor() as cur:
-            # Ensure table exists
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS network_auth_settings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    enabled BOOLEAN DEFAULT 0,
-                    admin_ip VARCHAR(45),
-                    allowed_prefix VARCHAR(45),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Insert or update
-            cur.execute("""
-                INSERT INTO network_auth_settings (enabled, admin_ip, allowed_prefix, created_at, updated_at)
-                VALUES (%s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            """, [enabled, admin_ip, allowed_prefix])
-            
+            _ensure_network_authorization_tables(cur)
+            cur.execute(
+                """
+                INSERT INTO authorized_networks (network_ip, ip_prefix, ssid, status, created_at, updated_at)
+                VALUES (%s::inet, %s, %s, %s, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                RETURNING id
+                """,
+                [
+                    admin_ip,
+                    allowed_prefix,
+                    (payload.get("ssid") or "").strip() or None,
+                    payload.get("status") or ("Active" if enabled else "Disabled"),
+                ],
+            )
+            network_id = cur.fetchone()[0]
+
         return JsonResponse({
             "ok": True,
             "enabled": enabled,
             "admin_ip": admin_ip,
-            "allowed_prefix": allowed_prefix
+            "allowed_prefix": allowed_prefix,
+            "network_id": network_id,
+            "status": "Active" if enabled else "Disabled",
         })
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -5113,34 +5205,29 @@ def admin_network_logs_api(request):
 
     try:
         with connection.cursor() as cur:
-            # Ensure table exists
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS network_access_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    student_id VARCHAR(20),
-                    ip_address VARCHAR(45),
-                    allowed BOOLEAN DEFAULT 0,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            cur.execute("""
-                SELECT student_id, ip_address, allowed, timestamp
-                FROM network_access_logs
-                ORDER BY timestamp DESC
+            _ensure_network_authorization_tables(cur)
+            cur.execute(
+                """
+                SELECT student_id, ip_address::text, status, message, created_at
+                FROM network_access_attempts
+                ORDER BY created_at DESC, id DESC
                 LIMIT 100
-            """)
-            
+                """
+            )
+
             rows = cur.fetchall()
             logs = []
             for row in rows:
+                status = row[2] or ""
                 logs.append({
                     "student_id": row[0],
                     "ip_address": row[1],
-                    "allowed": bool(row[2]),
-                    "timestamp": row[3]
+                    "status": status,
+                    "message": row[3],
+                    "allowed": status.lower() in ("allowed", "active", "authorized"),
+                    "timestamp": row[4],
                 })
-            
+
         return JsonResponse({"ok": True, "logs": logs})
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -5151,71 +5238,65 @@ def admin_network_logs_api(request):
 def check_network_access_api(request):
     """Check if current user's network is authorized to vote."""
     # Get user's IP
-    user_ip = request.META.get("HTTP_X_FORWARDED_FOR", request.META.get("REMOTE_ADDR", "")).split(",")[0].strip()
+    user_ip = _get_request_ip(request)
     student_id = request.session.get("student_id") or request.GET.get("student_id", "unknown")
-    
+
     try:
         with connection.cursor() as cur:
-            # Ensure tables exist
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS network_auth_settings (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    enabled BOOLEAN DEFAULT 0,
-                    admin_ip VARCHAR(45),
-                    allowed_prefix VARCHAR(45),
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            cur.execute("""
-                CREATE TABLE IF NOT EXISTS network_access_logs (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    student_id VARCHAR(20),
-                    ip_address VARCHAR(45),
-                    allowed BOOLEAN DEFAULT 0,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            """)
-            
-            # Check if network auth is enabled
-            cur.execute("SELECT enabled, allowed_prefix FROM network_auth_settings ORDER BY id DESC LIMIT 1")
-            row = cur.fetchone()
-            
-            if not row or not row[0]:  # Not enabled
+            _ensure_network_authorization_tables(cur)
+            cur.execute("SELECT COUNT(*) FROM authorized_networks WHERE LOWER(status) = 'active'")
+            active_count = cur.fetchone()[0]
+
+            if not active_count:
                 return JsonResponse({
                     "ok": True,
                     "allowed": True,
                     "message": "Network authorization is not enabled"
                 })
-            
-            allowed_prefix = row[1]
-            
-            # Check if user's IP matches the allowed prefix
-            allowed = False
-            if user_ip and allowed_prefix:
-                user_prefix = ".".join(user_ip.split(".")[:3])
-                allowed = user_prefix == allowed_prefix
-            
+
+            cur.execute(
+                """
+                SELECT EXISTS (
+                    SELECT 1
+                    FROM authorized_networks
+                    WHERE LOWER(status) = 'active'
+                      AND (
+                        network_ip = %s::inet
+                        OR (%s LIKE ip_prefix || '%%')
+                      )
+                )
+                """,
+                [user_ip, user_ip],
+            )
+            allowed = bool(cur.fetchone()[0])
+            message = (
+                "Network access authorized"
+                if allowed
+                else "You must be connected to the authorized network to vote"
+            )
+
             # Log the attempt
-            cur.execute("""
-                INSERT INTO network_access_logs (student_id, ip_address, allowed, timestamp)
-                VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-            """, [student_id, user_ip, allowed])
-            
+            cur.execute(
+                """
+                INSERT INTO network_access_attempts (user_id, student_id, ip_address, ssid, status, message, created_at)
+                VALUES (%s, %s, %s::inet, %s, %s, %s, CURRENT_TIMESTAMP)
+                """,
+                [None, student_id, user_ip, None, "Allowed" if allowed else "Blocked", message],
+            )
+
             if allowed:
                 return JsonResponse({
                     "ok": True,
                     "allowed": True,
-                    "message": "Network access authorized"
+                    "message": message
                 })
             else:
                 return JsonResponse({
                     "ok": True,
                     "allowed": False,
-                    "message": "You must be connected to the authorized network to vote"
+                    "message": message
                 }, status=403)
-                
+
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
