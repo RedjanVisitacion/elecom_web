@@ -19,6 +19,56 @@ Agents fixing **404/500 on API routes**, **email/OTP**, or **DB behavior** must 
 - **Feature modules** (screens, controllers, feature-specific widgets/services): `lib/features/`
 - **Assets**: `assets/` and `pubspec.yaml` `flutter/assets`
 
+## Web admin / Django notes for `F:\elecom_web`
+
+This workspace also contains the deployed web/admin code:
+
+- **Django backend**: `backend/`
+- **Static web/admin frontend**: `frontend/org_elecom/`
+- **Admin pages**: `frontend/org_elecom/elecom_admin/*.html`
+- **Shared admin header/profile/notification bell JS**: `frontend/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js`
+- **Shared admin CSS**: `frontend/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css`
+
+When adding sidebar items, update all admin HTML files that contain a hardcoded sidebar. The **Network Authorize** link should exist on every admin screen, but only `elecom_network_authorize.html` should mark it `active`.
+
+When changing shared static assets used by the admin pages, bump the query string version in HTML, e.g. `admin_user_menu.js?v=...` or `admin_dashboard.css?v=...`, so browsers and collected static files do not keep stale code.
+
+## Production deploy notes
+
+On the Linux server, the Django/Gunicorn service is named:
+
+- `elecom.service`
+
+After backend or static frontend changes are deployed, run from `~/elecom_web/backend`:
+
+```bash
+python3 manage.py migrate
+python3 manage.py collectstatic --noinput
+sudo systemctl restart elecom
+sudo systemctl restart nginx
+sudo systemctl status elecom --no-pager
+```
+
+Do **not** assume the service is named `gunicorn`; `sudo systemctl restart gunicorn` fails on this server.
+
+## Network authorization notes
+
+The web admin Network Authorize page uses:
+
+- Table: `authorized_networks`
+- Table: `network_access_attempts`
+- Backend endpoints: `/api/admin/network-settings/`, `/api/admin/network-logs/`, `/api/network/check/`
+
+PostgreSQL is used, so never use SQLite-only DDL such as `AUTOINCREMENT`. Use `SERIAL`, `BIGSERIAL`, or Django migrations. The actual enforcement is IP/prefix based; SSID is stored/displayed for admin context, but browsers/servers cannot reliably read a phone's Wi-Fi SSID.
+
+## Admin notification bell notes
+
+Mobile app ratings are stored in `app_ratings` through `/api/account/app-rating/`. The web admin bell loads rating notifications from:
+
+- `/api/admin/notifications/app-ratings/`
+
+The unread badge is browser-local: `admin_user_menu.js` stores the latest seen rating id in `localStorage` under `elecom_admin_seen_rating_id`.
+
 ## API base URL (Flutter)
 
 - **Preferred**: `flutter run --dart-define=API_BASE_URL=http://<host>:8000`

@@ -7,8 +7,8 @@
   <link rel="icon" type="image/png" href="{% static 'assets/elecom.png' %}?v=2">
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_results.css">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260517-ratings">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_results.css?v=20260517-org-collapse">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="theme-elecom">
@@ -54,38 +54,63 @@
     </nav>
 
     <div class="content-area">
-      <div class="card border-0 shadow-sm">
-        <div class="card-body">
-          <h3 class="mb-4 text-center">Election Results</h3>
+      <div class="results-page-wrap">
+        <div class="results-title-block">
+          <h2>Election Results</h2>
+          <p>Real-time tally from ELECOM database</p>
+        </div>
 
-          <div class="row g-3 mb-4">
-            <div class="col-12 col-lg-6">
-              <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                  <h6 class="text-muted mb-3">Overall Vote Distribution</h6>
-                  <div class="chart-box"><canvas id="orgPie"></canvas></div>
+        <div class="row g-3 mb-4">
+          <div class="col-12 col-xl-5">
+            <section class="results-panel h-100">
+              <div class="panel-title">Overall Vote Distribution</div>
+              <div class="distribution-ring">
+                <canvas id="orgPie"></canvas>
+                <div class="ring-center">
+                  <strong id="totalVotesCenter">0</strong>
+                  <span>Total Votes</span>
                 </div>
               </div>
-            </div>
-            <div class="col-12 col-lg-6">
-              <div class="card border-0 shadow-sm h-100">
-                <div class="card-body">
-                  <h6 class="text-muted mb-3">Votes by Position</h6>
-                  <div class="chart-box"><canvas id="posBar"></canvas></div>
+              <div class="org-legend-grid" id="orgLegendGrid"></div>
+            </section>
+          </div>
+          <div class="col-12 col-xl-7">
+            <section class="market-panel h-100">
+              <div class="market-panel-head">
+                <div>
+                  <div class="panel-title">Votes by Position</div>
+                  <div class="market-subtitle">Position volume, ordered like the ballot</div>
                 </div>
+                <span class="market-pill">LIVE</span>
               </div>
+              <div class="chart-box crypto-chart"><canvas id="posBar"></canvas></div>
+            </section>
+          </div>
+        </div>
+
+        <section class="results-panel mb-4">
+          <div class="analytics-head">
+            <div>
+              <div class="panel-title">Election Analytics</div>
+              <div class="text-muted">Participation and position activity</div>
             </div>
           </div>
+          <div class="analytics-grid" id="analyticsGrid"></div>
+        </section>
 
-          <div class="text-muted" id="resultsEmpty">No candidates or votes data.</div>
-          <div id="resultsContainer"></div>
-        </div>
+        <div class="org-filter-tabs" id="orgFilterTabs"></div>
+        <p class="result-helper">Percentages are based on votes cast for each position.</p>
+
+        <div class="text-muted" id="resultsEmpty">No candidates or votes data.</div>
+        <div id="positionSummary"></div>
+        <div id="resultsContainer"></div>
       </div>
     </div>
   </div>
+  </div>
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260313"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_results.js"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260517-ratings"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_results.js?v=20260517-org-collapse"></script>
 </body>
 </html>

@@ -1,5 +1,7 @@
 (function () {
   const API_PROFILE = "/api/account/profile/";
+  const API_ADMIN_RATING_NOTIFS = "/api/admin/notifications/app-ratings/";
+  const RATING_SEEN_KEY = "elecom_admin_seen_rating_id";
 
   const toLogin = () => {
     try {
@@ -31,10 +33,24 @@
   const buildMarkup = () => {
     return `
 <div class="top-navbar-actions">
-  <button type="button" class="notif-bell" aria-label="Notifications">
+  <div class="admin-notif-wrap" id="adminNotifWrap">
+  <button type="button" class="notif-bell" id="adminNotifBell" aria-label="Notifications" aria-expanded="false">
     <i class="bi bi-bell"></i>
-    <span class="notif-count" aria-label="3 unread notifications">3</span>
+    <span class="notif-count" id="adminNotifCount" aria-label="0 unread notifications" style="display:none;">0</span>
   </button>
+  <div class="admin-notif-dropdown card shadow-sm border-0" id="adminNotifDropdown" style="display:none;">
+    <div class="admin-notif-head">
+      <div>
+        <div class="admin-notif-title">Notifications</div>
+        <div class="admin-notif-subtitle" id="adminNotifSummary">App ratings from users</div>
+      </div>
+      <i class="bi bi-star-fill"></i>
+    </div>
+    <div class="admin-notif-list" id="adminNotifList">
+      <div class="admin-notif-empty">No app ratings yet.</div>
+    </div>
+  </div>
+  </div>
 
   <div class="user-info position-relative" id="userMenu">
   <button type="button" class="btn p-0 border-0 bg-transparent d-flex align-items-center gap-2" id="userMenuToggle">
@@ -86,6 +102,106 @@
 <span class="status-text">Network High</span>
 `.trim();
     return wrap;
+  };
+
+  const getSeenRatingId = () => {
+    try {
+      return Number(localStorage.getItem(RATING_SEEN_KEY) || "0") || 0;
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  const setSeenRatingId = (id) => {
+    try {
+      if (id) localStorage.setItem(RATING_SEEN_KEY, String(id));
+    } catch (e) {
+      // ignore
+    }
+  };
+
+  const formatRatingDate = (value) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleString("en-US", {
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  };
+
+  const ratingStars = (rating) => {
+    const safe = Math.max(0, Math.min(5, Number(rating) || 0));
+    return "★".repeat(safe) + "☆".repeat(5 - safe);
+  };
+
+  const setNotifOpen = (dropdown, bell, open) => {
+    if (!dropdown || !bell) return;
+    dropdown.style.display = open ? "block" : "none";
+    bell.setAttribute("aria-expanded", open ? "true" : "false");
+    if (open) dropdown.setAttribute("data-open", "1");
+    else dropdown.removeAttribute("data-open");
+  };
+
+  const setNotifCount = (countEl, count) => {
+    if (!countEl) return;
+    const safe = Math.max(0, Number(count) || 0);
+    countEl.textContent = String(safe > 99 ? "99+" : safe);
+    countEl.setAttribute("aria-label", `${safe} unread notifications`);
+    countEl.style.display = safe > 0 ? "inline-flex" : "none";
+  };
+
+  const renderRatingNotifications = ({ listEl, summaryEl, countEl, data }) => {
+    const items = (data && data.notifications) || [];
+    const latestId = Number(data && data.latest_id) || 0;
+    const seenId = getSeenRatingId();
+    const unread = items.filter((item) => Number(item.id) > seenId).length;
+
+    setNotifCount(countEl, unread);
+
+    if (summaryEl) {
+      const avg = data && data.average_rating ? Number(data.average_rating).toFixed(1) : "0.0";
+      summaryEl.textContent = `${data && data.total_count ? data.total_count : 0} ratings · ${avg}/5 average`;
+    }
+
+    if (!listEl) return;
+    if (!items.length) {
+      listEl.innerHTML = '<div class="admin-notif-empty">No app ratings yet.</div>';
+      return;
+    }
+
+    listEl.innerHTML = items.map((item) => {
+      const isUnread = Number(item.id) > seenId;
+      return `
+        <div class="admin-notif-item ${isUnread ? "is-unread" : ""}">
+          <div class="admin-notif-icon"><i class="bi bi-star-fill"></i></div>
+          <div class="admin-notif-copy">
+            <div class="admin-notif-row">
+              <strong>${escapeHtml(item.student_id || "Student")}</strong>
+              <span>${escapeHtml(formatRatingDate(item.created_at))}</span>
+            </div>
+            <div class="admin-notif-rating" aria-label="${escapeHtml(String(item.rating || 0))} out of 5">${ratingStars(item.rating)}</div>
+            <div class="admin-notif-body">${escapeHtml(item.label || "Rated the app")}</div>
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    listEl.dataset.latestRatingId = latestId ? String(latestId) : "";
+  };
+
+  const loadRatingNotifications = async (els) => {
+    try {
+      const resp = await fetch(API_ADMIN_RATING_NOTIFS, { method: "GET", cache: "no-store" });
+      if (!resp.ok) return;
+      const data = await resp.json();
+      if (!data || !data.ok) return;
+      renderRatingNotifications({ ...els, data });
+    } catch (e) {
+      // ignore
+    }
   };
 
   const setNetworkUi = ({ networkBadge, networkText, level }) => {
@@ -278,6 +394,12 @@
     const userMenu = document.getElementById("userMenu");
     const userMenuToggle = document.getElementById("userMenuToggle");
     const userMenuDropdown = document.getElementById("userMenuDropdown");
+    const adminNotifWrap = document.getElementById("adminNotifWrap");
+    const adminNotifBell = document.getElementById("adminNotifBell");
+    const adminNotifDropdown = document.getElementById("adminNotifDropdown");
+    const adminNotifCount = document.getElementById("adminNotifCount");
+    const adminNotifList = document.getElementById("adminNotifList");
+    const adminNotifSummary = document.getElementById("adminNotifSummary");
     const menuName = document.getElementById("menuName");
     const menuRole = document.getElementById("menuRole");
     const profileLink = document.getElementById("profileLink");
@@ -314,7 +436,24 @@
       });
     }
 
+    if (adminNotifBell && adminNotifDropdown) {
+      adminNotifBell.addEventListener("click", (e) => {
+        e.preventDefault();
+        const isOpen = adminNotifDropdown.getAttribute("data-open") === "1";
+        setNotifOpen(adminNotifDropdown, adminNotifBell, !isOpen);
+        if (!isOpen) {
+          const latestId = Number(adminNotifList && adminNotifList.dataset.latestRatingId) || 0;
+          setSeenRatingId(latestId);
+          setNotifCount(adminNotifCount, 0);
+        }
+      });
+    }
+
     document.addEventListener("click", (e) => {
+      if (adminNotifDropdown && adminNotifWrap && adminNotifDropdown.getAttribute("data-open") === "1" && !adminNotifWrap.contains(e.target)) {
+        setNotifOpen(adminNotifDropdown, adminNotifBell, false);
+      }
+
       if (!userMenuDropdown || !userMenu) return;
       if (userMenuDropdown.getAttribute("data-open") !== "1") return;
       if (!userMenu.contains(e.target)) {
@@ -324,6 +463,7 @@
 
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+      setNotifOpen(adminNotifDropdown, adminNotifBell, false);
       setMenuOpen(userMenuDropdown, false);
     });
 
@@ -355,6 +495,18 @@
     }
 
     loadAccountProfileName({ displayName, menuName });
+    loadRatingNotifications({
+      listEl: adminNotifList,
+      summaryEl: adminNotifSummary,
+      countEl: adminNotifCount,
+    });
+    setInterval(() => {
+      loadRatingNotifications({
+        listEl: adminNotifList,
+        summaryEl: adminNotifSummary,
+        countEl: adminNotifCount,
+      });
+    }, 30000);
 
     (async () => {
       try {

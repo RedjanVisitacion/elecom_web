@@ -495,6 +495,58 @@ def account_app_rating_api(request):
 
 
 @csrf_exempt
+@require_http_methods(["GET"])
+def admin_app_rating_notifications_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        limit_raw = request.GET.get("limit", "10")
+        try:
+            limit = int(limit_raw)
+        except Exception:
+            limit = 10
+        limit = max(1, min(limit, 50))
+
+        rows = list(AppRating.objects.order_by("-created_at", "-id")[:limit])
+        latest_id = rows[0].id if rows else None
+        total_count = AppRating.objects.count()
+        average_rating = None
+        if total_count:
+            from django.db.models import Avg
+
+            average_rating = AppRating.objects.aggregate(avg=Avg("rating"))["avg"]
+
+        notifications = [
+            {
+                "id": row.id,
+                "student_id": row.student_id,
+                "rating": row.rating,
+                "label": row.label,
+                "created_at": row.created_at.isoformat() if row.created_at else None,
+                "title": "New app rating",
+                "body": f"{row.student_id} rated the app {row.rating}/5 ({row.label}).",
+            }
+            for row in rows
+        ]
+
+        return JsonResponse(
+            {
+                "ok": True,
+                "notifications": notifications,
+                "latest_id": latest_id,
+                "total_count": total_count,
+                "average_rating": float(average_rating) if average_rating is not None else None,
+            }
+        )
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load admin notifications."}, status=500)
+
+
+@csrf_exempt
 @require_http_methods(["POST"])
 def account_profile_photo_api(request):
     student_id = (request.session.get("student_id") or "").strip()

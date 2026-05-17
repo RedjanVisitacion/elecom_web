@@ -27,6 +27,81 @@ document.addEventListener('DOMContentLoaded', function(){
 
   const API_BASE = '/api/admin/candidates/';
 
+  const ORG_ORDER = ['USG', 'SITE', 'PAFE', 'AFPRO', 'AFPROTECHS'];
+  const USG_POSITION_ORDER = [
+    'PRESIDENT',
+    'VICE PRESIDENT',
+    'GENERAL SECRETARY',
+    'ASSOCIATE SECRETARY',
+    'TREASURER',
+    'AUDITOR',
+    'PUBLIC INFORMATION OFFICER',
+    'PIO',
+    'IT REPRESENTATIVE',
+    'BSIT REPRESENTATIVE',
+    'BTLED REPRESENTATIVE',
+    'BFPT REPRESENTATIVE',
+  ];
+  const ORG_POSITION_ORDER = [
+    'PRESIDENT',
+    'VICE PRESIDENT',
+    'GENERAL SECRETARY',
+    'ASSOCIATE SECRETARY',
+    'TREASURER',
+    'AUDITOR',
+    'PUBLIC INFORMATION OFFICER',
+    'PIO',
+  ];
+
+  function escapeHtml(value) {
+    return String(value ?? '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#39;');
+  }
+
+  function normalizeOrg(org) {
+    const up = String(org || 'USG').trim().toUpperCase();
+    if (up === 'AFPRO' || up === 'AFPROTECHS' || up.includes('AFPRO')) return 'AFPRO';
+    if (up.includes('SITE')) return 'SITE';
+    if (up.includes('PAFE')) return 'PAFE';
+    if (up.includes('USG')) return 'USG';
+    return up || 'USG';
+  }
+
+  function normalizePosition(pos) {
+    return String(pos || 'Unspecified')
+      .trim()
+      .replace(/\bP\.?\s*I\.?\s*O\.?\b/gi, 'PIO') || 'Unspecified';
+  }
+
+  function positionSortKey(org, pos) {
+    const normalized = normalizePosition(pos).toUpperCase();
+    const order = normalizeOrg(org) === 'USG' ? USG_POSITION_ORDER : ORG_POSITION_ORDER;
+
+    if (normalized.includes('REPRESENTATIVE')) {
+      const repIndex = order.findIndex(label => normalized.includes(label));
+      return [repIndex === -1 ? 1000 : repIndex, normalized];
+    }
+
+    const index = order.findIndex((label) => {
+      if (label === 'PIO') {
+        return normalized === 'PIO' || normalized === 'P.I.O' || normalized === 'PUBLIC INFORMATION OFFICER';
+      }
+      return normalized === label || normalized.includes(label);
+    });
+
+    return [index === -1 ? 500 : index, normalized];
+  }
+
+  function orgSortKey(org) {
+    const normalized = normalizeOrg(org);
+    const index = ORG_ORDER.indexOf(normalized);
+    return [index === -1 ? 999 : index, normalized];
+  }
+
   let redirectedToSearch = false;
   function goToSearchPage() {
     if (redirectedToSearch) return;
@@ -42,8 +117,11 @@ document.addEventListener('DOMContentLoaded', function(){
     const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(' ');
     const hasPhoto = !!(item.photo_url && item.photo_url.startsWith('http'));
     const avatarHtml = hasPhoto
-      ? `<img src="${item.photo_url}" class="rounded-circle border candidate-avatar-img" alt="">`
+      ? `<img src="${escapeHtml(item.photo_url)}" class="rounded-circle border candidate-avatar-img" alt="">`
       : `<div class="rounded-circle border d-flex align-items-center justify-content-center bg-light candidate-avatar-placeholder"><i class="bi bi-person fs-4 text-secondary"></i></div>`;
+    const partyLogo = item.party_logo_url && item.party_logo_url.startsWith('http')
+      ? `<img src="${escapeHtml(item.party_logo_url)}" class="rounded-circle border candidate-party-logo" alt="">`
+      : '';
 
     return `
       <div class="p-3 border rounded d-flex align-items-center gap-3 candidate-card" data-id="${item.id}">
@@ -52,14 +130,13 @@ document.addEventListener('DOMContentLoaded', function(){
         </div>
         ${avatarHtml}
         <div class="flex-grow-1">
-          <div class="fw-semibold">${name || item.student_id}</div>
-          <div class="small text-muted">Position: ${item.position || ''}</div>
-          <div class="small text-muted">Program: ${item.program || ''}</div>
-          <div class="small text-muted">Section: ${item.year_section || ''}</div>
+          <div class="fw-semibold">${escapeHtml(name || item.student_id)}</div>
+          <div class="small text-muted d-flex align-items-center gap-1">${partyLogo}<span>${escapeHtml(item.party_name || 'Independent')}</span></div>
+          <div class="small text-muted">${escapeHtml(item.program || '')}${item.year_section ? ' · ' + escapeHtml(item.year_section) : ''}</div>
         </div>
         <div class="d-flex align-items-center gap-2">
           <button class="btn btn-outline-primary btn-sm" data-action="edit" data-id="${item.id}"><i class="bi bi-pencil-square"></i></button>
-          <button class="btn btn-outline-danger btn-sm" data-action="delete" data-id="${item.id}" data-name="${name || item.student_id}"><i class="bi bi-person-dash"></i></button>
+          <button class="btn btn-outline-danger btn-sm" data-action="delete" data-id="${item.id}" data-name="${escapeHtml(name || item.student_id)}"><i class="bi bi-person-dash"></i></button>
         </div>
       </div>`;
   }
@@ -72,80 +149,63 @@ document.addEventListener('DOMContentLoaded', function(){
       return;
     }
 
-    const USG_ORDER = ['President','Vice President','General Secretary','Associate Secretary','Treasurer','Auditor','Public Information Officer','P.I.O','IT Representative','BSIT Representative','BTLED Representative','BFPT Representative'];
-    const ORG_ORDER = ['President','Vice President','General Secretary','Associate Secretary','Treasurer','Auditor','Public Information Officer','P.I.O'];
-    const getOrder = (org)=> (['SITE','PAFE','AFPROTECHS'].includes(org.toUpperCase()) ? ORG_ORDER : USG_ORDER);
-
-    const byParty = {};
+    const byOrg = {};
     list.forEach(it=>{
-      const party = (it.party_name || 'Independent').toUpperCase();
-      const org = (it.organization || 'USG').toUpperCase();
-      const pos = it.position || 'Unspecified';
-      if(!byParty[party]) byParty[party] = {};
-      if(!byParty[party][org]) byParty[party][org] = {};
-      if(!byParty[party][org][pos]) byParty[party][org][pos] = [];
-      byParty[party][org][pos].push(it);
+      const org = normalizeOrg(it.organization);
+      const pos = normalizePosition(it.position);
+      if(!byOrg[org]) byOrg[org] = {};
+      if(!byOrg[org][pos]) byOrg[org][pos] = [];
+      byOrg[org][pos].push(it);
     });
 
     let html = '';
-    const partyKeys = Object.keys(byParty).sort((a,b)=>{
-      const ia = a.toUpperCase()==='INDEPENDENT' ? 1 : 0;
-      const ib = b.toUpperCase()==='INDEPENDENT' ? 1 : 0;
-      if (ia!==ib) return ia-ib;
-      return a.localeCompare(b);
+    const orgKeys = Object.keys(byOrg).sort((a,b)=>{
+      const ka = orgSortKey(a);
+      const kb = orgSortKey(b);
+      if (ka[0] !== kb[0]) return ka[0] - kb[0];
+      return ka[1].localeCompare(kb[1]);
     });
 
-    partyKeys.forEach(party=>{
-      const totalInParty = Object.values(byParty[party]).reduce((sum, orgMap)=> sum + Object.values(orgMap).reduce((a,arr)=> a + arr.length, 0), 0);
-
-      let partyLogo = '';
-      Object.keys(byParty[party]).some(org => {
-        return Object.keys(byParty[party][org]).some(pos => {
-          const found = byParty[party][org][pos].find(x => x.party_logo_url && x.party_logo_url.startsWith('http'));
-          if (found) { partyLogo = found.party_logo_url; return true; }
-          return false;
-        });
-      });
-
-      const partyAvatar = partyLogo
-        ? `<img src="${partyLogo}" class="rounded-circle border party-avatar-img" alt="">`
-        : `<div class="rounded-circle border d-flex align-items-center justify-content-center bg-light party-avatar-placeholder"><i class="bi bi-flag text-danger"></i></div>`;
-
+    orgKeys.forEach(org=>{
+      const totalInOrg = Object.values(byOrg[org]).reduce((a,arr)=> a + arr.length, 0);
       html += `
-        <div class="p-2 px-3 bg-light border rounded d-flex align-items-center justify-content-between mt-2">
-          <div class="d-flex align-items-center gap-2">${partyAvatar}<span class="fw-semibold">${party}</span></div>
-          <span class="badge text-bg-secondary">${totalInParty}</span>
-        </div>`;
+        <section class="candidate-org-section">
+          <div class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}">
+            <div class="candidate-org-title">${escapeHtml(org)}</div>
+            <span class="badge text-bg-secondary">${totalInOrg}</span>
+          </div>`;
 
-      const orgKeys = Object.keys(byParty[party]).sort((a,b)=>{
-        const ORDER = ['USG','SITE','PAFE','AFPROTECHS'];
-        const ia = ORDER.indexOf(a.toUpperCase());
-        const ib = ORDER.indexOf(b.toUpperCase());
-        const aa = ia===-1 ? 999 : ia; const bb = ib===-1 ? 999 : ib;
-        if (aa!==bb) return aa-bb;
-        return a.localeCompare(b);
+      const positions = Object.keys(byOrg[org]).sort((a,b)=>{
+        const ka = positionSortKey(org, a);
+        const kb = positionSortKey(org, b);
+        if (ka[0] !== kb[0]) return ka[0] - kb[0];
+        return ka[1].localeCompare(kb[1]);
       });
 
-      orgKeys.forEach(org=>{
-        const totalInOrg = Object.values(byParty[party][org]).reduce((a,arr)=> a + arr.length, 0);
+      positions.forEach(pos=>{
+        const candidates = byOrg[org][pos].slice().sort((a,b)=>{
+          const pa = String(a.party_name || 'Independent');
+          const pb = String(b.party_name || 'Independent');
+          if (pa !== pb) return pa.localeCompare(pb);
+          const an = [a.last_name, a.first_name, a.middle_name].filter(Boolean).join(' ');
+          const bn = [b.last_name, b.first_name, b.middle_name].filter(Boolean).join(' ');
+          return an.localeCompare(bn);
+        });
+
         html += `
-          <div class="ps-2 pt-2 pb-1 d-flex align-items-center gap-2"><i class="bi bi-building text-info"></i><span class="fw-semibold">${org}</span><span class="badge text-bg-light">${totalInOrg}</span></div>`;
-
-        const order = getOrder(org);
-        const positions = Object.keys(byParty[party][org]).sort((a,b)=>{
-          const ia = order.findIndex(x=> a.toLowerCase().includes(x.toLowerCase()));
-          const ib = order.findIndex(x=> b.toLowerCase().includes(x.toLowerCase()));
-          const aa = ia === -1 ? 999 : ia; const bb = ib === -1 ? 999 : ib;
-          if (aa!==bb) return aa-bb;
-          return a.localeCompare(b);
-        });
-
-        positions.forEach(pos=>{
-          html += `
-            <div class="ps-4 pt-2 pb-1 small text-muted">${pos}</div>`;
-          byParty[party][org][pos].forEach(item=>{ html += cardTemplate(item); });
-        });
+          <div class="candidate-position-group">
+            <div class="candidate-position-header">
+              <span>${escapeHtml(pos)}</span>
+              <small>${candidates.length} candidate${candidates.length === 1 ? '' : 's'}</small>
+            </div>
+            <div class="vstack gap-2">`;
+        candidates.forEach(item=>{ html += cardTemplate(item); });
+        html += `
+            </div>
+          </div>`;
       });
+
+      html += '</section>';
     });
 
     listEl.innerHTML = html;

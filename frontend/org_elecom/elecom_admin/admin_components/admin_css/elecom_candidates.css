@@ -37,6 +37,82 @@
   cursor:pointer;
 }
 
+.candidate-org-section{
+  border:1px solid #e5e7eb;
+  border-radius:8px;
+  overflow:hidden;
+  background:#ffffff;
+  margin-top:14px;
+}
+
+.candidate-org-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px;
+  background:#111827;
+  color:#ffffff;
+  border-bottom:1px solid rgba(0,0,0,0.08);
+}
+
+.candidate-org-header .badge{
+  background:rgba(255,255,255,0.85)!important;
+  color:#111827!important;
+}
+
+.candidate-org-usg{
+  background:#f8d34a;
+  color:#111827;
+}
+
+.candidate-org-site{
+  background:#8b1e2d;
+  color:#ffffff;
+}
+
+.candidate-org-pafe{
+  background:#2563eb;
+  color:#ffffff;
+}
+
+.candidate-org-afpro{
+  background:#ec4899;
+  color:#ffffff;
+}
+
+.candidate-org-title{
+  font-weight:800;
+  letter-spacing:0;
+  font-size:1.05rem;
+}
+
+.candidate-position-group{
+  padding:14px 16px;
+  border-top:1px solid #edf0f3;
+}
+
+.candidate-position-header{
+  display:flex;
+  align-items:baseline;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:10px;
+  font-weight:800;
+  color:#111827;
+}
+
+.candidate-position-header small{
+  color:#6b7280;
+  font-weight:600;
+}
+
+.candidate-party-logo{
+  width:16px;
+  height:16px;
+  object-fit:cover;
+}
+
 .party-avatar-img{
   width:28px;
   height:28px;
