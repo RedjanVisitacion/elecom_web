@@ -5658,6 +5658,7 @@ def admin_network_settings_api(request):
 
     if request.method == "GET":
         try:
+            request_ip = _clean_network_ip(_get_request_ip(request)) or "127.0.0.1"
             with connection.cursor() as cur:
                 _ensure_network_authorization_tables(cur)
                 cur.execute(
@@ -5695,6 +5696,8 @@ def admin_network_settings_api(request):
                         "ok": True,
                         "enabled": enabled,
                         "admin_ip": row[0],
+                        "request_ip": request_ip,
+                        "current_ip": request_ip,
                         "allowed_prefix": row[1],
                         "ssid": row[2],
                         "status": row[3],
@@ -5705,6 +5708,8 @@ def admin_network_settings_api(request):
                         "ok": True,
                         "enabled": False,
                         "admin_ip": None,
+                        "request_ip": request_ip,
+                        "current_ip": request_ip,
                         "allowed_prefix": None,
                         "networks": networks,
                     })
@@ -5863,7 +5868,7 @@ def check_network_access_api(request):
                 else f"You must be connected to the authorized network to vote. Checked {ip_source} IP {user_ip}."
             )
             if ip_source == "request":
-                message += " Mobile clients should send device_ip/local_ip for LAN Wi-Fi checks."
+                message += " Web clients are checked by the public IP seen by the server; add that IP in Network Authorize. Mobile clients should send device_ip/local_ip for LAN Wi-Fi checks."
 
             # Log the attempt
             cur.execute(

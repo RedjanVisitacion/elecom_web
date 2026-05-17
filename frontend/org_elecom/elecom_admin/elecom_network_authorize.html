@@ -48,6 +48,29 @@
             font-size: 0.9rem;
             margin-bottom: 0.85rem;
         }
+        .detected-network {
+            border: 1px solid #d6dbe6;
+            background: #f8fafc;
+            color: #334155;
+            font-size: 0.82rem;
+            line-height: 1.35;
+            margin-bottom: 0.85rem;
+            padding: 0.75rem;
+        }
+        .detected-network strong {
+            color: #0f172a;
+            display: block;
+            font-size: 0.9rem;
+            margin-bottom: 0.3rem;
+        }
+        .use-current-ip-btn {
+            width: 100%;
+            height: 38px;
+            border-radius: 4px;
+            font-size: 0.86rem;
+            font-weight: 700;
+            margin-bottom: 0.85rem;
+        }
         .network-add-btn {
             width: 100%;
             height: 42px;
@@ -189,6 +212,13 @@
                     <div class="authorized-grid">
                         <div class="authorized-form">
                             <div class="authorized-form-title">Authorized network</div>
+                            <div class="detected-network">
+                                <strong>Server-seen IP</strong>
+                                <span id="currentNetworkIp">Loading...</span>
+                            </div>
+                            <button class="btn btn-outline-dark use-current-ip-btn" id="useCurrentIpBtn" type="button">
+                                Use Current IP
+                            </button>
                             <input class="form-control network-input" id="networkIpInput" type="text" placeholder="Enter IP" autocomplete="off">
                             <input class="form-control network-input" id="ssidInput" type="text" placeholder="Enter SSID" autocomplete="off">
                             <button class="btn btn-dark network-add-btn" id="addNetworkBtn" type="button">Add</button>
@@ -243,6 +273,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260517-opaque-route"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_network_authorize.js?v=20260517-2"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_network_authorize.js?v=20260517-3"></script>
 </body>
 </html>

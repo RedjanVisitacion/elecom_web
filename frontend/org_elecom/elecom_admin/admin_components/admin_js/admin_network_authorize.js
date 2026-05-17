@@ -1,4 +1,5 @@
 const API_BASE_URL = "/api";
+let detectedRequestIp = "";
 
 function initNetworkAuthorizePage() {
   initSidebar();
@@ -40,6 +41,14 @@ function setupEventListeners() {
     console.error("Network authorize add button was not found.");
   }
 
+  document.getElementById("useCurrentIpBtn")?.addEventListener("click", () => {
+    const ipInput = document.getElementById("networkIpInput");
+    if (ipInput && detectedRequestIp) {
+      ipInput.value = detectedRequestIp;
+      ipInput.focus();
+    }
+  });
+
   document.getElementById("authorizedNetworksBody")?.addEventListener("click", (event) => {
     const button = event.target.closest("[data-delete-network]");
     if (!button) return;
@@ -58,10 +67,13 @@ async function loadNetworkSettings() {
       throw new Error(data.error || "Failed to load network settings");
     }
 
+    detectedRequestIp = data.current_ip || data.request_ip || "";
+    renderDetectedRequestIp(detectedRequestIp);
     renderAuthorizedNetworks(data.networks || []);
   } catch (error) {
     console.error("Error loading network settings:", error);
     showNotification(error.message || "Error loading network settings", "error");
+    renderDetectedRequestIp("");
     renderAuthorizedNetworks([]);
   }
 }
@@ -168,6 +180,19 @@ function renderAuthorizedNetworks(networks) {
       </tr>
     `;
   }).join("");
+}
+
+function renderDetectedRequestIp(ipAddress) {
+  const currentIp = document.getElementById("currentNetworkIp");
+  const useCurrentBtn = document.getElementById("useCurrentIpBtn");
+
+  if (currentIp) {
+    currentIp.textContent = ipAddress || "Unavailable";
+  }
+
+  if (useCurrentBtn) {
+    useCurrentBtn.disabled = !ipAddress;
+  }
 }
 
 async function loadAccessLogs() {
