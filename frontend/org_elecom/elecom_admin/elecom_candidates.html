@@ -72,6 +72,13 @@
                             <button class="btn btn-outline-danger btn-sm" id="bulkDeleteBtn" disabled>
                                 <i class="bi bi-person-dash"></i> Unregister Selected
                             </button>
+                            <button class="btn btn-outline-success btn-sm" id="exportCandidatesBtn">
+                                <i class="bi bi-file-earmark-excel"></i> Export Excel
+                            </button>
+                            <button class="btn btn-outline-primary btn-sm" id="importCandidatesBtn">
+                                <i class="bi bi-upload"></i> Import Excel
+                            </button>
+                            <input type="file" id="importCandidatesFile" class="d-none" accept=".csv,.xlsx,.xls">
                         </div>
                         <div class="text-muted small" id="listCount"></div>
                     </div>
@@ -198,7 +205,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260517-ratings"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_candidates.js?v=20260517-org-colors"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_candidates.js?v=20260517-import"></script>
 </body>
 </html>

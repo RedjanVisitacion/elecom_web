@@ -24,6 +24,9 @@ document.addEventListener('DOMContentLoaded', function(){
   const listCount = document.getElementById('listCount');
   const searchInput = document.getElementById('listSearch');
   const searchBtn = document.getElementById('listSearchBtn');
+  const exportCandidatesBtn = document.getElementById('exportCandidatesBtn');
+  const importCandidatesBtn = document.getElementById('importCandidatesBtn');
+  const importCandidatesFile = document.getElementById('importCandidatesFile');
 
   const API_BASE = '/api/admin/candidates/';
 
@@ -100,6 +103,123 @@ document.addEventListener('DOMContentLoaded', function(){
     const normalized = normalizeOrg(org);
     const index = ORG_ORDER.indexOf(normalized);
     return [index === -1 ? 999 : index, normalized];
+  }
+
+  function buildCandidateName(candidate) {
+    return [candidate.first_name, candidate.middle_name, candidate.last_name].filter(Boolean).join(' ');
+  }
+
+  function csvCell(value) {
+    const text = String(value ?? '');
+    return `"${text.replace(/"/g, '""')}"`;
+  }
+
+  function downloadTextFile(filename, text, mimeType) {
+    const blob = new Blob([text], { type: mimeType });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
+  }
+
+  function normalizeHeader(value) {
+    return String(value || '')
+      .trim()
+      .toLowerCase()
+      .replace(/[\s_/-]+/g, '');
+  }
+
+  function getImportValue(row, names) {
+    const keys = Object.keys(row || {});
+    for (const name of names) {
+      const wanted = normalizeHeader(name);
+      const key = keys.find(k => normalizeHeader(k) === wanted);
+      if (key) return String(row[key] ?? '').trim();
+    }
+    return '';
+  }
+
+  function parseCsv(text) {
+    const rows = [];
+    let row = [];
+    let cell = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < text.length; i += 1) {
+      const ch = text[i];
+      const next = text[i + 1];
+
+      if (ch === '"') {
+        if (inQuotes && next === '"') {
+          cell += '"';
+          i += 1;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (ch === ',' && !inQuotes) {
+        row.push(cell);
+        cell = '';
+      } else if ((ch === '\n' || ch === '\r') && !inQuotes) {
+        if (ch === '\r' && next === '\n') i += 1;
+        row.push(cell);
+        if (row.some(v => String(v).trim() !== '')) rows.push(row);
+        row = [];
+        cell = '';
+      } else {
+        cell += ch;
+      }
+    }
+
+    row.push(cell);
+    if (row.some(v => String(v).trim() !== '')) rows.push(row);
+    if (!rows.length) return [];
+
+    const headers = rows.shift().map(h => String(h || '').replace(/^\uFEFF/, '').trim());
+    return rows.map(values => {
+      const out = {};
+      headers.forEach((header, index) => {
+        out[header] = values[index] ?? '';
+      });
+      return out;
+    });
+  }
+
+  function rowToCandidatePayload(row) {
+    const firstName = getImportValue(row, ['First Name', 'first_name', 'firstname']);
+    const middleName = getImportValue(row, ['Middle Name', 'middle_name', 'middlename']);
+    const lastName = getImportValue(row, ['Last Name', 'last_name', 'lastname']);
+    const partyName = getImportValue(row, ['Party', 'Party Name', 'party_name', 'partyname']);
+    const candidateType = getImportValue(row, ['Candidate Type', 'candidate_type', 'candidatetype'])
+      || (partyName && partyName.toLowerCase() !== 'independent' ? 'Political Party' : 'Independent');
+
+    return {
+      student_id: getImportValue(row, ['Student ID', 'student_id', 'studentid']),
+      first_name: firstName,
+      middle_name: middleName,
+      last_name: lastName,
+      organization: getImportValue(row, ['Organization', 'Org']),
+      position: getImportValue(row, ['Position']),
+      party_name: partyName,
+      candidate_type: candidateType,
+      program: getImportValue(row, ['Program']),
+      year_section: getImportValue(row, ['Year/Section', 'Year Section', 'year_section', 'yearsection']),
+      platform: getImportValue(row, ['Platform']),
+      photo_url: getImportValue(row, ['Photo URL', 'Photo Url', 'photo_url', 'photourl']),
+      party_logo_url: getImportValue(row, ['Party Logo URL', 'Party Logo Url', 'party_logo_url', 'partylogourl']),
+    };
+  }
+
+  function cleanPayload(payload) {
+    const cleaned = {};
+    Object.entries(payload).forEach(([key, value]) => {
+      const text = String(value ?? '').trim();
+      if (text) cleaned[key] = text;
+    });
+    return cleaned;
   }
 
   let redirectedToSearch = false;
@@ -244,6 +364,225 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   if (searchBtn) searchBtn.addEventListener('click', goToSearchPage);
   loadList();
+
+  async function fetchCandidateDetail(candidate) {
+    try {
+      const res = await fetch(`${API_BASE}detail/?id=${encodeURIComponent(candidate.id)}`, { credentials: 'same-origin' });
+      const data = await res.json();
+      if (data && data.ok && data.candidate) {
+        return { ...candidate, ...data.candidate };
+      }
+    } catch (_) {}
+    return candidate;
+  }
+
+  async function exportCandidates() {
+    if (!exportCandidatesBtn) return;
+
+    const originalHtml = exportCandidatesBtn.innerHTML;
+    exportCandidatesBtn.disabled = true;
+    exportCandidatesBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Exporting...';
+
+    try {
+      const url = new URL(API_BASE + 'list/', window.location.origin);
+      const res = await fetch(url.toString(), { credentials: 'same-origin' });
+      const data = await res.json();
+      const baseRows = (data && data.ok) ? (data.candidates || []) : [];
+
+      if (!baseRows.length) {
+        alert('No candidates to export.');
+        return;
+      }
+
+      const rows = await Promise.all(baseRows.map(fetchCandidateDetail));
+      rows.sort((a, b) => {
+        const orgA = orgSortKey(a.organization);
+        const orgB = orgSortKey(b.organization);
+        if (orgA[0] !== orgB[0]) return orgA[0] - orgB[0];
+        if (orgA[1] !== orgB[1]) return orgA[1].localeCompare(orgB[1]);
+
+        const posA = positionSortKey(a.organization, a.position);
+        const posB = positionSortKey(b.organization, b.position);
+        if (posA[0] !== posB[0]) return posA[0] - posB[0];
+        if (posA[1] !== posB[1]) return posA[1].localeCompare(posB[1]);
+
+        return buildCandidateName(a).localeCompare(buildCandidateName(b));
+      });
+
+      const headers = [
+        'Candidate ID',
+        'Student ID',
+        'First Name',
+        'Middle Name',
+        'Last Name',
+        'Full Name',
+        'Organization',
+        'Position',
+        'Party',
+        'Candidate Type',
+        'Program',
+        'Year/Section',
+        'Platform',
+        'Photo URL',
+        'Party Logo URL',
+      ];
+
+      const lines = [
+        headers.map(csvCell).join(','),
+        ...rows.map(candidate => [
+          candidate.id,
+          candidate.student_id,
+          candidate.first_name,
+          candidate.middle_name,
+          candidate.last_name,
+          buildCandidateName(candidate),
+          normalizeOrg(candidate.organization),
+          normalizePosition(candidate.position),
+          candidate.party_name || 'Independent',
+          candidate.candidate_type || (candidate.party_name ? 'Political Party' : 'Independent'),
+          candidate.program,
+          candidate.year_section,
+          candidate.platform,
+          candidate.photo_url,
+          candidate.party_logo_url,
+        ].map(csvCell).join(',')),
+      ];
+
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadTextFile(`elecom_candidates_${stamp}.csv`, `\uFEFF${lines.join('\r\n')}`, 'text/csv;charset=utf-8;');
+    } catch (err) {
+      alert('Failed to export candidates.');
+    } finally {
+      exportCandidatesBtn.disabled = false;
+      exportCandidatesBtn.innerHTML = originalHtml;
+    }
+  }
+
+  if (exportCandidatesBtn) {
+    exportCandidatesBtn.addEventListener('click', exportCandidates);
+  }
+
+  function readFileAsText(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file.'));
+      reader.readAsText(file);
+    });
+  }
+
+  function readFileAsArrayBuffer(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = () => reject(reader.error || new Error('Failed to read file.'));
+      reader.readAsArrayBuffer(file);
+    });
+  }
+
+  async function rowsFromImportFile(file) {
+    const name = String(file?.name || '').toLowerCase();
+    if (name.endsWith('.xlsx') || name.endsWith('.xls')) {
+      if (!window.XLSX) {
+        throw new Error('Excel reader is not loaded. Please save the file as CSV and import again.');
+      }
+      const buffer = await readFileAsArrayBuffer(file);
+      const workbook = window.XLSX.read(buffer, { type: 'array' });
+      const firstSheet = workbook.SheetNames[0];
+      if (!firstSheet) return [];
+      return window.XLSX.utils.sheet_to_json(workbook.Sheets[firstSheet], { defval: '' });
+    }
+
+    const text = await readFileAsText(file);
+    return parseCsv(text);
+  }
+
+  function validateCandidatePayload(payload, rowNumber) {
+    const missing = [];
+    if (!payload.student_id) missing.push('Student ID');
+    if (!payload.first_name) missing.push('First Name');
+    if (!payload.last_name) missing.push('Last Name');
+    if (!payload.organization) missing.push('Organization');
+    if (!payload.position) missing.push('Position');
+    if (!payload.program) missing.push('Program');
+    if (!payload.year_section) missing.push('Year/Section');
+    if (!payload.platform) missing.push('Platform');
+    return missing.length ? `Row ${rowNumber}: missing ${missing.join(', ')}` : '';
+  }
+
+  async function importCandidatePayload(payload) {
+    const res = await fetch(API_BASE + 'create/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify(cleanPayload(payload)),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      throw new Error(data.error || 'Failed to import candidate.');
+    }
+    return data;
+  }
+
+  async function handleImportCandidatesFile(file) {
+    if (!file || !importCandidatesBtn) return;
+
+    const originalHtml = importCandidatesBtn.innerHTML;
+    importCandidatesBtn.disabled = true;
+    if (exportCandidatesBtn) exportCandidatesBtn.disabled = true;
+    importCandidatesBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Importing...';
+
+    try {
+      const rows = await rowsFromImportFile(file);
+      if (!rows.length) {
+        alert('No candidate rows found in the file.');
+        return;
+      }
+
+      const payloads = rows.map(rowToCandidatePayload);
+      const validationErrors = payloads
+        .map((payload, index) => validateCandidatePayload(payload, index + 2))
+        .filter(Boolean);
+
+      if (validationErrors.length) {
+        alert(`Please fix the import file first:\n\n${validationErrors.slice(0, 10).join('\n')}${validationErrors.length > 10 ? '\n...' : ''}`);
+        return;
+      }
+
+      if (!confirm(`Import ${payloads.length} candidate(s) from this file?`)) return;
+
+      let imported = 0;
+      const failed = [];
+      for (let i = 0; i < payloads.length; i += 1) {
+        const payload = payloads[i];
+        try {
+          await importCandidatePayload(payload);
+          imported += 1;
+        } catch (err) {
+          const name = buildCandidateName(payload) || payload.student_id || `Row ${i + 2}`;
+          failed.push(`${name}: ${err.message || 'Failed'}`);
+        }
+      }
+
+      loadList();
+      alert(`Import finished.\n\nImported: ${imported}\nFailed: ${failed.length}${failed.length ? `\n\n${failed.slice(0, 8).join('\n')}${failed.length > 8 ? '\n...' : ''}` : ''}`);
+    } catch (err) {
+      alert(err && err.message ? err.message : 'Failed to import candidates.');
+    } finally {
+      importCandidatesBtn.disabled = false;
+      if (exportCandidatesBtn) exportCandidatesBtn.disabled = false;
+      importCandidatesBtn.innerHTML = originalHtml;
+      if (importCandidatesFile) importCandidatesFile.value = '';
+    }
+  }
+
+  if (importCandidatesBtn && importCandidatesFile) {
+    importCandidatesBtn.addEventListener('click', () => importCandidatesFile.click());
+    importCandidatesFile.addEventListener('change', () => {
+      const file = importCandidatesFile.files && importCandidatesFile.files[0];
+      handleImportCandidatesFile(file);
+    });
+  }
 
   function updateBulkState(){
     const checks = Array.from(document.querySelectorAll('.row-check'));
