@@ -59,7 +59,16 @@ The web admin Network Authorize page uses:
 - Table: `network_access_attempts`
 - Backend endpoints: `/api/admin/network-settings/`, `/api/admin/network-logs/`, `/api/network/check/`
 
-PostgreSQL is used, so never use SQLite-only DDL such as `AUTOINCREMENT`. Use `SERIAL`, `BIGSERIAL`, or Django migrations. The actual enforcement is IP/prefix based; SSID is stored/displayed for admin context, but browsers/servers cannot reliably read a phone's Wi-Fi SSID.
+PostgreSQL is used, so never use SQLite-only DDL such as `AUTOINCREMENT`. Use `SERIAL`, `BIGSERIAL`, or Django migrations.
+
+Important LAN/public IP distinction:
+
+- For online deployments, Django sees the public/NAT request IP (for example `61.245.14.254`), not the phone's Wi-Fi/LAN IP.
+- Network authorization should allow the voter device's local Wi-Fi IP/prefix (for example `192.168.101.4`, usually authorized as `192.168.101.0/24` or prefix `192.168.101`).
+- `/api/network/check/` now prefers client-supplied LAN IP fields: `device_ip`, `local_ip`, `network_ip`, or `ip_address` (query string or JSON body), plus headers `X-Device-Local-IP` / `X-Client-Local-IP`.
+- If no LAN IP is supplied, the endpoint falls back to the server-seen request IP and returns `ip_source: "request"`; this is not suitable for mobile Wi-Fi LAN authorization behind NAT.
+- Mobile/Flutter clients must read the device Wi-Fi/local IP and send it to `/api/mobile/network/check/` before voting. Browsers/servers cannot reliably read a phone's Wi-Fi SSID or private LAN IP for security reasons.
+- SSID is stored/displayed for admin context only; do not depend on SSID for enforcement unless a trusted mobile client supplies it.
 
 ## Admin notification bell notes
 

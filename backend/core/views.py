@@ -9,6 +9,7 @@ import tempfile
 import time
 import urllib.request
 import io
+import ipaddress
 from pathlib import Path
 
 from decimal import Decimal
@@ -5538,6 +5539,73 @@ def _get_request_ip(request) -> str:
     ).split(",")[0].strip()
 
 
+def _clean_network_ip(value: str | None) -> str:
+    raw = str(value or "").strip()
+    if not raw:
+        return ""
+    if "," in raw:
+        raw = raw.split(",", 1)[0].strip()
+    try:
+        if "/" in raw:
+            return str(ipaddress.ip_interface(raw).ip)
+        return str(ipaddress.ip_address(raw))
+    except Exception:
+        return ""
+
+
+def _get_client_network_ip(request, payload: dict | None = None) -> tuple[str, str]:
+    """
+    Prefer the device LAN IP sent by the mobile client. The server request IP is
+    only a fallback because online deployments usually see the public NAT IP.
+    """
+    payload = payload or {}
+    candidates = [
+        payload.get("device_ip"),
+        payload.get("local_ip"),
+        payload.get("network_ip"),
+        payload.get("ip_address"),
+        request.GET.get("device_ip"),
+        request.GET.get("local_ip"),
+        request.GET.get("network_ip"),
+        request.GET.get("ip_address"),
+        request.META.get("HTTP_X_DEVICE_LOCAL_IP"),
+        request.META.get("HTTP_X_CLIENT_LOCAL_IP"),
+    ]
+    for candidate in candidates:
+        cleaned = _clean_network_ip(candidate)
+        if cleaned:
+            return cleaned, "device"
+
+    return _clean_network_ip(_get_request_ip(request)) or "127.0.0.1", "request"
+
+
+def _authorized_network_matches(client_ip: str, rows: list[tuple]) -> bool:
+    try:
+        client_addr = ipaddress.ip_address(client_ip)
+    except Exception:
+        return False
+
+    client_text = str(client_addr)
+    for network_ip, ip_prefix in rows:
+        network_text = str(network_ip or "").strip()
+        prefix_text = str(ip_prefix or "").strip().rstrip(".")
+
+        try:
+            if "/" in network_text:
+                if client_addr in ipaddress.ip_interface(network_text).network:
+                    return True
+            elif network_text and client_addr == ipaddress.ip_address(network_text):
+                return True
+        except Exception:
+            pass
+
+        if isinstance(client_addr, ipaddress.IPv4Address) and prefix_text:
+            if client_text == prefix_text or client_text.startswith(prefix_text + "."):
+                return True
+
+    return False
+
+
 def _ensure_network_authorization_tables(cur) -> None:
     cur.execute(
         """
@@ -5750,12 +5818,23 @@ def admin_network_logs_api(request):
 
 
 @csrf_exempt
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def check_network_access_api(request):
     """Check if current user's network is authorized to vote."""
-    # Get user's IP
-    user_ip = _get_request_ip(request)
-    student_id = request.session.get("student_id") or request.GET.get("student_id", "unknown")
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8")) if request.body else {}
+    except Exception:
+        payload = {}
+
+    user_ip, ip_source = _get_client_network_ip(request, payload)
+    request_ip = _clean_network_ip(_get_request_ip(request)) or "127.0.0.1"
+    ssid = (payload.get("ssid") or request.GET.get("ssid") or "").strip() or None
+    student_id = (
+        request.session.get("student_id")
+        or payload.get("student_id")
+        or request.GET.get("student_id")
+        or "unknown"
+    )
 
     try:
         with connection.cursor() as cur:
@@ -5772,24 +5851,19 @@ def check_network_access_api(request):
 
             cur.execute(
                 """
-                SELECT EXISTS (
-                    SELECT 1
-                    FROM authorized_networks
-                    WHERE LOWER(status) = 'active'
-                      AND (
-                        network_ip = %s::inet
-                        OR (%s LIKE ip_prefix || '%%')
-                      )
-                )
-                """,
-                [user_ip, user_ip],
+                SELECT network_ip::text, ip_prefix
+                FROM authorized_networks
+                WHERE LOWER(status) = 'active'
+                """
             )
-            allowed = bool(cur.fetchone()[0])
+            allowed = _authorized_network_matches(user_ip, cur.fetchall())
             message = (
-                "Network access authorized"
+                f"Network access authorized using {ip_source} IP {user_ip}"
                 if allowed
-                else "You must be connected to the authorized network to vote"
+                else f"You must be connected to the authorized network to vote. Checked {ip_source} IP {user_ip}."
             )
+            if ip_source == "request":
+                message += " Mobile clients should send device_ip/local_ip for LAN Wi-Fi checks."
 
             # Log the attempt
             cur.execute(
@@ -5797,20 +5871,26 @@ def check_network_access_api(request):
                 INSERT INTO network_access_attempts (user_id, student_id, ip_address, ssid, status, message, created_at)
                 VALUES (%s, %s, %s::inet, %s, %s, %s, CURRENT_TIMESTAMP)
                 """,
-                [None, student_id, user_ip, None, "Allowed" if allowed else "Blocked", message],
+                [None, student_id, user_ip, ssid, "Allowed" if allowed else "Blocked", message],
             )
 
             if allowed:
                 return JsonResponse({
                     "ok": True,
                     "allowed": True,
-                    "message": message
+                    "message": message,
+                    "checked_ip": user_ip,
+                    "ip_source": ip_source,
+                    "request_ip": request_ip,
                 })
             else:
                 return JsonResponse({
                     "ok": True,
                     "allowed": False,
-                    "message": message
+                    "message": message,
+                    "checked_ip": user_ip,
+                    "ip_source": ip_source,
+                    "request_ip": request_ip,
                 }, status=403)
 
     except Exception as e:
