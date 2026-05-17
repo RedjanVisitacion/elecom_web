@@ -230,7 +230,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const url = new URL('/static/org_elecom/elecom_admin/search_results.html', window.location.origin);
     url.searchParams.set('focus', '1');
     if (q) url.searchParams.set('q', q);
-    window.location.href = url.toString();
+    window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(url.toString()) : url.toString();
   }
 
   function cardTemplate(item){

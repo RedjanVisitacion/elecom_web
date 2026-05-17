@@ -21,6 +21,7 @@ from django.views.decorators.http import require_http_methods
 
 from django.conf import settings
 from django.utils import timezone
+from django.core import signing
 
 from elecom_auth.models import ElecomUser
 from elecom_voting.models import (
@@ -41,6 +42,7 @@ _DUP_FACE_ENROLL_MSG = (
 _MISMATCH_VOTER_MSG = "Face verification failed. This face does not match the enrolled voter."
 _SESSION_FACE_VOTE_STD = "_elecom_fv_std"
 _SESSION_FACE_VOTE_EXP = "_elecom_fv_exp"
+_ADMIN_PAGE_TOKEN_SALT = "elecom.admin.page.hash"
 
 
 def _facepp_configured() -> bool:
@@ -2827,6 +2829,134 @@ def _require_admin(request):
     return None
 
 
+def _require_voters_access(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    raw = request.session.get("voters_access_verified_at")
+    if not raw:
+        return JsonResponse({"ok": False, "error": "Admin password required."}, status=403)
+
+    try:
+        verified_at = datetime.fromisoformat(str(raw))
+        if timezone.is_naive(verified_at):
+            verified_at = timezone.make_aware(verified_at, timezone.get_current_timezone())
+    except Exception:
+        request.session.pop("voters_access_verified_at", None)
+        request.session.modified = True
+        return JsonResponse({"ok": False, "error": "Admin password required."}, status=403)
+
+    max_age_minutes = int(getattr(settings, "VOTERS_ACCESS_SESSION_MINUTES", 10) or 10)
+    if timezone.now() - verified_at > timedelta(minutes=max_age_minutes):
+        request.session.pop("voters_access_verified_at", None)
+        request.session.modified = True
+        return JsonResponse({"ok": False, "error": "Admin password expired."}, status=403)
+
+    return None
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def admin_page_token_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    if not request.session.session_key:
+        request.session.save()
+
+    if request.method == "POST":
+        try:
+            payload = json.loads((request.body or b"{}").decode("utf-8"))
+        except Exception:
+            payload = {}
+
+        token = str(payload.get("token") or "").strip()
+        if not token:
+            return JsonResponse({"ok": False, "error": "Missing page token."}, status=400)
+
+        try:
+            data = signing.loads(
+                token,
+                salt=_ADMIN_PAGE_TOKEN_SALT,
+                max_age=int(getattr(settings, "ADMIN_PAGE_TOKEN_SECONDS", 3600) or 3600),
+            )
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Invalid or expired page token."}, status=403)
+
+        if (
+            str(data.get("sid") or "") != student_id
+            or str(data.get("role") or "").lower() != "admin"
+            or str(data.get("session") or "") != str(request.session.session_key)
+        ):
+            return JsonResponse({"ok": False, "error": "Invalid page token."}, status=403)
+
+        return JsonResponse({"ok": True})
+
+    token = signing.dumps(
+        {
+            "sid": student_id,
+            "role": "admin",
+            "session": request.session.session_key,
+        },
+        salt=_ADMIN_PAGE_TOKEN_SALT,
+        compress=True,
+    )
+    return JsonResponse({"ok": True, "token": token})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_verify_password_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    password = str(payload.get("password") or "").strip()
+    if not password:
+        return JsonResponse({"ok": False, "error": "Password is required."}, status=400)
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT password_hash
+                FROM users
+                WHERE (student_id::text = %s OR id::text = %s)
+                  AND COALESCE(role, '') ILIKE 'admin'
+                ORDER BY CASE WHEN student_id::text = %s THEN 0 ELSE 1 END, id DESC
+                LIMIT 1
+                """,
+                [student_id, student_id, student_id],
+            )
+            row = cur.fetchone()
+
+        if not row or not _verify_password(str(row[0] or ""), password):
+            return JsonResponse({"ok": False, "error": "Incorrect admin password."}, status=401)
+
+        request.session["voters_access_verified_at"] = timezone.now().isoformat()
+        request.session.modified = True
+        return JsonResponse({"ok": True})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to verify password."}, status=500)
+
+
 def _ensure_votes_tables() -> None:
     """
     Bootstrap: create `votes` and `vote_items` if missing (e.g. tables were dropped manually).
@@ -3984,6 +4114,264 @@ def admin_candidates_bulk_delete_api(request):
         return JsonResponse({"ok": True})
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to delete candidates."}, status=500)
+
+
+def _hash_default_voter_password(id_number: str) -> str:
+    import bcrypt
+
+    password = str(id_number or "").strip()
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+
+def _safe_int_or_none(value):
+    try:
+        text = str(value or "").strip()
+        if not text:
+            return None
+        return int(text)
+    except Exception:
+        return None
+
+
+def _upsert_voter_row(cur, payload: dict) -> str:
+    id_number = str(payload.get("id_number") or payload.get("student_id") or "").strip()
+    if not id_number:
+        return "Missing ID Number."
+    if not id_number.isdigit():
+        return "ID Number must contain numbers only."
+
+    first_name = str(payload.get("first_name") or "").strip()
+    middle_name = str(payload.get("middle_name") or "").strip()
+    last_name = str(payload.get("last_name") or "").strip()
+    course = str(payload.get("course") or payload.get("department") or "").strip()
+    year = _safe_int_or_none(payload.get("year") or payload.get("year_level"))
+    section = str(payload.get("section") or "").strip()
+    email = str(payload.get("email") or "").strip()
+    phone = str(payload.get("phone_number") or payload.get("phone") or "").strip()
+    role = str(payload.get("role") or "student").strip() or "student"
+    position = str(payload.get("position") or "").strip() or None
+    photo_url = str(payload.get("photo_url") or "").strip() or None
+
+    missing = []
+    if not first_name:
+        missing.append("First Name")
+    if not last_name:
+        missing.append("Last Name")
+    if not course:
+        missing.append("Course")
+    if year is None:
+        missing.append("Year")
+    if not section:
+        missing.append("Section")
+    if not email:
+        missing.append("Email")
+    if not phone:
+        missing.append("Phone Number")
+    if missing:
+        return f"Missing {', '.join(missing)}."
+
+    password_hash = _hash_default_voter_password(id_number)
+
+    cur.execute(
+        """
+        UPDATE student
+        SET first_name = %s,
+            middle_name = %s,
+            last_name = %s,
+            course = %s,
+            year = %s,
+            section = %s,
+            email = %s,
+            phone_number = %s,
+            role = %s
+        WHERE id_number::text = %s
+        """,
+        [first_name, middle_name, last_name, course, year, section, email, phone, role, id_number],
+    )
+    if cur.rowcount == 0:
+        cur.execute(
+            """
+            INSERT INTO student (
+                id_number, first_name, middle_name, last_name,
+                course, year, section, email, phone_number, role
+            )
+            VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+            """,
+            [id_number, first_name, middle_name, last_name, course, year, section, email, phone, role],
+        )
+
+    cur.execute(
+        """
+        UPDATE users
+        SET student_id = %s,
+            password_hash = %s,
+            role = %s,
+            department = %s,
+            year_level = %s,
+            section = %s,
+            position = %s,
+            phone = %s,
+            email = %s,
+            first_name = %s,
+            middle_name = %s,
+            last_name = %s,
+            photo_url = COALESCE(%s, photo_url)
+        WHERE student_id::text = %s
+        """,
+        [
+            id_number,
+            password_hash,
+            role,
+            course,
+            year,
+            section,
+            position,
+            phone,
+            email,
+            first_name,
+            middle_name,
+            last_name,
+            photo_url,
+            id_number,
+        ],
+    )
+    if cur.rowcount == 0:
+        cur.execute(
+            """
+            INSERT INTO users (
+                id, student_id, password_hash, created_at, role,
+                department, year_level, section, position, phone, email,
+                first_name, middle_name, last_name, photo_url
+            )
+            VALUES (
+                (SELECT COALESCE(MAX(id), 0) + 1 FROM users),
+                %s,%s,CURRENT_TIMESTAMP,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+            )
+            """,
+            [
+                id_number,
+                password_hash,
+                role,
+                course,
+                year,
+                section,
+                position,
+                phone,
+                email,
+                first_name,
+                middle_name,
+                last_name,
+                photo_url,
+            ],
+        )
+
+    return ""
+
+
+@require_http_methods(["GET"])
+def admin_voters_list_api(request):
+    forbidden = _require_voters_access(request)
+    if forbidden:
+        return forbidden
+
+    q = (request.GET.get("q") or "").strip()
+    where = "WHERE COALESCE(u.role, s.role, 'student') ILIKE 'student'"
+    params = []
+    if q:
+        where += """
+            AND (
+                COALESCE(u.student_id::text, s.id_number::text, '') ILIKE %s
+                OR COALESCE(s.first_name, u.first_name, '') ILIKE %s
+                OR COALESCE(s.middle_name, u.middle_name, '') ILIKE %s
+                OR COALESCE(s.last_name, u.last_name, '') ILIKE %s
+                OR COALESCE(s.course, u.department, '') ILIKE %s
+                OR COALESCE(s.email, u.email, '') ILIKE %s
+                OR COALESCE(s.phone_number, u.phone, '') ILIKE %s
+            )
+        """
+        like = f"%{q}%"
+        params = [like, like, like, like, like, like, like]
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    COALESCE(u.student_id::text, s.id_number::text) AS id_number,
+                    COALESCE(s.first_name, u.first_name, '') AS first_name,
+                    COALESCE(s.middle_name, u.middle_name, '') AS middle_name,
+                    COALESCE(s.last_name, u.last_name, '') AS last_name,
+                    COALESCE(s.course, u.department, '') AS course,
+                    COALESCE(s.year, u.year_level) AS year,
+                    COALESCE(s.section, u.section, '') AS section,
+                    COALESCE(s.email, u.email, '') AS email,
+                    COALESCE(s.phone_number, u.phone, '') AS phone_number,
+                    COALESCE(u.role, s.role, 'student') AS role,
+                    COALESCE(u.position, '') AS position,
+                    COALESCE(u.photo_url, '') AS photo_url,
+                    u.terms_accepted_at,
+                    u.created_at
+                FROM users u
+                FULL OUTER JOIN student s
+                  ON s.id_number::text = u.student_id::text
+                {where}
+                ORDER BY COALESCE(s.course, u.department, ''), COALESCE(s.year, u.year_level), COALESCE(s.section, u.section, ''), COALESCE(s.last_name, u.last_name, '')
+                LIMIT 2000
+                """,
+                params,
+            )
+            cols = [c[0] for c in cur.description]
+            rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+
+        for row in rows:
+            row["id_number"] = str(row.get("id_number") or "")
+            row["year"] = row.get("year") if row.get("year") is not None else ""
+            row["terms_accepted_at"] = _iso_or_none(row.get("terms_accepted_at"))
+            row["created_at"] = _iso_or_none(row.get("created_at"))
+
+        return JsonResponse({"ok": True, "voters": rows})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load voters."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_voters_import_api(request):
+    forbidden = _require_voters_access(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    voters = payload.get("voters") or []
+    if not isinstance(voters, list) or not voters:
+        return JsonResponse({"ok": False, "error": "No voters supplied."}, status=400)
+
+    imported = 0
+    failed = []
+    try:
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                for index, voter in enumerate(voters, start=2):
+                    if not isinstance(voter, dict):
+                        failed.append({"row": index, "error": "Invalid row."})
+                        continue
+                    err = _upsert_voter_row(cur, voter)
+                    if err:
+                        failed.append({"row": index, "id_number": voter.get("id_number") or voter.get("student_id"), "error": err})
+                    else:
+                        imported += 1
+
+        return JsonResponse({"ok": True, "imported": imported, "failed": failed})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to import voters."}, status=500)
 
 
 @require_http_methods(["GET"])

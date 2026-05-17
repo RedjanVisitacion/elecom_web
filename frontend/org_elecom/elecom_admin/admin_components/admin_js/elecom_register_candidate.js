@@ -82,7 +82,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const q = String(candidateSearchInput?.value || "").trim();
     const url = new URL("/static/org_elecom/elecom_admin/search_results.html", window.location.origin);
     if (q) url.searchParams.set("q", q);
-    window.location.href = url.toString();
+    window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(url.toString()) : url.toString();
   };
 
   if (candidateSearchInput) {

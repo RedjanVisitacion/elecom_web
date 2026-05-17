@@ -29,6 +29,97 @@ document.addEventListener("DOMContentLoaded", function () {
   const recentVotesEmpty = document.getElementById("recentVotesEmpty");
   const recentVotesScroll = document.getElementById("recentVotesScroll");
   const recentVotesList = document.getElementById("recentVotesList");
+  const totalVotersCard = document.getElementById("totalVotersCard");
+  const votersAccessModalEl = document.getElementById("votersAccessModal");
+  const votersAccessPassword = document.getElementById("votersAccessPassword");
+  const votersAccessError = document.getElementById("votersAccessError");
+  const votersAccessConfirmBtn = document.getElementById("votersAccessConfirmBtn");
+  const votersAccessModal = votersAccessModalEl && window.bootstrap
+    ? window.bootstrap.Modal.getOrCreateInstance(votersAccessModalEl)
+    : null;
+
+  const showVotersAccessError = (message) => {
+    if (!votersAccessError) return;
+    votersAccessError.textContent = message || "";
+    votersAccessError.style.setProperty("display", message ? "block" : "none", "important");
+  };
+
+  const setVotersAccessLoading = (loading) => {
+    if (!votersAccessConfirmBtn) return;
+    votersAccessConfirmBtn.disabled = !!loading;
+    if (loading) {
+      votersAccessConfirmBtn.dataset.originalHtml = votersAccessConfirmBtn.dataset.originalHtml || votersAccessConfirmBtn.innerHTML;
+      votersAccessConfirmBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Checking...';
+    } else {
+      votersAccessConfirmBtn.innerHTML = votersAccessConfirmBtn.dataset.originalHtml || '<i class="bi bi-shield-lock"></i> Continue';
+    }
+  };
+
+  const verifyVotersAccess = async () => {
+    const password = votersAccessPassword ? votersAccessPassword.value.trim() : "";
+    if (!password) {
+      showVotersAccessError("Enter your admin password.");
+      if (votersAccessPassword) votersAccessPassword.focus();
+      return;
+    }
+
+    setVotersAccessLoading(true);
+    showVotersAccessError("");
+    try {
+      const res = await fetch("/api/admin/verify-password/", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        body: JSON.stringify({ password }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        showVotersAccessError(data.error || "Incorrect admin password.");
+        if (votersAccessPassword) {
+          votersAccessPassword.select();
+          votersAccessPassword.focus();
+        }
+        return;
+      }
+      const votersUrl = "/static/org_elecom/elecom_admin/elecom_voters.html";
+      window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(votersUrl) : votersUrl;
+    } catch (err) {
+      showVotersAccessError("Could not verify password. Please try again.");
+    } finally {
+      setVotersAccessLoading(false);
+    }
+  };
+
+  if (totalVotersCard) {
+    const openVoters = () => {
+      showVotersAccessError("");
+      if (votersAccessPassword) votersAccessPassword.value = "";
+      if (votersAccessModal) {
+        votersAccessModal.show();
+        setTimeout(() => votersAccessPassword && votersAccessPassword.focus(), 250);
+      }
+    };
+    totalVotersCard.addEventListener("click", openVoters);
+    totalVotersCard.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault();
+        openVoters();
+      }
+    });
+  }
+
+  if (votersAccessConfirmBtn) {
+    votersAccessConfirmBtn.addEventListener("click", verifyVotersAccess);
+  }
+
+  if (votersAccessPassword) {
+    votersAccessPassword.addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        verifyVotersAccess();
+      }
+    });
+  }
 
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener("click", function () {
@@ -489,7 +580,7 @@ document.addEventListener("DOMContentLoaded", function () {
     );
     url.searchParams.set("focus", "1");
     if (q) url.searchParams.set("q", q);
-    window.location.href = url.toString();
+    window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(url.toString()) : url.toString();
   }
 
   function hideResults() {

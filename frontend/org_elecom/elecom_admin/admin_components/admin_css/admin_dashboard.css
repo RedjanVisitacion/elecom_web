@@ -1135,3 +1135,14 @@ textarea.form-control { min-height: 150px; resize: vertical; }
 .announcement-title { color: var(--brand-primary); font-weight: 600; margin-bottom: 5px; }
 .announcement-content { color: #555; margin-bottom: 10px; line-height: 1.6; }
 .announcement-date { color: #888; font-size: 0.9rem; }
+.dashboard-action-card{
+    cursor:pointer;
+    transition:transform .15s ease, box-shadow .15s ease;
+}
+
+.dashboard-action-card:hover,
+.dashboard-action-card:focus{
+    transform:translateY(-1px);
+    box-shadow:0 .65rem 1.35rem rgba(15,23,42,.12)!important;
+    outline:0;
+}

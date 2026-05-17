@@ -1,0 +1,108 @@
+.voters-page-heading{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:18px;
+}
+
+.voters-page-heading h1{
+  margin:0;
+  font-size:2rem;
+  font-weight:800;
+  color:#111827;
+}
+
+.voters-page-heading p{
+  margin:4px 0 0;
+  color:#6b7280;
+  font-weight:600;
+}
+
+.voters-import-note{
+  border-radius:8px;
+  border-left:4px solid #3b82f6;
+}
+
+.voters-filter-bar{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  flex-wrap:wrap;
+}
+
+.voters-course-filter .btn{
+  min-width:54px;
+  font-weight:700;
+}
+
+.voters-select-filter{
+  width:auto;
+  min-width:112px;
+  font-weight:700;
+}
+
+.voters-count{
+  min-width:76px;
+  text-align:right;
+}
+
+.voters-table-wrap{
+  border:1px solid #e5e7eb;
+  border-radius:8px;
+}
+
+.voters-table{
+  margin-bottom:0;
+}
+
+.voters-table thead th{
+  background:#f8fafc;
+  color:#111827;
+  font-weight:800;
+  border-bottom:1px solid #e5e7eb;
+  white-space:nowrap;
+}
+
+.voter-name{
+  font-weight:800;
+  color:#111827;
+}
+
+.voter-meta{
+  color:#6b7280;
+  font-size:.85rem;
+}
+
+.voter-status{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:4px 8px;
+  border-radius:999px;
+  background:#eef2ff;
+  color:#1f2937;
+  font-weight:700;
+  font-size:.8rem;
+  white-space:nowrap;
+}
+
+@media (max-width: 768px){
+  .voters-page-heading{
+    flex-direction:column;
+  }
+
+  .voters-page-heading h1{
+    font-size:1.55rem;
+  }
+
+  .voters-filter-bar{
+    justify-content:flex-start;
+    width:100%;
+  }
+
+  .voters-count{
+    text-align:left;
+  }
+}

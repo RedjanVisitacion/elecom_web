@@ -1,7 +1,9 @@
 (function () {
   const API_PROFILE = "/api/account/profile/";
   const API_ADMIN_RATING_NOTIFS = "/api/admin/notifications/app-ratings/";
+  const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
   const RATING_SEEN_KEY = "elecom_admin_seen_rating_id";
+  const ADMIN_HASH_KEY = "elecom_admin_page_hash";
 
   const toLogin = () => {
     try {
@@ -22,6 +24,120 @@
       .replace(/>/g, "&gt;")
       .replace(/\"/g, "&quot;")
       .replace(/'/g, "&#39;");
+  };
+
+  const isAdminStaticPage = (href) => {
+    try {
+      const url = new URL(href, window.location.origin);
+      return url.origin === window.location.origin
+        && url.pathname.startsWith("/static/org_elecom/elecom_admin/")
+        && url.pathname.endsWith(".html");
+    } catch (e) {
+      return false;
+    }
+  };
+
+  const applyAdminHashToUrl = (href, token) => {
+    try {
+      const url = new URL(href, window.location.origin);
+      if (!isAdminStaticPage(url.href)) return href;
+      url.hash = token ? `secure=${encodeURIComponent(token)}` : "";
+      return url.toString();
+    } catch (e) {
+      return href;
+    }
+  };
+
+  const rewriteAdminLinks = (token) => {
+    if (!token) return;
+    document.querySelectorAll('a[href]').forEach((link) => {
+      const href = link.getAttribute("href") || "";
+      if (!isAdminStaticPage(href)) return;
+      link.setAttribute("href", applyAdminHashToUrl(href, token));
+    });
+  };
+
+  const getAdminHashToken = () => {
+    const raw = String(window.location.hash || "").replace(/^#/, "");
+    const params = new URLSearchParams(raw);
+    return String(params.get("secure") || "").trim();
+  };
+
+  const isAdminDashboardPage = () => {
+    return /\/static\/org_elecom\/elecom_admin\/admin_dashboard\.html$/i.test(window.location.pathname);
+  };
+
+  const goToSecureDashboard = () => {
+    const dashboard = "/static/org_elecom/elecom_admin/admin_dashboard.html";
+    if (isAdminDashboardPage()) return;
+    window.location.href = dashboard;
+  };
+
+  const validateAdminHashToken = async (token) => {
+    const resp = await fetch(API_ADMIN_PAGE_TOKEN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      cache: "no-store",
+      body: JSON.stringify({ token }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    return !!(resp.ok && data && data.ok);
+  };
+
+  const ensureAdminPageHash = async () => {
+    if (!isAdminStaticPage(window.location.href)) return;
+
+    try {
+      const existingToken = getAdminHashToken();
+      if (existingToken) {
+        const valid = await validateAdminHashToken(existingToken);
+        if (!valid) {
+          goToSecureDashboard();
+          return;
+        }
+        try {
+          sessionStorage.setItem(ADMIN_HASH_KEY, existingToken);
+        } catch (e) {
+          // ignore
+        }
+        rewriteAdminLinks(existingToken);
+        return;
+      }
+
+      if (!isAdminDashboardPage()) {
+        goToSecureDashboard();
+        return;
+      }
+
+      const resp = await fetch(API_ADMIN_PAGE_TOKEN, {
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok || !data.token) {
+        toLogin();
+        return;
+      }
+
+      const token = String(data.token);
+      try {
+        sessionStorage.setItem(ADMIN_HASH_KEY, token);
+      } catch (e) {
+        // ignore
+      }
+
+      const wantedHash = `secure=${encodeURIComponent(token)}`;
+      if (window.location.hash.replace(/^#/, "") !== wantedHash) {
+        const url = new URL(window.location.href);
+        url.hash = wantedHash;
+        window.history.replaceState(null, "", url.toString());
+      }
+      rewriteAdminLinks(token);
+    } catch (e) {
+      toLogin();
+    }
   };
 
   const NET_LEVELS = {
@@ -344,6 +460,8 @@
     const mount = document.getElementById("userMenuMount");
     if (!mount) return;
 
+    ensureAdminPageHash();
+
     mount.innerHTML = buildMarkup();
 
     const topNav = mount.closest(".top-navbar");
@@ -468,6 +586,13 @@
     });
 
     if (profileLink) {
+      try {
+        const token = sessionStorage.getItem(ADMIN_HASH_KEY) || "";
+        if (token) profileLink.setAttribute("href", applyAdminHashToUrl(profileLink.href, token));
+      } catch (e) {
+        // ignore
+      }
+
       profileLink.addEventListener("click", () => {
         setMenuOpen(userMenuDropdown, false);
       });
@@ -524,6 +649,14 @@
   window.ElecomAdminUserMenu = {
     init,
     escapeHtml,
+  };
+  window.ElecomAdminSecureUrl = (href) => {
+    try {
+      const token = sessionStorage.getItem(ADMIN_HASH_KEY) || "";
+      return applyAdminHashToUrl(href, token);
+    } catch (e) {
+      return href;
+    }
   };
 
   if (document.readyState === "loading") {
