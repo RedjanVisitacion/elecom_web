@@ -4,6 +4,8 @@
   const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
   const RATING_SEEN_KEY = "elecom_admin_seen_rating_id";
   const ADMIN_HASH_KEY = "elecom_admin_page_hash";
+  const ADMIN_ROUTE_PREFIX = "/g/";
+  const secureRouteCache = new Map();
 
   const toLogin = () => {
     try {
@@ -37,6 +39,20 @@
     }
   };
 
+  const isAdminSecureRoute = () => {
+    return window.location.pathname.startsWith(ADMIN_ROUTE_PREFIX);
+  };
+
+  const getAdminPageNameFromHref = (href) => {
+    try {
+      const url = new URL(href, window.location.origin);
+      if (!url.pathname.startsWith("/static/org_elecom/elecom_admin/")) return "";
+      return url.pathname.split("/").pop() || "";
+    } catch (e) {
+      return "";
+    }
+  };
+
   const applyAdminHashToUrl = (href, token) => {
     try {
       const url = new URL(href, window.location.origin);
@@ -48,13 +64,40 @@
     }
   };
 
-  const rewriteAdminLinks = (token) => {
-    if (!token) return;
-    document.querySelectorAll('a[href]').forEach((link) => {
-      const href = link.getAttribute("href") || "";
-      if (!isAdminStaticPage(href)) return;
-      link.setAttribute("href", applyAdminHashToUrl(href, token));
+  const getSecureRouteForPage = async (page) => {
+    const safePage = String(page || "").trim();
+    if (!safePage) return "";
+    if (secureRouteCache.has(safePage)) return secureRouteCache.get(safePage);
+
+    const url = new URL(API_ADMIN_PAGE_TOKEN, window.location.origin);
+    url.searchParams.set("page", safePage);
+    const resp = await fetch(url.toString(), {
+      method: "GET",
+      credentials: "same-origin",
+      cache: "no-store",
     });
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok || !data.secure_url) return "";
+
+    const secureUrl = new URL(String(data.secure_url), window.location.origin).toString();
+    secureRouteCache.set(safePage, secureUrl);
+    try {
+      sessionStorage.setItem(`elecom_admin_secure_route_${safePage}`, secureUrl);
+    } catch (e) {
+      // ignore
+    }
+    return secureUrl;
+  };
+
+  const rewriteAdminLinks = async () => {
+    const links = Array.from(document.querySelectorAll('a[href]'));
+    for (const link of links) {
+      const href = link.getAttribute("href") || "";
+      if (!isAdminStaticPage(href)) continue;
+      const page = getAdminPageNameFromHref(href);
+      const secureUrl = await getSecureRouteForPage(page);
+      if (secureUrl) link.setAttribute("href", secureUrl);
+    }
   };
 
   const getAdminHashToken = () => {
@@ -86,9 +129,14 @@
   };
 
   const ensureAdminPageHash = async () => {
-    if (!isAdminStaticPage(window.location.href)) return;
+    if (!isAdminStaticPage(window.location.href) && !isAdminSecureRoute()) return;
 
     try {
+      if (isAdminSecureRoute()) {
+        rewriteAdminLinks();
+        return;
+      }
+
       const existingToken = getAdminHashToken();
       if (existingToken) {
         const valid = await validateAdminHashToken(existingToken);
@@ -101,7 +149,7 @@
         } catch (e) {
           // ignore
         }
-        rewriteAdminLinks(existingToken);
+        rewriteAdminLinks();
         return;
       }
 
@@ -110,13 +158,16 @@
         return;
       }
 
-      const resp = await fetch(API_ADMIN_PAGE_TOKEN, {
+      const page = getAdminPageNameFromHref(window.location.href) || "admin_dashboard.html";
+      const tokenUrl = new URL(API_ADMIN_PAGE_TOKEN, window.location.origin);
+      tokenUrl.searchParams.set("page", page);
+      const resp = await fetch(tokenUrl.toString(), {
         method: "GET",
         credentials: "same-origin",
         cache: "no-store",
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok || !data.ok || !data.token) {
+      if (!resp.ok || !data.ok || !data.token || !data.secure_url) {
         toLogin();
         return;
       }
@@ -130,11 +181,10 @@
 
       const wantedHash = `secure=${encodeURIComponent(token)}`;
       if (window.location.hash.replace(/^#/, "") !== wantedHash) {
-        const url = new URL(window.location.href);
-        url.hash = wantedHash;
-        window.history.replaceState(null, "", url.toString());
+        window.history.replaceState(null, "", new URL(String(data.secure_url), window.location.origin).toString());
       }
-      rewriteAdminLinks(token);
+      secureRouteCache.set(page, new URL(String(data.secure_url), window.location.origin).toString());
+      rewriteAdminLinks();
     } catch (e) {
       toLogin();
     }
@@ -586,12 +636,9 @@
     });
 
     if (profileLink) {
-      try {
-        const token = sessionStorage.getItem(ADMIN_HASH_KEY) || "";
-        if (token) profileLink.setAttribute("href", applyAdminHashToUrl(profileLink.href, token));
-      } catch (e) {
-        // ignore
-      }
+      getSecureRouteForPage("profile.html").then((url) => {
+        if (url) profileLink.setAttribute("href", url);
+      });
 
       profileLink.addEventListener("click", () => {
         setMenuOpen(userMenuDropdown, false);
@@ -652,8 +699,19 @@
   };
   window.ElecomAdminSecureUrl = (href) => {
     try {
-      const token = sessionStorage.getItem(ADMIN_HASH_KEY) || "";
-      return applyAdminHashToUrl(href, token);
+      const page = getAdminPageNameFromHref(href);
+      if (!page) return href;
+      const cached = secureRouteCache.get(page) || sessionStorage.getItem(`elecom_admin_secure_route_${page}`) || "";
+      return cached || href;
+    } catch (e) {
+      return href;
+    }
+  };
+  window.ElecomAdminSecureUrlAsync = async (href) => {
+    try {
+      const page = getAdminPageNameFromHref(href);
+      if (!page) return href;
+      return await getSecureRouteForPage(page) || href;
     } catch (e) {
       return href;
     }

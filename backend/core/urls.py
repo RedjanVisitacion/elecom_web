@@ -11,6 +11,7 @@ from .views import (
     admin_voters_import_api,
     admin_voters_list_api,
     admin_page_token_api,
+    admin_secure_page_view,
     admin_verify_password_api,
     account_profile_api,
     account_app_rating_api,
@@ -66,6 +67,7 @@ def home_redirect(request):
 
 urlpatterns = [
     path('', home_redirect),
+    path('g/<path:token>/', admin_secure_page_view, name='admin_secure_page_view'),
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),

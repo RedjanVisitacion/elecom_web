@@ -9,11 +9,12 @@ import tempfile
 import time
 import urllib.request
 import io
+from pathlib import Path
 
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone as dt_timezone
 
-from django.http import JsonResponse
+from django.http import HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.db import connection, transaction
 from django.views.decorators.csrf import csrf_exempt
@@ -43,6 +44,20 @@ _MISMATCH_VOTER_MSG = "Face verification failed. This face does not match the en
 _SESSION_FACE_VOTE_STD = "_elecom_fv_std"
 _SESSION_FACE_VOTE_EXP = "_elecom_fv_exp"
 _ADMIN_PAGE_TOKEN_SALT = "elecom.admin.page.hash"
+_ADMIN_PAGE_ROUTE_SALT = "elecom.admin.page.route"
+_ADMIN_PAGE_ALLOWLIST = {
+    "admin_dashboard.html",
+    "elecom_register_candidate.html",
+    "elecom_election_date.html",
+    "elecom_candidates.html",
+    "elecom_voters.html",
+    "elecom_results.html",
+    "elecom_reset.html",
+    "elecom_reports.html",
+    "elecom_network_authorize.html",
+    "profile.html",
+    "search_results.html",
+}
 
 
 def _facepp_configured() -> bool:
@@ -2907,7 +2922,68 @@ def admin_page_token_api(request):
         salt=_ADMIN_PAGE_TOKEN_SALT,
         compress=True,
     )
-    return JsonResponse({"ok": True, "token": token})
+    page = str(request.GET.get("page") or "admin_dashboard.html").strip()
+    if page not in _ADMIN_PAGE_ALLOWLIST:
+        page = "admin_dashboard.html"
+
+    route_token = signing.dumps(
+        {
+            "sid": student_id,
+            "role": "admin",
+            "session": request.session.session_key,
+            "page": page,
+        },
+        salt=_ADMIN_PAGE_ROUTE_SALT,
+        compress=True,
+    )
+    return JsonResponse({"ok": True, "token": token, "route_token": route_token, "secure_url": f"/g/{route_token}/"})
+
+
+@require_http_methods(["GET"])
+def admin_secure_page_view(request, token):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        data = signing.loads(
+            str(token or ""),
+            salt=_ADMIN_PAGE_ROUTE_SALT,
+            max_age=int(getattr(settings, "ADMIN_PAGE_TOKEN_SECONDS", 3600) or 3600),
+        )
+    except Exception:
+        return HttpResponse(
+            '<script>window.location.href="/static/org_elecom/elecom_admin/admin_dashboard.html";</script>',
+            content_type="text/html",
+            status=403,
+        )
+
+    if (
+        str(data.get("sid") or "") != student_id
+        or str(data.get("role") or "").lower() != "admin"
+        or str(data.get("session") or "") != str(request.session.session_key)
+    ):
+        return HttpResponse(
+            '<script>window.location.href="/static/org_elecom/elecom_admin/admin_dashboard.html";</script>',
+            content_type="text/html",
+            status=403,
+        )
+
+    page = str(data.get("page") or "admin_dashboard.html").strip()
+    if page not in _ADMIN_PAGE_ALLOWLIST:
+        page = "admin_dashboard.html"
+
+    root = Path(settings.BASE_DIR).parent / "frontend" / "org_elecom" / "elecom_admin"
+    page_path = (root / page).resolve()
+    if root.resolve() not in page_path.parents or not page_path.exists():
+        return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
+
+    html = page_path.read_text(encoding="utf-8")
+    return HttpResponse(html, content_type="text/html")
 
 
 @csrf_exempt

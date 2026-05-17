@@ -82,7 +82,9 @@ document.addEventListener("DOMContentLoaded", function () {
         return;
       }
       const votersUrl = "/static/org_elecom/elecom_admin/elecom_voters.html";
-      window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(votersUrl) : votersUrl;
+      window.location.href = window.ElecomAdminSecureUrlAsync
+        ? await window.ElecomAdminSecureUrlAsync(votersUrl)
+        : (window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(votersUrl) : votersUrl);
     } catch (err) {
       showVotersAccessError("Could not verify password. Please try again.");
     } finally {

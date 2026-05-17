@@ -195,10 +195,28 @@
 
         const isHttp = typeof window !== "undefined" && window.location && window.location.protocol !== "file:";
         const staticBase = isHttp ? `${API_BASE}/static/org_elecom` : ".";
-        const redirectUrl =
+        let redirectUrl =
           data.role === "admin"
             ? `${staticBase}/elecom_admin/admin_dashboard.html`
             : `${staticBase}/elecom_user/user_dashboard.html`;
+
+        if (data.role === "admin" && isHttp) {
+          try {
+            const tokenUrl = new URL(`${API_BASE}/api/admin/page-token/`);
+            tokenUrl.searchParams.set("page", "admin_dashboard.html");
+            const tokenRes = await fetch(tokenUrl.toString(), {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            });
+            const tokenData = await tokenRes.json().catch(() => ({}));
+            if (tokenRes.ok && tokenData.ok && tokenData.secure_url) {
+              redirectUrl = `${API_BASE}${tokenData.secure_url}`;
+            }
+          } catch {
+            // Fall back to the dashboard; it will bootstrap the secure route.
+          }
+        }
         window.location.href = redirectUrl;
       } catch {
         if (formStatus) formStatus.textContent = "Cannot connect to server. Make sure Django is running.";
