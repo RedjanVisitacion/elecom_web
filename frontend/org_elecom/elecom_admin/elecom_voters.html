@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260517-voters">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_voters.css?v=20260518-edit-voters">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_voters.css?v=20260518-fixed-topbar-select">
 </head>
 <body class="theme-elecom">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -51,25 +51,36 @@
             <div class="voters-page-heading">
                 <div>
                     <h1>Voters Management</h1>
-                    <p>Import and export voter accounts. Default imported password is the voter ID number.</p>
+                    <p>Manage, search, update, import, export, and organize voter accounts efficiently.</p>
                 </div>
             </div>
 
-            <div class="card border-0 shadow-sm">
+            <div class="card border-0 shadow-sm voters-panel">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <h5 class="mb-0">Voters</h5>
-                            <button class="btn btn-outline-success btn-sm" id="exportVotersBtn">
+                    <div class="voters-panel-header">
+                        <div>
+                            <h5 class="mb-0">Voter Directory</h5>
+                            <span>Review and maintain the official voter list</span>
+                        </div>
+                        <div class="voters-actions">
+                            <button class="btn btn-outline-success btn-sm voters-action-btn" id="exportVotersBtn">
                                 <i class="bi bi-file-earmark-excel"></i> Export Excel
                             </button>
-                            <button class="btn btn-outline-primary btn-sm" id="importVotersBtn">
+                            <button class="btn btn-outline-primary btn-sm voters-action-btn" id="importVotersBtn">
                                 <i class="bi bi-upload"></i> Import Excel
                             </button>
-                            <button class="btn btn-outline-danger btn-sm" id="removeVotersBtn" disabled>
+                            <button class="btn btn-outline-danger btn-sm voters-action-btn" id="removeVotersBtn" disabled>
                                 <i class="bi bi-trash"></i> Remove Voters
                             </button>
                             <input type="file" id="importVotersFile" class="d-none" accept=".csv,.xlsx,.xls">
+                        </div>
+                    </div>
+
+                    <div class="voters-toolbar">
+                        <div class="input-group input-group-sm voters-search-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" class="form-control" id="voterSearch" placeholder="Search voters by ID, name, course, email, or phone" aria-label="Search voters">
+                            <button class="btn btn-dark" type="button" id="voterSearchBtn">Search</button>
                         </div>
                         <div class="voters-filter-bar">
                             <div class="btn-group btn-group-sm voters-course-filter" role="group" aria-label="Filter by course">
@@ -85,14 +96,6 @@
                                 <option value="">All sections</option>
                             </select>
                             <div class="text-muted small voters-count" id="votersCount"></div>
-                        </div>
-                    </div>
-
-                    <div class="voters-search-row">
-                        <div class="input-group input-group-sm voters-search-group">
-                            <span class="input-group-text"><i class="bi bi-search"></i></span>
-                            <input type="search" class="form-control" id="voterSearch" placeholder="Search voters by ID, name, course, email, or phone" aria-label="Search voters">
-                            <button class="btn btn-dark" type="button" id="voterSearchBtn">Search</button>
                         </div>
                     </div>
 
@@ -115,7 +118,9 @@
                                 </tr>
                             </thead>
                             <tbody id="votersTableBody">
-                                <tr><td colspan="10" class="text-muted text-center py-4">Loading voters...</td></tr>
+                                <tr class="voters-skeleton-row"><td colspan="10"><span></span></td></tr>
+                                <tr class="voters-skeleton-row"><td colspan="10"><span></span></td></tr>
+                                <tr class="voters-skeleton-row"><td colspan="10"><span></span></td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -182,6 +187,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260517-opaque-route"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_voters.js?v=20260518-edit-voters"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_voters.js?v=20260518-dashboard-match"></script>
 </body>
 </html>

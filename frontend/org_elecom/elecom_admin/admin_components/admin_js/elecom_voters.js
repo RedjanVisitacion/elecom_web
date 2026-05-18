@@ -290,6 +290,7 @@ document.addEventListener('DOMContentLoaded', function(){
     tableBody.innerHTML = list.map(voter => {
       const name = fullName(voter) || voter.id_number;
       const accepted = voter.terms_accepted_at ? 'Accepted terms' : 'Not opened';
+      const acceptedClass = voter.terms_accepted_at ? ' is-opened' : '';
       const idNumber = String(voter.id_number || '');
       const checked = selectedVoterIds.has(idNumber) ? 'checked' : '';
       return `
@@ -307,7 +308,7 @@ document.addEventListener('DOMContentLoaded', function(){
           <td>${escapeHtml(voter.section)}</td>
           <td>${escapeHtml(voter.email)}</td>
           <td>${escapeHtml(voter.phone_number)}</td>
-          <td><span class="voter-status"><i class="bi bi-person-check"></i>${escapeHtml(accepted)}</span></td>
+          <td><span class="voter-status${acceptedClass}"><i class="bi bi-person-check"></i>${escapeHtml(accepted)}</span></td>
           <td class="voters-action-col">
             <button class="btn btn-outline-dark btn-sm voter-edit-btn" type="button" data-action="edit-voter" data-id="${escapeHtml(idNumber)}">
               <i class="bi bi-pencil-square"></i> Edit
