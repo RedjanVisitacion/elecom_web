@@ -44,9 +44,21 @@ class Migration(migrations.Migration):
                 photo_url text DEFAULT NULL
             );
 
-            ALTER TABLE student
-            ALTER COLUMN id_number TYPE varchar(64)
-            USING id_number::text;
+            DO $$
+            BEGIN
+                IF EXISTS (
+                    SELECT 1
+                    FROM information_schema.columns
+                    WHERE table_schema = 'public'
+                      AND table_name = 'student'
+                      AND column_name = 'id_number'
+                      AND data_type NOT IN ('character varying', 'text')
+                ) THEN
+                    ALTER TABLE student
+                    ALTER COLUMN id_number TYPE varchar(64)
+                    USING id_number::text;
+                END IF;
+            END $$;
 
             ALTER TABLE users
             ADD COLUMN IF NOT EXISTS photo_url text DEFAULT NULL;

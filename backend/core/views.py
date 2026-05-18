@@ -82,11 +82,22 @@ def _ensure_auth_identity_tables() -> None:
         )
         cur.execute(
             """
-            ALTER TABLE student
-            ALTER COLUMN id_number TYPE varchar(64)
-            USING id_number::text
+            SELECT data_type
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = 'student'
+              AND column_name = 'id_number'
             """
         )
+        row = cur.fetchone()
+        if row and str(row[0] or "").lower() not in {"character varying", "text"}:
+            cur.execute(
+                """
+                ALTER TABLE student
+                ALTER COLUMN id_number TYPE varchar(64)
+                USING id_number::text
+                """
+            )
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url text DEFAULT NULL")
 
 _DUP_FACE_ENROLL_MSG = (
@@ -4521,6 +4532,89 @@ def admin_voters_import_api(request):
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to import voters."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_voters_delete_api(request):
+    _ensure_auth_identity_tables()
+
+    forbidden = _require_voters_access(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    ids = payload.get("ids") or []
+    filters = payload.get("filters") or {}
+    if ids is not None and not isinstance(ids, list):
+        return JsonResponse({"ok": False, "error": "Invalid voter ids."}, status=400)
+    if not isinstance(filters, dict):
+        filters = {}
+
+    id_values = [str(v or "").strip() for v in ids if str(v or "").strip()]
+    params = []
+    where = "WHERE COALESCE(u.role, '') ILIKE 'student'"
+
+    if id_values:
+        placeholders = ",".join(["%s"] * len(id_values))
+        where += f" AND u.student_id::text IN ({placeholders})"
+        params.extend(id_values)
+    else:
+        course = str(filters.get("course") or "").strip().upper()
+        year = str(filters.get("year") or "").strip()
+        section = str(filters.get("section") or "").strip()
+
+        if course and course != "ALL":
+            where += " AND UPPER(COALESCE(s.course, u.department, '')) = %s"
+            params.append(course)
+        if year:
+            year_value = _safe_int_or_none(year)
+            if year_value is None:
+                return JsonResponse({"ok": False, "error": "Invalid year filter."}, status=400)
+            where += " AND COALESCE(s.year, u.year_level) = %s"
+            params.append(year_value)
+        if section:
+            where += " AND COALESCE(s.section, u.section, '') = %s"
+            params.append(section)
+
+    try:
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                cur.execute(
+                    f"""
+                    SELECT DISTINCT u.student_id::text
+                    FROM users u
+                    LEFT JOIN student s ON s.id_number::text = u.student_id::text
+                    {where}
+                    """,
+                    params,
+                )
+                target_ids = [str(row[0]) for row in cur.fetchall() if row and row[0] is not None]
+
+                if not target_ids:
+                    return JsonResponse({"ok": True, "deleted": 0})
+
+                placeholders = ",".join(["%s"] * len(target_ids))
+                cur.execute(
+                    f"DELETE FROM users WHERE COALESCE(role, '') ILIKE 'student' AND student_id::text IN ({placeholders})",
+                    target_ids,
+                )
+                deleted_users = cur.rowcount
+                cur.execute(
+                    f"DELETE FROM student WHERE id_number::text IN ({placeholders})",
+                    target_ids,
+                )
+
+        return JsonResponse({"ok": True, "deleted": int(deleted_users or 0)})
+    except Exception as e:
+        logger.exception("Failed to delete voters.")
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to delete voters."}, status=500)
 
 
 @require_http_methods(["GET"])

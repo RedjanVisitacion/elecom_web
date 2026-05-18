@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', function(){
   const exportVotersBtn = document.getElementById('exportVotersBtn');
   const importVotersBtn = document.getElementById('importVotersBtn');
   const importVotersFile = document.getElementById('importVotersFile');
+  const removeVotersBtn = document.getElementById('removeVotersBtn');
+  const selectAllVoters = document.getElementById('selectAllVoters');
   const yearFilter = document.getElementById('yearFilter');
   const sectionFilter = document.getElementById('sectionFilter');
   const courseFilterButtons = Array.from(document.querySelectorAll('[data-course-filter]'));
@@ -19,6 +21,7 @@ document.addEventListener('DOMContentLoaded', function(){
   let currentRows = [];
   let filteredRows = [];
   let activeCourse = 'ALL';
+  let selectedVoterIds = new Set();
 
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
@@ -262,17 +265,24 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!tableBody || !votersCount) return;
     const list = Array.isArray(rows) ? rows : [];
     votersCount.textContent = `${list.length} voter(s)`;
+    selectedVoterIds = new Set(Array.from(selectedVoterIds).filter(id => list.some(row => String(row.id_number || '') === id)));
+    updateSelectionControls();
 
     if (!list.length) {
-      tableBody.innerHTML = '<tr><td colspan="8" class="text-muted text-center py-4">No voters found.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="9" class="text-muted text-center py-4">No voters found.</td></tr>';
       return;
     }
 
     tableBody.innerHTML = list.map(voter => {
       const name = fullName(voter) || voter.id_number;
       const accepted = voter.terms_accepted_at ? 'Accepted terms' : 'Not opened';
+      const idNumber = String(voter.id_number || '');
+      const checked = selectedVoterIds.has(idNumber) ? 'checked' : '';
       return `
         <tr>
+          <td class="voters-select-col">
+            <input class="form-check-input voter-row-check" type="checkbox" value="${escapeHtml(idNumber)}" aria-label="Select voter ${escapeHtml(idNumber)}" ${checked}>
+          </td>
           <td class="fw-semibold">${escapeHtml(voter.id_number)}</td>
           <td>
             <div class="voter-name">${escapeHtml(name)}</div>
@@ -310,9 +320,93 @@ document.addEventListener('DOMContentLoaded', function(){
       return;
     }
 
+    selectedVoterIds.clear();
     currentRows = data.voters || [];
     refreshFilterOptions();
     applyVoterFilters();
+  }
+
+  function updateSelectionControls() {
+    const visibleIds = filteredRows.map(row => String(row.id_number || '')).filter(Boolean);
+    const selectedVisible = visibleIds.filter(id => selectedVoterIds.has(id));
+
+    if (selectAllVoters) {
+      selectAllVoters.checked = visibleIds.length > 0 && selectedVisible.length === visibleIds.length;
+      selectAllVoters.indeterminate = selectedVisible.length > 0 && selectedVisible.length < visibleIds.length;
+      selectAllVoters.disabled = visibleIds.length === 0;
+    }
+
+    if (removeVotersBtn) {
+      const hasFilteredRows = visibleIds.length > 0;
+      removeVotersBtn.disabled = !hasFilteredRows;
+      const count = selectedVoterIds.size || visibleIds.length;
+      removeVotersBtn.innerHTML = `<i class="bi bi-trash"></i> Remove ${selectedVoterIds.size ? `Selected (${count})` : 'Voters'}`;
+    }
+  }
+
+  function currentFilterPayload() {
+    return {
+      course: activeCourse,
+      year: yearFilter ? String(yearFilter.value || '') : '',
+      section: sectionFilter ? String(sectionFilter.value || '') : '',
+    };
+  }
+
+  function currentFilterLabel() {
+    const parts = [];
+    if (activeCourse && activeCourse !== 'ALL') parts.push(activeCourse);
+    if (yearFilter && yearFilter.value) parts.push(`Year ${yearFilter.value}`);
+    if (sectionFilter && sectionFilter.value) parts.push(`Section ${sectionFilter.value}`);
+    return parts.length ? parts.join(', ') : 'all visible voters';
+  }
+
+  async function removeVoters() {
+    if (!removeVotersBtn) return;
+    const visibleIds = filteredRows.map(row => String(row.id_number || '')).filter(Boolean);
+    const ids = Array.from(selectedVoterIds);
+    if (!visibleIds.length) {
+      alert('No voters to remove.');
+      return;
+    }
+
+    const deletingSelected = ids.length > 0;
+    const count = deletingSelected ? ids.length : visibleIds.length;
+    const scopeText = deletingSelected ? `${count} selected voter(s)` : `${count} voter(s) in ${currentFilterLabel()}`;
+    if (!confirm(`Remove ${scopeText}?\n\nThis deletes their rows from users and student. This cannot be undone unless you import them again.`)) {
+      return;
+    }
+
+    const originalHtml = removeVotersBtn.innerHTML;
+    removeVotersBtn.disabled = true;
+    if (importVotersBtn) importVotersBtn.disabled = true;
+    if (exportVotersBtn) exportVotersBtn.disabled = true;
+    removeVotersBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Removing...';
+
+    try {
+      const res = await fetch(API_BASE + 'delete/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(deletingSelected ? { ids } : { filters: currentFilterPayload() }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        alert(data.error || 'Failed to remove voters.');
+        return;
+      }
+
+      selectedVoterIds.clear();
+      await loadVoters();
+      alert(`Removed ${data.deleted || 0} voter(s).`);
+    } catch (err) {
+      alert(err && err.message ? err.message : 'Failed to remove voters.');
+    } finally {
+      removeVotersBtn.disabled = false;
+      if (importVotersBtn) importVotersBtn.disabled = false;
+      if (exportVotersBtn) exportVotersBtn.disabled = false;
+      removeVotersBtn.innerHTML = originalHtml;
+      updateSelectionControls();
+    }
   }
 
   function exportVoters() {
@@ -364,6 +458,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const originalHtml = importVotersBtn.innerHTML;
     importVotersBtn.disabled = true;
     if (exportVotersBtn) exportVotersBtn.disabled = true;
+    if (removeVotersBtn) removeVotersBtn.disabled = true;
     importVotersBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Importing...';
 
     try {
@@ -404,8 +499,10 @@ document.addEventListener('DOMContentLoaded', function(){
     } finally {
       importVotersBtn.disabled = false;
       if (exportVotersBtn) exportVotersBtn.disabled = false;
+      if (removeVotersBtn) removeVotersBtn.disabled = false;
       importVotersBtn.innerHTML = originalHtml;
       if (importVotersFile) importVotersFile.value = '';
+      updateSelectionControls();
     }
   }
 
@@ -421,8 +518,34 @@ document.addEventListener('DOMContentLoaded', function(){
   }
   if (voterSearchBtn) voterSearchBtn.addEventListener('click', loadVoters);
   if (exportVotersBtn) exportVotersBtn.addEventListener('click', exportVoters);
+  if (removeVotersBtn) removeVotersBtn.addEventListener('click', removeVoters);
   if (yearFilter) yearFilter.addEventListener('change', applyVoterFilters);
   if (sectionFilter) sectionFilter.addEventListener('change', applyVoterFilters);
+  if (selectAllVoters) {
+    selectAllVoters.addEventListener('change', () => {
+      const visibleIds = filteredRows.map(row => String(row.id_number || '')).filter(Boolean);
+      if (selectAllVoters.checked) {
+        visibleIds.forEach(id => selectedVoterIds.add(id));
+      } else {
+        visibleIds.forEach(id => selectedVoterIds.delete(id));
+      }
+      renderVoters(filteredRows);
+    });
+  }
+  if (tableBody) {
+    tableBody.addEventListener('change', (event) => {
+      const target = event.target;
+      if (!target || !target.classList || !target.classList.contains('voter-row-check')) return;
+      const id = String(target.value || '').trim();
+      if (!id) return;
+      if (target.checked) {
+        selectedVoterIds.add(id);
+      } else {
+        selectedVoterIds.delete(id);
+      }
+      updateSelectionControls();
+    });
+  }
   courseFilterButtons.forEach(button => {
     button.addEventListener('click', () => {
       activeCourse = String(button.getAttribute('data-course-filter') || 'ALL').toUpperCase();

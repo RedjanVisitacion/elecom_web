@@ -65,6 +65,15 @@
   white-space:nowrap;
 }
 
+.voters-select-col{
+  width:40px;
+  text-align:center;
+}
+
+.voter-row-check{
+  cursor:pointer;
+}
+
 .voter-name{
   font-weight:800;
   color:#111827;
