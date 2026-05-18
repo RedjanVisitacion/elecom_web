@@ -42,6 +42,7 @@ from .views import (
     forgot_password_reset_password_api,
     admin_cloudinary_signature_api,
     admin_dashboard_api,
+    admin_elections_api,
     admin_election_window_api,
     admin_election_finalize_hash_api,
     admin_app_rating_notifications_api,
@@ -103,6 +104,7 @@ urlpatterns = [
     path('api/admin/results/', admin_results_api, name='admin_results_api'),
     path('api/results/', user_results_api, name='user_results_api'),
     path('api/results/analytics/', results_analytics_api, name='results_analytics_api'),
+    path('api/admin/elections/', admin_elections_api, name='admin_elections_api'),
     path('api/admin/election-window/', admin_election_window_api, name='admin_election_window_api'),
     path('api/admin/election/final-hash/', admin_election_finalize_hash_api, name='admin_election_finalize_hash_api'),
     path('api/admin/notifications/app-ratings/', admin_app_rating_notifications_api, name='admin_app_rating_notifications_api'),
@@ -150,6 +152,7 @@ urlpatterns = [
     path('api/mobile/notifications/delete/', user_notifications_delete_api, name='mobile_user_notifications_delete_api'),
 
     path('api/mobile/admin/dashboard/', admin_dashboard_api, name='mobile_admin_dashboard_api'),
+    path('api/mobile/admin/elections/', admin_elections_api, name='mobile_admin_elections_api'),
     path('api/mobile/admin/results/', admin_results_api, name='mobile_admin_results_api'),
     path('api/mobile/admin/election-window/', admin_election_window_api, name='mobile_admin_election_window_api'),
     path('api/mobile/admin/reports/summary/', admin_reports_summary_api, name='mobile_admin_reports_summary_api'),

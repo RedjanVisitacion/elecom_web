@@ -111,6 +111,7 @@ _ADMIN_PAGE_ROUTE_SALT = "elecom.admin.page.route"
 _ADMIN_PAGE_ALLOWLIST = {
     "admin_dashboard.html",
     "elecom_register_candidate.html",
+    "elecom_elections.html",
     "elecom_election_date.html",
     "elecom_candidates.html",
     "elecom_voters.html",
@@ -197,6 +198,9 @@ def _ensure_election_scoped_tables() -> None:
             """
             CREATE TABLE IF NOT EXISTS vote_windows (
                 id BIGSERIAL PRIMARY KEY,
+                election_name varchar(255) NULL,
+                school_year varchar(50) NULL,
+                status varchar(32) NOT NULL DEFAULT 'active',
                 start_at timestamp NULL,
                 end_at timestamp NULL,
                 results_at timestamp NULL,
@@ -206,6 +210,9 @@ def _ensure_election_scoped_tables() -> None:
             )
             """
         )
+        cur.execute("ALTER TABLE vote_windows ADD COLUMN IF NOT EXISTS election_name varchar(255) NULL")
+        cur.execute("ALTER TABLE vote_windows ADD COLUMN IF NOT EXISTS school_year varchar(50) NULL")
+        cur.execute("ALTER TABLE vote_windows ADD COLUMN IF NOT EXISTS status varchar(32) NOT NULL DEFAULT 'active'")
         cur.execute(
             """
             ALTER TABLE IF EXISTS candidates_registration
@@ -272,6 +279,27 @@ def _current_vote_filter(alias: str = "", election_id: int | None = None) -> tup
         f"{prefix}election_id IS NULL AND %s <> COALESCE((SELECT MAX(id) FROM vote_windows), 0)"
         ")))"
     ), [int(election_id), int(election_id)]
+
+
+def _election_status_from_window(election_id, max_id, start_at, end_at, db_status="active") -> str:
+    if election_id is not None and max_id is not None and int(election_id) < int(max_id):
+        return "archived"
+    raw = str(db_status or "").strip().lower()
+    if raw in {"archived", "closed"}:
+        return raw
+    if not start_at or not end_at:
+        return "draft"
+    vote_phase, _results_phase = _compute_election_phases(
+        now=timezone.now(),
+        start_at=start_at,
+        end_at=end_at,
+        results_at=None,
+    )
+    if vote_phase == "active":
+        return "active"
+    if vote_phase == "upcoming":
+        return "upcoming"
+    return "closed"
 
 
 def _download_public_image(url: str, max_bytes: int = 8 * 1024 * 1024) -> bytes | None:
@@ -5731,6 +5759,218 @@ def admin_election_window_api(request):
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to save election window."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def admin_elections_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_election_scoped_tables()
+
+    if request.method == "GET":
+        try:
+            with connection.cursor() as cur:
+                cur.execute("SELECT COALESCE(MAX(id), 0) FROM vote_windows")
+                max_row = cur.fetchone()
+                max_id = int(max_row[0] or 0) if max_row else 0
+                cur.execute(
+                    """
+                    SELECT w.id,
+                           w.election_name,
+                           w.school_year,
+                           w.start_at,
+                           w.end_at,
+                           w.results_at,
+                           w.note,
+                           w.status,
+                           (
+                               SELECT COUNT(*)
+                               FROM candidates_registration cc
+                               WHERE cc.election_id = w.id
+                                  OR (cc.election_id IS NULL AND w.id = %s)
+                           ) AS candidate_count,
+                           (
+                               SELECT COUNT(*)
+                               FROM votes vv
+                               WHERE vv.election_id = w.id
+                                  OR (vv.election_id IS NULL AND w.id <> %s)
+                           ) AS vote_count
+                    FROM vote_windows w
+                    ORDER BY w.id DESC
+                    """,
+                    [max_id, max_id],
+                )
+                cols = [c[0] for c in cur.description]
+                rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        except Exception as e:
+            if getattr(settings, "DEBUG", False):
+                return JsonResponse({"ok": False, "error": str(e)}, status=500)
+            return JsonResponse({"ok": False, "error": "Failed to load elections."}, status=500)
+
+        elections = []
+        for row in rows:
+            eid = int(row.get("id") or 0)
+            name = str(row.get("election_name") or "").strip()
+            if not name:
+                sy = str(row.get("school_year") or "").strip()
+                name = f"ELECOM Election {sy}" if sy else f"ELECOM Election #{eid}"
+            status = _election_status_from_window(
+                election_id=eid,
+                max_id=max_id,
+                start_at=row.get("start_at"),
+                end_at=row.get("end_at"),
+                db_status=row.get("status"),
+            )
+            elections.append(
+                {
+                    "id": eid,
+                    "name": name,
+                    "school_year": row.get("school_year") or "",
+                    "start_at": _iso_or_none(row.get("start_at")),
+                    "end_at": _iso_or_none(row.get("end_at")),
+                    "results_at": _iso_or_none(row.get("results_at")),
+                    "start_at_local": _election_datetime_local_for_admin_form(row.get("start_at")),
+                    "end_at_local": _election_datetime_local_for_admin_form(row.get("end_at")),
+                    "results_at_local": _election_datetime_local_for_admin_form(row.get("results_at")),
+                    "note": row.get("note") or "",
+                    "status": status,
+                    "is_active": eid == max_id,
+                    "candidate_count": int(row.get("candidate_count") or 0),
+                    "vote_count": int(row.get("vote_count") or 0),
+                }
+            )
+        return JsonResponse({"ok": True, "active_election_id": max_id or None, "elections": elections})
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    name = str(payload.get("name") or payload.get("election_name") or "").strip()
+    school_year = str(payload.get("school_year") or "").strip()
+    start_at = str(payload.get("start_at") or "").strip()
+    end_at = str(payload.get("end_at") or "").strip()
+    results_at = str(payload.get("results_at") or "").strip() or None
+    note = str(payload.get("note") or "").strip()
+    admin_password = str(payload.get("admin_password") or "").strip()
+    action = str(payload.get("action") or "create").strip().lower()
+    election_id_raw = payload.get("election_id")
+    election_id = None
+    if election_id_raw not in (None, ""):
+        try:
+            election_id = int(election_id_raw)
+        except (TypeError, ValueError):
+            return JsonResponse({"ok": False, "error": "Invalid election ID."}, status=400)
+
+    if action not in {"create", "update"}:
+        return JsonResponse({"ok": False, "error": "Invalid election action."}, status=400)
+    if action == "create" and not name:
+        return JsonResponse({"ok": False, "error": "Election name is required."}, status=400)
+    if action == "update" and not election_id:
+        return JsonResponse({"ok": False, "error": "Election ID is required."}, status=400)
+    if not start_at or not end_at:
+        return JsonResponse({"ok": False, "error": "Start and End date/time are required."}, status=400)
+    if not admin_password:
+        return JsonResponse({"ok": False, "error": "Admin password is required."}, status=400)
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT password_hash
+                FROM users
+                WHERE (student_id::text = %s OR id::text = %s)
+                  AND COALESCE(role, '') ILIKE 'admin'
+                ORDER BY CASE WHEN student_id::text = %s THEN 0 ELSE 1 END, id DESC
+                LIMIT 1
+                """,
+                [student_id, student_id, student_id],
+            )
+            row = cur.fetchone()
+        if not row or not _verify_password(str(row[0] or ""), admin_password):
+            return JsonResponse({"ok": False, "error": "Incorrect admin password."}, status=401)
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to verify admin password."}, status=500)
+
+    from django.utils.dateparse import parse_datetime
+
+    start_dt = parse_datetime(start_at)
+    end_dt = parse_datetime(end_at)
+    results_dt = parse_datetime(results_at) if results_at else None
+    start_db = _election_naive_utc_from_admin_form(start_dt) if start_dt else None
+    end_db = _election_naive_utc_from_admin_form(end_dt) if end_dt else None
+    results_db = _election_naive_utc_from_admin_form(results_dt) if results_dt else None
+    if not start_db or not end_db:
+        return JsonResponse({"ok": False, "error": "Invalid date/time values."}, status=400)
+    if end_db <= start_db:
+        return JsonResponse({"ok": False, "error": "End must be after Start."}, status=400)
+    if results_db and results_db < end_db:
+        return JsonResponse({"ok": False, "error": "Results date/time must be on/after End."}, status=400)
+
+    try:
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                if action == "update":
+                    cur.execute("SELECT id FROM vote_windows WHERE id = %s", [election_id])
+                    if not cur.fetchone():
+                        return JsonResponse({"ok": False, "error": "Election not found."}, status=404)
+                    cur.execute(
+                        """
+                        UPDATE vote_windows
+                        SET start_at = %s,
+                            end_at = %s,
+                            results_at = %s,
+                            note = COALESCE(NULLIF(%s, ''), note)
+                        WHERE id = %s
+                        """,
+                        [start_db, end_db, results_db, note, election_id],
+                    )
+                    return JsonResponse({"ok": True, "election_id": election_id, "updated": True})
+
+                cur.execute("SELECT COALESCE(MAX(id), 0) FROM vote_windows")
+                max_row = cur.fetchone()
+                old_active = int(max_row[0] or 0) if max_row else 0
+                if old_active:
+                    cur.execute(
+                        "UPDATE candidates_registration SET election_id = %s WHERE election_id IS NULL",
+                        [old_active],
+                    )
+                    cur.execute(
+                        "UPDATE vote_windows SET status = 'archived' WHERE id = %s",
+                        [old_active],
+                    )
+                cur.execute(
+                    """
+                    INSERT INTO vote_windows (
+                        election_name,
+                        school_year,
+                        start_at,
+                        end_at,
+                        results_at,
+                        note,
+                        status
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, 'active')
+                    RETURNING id
+                    """,
+                    [name, school_year or None, start_db, end_db, results_db, note or None],
+                )
+                new_row = cur.fetchone()
+                new_id = int(new_row[0]) if new_row and new_row[0] is not None else None
+        return JsonResponse({"ok": True, "election_id": new_id})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        message = "Failed to update election." if action == "update" else "Failed to create election."
+        return JsonResponse({"ok": False, "error": message}, status=500)
 
 
 @require_http_methods(["GET"])

@@ -178,8 +178,8 @@ document.addEventListener("DOMContentLoaded", function () {
     const status = (election && election.status) ? String(election.status) : "No schedule";
 
     if (!hasSchedule) {
-      if (electionHelperText) electionHelperText.textContent = "Set the election schedule in Set Election Dates.";
-      if (electionNoteText) electionNoteText.textContent = "No schedule set. Go to Set Election Dates to configure.";
+      if (electionHelperText) electionHelperText.textContent = "Create or update the election schedule in Election Management.";
+      if (electionNoteText) electionNoteText.textContent = "No schedule set. Go to Election Management to configure.";
       return;
     }
 

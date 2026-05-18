@@ -28,6 +28,8 @@ document.addEventListener('DOMContentLoaded', function(){
   const fmtCards = Array.from(document.querySelectorAll('.format-card'));
   const previewCard = document.getElementById('reportPreviewCard');
   const previewEl = document.getElementById('reportPreview');
+  const pageParams = new URLSearchParams(window.location.search);
+  const selectedElectionId = pageParams.get('election_id') || '';
   let selectedFormat = 'pdf';
 
   fmtCards.forEach(btn => {
@@ -349,6 +351,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const url = new URL('/api/admin/reports/summary/', window.location.origin);
     if (s) url.searchParams.set('start', s);
     if (e) url.searchParams.set('end', e);
+    if (selectedElectionId) url.searchParams.set('election_id', selectedElectionId);
     const res = await fetch(url.toString(), { credentials: 'same-origin' });
     return await res.json();
   }

@@ -104,6 +104,15 @@ class Migration(migrations.Migration):
         ),
         migrations.RunSQL(
             """
+            ALTER TABLE IF EXISTS vote_windows
+            ADD COLUMN IF NOT EXISTS election_name VARCHAR(255) NULL;
+
+            ALTER TABLE IF EXISTS vote_windows
+            ADD COLUMN IF NOT EXISTS school_year VARCHAR(50) NULL;
+
+            ALTER TABLE IF EXISTS vote_windows
+            ADD COLUMN IF NOT EXISTS status VARCHAR(32) NOT NULL DEFAULT 'active';
+
             ALTER TABLE IF EXISTS candidates_registration
             ADD COLUMN IF NOT EXISTS election_id BIGINT NULL;
 
