@@ -302,7 +302,15 @@ document.addEventListener('DOMContentLoaded', function(){
       return;
     }
 
-    currentRows = data && data.ok ? (data.voters || []) : [];
+    if (!res.ok || !data.ok) {
+      currentRows = [];
+      refreshFilterOptions();
+      applyVoterFilters();
+      alert(data.error || 'Failed to load voters.');
+      return;
+    }
+
+    currentRows = data.voters || [];
     refreshFilterOptions();
     applyVoterFilters();
   }

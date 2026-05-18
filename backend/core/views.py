@@ -768,6 +768,7 @@ def admin_dashboard_api(request):
     if role != "admin":
         return JsonResponse({"ok": False, "error": "Forbidden."}, status=403)
 
+    _ensure_auth_identity_tables()
     _ensure_votes_tables()
 
     def safe_scalar(sql: str, params=None, default=0):
@@ -4407,7 +4408,7 @@ def admin_voters_list_api(request):
         return forbidden
 
     q = (request.GET.get("q") or "").strip()
-    where = "WHERE COALESCE(u.role, s.role, 'student') ILIKE 'student'"
+    where = "WHERE COALESCE(u.role, '') ILIKE 'student'"
     params = []
     if q:
         where += """
@@ -4429,7 +4430,7 @@ def admin_voters_list_api(request):
             cur.execute(
                 f"""
                 SELECT
-                    COALESCE(u.student_id::text, s.id_number::text) AS id_number,
+                    u.student_id::text AS id_number,
                     COALESCE(s.first_name, u.first_name, '') AS first_name,
                     COALESCE(s.middle_name, u.middle_name, '') AS middle_name,
                     COALESCE(s.last_name, u.last_name, '') AS last_name,
@@ -4444,7 +4445,7 @@ def admin_voters_list_api(request):
                     u.terms_accepted_at,
                     u.created_at
                 FROM users u
-                FULL OUTER JOIN student s
+                LEFT JOIN student s
                   ON s.id_number::text = u.student_id::text
                 {where}
                 ORDER BY COALESCE(s.course, u.department, ''), COALESCE(s.year, u.year_level), COALESCE(s.section, u.section, ''), COALESCE(s.last_name, u.last_name, '')
