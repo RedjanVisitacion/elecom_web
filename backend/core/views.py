@@ -186,6 +186,94 @@ def _parse_election_id_from_request(request, payload: dict) -> int | None:
         return None
 
 
+def _ensure_election_scoped_tables() -> None:
+    """
+    Add election scope to the existing ELECOM tables without deleting history.
+    vote_windows.id is used as the election/event id already, so this keeps the
+    current system shape and lets old rows remain reportable.
+    """
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vote_windows (
+                id BIGSERIAL PRIMARY KEY,
+                start_at timestamp NULL,
+                end_at timestamp NULL,
+                results_at timestamp NULL,
+                note text NULL,
+                created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE IF EXISTS candidates_registration
+            ADD COLUMN IF NOT EXISTS election_id BIGINT NULL
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE IF EXISTS votes
+            ADD COLUMN IF NOT EXISTS election_id BIGINT NULL
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE IF EXISTS vote_items
+            ADD COLUMN IF NOT EXISTS election_id BIGINT NULL
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS ix_candidates_registration_election_id
+            ON candidates_registration (election_id)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS ix_votes_election_student
+            ON votes (election_id, student_id)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS ix_vote_items_election_candidate
+            ON vote_items (election_id, candidate_id)
+            """
+        )
+        cur.execute("DROP INDEX IF EXISTS ux_candidates_registration_student_position")
+        cur.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_candidates_registration_election_student_position
+            ON candidates_registration (COALESCE(election_id, 0), student_id, position)
+            """
+        )
+
+
+def _current_election_filter(alias: str = "", election_id: int | None = None) -> tuple[str, list[int]]:
+    election_id = _active_election_id() if election_id is None else election_id
+    if election_id is None:
+        return "1=1", []
+    prefix = f"{alias}." if alias else ""
+    return f"COALESCE({prefix}election_id, %s) = %s", [int(election_id), int(election_id)]
+
+
+def _current_vote_filter(alias: str = "", election_id: int | None = None) -> tuple[str, list[int]]:
+    election_id = _active_election_id() if election_id is None else election_id
+    if election_id is None:
+        return "1=1", []
+    prefix = f"{alias}." if alias else ""
+    return (
+        f"({prefix}election_id = %s OR "
+        f"({prefix}election_id IS NULL AND NOT EXISTS ("
+        "SELECT 1 FROM candidates_registration WHERE election_id IS NOT NULL"
+        ") OR ("
+        f"{prefix}election_id IS NULL AND %s <> COALESCE((SELECT MAX(id) FROM vote_windows), 0)"
+        ")))"
+    ), [int(election_id), int(election_id)]
+
+
 def _download_public_image(url: str, max_bytes: int = 8 * 1024 * 1024) -> bytes | None:
     u = (url or "").strip()
     if not u.startswith(("http://", "https://")):
@@ -782,6 +870,8 @@ def admin_dashboard_api(request):
 
     _ensure_auth_identity_tables()
     _ensure_votes_tables()
+    candidate_count_filter, candidate_count_params = _current_election_filter()
+    vote_count_filter, vote_count_params = _current_vote_filter()
 
     def safe_scalar(sql: str, params=None, default=0):
         try:
@@ -794,9 +884,17 @@ def admin_dashboard_api(request):
         except Exception:
             return default
 
-    total_candidates = safe_scalar("SELECT COUNT(*) FROM candidates_registration", default=0)
+    total_candidates = safe_scalar(
+        f"SELECT COUNT(*) FROM candidates_registration WHERE {candidate_count_filter}",
+        candidate_count_params,
+        default=0,
+    )
     total_voters = safe_scalar("SELECT COUNT(*) FROM users WHERE role = %s", ["student"], default=0)
-    total_cast_votes = safe_scalar("SELECT COUNT(*) FROM votes", default=0)
+    total_cast_votes = safe_scalar(
+        f"SELECT COUNT(*) FROM votes WHERE {vote_count_filter}",
+        vote_count_params,
+        default=0,
+    )
     if not total_cast_votes:
         total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM vote_items", default=0)
     total_not_voted = max(0, int(total_voters) - int(total_cast_votes))
@@ -837,16 +935,22 @@ def admin_dashboard_api(request):
 
     recent_votes = []
     try:
+        recent_where = ""
+        recent_params: list[int] = []
+        recent_filter, recent_params = _current_vote_filter("v")
+        recent_where = f"WHERE {recent_filter}"
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT v.student_id AS sid, v.created_at AS voted_at,
                        s.first_name, s.middle_name, s.last_name
                 FROM votes v
                 LEFT JOIN student s ON s.id_number::text = v.student_id::text
+                {recent_where}
                 ORDER BY v.created_at DESC
                 LIMIT 10
-                """
+                """,
+                recent_params,
             )
             rows = cur.fetchall()
         for sid, voted_at, first_name, middle_name, last_name in rows:
@@ -1044,16 +1148,18 @@ def vote_status_api(request):
 
     voted_at = None
     try:
+        election_where, election_params = _current_vote_filter("votes")
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT created_at
                 FROM votes
                 WHERE student_id::text = %s
+                  AND {election_where}
                 ORDER BY created_at DESC
                 LIMIT 1
                 """,
-                [student_id],
+                [student_id] + election_params,
             )
             row = cur.fetchone()
             if row:
@@ -1080,16 +1186,18 @@ def vote_receipt_api(request):
 
     try:
         with connection.cursor() as cur:
+            election_where, election_params = _current_vote_filter("votes")
             # Get the most recent vote for this student
             cur.execute(
-                """
+                f"""
                 SELECT id, created_at
                 FROM votes
                 WHERE student_id::text = %s
+                  AND {election_where}
                 ORDER BY created_at DESC
                 LIMIT 1
                 """,
-                [student_id],
+                [student_id] + election_params,
             )
             vote_row = cur.fetchone()
             
@@ -1227,17 +1335,20 @@ def eligible_ballot_api(request):
     eligible_orgs = _eligible_orgs_for_program(program_code)
 
     try:
+        _ensure_election_scoped_tables()
+        election_where, election_params = _current_election_filter()
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT id, first_name, middle_name, last_name,
                        organization, position, program, year_section,
                        photo_url, party_name, candidate_type, party_logo_url
                 FROM candidates_registration
                 WHERE UPPER(organization) = ANY(%s)
+                  AND {election_where}
                 ORDER BY organization, position, last_name, first_name
                 """,
-                [eligible_orgs],
+                [eligible_orgs] + election_params,
             )
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -1777,9 +1888,17 @@ def vote_submit_api(request):
                     status=403,
                 )
 
+            current_vote_where, current_vote_params = _current_vote_filter()
+            current_vote_join_where, current_vote_join_params = _current_vote_filter("v")
             cur.execute(
-                "SELECT 1 FROM votes WHERE student_id::text = %s LIMIT 1",
-                [student_id],
+                f"""
+                SELECT 1
+                FROM votes
+                WHERE student_id::text = %s
+                  AND {current_vote_where}
+                LIMIT 1
+                """,
+                [student_id] + current_vote_params,
             )
             if cur.fetchone():
                 cur.execute("ROLLBACK")
@@ -1800,13 +1919,15 @@ def vote_submit_api(request):
                 limit = 2 if is_rep else 1
                 chosen = len([1 for (o, p, _c) in requested if f"{o}::{p}" == position_key])
                 cur.execute(
-                    """
+                    f"""
                     SELECT COUNT(*)
                     FROM vote_items vi
                     JOIN votes v ON v.id = vi.vote_id
-                    WHERE v.student_id::text = %s AND vi.position = %s
+                    WHERE v.student_id::text = %s
+                      AND vi.position = %s
+                      AND {current_vote_join_where}
                     """,
-                    [student_id, position_key],
+                    [student_id, position_key] + current_vote_join_params,
                 )
                 row = cur.fetchone()
                 already = int(row[0]) if row and row[0] is not None else 0
@@ -1836,11 +1957,11 @@ def vote_submit_api(request):
 
             cur.execute(
                 """
-                INSERT INTO votes (student_id, created_at)
-                VALUES (%s, NOW())
+                INSERT INTO votes (student_id, election_id, created_at)
+                VALUES (%s, %s, NOW())
                 RETURNING id
                 """,
-                [student_id],
+                [student_id, int(election_id)],
             )
             row = cur.fetchone()
             vote_id = int(row[0]) if row and row[0] is not None else None
@@ -1855,9 +1976,10 @@ def vote_submit_api(request):
                     SELECT organization, position
                     FROM candidates_registration
                     WHERE id = %s
+                      AND COALESCE(election_id, %s) = %s
                     LIMIT 1
                     """,
-                    [cid_i],
+                    [cid_i, int(election_id), int(election_id)],
                 )
                 cand_row = cur.fetchone()
                 if not cand_row:
@@ -1871,10 +1993,10 @@ def vote_submit_api(request):
 
                 cur.execute(
                     """
-                    INSERT INTO vote_items (vote_id, position, candidate_id, created_at)
-                    VALUES (%s, %s, %s, NOW())
+                    INSERT INTO vote_items (vote_id, position, candidate_id, election_id, created_at)
+                    VALUES (%s, %s, %s, %s, NOW())
                     """,
-                    [vote_id, position_key, cid_i],
+                    [vote_id, position_key, cid_i, int(election_id)],
                 )
 
             # Write a public, privacy-safe ledger block.
@@ -3152,6 +3274,7 @@ def _ensure_votes_tables() -> None:
             END$$;
             """
         )
+    _ensure_election_scoped_tables()
 
 
 def _ensure_face_verification_tables() -> None:
@@ -3964,18 +4087,21 @@ def admin_candidates_list_api(request):
 
     q = (request.GET.get("q") or "").strip()
 
-    where = ""
-    params = []
+    _ensure_election_scoped_tables()
+    election_where, election_params = _current_election_filter()
+    where_parts = [election_where]
+    params = list(election_params)
     if q:
-        where = (
-            "WHERE (COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'')) ILIKE %s "
+        where_parts.append(
+            "((COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'')) ILIKE %s "
             "OR CAST(student_id AS TEXT) ILIKE %s "
             "OR COALESCE(position,'') ILIKE %s "
             "OR COALESCE(organization,'') ILIKE %s "
-            "OR COALESCE(party_name,'') ILIKE %s"
+            "OR COALESCE(party_name,'') ILIKE %s)"
         )
         like = f"%{q}%"
-        params = [like, like, like, like, like]
+        params.extend([like, like, like, like, like])
+    where = "WHERE " + " AND ".join(where_parts)
 
     sql = f"""
         SELECT id, student_id, first_name, middle_name, last_name,
@@ -3988,6 +4114,7 @@ def admin_candidates_list_api(request):
     """
 
     try:
+        _ensure_election_scoped_tables()
         with connection.cursor() as cur:
             cur.execute(sql, params)
             cols = [c[0] for c in cur.description]
@@ -4145,15 +4272,17 @@ def admin_candidates_create_api(request):
         return JsonResponse({"ok": False, "error": "Platform is required."}, status=400)
 
     try:
+        _ensure_election_scoped_tables()
+        election_id = _active_election_id()
         with connection.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO candidates_registration (
                     student_id, first_name, middle_name, last_name,
                     organization, position, program, year_section,
-                    platform, photo_url, party_name, candidate_type, party_logo_url
+                    platform, photo_url, party_name, candidate_type, party_logo_url, election_id
                 )
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id
                 """,
                 [
@@ -4170,6 +4299,7 @@ def admin_candidates_create_api(request):
                     party_name,
                     candidate_type,
                     party_logo_url,
+                    int(election_id) if election_id is not None else None,
                 ],
             )
             row = cur.fetchone()
@@ -4704,11 +4834,15 @@ def admin_results_api(request):
         return forbidden
 
     _ensure_votes_tables()
+    requested_election_id = _parse_election_id_from_request(request, {"election_id": request.GET.get("election_id")})
+    election_where, election_params = _current_election_filter("c", requested_election_id)
+    vote_filter, vote_params = _current_vote_filter("v", requested_election_id)
+    vote_where = f"WHERE {vote_filter}"
 
     try:
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT c.id,
                        c.student_id,
                        c.first_name,
@@ -4727,10 +4861,15 @@ def admin_results_api(request):
                 LEFT JOIN (
                     SELECT vi.candidate_id AS cid, COUNT(*) AS cnt
                     FROM vote_items vi
+                    JOIN votes v ON v.id = vi.vote_id
+                    {vote_where}
                     GROUP BY vi.candidate_id
                 ) vv ON vv.cid = c.id
+                WHERE {election_where}
                 ORDER BY c.party_name, c.organization, c.position, c.last_name, c.first_name
                 """
+                ,
+                vote_params + election_params,
             )
             cols = [c[0] for c in cur.description]
             candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -4874,6 +5013,7 @@ def admin_results_api(request):
             "org_totals": org_totals,
             "position_totals": position_totals,
             "grouped": grouped_out,
+            "election_id": requested_election_id or _active_election_id(),
         }
     )
 
@@ -4918,12 +5058,15 @@ def user_results_api(request):
         pass  # If we can't check, proceed to return results anyway
 
     _ensure_votes_tables()
+    election_where, election_params = _current_election_filter("c")
+    vote_filter, vote_params = _current_vote_filter("v")
+    vote_where = f"WHERE {vote_filter}"
 
     # Return the same data structure as admin_results_api
     try:
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT c.id,
                        c.student_id,
                        c.first_name,
@@ -4942,10 +5085,15 @@ def user_results_api(request):
                 LEFT JOIN (
                     SELECT vi.candidate_id AS cid, COUNT(*) AS cnt
                     FROM vote_items vi
+                    JOIN votes v ON v.id = vi.vote_id
+                    {vote_where}
                     GROUP BY vi.candidate_id
                 ) vv ON vv.cid = c.id
+                WHERE {election_where}
                 ORDER BY c.party_name, c.organization, c.position, c.last_name, c.first_name
                 """
+                ,
+                vote_params + election_params,
             )
             cols = [c[0] for c in cur.description]
             candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -5446,18 +5594,20 @@ def admin_election_window_api(request):
 
     if request.method == "GET":
         try:
+            _ensure_election_scoped_tables()
             with connection.cursor() as cur:
                 cur.execute(
-                    "SELECT start_at, end_at, results_at, note FROM vote_windows ORDER BY id DESC LIMIT 1"
+                    "SELECT id, start_at, end_at, results_at, note FROM vote_windows ORDER BY id DESC LIMIT 1"
                 )
                 row = cur.fetchone()
             if not row:
                 return JsonResponse({"ok": True, "window": None})
-            start_at, end_at, results_at, note = row
+            election_id, start_at, end_at, results_at, note = row
             return JsonResponse(
                 {
                     "ok": True,
                     "window": {
+                        "id": int(election_id) if election_id is not None else None,
                         "start_at": _iso_or_none(start_at),
                         "end_at": _iso_or_none(end_at),
                         "results_at": _iso_or_none(results_at),
@@ -5521,31 +5671,62 @@ def admin_election_window_api(request):
         return JsonResponse({"ok": False, "error": "Results date/time must be on/after End."}, status=400)
 
     try:
+        _ensure_election_scoped_tables()
         with connection.cursor() as cur:
-            cur.execute("SELECT id FROM vote_windows ORDER BY id DESC LIMIT 1")
+            cur.execute("SELECT id, end_at FROM vote_windows ORDER BY id DESC LIMIT 1")
             last = cur.fetchone()
             if last and last[0] is not None:
-                cur.execute(
-                    """
-                    UPDATE vote_windows
-                    SET start_at = %s,
-                        end_at = %s,
-                        results_at = %s,
-                        note = %s,
-                        updated_at = CURRENT_TIMESTAMP
-                    WHERE id = %s
-                    """,
-                    [start_db, end_db, results_db, note or None, last[0]],
-                )
+                last_id = int(last[0])
+                last_end = last[1]
+                create_new = _post_bool(payload, "create_new", False)
+                if last_end:
+                    try:
+                        create_new = create_new or (timezone.now().replace(tzinfo=None) > last_end and start_db > last_end)
+                    except Exception:
+                        pass
+
+                if create_new:
+                    cur.execute(
+                        "UPDATE candidates_registration SET election_id = %s WHERE election_id IS NULL",
+                        [last_id],
+                    )
+                    cur.execute(
+                        """
+                        INSERT INTO vote_windows (start_at, end_at, results_at, note)
+                        VALUES (%s, %s, %s, %s)
+                        RETURNING id
+                        """,
+                        [start_db, end_db, results_db, note or None],
+                    )
+                    new_row = cur.fetchone()
+                    new_id = int(new_row[0]) if new_row and new_row[0] is not None else None
+                    return JsonResponse({"ok": True, "election_id": new_id, "created_new": True})
+                else:
+                    cur.execute(
+                        """
+                        UPDATE vote_windows
+                        SET start_at = %s,
+                            end_at = %s,
+                            results_at = %s,
+                            note = %s,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                        """,
+                        [start_db, end_db, results_db, note or None, last_id],
+                    )
             else:
                 cur.execute(
                     """
                     INSERT INTO vote_windows (start_at, end_at, results_at, note)
                     VALUES (%s, %s, %s, %s)
+                    RETURNING id
                     """,
                     [start_db, end_db, results_db, note or None],
                 )
-        return JsonResponse({"ok": True})
+                new_row = cur.fetchone()
+                new_id = int(new_row[0]) if new_row and new_row[0] is not None else None
+                return JsonResponse({"ok": True, "election_id": new_id, "created_new": True})
+        return JsonResponse({"ok": True, "created_new": False})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -5559,6 +5740,8 @@ def admin_reports_summary_api(request):
         return forbidden
 
     _ensure_votes_tables()
+    requested_election_id = _parse_election_id_from_request(request, {"election_id": request.GET.get("election_id")})
+    vote_filter, vote_filter_params = _current_vote_filter("v", requested_election_id)
 
     start = (request.GET.get("start") or "").strip()
     end = (request.GET.get("end") or "").strip()
@@ -5589,6 +5772,8 @@ def admin_reports_summary_api(request):
 
     where_votes = ""
     params: list = []
+    where_votes += f" AND {vote_filter}"
+    params.extend(vote_filter_params)
     if start_dt:
         where_votes += " AND v.created_at >= %s"
         params.append(start_dt)
@@ -5619,9 +5804,12 @@ def admin_reports_summary_api(request):
     # candidates + votes per candidate
     candidates = []
     try:
+        election_where, election_params = _current_election_filter("c", requested_election_id)
+        vote_item_filter, vote_params = _current_vote_filter("v", requested_election_id)
+        vote_where = f"WHERE {vote_item_filter}"
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT c.id, c.student_id, c.first_name, c.middle_name, c.last_name,
                        c.organization, c.position,
                        COALESCE(vv.cnt, 0) AS votes
@@ -5629,10 +5817,15 @@ def admin_reports_summary_api(request):
                 LEFT JOIN (
                   SELECT vi.candidate_id AS cid, COUNT(*) AS cnt
                   FROM vote_items vi
+                  JOIN votes v ON v.id = vi.vote_id
+                  {vote_where}
                   GROUP BY vi.candidate_id
                 ) vv ON vv.cid = c.id
+                WHERE {election_where}
                 ORDER BY c.organization, c.position, c.last_name, c.first_name
                 """
+                ,
+                vote_params + election_params,
             )
             cols = [c[0] for c in cur.description]
             candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -5653,6 +5846,7 @@ def admin_reports_summary_api(request):
         {
             "ok": True,
             "range": {"start": start or None, "end": end or None},
+            "election_id": requested_election_id or _active_election_id(),
             "totals": {
                 "total_votes": total_votes,
                 "distinct_voters": distinct_voters,
