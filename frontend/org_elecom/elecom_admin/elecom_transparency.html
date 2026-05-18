@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Transparency - ELECOM</title>
+  <link rel="icon" type="image/png" href="{% static 'assets/elecom.png' %}?v=2">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260518-transparency">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20260518-transparency">
+</head>
+<body class="theme-elecom transparency-page">
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-header-content">
+        <div class="logo-container">
+          <img class="sidebar-logo" src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+          <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
+        </div>
+        <button class="btn-close-sidebar" id="closeSidebar"><i class="bi bi-x-lg"></i></button>
+      </div>
+    </div>
+    <div class="sidebar-menu">
+      <ul class="nav flex-column">
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/admin_dashboard.html"><i class="bi bi-house-door"></i><span>Home</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html"><i class="bi bi-person-plus"></i><span>Register Candidate</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_election_date.html"><i class="bi bi-calendar-event"></i><span>Set Election Dates</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates.html"><i class="bi bi-people"></i><span>Candidates</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html"><i class="bi bi-graph-up"></i><span>Results</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reset.html"><i class="bi bi-arrow-counterclockwise"></i><span>Reset Votes</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html"><i class="bi bi-file-earmark-bar-graph"></i><span>Generate Reports</span></a></li>
+        <li class="nav-item"><a class="nav-link active" href="/static/org_elecom/elecom_admin/elecom_transparency.html"><i class="bi bi-shield-check"></i><span>Transparency</span></a></li>
+        <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_network_authorize.html"><i class="bi bi-wifi"></i><span>Network Authorize</span></a></li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="main-content">
+    <nav class="top-navbar d-flex align-items-center gap-3">
+      <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
+      <div id="userMenuMount"></div>
+    </nav>
+
+    <main class="content-area transparency-shell">
+      <section class="transparency-hero">
+        <div>
+          <div class="page-kicker">Admin / Transparency</div>
+          <h1>Election Transparency</h1>
+          <p>Review the public vote ledger and tamper-check status used by the mobile transparency screen.</p>
+        </div>
+        <button class="btn btn-dark refresh-ledger-btn" id="refreshLedgerBtn">
+          <i class="bi bi-arrow-clockwise"></i>
+          Refresh
+        </button>
+      </section>
+
+      <section class="transparency-grid" aria-label="Ledger summary">
+        <article class="transparency-card status-card">
+          <span class="card-label">Ledger Status</span>
+          <strong id="ledgerStatus">Loading</strong>
+          <small id="lastVerified">Checking ledger...</small>
+        </article>
+        <article class="transparency-card">
+          <span class="card-label">Vote Blocks</span>
+          <strong id="totalBlocks">0</strong>
+          <small>Public blocks recorded</small>
+        </article>
+        <article class="transparency-card hash-card">
+          <span class="card-label">Latest Hash</span>
+          <strong id="latestHash">-</strong>
+          <small>Privacy-safe block fingerprint</small>
+        </article>
+      </section>
+
+      <section class="transparency-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Public Ledger</h2>
+            <p>Only anonymous hashes are shown. Voter choices and identities are not exposed.</p>
+          </div>
+          <button class="btn btn-outline-dark verify-ledger-btn" id="verifyLedgerBtn">
+            <i class="bi bi-patch-check"></i>
+            Verify Chain
+          </button>
+        </div>
+
+        <div class="ledger-empty" id="ledgerEmpty" hidden>
+          <i class="bi bi-shield-lock"></i>
+          <h3>No vote blocks recorded yet</h3>
+          <p>The transparency ledger will update automatically after voters submit ballots.</p>
+        </div>
+
+        <div class="ledger-table-wrap" id="ledgerTableWrap">
+          <table class="ledger-table">
+            <thead>
+              <tr>
+                <th>Block</th>
+                <th>Current Hash</th>
+                <th>Previous Hash</th>
+                <th>Status</th>
+                <th>Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="ledgerRows">
+              <tr><td colspan="5" class="text-center text-muted py-4">Loading ledger...</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="transparency-panel verification-panel">
+        <div class="panel-head">
+          <div>
+            <h2>Verification Notes</h2>
+            <p id="verificationSummary">Run verification to check the hash chain.</p>
+          </div>
+          <span class="verification-pill" id="verificationPill">Not verified</span>
+        </div>
+        <ul class="verification-list" id="verificationList">
+          <li>No verification issues loaded.</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260518-transparency"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20260518-transparency"></script>
+</body>
+</html>

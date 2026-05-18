@@ -117,6 +117,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "elecom_results.html",
     "elecom_reset.html",
     "elecom_reports.html",
+    "elecom_transparency.html",
     "elecom_network_authorize.html",
     "profile.html",
     "search_results.html",
