@@ -2,7 +2,7 @@ from django.db import models
 
 
 class ElecomStudent(models.Model):
-    id_number = models.BigIntegerField(primary_key=True)
+    id_number = models.CharField(max_length=64, primary_key=True)
     first_name = models.CharField(max_length=255)
     middle_name = models.CharField(max_length=255)
     last_name = models.CharField(max_length=255)

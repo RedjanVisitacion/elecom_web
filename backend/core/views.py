@@ -38,6 +38,57 @@ from .cloudinary_upload import upload_enrollment_image_bytes
 
 logger = logging.getLogger(__name__)
 
+def _ensure_auth_identity_tables() -> None:
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS student (
+                id_number varchar(64) PRIMARY KEY,
+                first_name varchar(255) NOT NULL,
+                middle_name varchar(255) NOT NULL DEFAULT '',
+                last_name varchar(255) NOT NULL,
+                course varchar(255) NOT NULL,
+                year integer NOT NULL,
+                section varchar(255) NOT NULL,
+                email varchar(255) NOT NULL,
+                phone_number varchar(255) NOT NULL,
+                role varchar(255) NOT NULL DEFAULT 'student'
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS users (
+                id SERIAL PRIMARY KEY,
+                student_id varchar(64) DEFAULT NULL,
+                password_hash varchar(255) NOT NULL,
+                created_at timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                role varchar(32) NOT NULL DEFAULT 'user',
+                department varchar(128) DEFAULT NULL,
+                year_level smallint DEFAULT NULL,
+                section varchar(50) DEFAULT NULL,
+                position varchar(128) DEFAULT NULL,
+                phone varchar(32) DEFAULT NULL,
+                email varchar(255) DEFAULT NULL,
+                otp_code varchar(255) DEFAULT NULL,
+                otp_expires_at timestamp DEFAULT NULL,
+                terms_accepted_at timestamp DEFAULT NULL,
+                first_name varchar(128) DEFAULT NULL,
+                middle_name varchar(128) DEFAULT NULL,
+                last_name varchar(128) DEFAULT NULL,
+                photo_url text DEFAULT NULL
+            )
+            """
+        )
+        cur.execute(
+            """
+            ALTER TABLE student
+            ALTER COLUMN id_number TYPE varchar(64)
+            USING id_number::text
+            """
+        )
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url text DEFAULT NULL")
+
 _DUP_FACE_ENROLL_MSG = (
     "This face is already registered to another account. Please contact ELECOM."
 )
@@ -180,32 +231,7 @@ def _get_student_program_code(student_id: str) -> str:
     raw = ""
     try:
         with connection.cursor() as cur:
-            attempts: list[tuple[str, list]] = []
-            if sid.isdigit():
-                attempts.append(
-                    (
-                        """
-                        SELECT course
-                        FROM public.student
-                        WHERE id_number = %s
-                        LIMIT 1
-                        """,
-                        [int(sid)],
-                    )
-                )
-                attempts.append(
-                    (
-                        """
-                        SELECT course
-                        FROM student
-                        WHERE id_number = %s
-                        LIMIT 1
-                        """,
-                        [int(sid)],
-                    )
-                )
-
-            attempts.append(
+            attempts: list[tuple[str, list]] = [
                 (
                     """
                     SELECT course
@@ -214,9 +240,7 @@ def _get_student_program_code(student_id: str) -> str:
                     LIMIT 1
                     """,
                     [sid],
-                )
-            )
-            attempts.append(
+                ),
                 (
                     """
                     SELECT course
@@ -225,8 +249,8 @@ def _get_student_program_code(student_id: str) -> str:
                     LIMIT 1
                     """,
                     [sid],
-                )
-            )
+                ),
+            ]
 
             for sql, params in attempts:
                 try:
@@ -303,6 +327,8 @@ def login_view(request):
     if request.method == "GET":
         return render(request, "elecom_login.html")
 
+    _ensure_auth_identity_tables()
+
     student_id = ""
     password = ""
 
@@ -341,6 +367,8 @@ def login_view(request):
 
 @require_http_methods(["GET"])
 def account_profile_api(request):
+    _ensure_auth_identity_tables()
+
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
@@ -567,6 +595,8 @@ def admin_app_rating_notifications_api(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def account_profile_photo_api(request):
+    _ensure_auth_identity_tables()
+
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
@@ -610,6 +640,8 @@ def account_profile_photo_api(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def account_profile_update_api(request):
+    _ensure_auth_identity_tables()
+
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
@@ -663,6 +695,8 @@ def account_profile_update_api(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def account_profile_password_api(request):
+    _ensure_auth_identity_tables()
+
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
@@ -4197,7 +4231,9 @@ def _hash_default_voter_password(id_number: str) -> str:
     import bcrypt
 
     password = str(id_number or "").strip()
-    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+    rounds = int(getattr(settings, "IMPORT_DEFAULT_PASSWORD_BCRYPT_ROUNDS", 8) or 8)
+    rounds = max(4, min(rounds, 12))
+    return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt(rounds=rounds)).decode("utf-8")
 
 
 def _safe_int_or_none(value):
@@ -4214,8 +4250,12 @@ def _upsert_voter_row(cur, payload: dict) -> str:
     id_number = str(payload.get("id_number") or payload.get("student_id") or "").strip()
     if not id_number:
         return "Missing ID Number."
-    if not id_number.isdigit():
-        return "ID Number must contain numbers only."
+    id_parts = id_number.split("-")
+    if (
+        any(not part for part in id_parts)
+        or any(not part.isalnum() for part in id_parts)
+    ):
+        return "ID Number may contain letters, numbers, and hyphens only."
 
     first_name = str(payload.get("first_name") or "").strip()
     middle_name = str(payload.get("middle_name") or "").strip()
@@ -4322,7 +4362,20 @@ def _upsert_voter_row(cur, payload: dict) -> str:
             )
             VALUES (
                 (SELECT COALESCE(MAX(id), 0) + 1 FROM users),
-                %s,%s,CURRENT_TIMESTAMP,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s
+                %s,
+                %s,
+                CURRENT_TIMESTAMP,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s,
+                %s
             )
             """,
             [
@@ -4347,6 +4400,8 @@ def _upsert_voter_row(cur, payload: dict) -> str:
 
 @require_http_methods(["GET"])
 def admin_voters_list_api(request):
+    _ensure_auth_identity_tables()
+
     forbidden = _require_voters_access(request)
     if forbidden:
         return forbidden
@@ -4416,6 +4471,8 @@ def admin_voters_list_api(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def admin_voters_import_api(request):
+    _ensure_auth_identity_tables()
+
     forbidden = _require_voters_access(request)
     if forbidden:
         return forbidden
@@ -4428,24 +4485,38 @@ def admin_voters_import_api(request):
     voters = payload.get("voters") or []
     if not isinstance(voters, list) or not voters:
         return JsonResponse({"ok": False, "error": "No voters supplied."}, status=400)
+    row_start = _safe_int_or_none(payload.get("row_start")) or 2
 
     imported = 0
     failed = []
     try:
         with transaction.atomic():
             with connection.cursor() as cur:
-                for index, voter in enumerate(voters, start=2):
+                for index, voter in enumerate(voters, start=row_start):
                     if not isinstance(voter, dict):
                         failed.append({"row": index, "error": "Invalid row."})
                         continue
-                    err = _upsert_voter_row(cur, voter)
-                    if err:
-                        failed.append({"row": index, "id_number": voter.get("id_number") or voter.get("student_id"), "error": err})
-                    else:
-                        imported += 1
+                    sid = transaction.savepoint()
+                    try:
+                        err = _upsert_voter_row(cur, voter)
+                        if err:
+                            transaction.savepoint_rollback(sid)
+                            failed.append({"row": index, "id_number": voter.get("id_number") or voter.get("student_id"), "error": err})
+                        else:
+                            transaction.savepoint_commit(sid)
+                            imported += 1
+                    except Exception as row_error:
+                        transaction.savepoint_rollback(sid)
+                        logger.exception("Failed to import voter row %s", index)
+                        failed.append({
+                            "row": index,
+                            "id_number": voter.get("id_number") or voter.get("student_id"),
+                            "error": str(row_error) if getattr(settings, "DEBUG", False) else "Database error while saving this row.",
+                        })
 
         return JsonResponse({"ok": True, "imported": imported, "failed": failed})
     except Exception as e:
+        logger.exception("Failed to import voters.")
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to import voters."}, status=500)
@@ -5960,6 +6031,8 @@ def forgot_password_send_otp_api(request):
     Response: { "ok": true, "masked_email": "r***@gmail.com" }
     Errors: 404 if no matching account; 400 if account has no email on file.
     """
+    _ensure_auth_identity_tables()
+
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except Exception:
@@ -6051,6 +6124,8 @@ def forgot_password_verify_otp_api(request):
     Body: { "identifier": "<student_id or email>", "otp": "123456" }
     Response: { "ok": true, "reset_token": "<token>" }
     """
+    _ensure_auth_identity_tables()
+
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except Exception:
@@ -6155,6 +6230,8 @@ def forgot_password_reset_password_api(request):
     Body: { "reset_token": "<token>", "new_password": "<password>" }
     Response: { "ok": true }
     """
+    _ensure_auth_identity_tables()
+
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except Exception:

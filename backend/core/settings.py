@@ -228,6 +228,10 @@ if EMAIL_HOST_PASSWORD:
     EMAIL_HOST_PASSWORD = EMAIL_HOST_PASSWORD.replace(" ", "")
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "ELECOM <noreply@elecom.app>")
 
+# Admin voter imports can include thousands of default passwords in one run.
+# Lower rounds keep the import responsive while still storing bcrypt hashes.
+IMPORT_DEFAULT_PASSWORD_BCRYPT_ROUNDS = int(os.getenv("IMPORT_DEFAULT_PASSWORD_BCRYPT_ROUNDS", "8"))
+
 # OTP validity window in minutes.
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
 # Reset token validity window in minutes (after OTP verified).

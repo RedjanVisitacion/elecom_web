@@ -15,6 +15,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const courseFilterButtons = Array.from(document.querySelectorAll('[data-course-filter]'));
 
   const API_BASE = '/api/admin/voters/';
+  const IMPORT_BATCH_SIZE = 250;
   let currentRows = [];
   let filteredRows = [];
   let activeCourse = 'ALL';
@@ -151,6 +152,29 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!payload.email) missing.push('Email');
     if (!payload.phone_number) missing.push('Phone Number');
     return missing.length ? `Row ${rowNumber}: missing ${missing.join(', ')}` : '';
+  }
+
+  function formatImportFailures(failed, limit = 10) {
+    const list = Array.isArray(failed) ? failed : [];
+    if (!list.length) return '';
+    return list.slice(0, limit)
+      .map(f => `Row ${f.row || '?'}${f.id_number ? ` (${f.id_number})` : ''}: ${f.error || 'Failed to import row.'}`)
+      .join('\n') + (list.length > limit ? '\n...' : '');
+  }
+
+  async function postVoterImportBatch(voters, rowStart) {
+    const res = await fetch(API_BASE + 'import/', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ voters, row_start: rowStart }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.ok) {
+      const detail = formatImportFailures(data.failed, 8);
+      throw new Error(`${data.error || 'Failed to import voters.'}${detail ? `\n\n${detail}` : ''}`);
+    }
+    return data;
   }
 
   function uniqueSorted(values) {
@@ -352,24 +376,21 @@ document.addEventListener('DOMContentLoaded', function(){
 
       if (!confirm(`Import ${voters.length} voter(s)? Password will be set to each voter's ID number.`)) return;
 
-      const res = await fetch(API_BASE + 'import/', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'same-origin',
-        body: JSON.stringify({ voters }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) {
-        alert(data.error || 'Failed to import voters.');
-        return;
+      let imported = 0;
+      const failed = [];
+      for (let start = 0; start < voters.length; start += IMPORT_BATCH_SIZE) {
+        const batch = voters.slice(start, start + IMPORT_BATCH_SIZE);
+        importVotersBtn.innerHTML = `<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Importing ${Math.min(start + batch.length, voters.length)}/${voters.length}...`;
+        const data = await postVoterImportBatch(batch, start + 2);
+        imported += Number(data.imported || 0);
+        failed.push(...(data.failed || []));
       }
 
       await loadVoters();
-      const failed = data.failed || [];
       const failedText = failed.length
-        ? `\n\nFailed: ${failed.length}\n${failed.slice(0, 8).map(f => `Row ${f.row}: ${f.error}`).join('\n')}${failed.length > 8 ? '\n...' : ''}`
+        ? `\n\nFailed: ${failed.length}\n${formatImportFailures(failed, 8)}`
         : '';
-      alert(`Import finished.\n\nImported: ${data.imported || 0}${failedText}`);
+      alert(`Import finished.\n\nImported: ${imported}${failedText}`);
     } catch (err) {
       alert(err && err.message ? err.message : 'Failed to import voters.');
     } finally {

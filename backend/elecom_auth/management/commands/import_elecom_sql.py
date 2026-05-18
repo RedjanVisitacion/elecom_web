@@ -175,7 +175,7 @@ class Command(BaseCommand):
             vals = [_parse_sql_value(v) for v in row]
             objs.append(
                 ElecomStudent(
-                    id_number=int(vals[0]),
+                    id_number=str(vals[0] or "").strip(),
                     first_name=str(vals[1] or ""),
                     middle_name=str(vals[2] or ""),
                     last_name=str(vals[3] or ""),
