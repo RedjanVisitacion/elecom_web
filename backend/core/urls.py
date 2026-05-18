@@ -11,6 +11,7 @@ from .views import (
     admin_voters_delete_api,
     admin_voters_import_api,
     admin_voters_list_api,
+    admin_voters_update_api,
     admin_page_token_api,
     admin_secure_page_view,
     admin_verify_password_api,
@@ -96,6 +97,7 @@ urlpatterns = [
     path('api/admin/voters/list/', admin_voters_list_api, name='admin_voters_list_api'),
     path('api/admin/voters/import/', admin_voters_import_api, name='admin_voters_import_api'),
     path('api/admin/voters/delete/', admin_voters_delete_api, name='admin_voters_delete_api'),
+    path('api/admin/voters/update/', admin_voters_update_api, name='admin_voters_update_api'),
     path('api/admin/page-token/', admin_page_token_api, name='admin_page_token_api'),
     path('api/admin/verify-password/', admin_verify_password_api, name='admin_verify_password_api'),
     path('api/admin/results/', admin_results_api, name='admin_results_api'),
@@ -166,4 +168,5 @@ urlpatterns = [
     path('api/mobile/admin/voters/list/', admin_voters_list_api, name='mobile_admin_voters_list_api'),
     path('api/mobile/admin/voters/import/', admin_voters_import_api, name='mobile_admin_voters_import_api'),
     path('api/mobile/admin/voters/delete/', admin_voters_delete_api, name='mobile_admin_voters_delete_api'),
+    path('api/mobile/admin/voters/update/', admin_voters_update_api, name='mobile_admin_voters_update_api'),
 ]

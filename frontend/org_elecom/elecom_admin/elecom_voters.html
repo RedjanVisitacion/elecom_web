@@ -8,7 +8,7 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260517-voters">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_voters.css?v=20260518-remove-voters">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_voters.css?v=20260518-edit-voters">
 </head>
 <body class="theme-elecom">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -88,8 +88,12 @@
                         </div>
                     </div>
 
-                    <div class="alert alert-info voters-import-note">
-                        Required import columns: ID Number, First Name, Last Name, Course, Year, Section, Email, Phone Number.
+                    <div class="voters-search-row">
+                        <div class="input-group input-group-sm voters-search-group">
+                            <span class="input-group-text"><i class="bi bi-search"></i></span>
+                            <input type="search" class="form-control" id="voterSearch" placeholder="Search voters by ID, name, course, email, or phone" aria-label="Search voters">
+                            <button class="btn btn-dark" type="button" id="voterSearchBtn">Search</button>
+                        </div>
                     </div>
 
                     <div class="table-responsive voters-table-wrap">
@@ -107,10 +111,11 @@
                                     <th>Email</th>
                                     <th>Phone</th>
                                     <th>Status</th>
+                                    <th class="voters-action-col"></th>
                                 </tr>
                             </thead>
                             <tbody id="votersTableBody">
-                                <tr><td colspan="9" class="text-muted text-center py-4">Loading voters...</td></tr>
+                                <tr><td colspan="10" class="text-muted text-center py-4">Loading voters...</td></tr>
                             </tbody>
                         </table>
                     </div>
@@ -119,9 +124,64 @@
         </div>
     </div>
 
+    <div class="modal fade" id="editVoterModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Edit Voter Info</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="editVoterForm" class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="editVoterId">ID Number</label>
+                            <input type="text" class="form-control" id="editVoterId" readonly>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editFirstName">First Name</label>
+                            <input type="text" class="form-control" id="editFirstName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editMiddleName">Middle Name</label>
+                            <input type="text" class="form-control" id="editMiddleName">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editLastName">Last Name</label>
+                            <input type="text" class="form-control" id="editLastName" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editCourse">Course</label>
+                            <input type="text" class="form-control" id="editCourse" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editYear">Year</label>
+                            <input type="number" min="1" max="10" class="form-control" id="editYear" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editSection">Section</label>
+                            <input type="text" class="form-control" id="editSection" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editEmail">Email</label>
+                            <input type="email" class="form-control" id="editEmail" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="editPhone">Phone Number</label>
+                            <input type="text" class="form-control" id="editPhone" required>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-dark" id="saveVoterEditBtn">Save Changes</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260517-opaque-route"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_voters.js?v=20260518-remove-voters"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_voters.js?v=20260518-edit-voters"></script>
 </body>
 </html>

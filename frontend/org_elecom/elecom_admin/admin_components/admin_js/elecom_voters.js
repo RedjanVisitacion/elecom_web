@@ -12,6 +12,19 @@ document.addEventListener('DOMContentLoaded', function(){
   const importVotersFile = document.getElementById('importVotersFile');
   const removeVotersBtn = document.getElementById('removeVotersBtn');
   const selectAllVoters = document.getElementById('selectAllVoters');
+  const editVoterModalEl = document.getElementById('editVoterModal');
+  const editVoterModal = editVoterModalEl && window.bootstrap ? window.bootstrap.Modal.getOrCreateInstance(editVoterModalEl) : null;
+  const editVoterForm = document.getElementById('editVoterForm');
+  const saveVoterEditBtn = document.getElementById('saveVoterEditBtn');
+  const editVoterId = document.getElementById('editVoterId');
+  const editFirstName = document.getElementById('editFirstName');
+  const editMiddleName = document.getElementById('editMiddleName');
+  const editLastName = document.getElementById('editLastName');
+  const editCourse = document.getElementById('editCourse');
+  const editYear = document.getElementById('editYear');
+  const editSection = document.getElementById('editSection');
+  const editEmail = document.getElementById('editEmail');
+  const editPhone = document.getElementById('editPhone');
   const yearFilter = document.getElementById('yearFilter');
   const sectionFilter = document.getElementById('sectionFilter');
   const courseFilterButtons = Array.from(document.querySelectorAll('[data-course-filter]'));
@@ -22,6 +35,7 @@ document.addEventListener('DOMContentLoaded', function(){
   let filteredRows = [];
   let activeCourse = 'ALL';
   let selectedVoterIds = new Set();
+  let editingVoterId = '';
 
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
@@ -269,7 +283,7 @@ document.addEventListener('DOMContentLoaded', function(){
     updateSelectionControls();
 
     if (!list.length) {
-      tableBody.innerHTML = '<tr><td colspan="9" class="text-muted text-center py-4">No voters found.</td></tr>';
+      tableBody.innerHTML = '<tr><td colspan="10" class="text-muted text-center py-4">No voters found.</td></tr>';
       return;
     }
 
@@ -294,6 +308,11 @@ document.addEventListener('DOMContentLoaded', function(){
           <td>${escapeHtml(voter.email)}</td>
           <td>${escapeHtml(voter.phone_number)}</td>
           <td><span class="voter-status"><i class="bi bi-person-check"></i>${escapeHtml(accepted)}</span></td>
+          <td class="voters-action-col">
+            <button class="btn btn-outline-dark btn-sm voter-edit-btn" type="button" data-action="edit-voter" data-id="${escapeHtml(idNumber)}">
+              <i class="bi bi-pencil-square"></i> Edit
+            </button>
+          </td>
         </tr>`;
     }).join('');
   }
@@ -406,6 +425,66 @@ document.addEventListener('DOMContentLoaded', function(){
       if (exportVotersBtn) exportVotersBtn.disabled = false;
       removeVotersBtn.innerHTML = originalHtml;
       updateSelectionControls();
+    }
+  }
+
+  function openEditVoter(idNumber) {
+    const voter = currentRows.find(row => String(row.id_number || '') === String(idNumber || ''));
+    if (!voter || !editVoterModal) return;
+    editingVoterId = String(voter.id_number || '');
+    if (editVoterId) editVoterId.value = editingVoterId;
+    if (editFirstName) editFirstName.value = voter.first_name || '';
+    if (editMiddleName) editMiddleName.value = voter.middle_name || '';
+    if (editLastName) editLastName.value = voter.last_name || '';
+    if (editCourse) editCourse.value = voter.course || '';
+    if (editYear) editYear.value = voter.year || '';
+    if (editSection) editSection.value = voter.section || '';
+    if (editEmail) editEmail.value = voter.email || '';
+    if (editPhone) editPhone.value = voter.phone_number || '';
+    editVoterModal.show();
+  }
+
+  function editVoterPayload() {
+    return {
+      id_number: editingVoterId,
+      first_name: editFirstName ? editFirstName.value.trim() : '',
+      middle_name: editMiddleName ? editMiddleName.value.trim() : '',
+      last_name: editLastName ? editLastName.value.trim() : '',
+      course: editCourse ? editCourse.value.trim() : '',
+      year: editYear ? editYear.value.trim() : '',
+      section: editSection ? editSection.value.trim() : '',
+      email: editEmail ? editEmail.value.trim() : '',
+      phone_number: editPhone ? editPhone.value.trim() : '',
+    };
+  }
+
+  async function saveVoterEdit() {
+    if (!saveVoterEditBtn || !editVoterForm) return;
+    if (!editVoterForm.reportValidity()) return;
+    const payload = editVoterPayload();
+    const originalHtml = saveVoterEditBtn.innerHTML;
+    saveVoterEditBtn.disabled = true;
+    saveVoterEditBtn.innerHTML = '<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> Saving...';
+
+    try {
+      const res = await fetch(API_BASE + 'update/', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin',
+        body: JSON.stringify(payload),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        alert(data.error || 'Failed to update voter.');
+        return;
+      }
+      if (editVoterModal) editVoterModal.hide();
+      await loadVoters();
+    } catch (err) {
+      alert(err && err.message ? err.message : 'Failed to update voter.');
+    } finally {
+      saveVoterEditBtn.disabled = false;
+      saveVoterEditBtn.innerHTML = originalHtml;
     }
   }
 
@@ -545,7 +624,13 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       updateSelectionControls();
     });
+    tableBody.addEventListener('click', (event) => {
+      const button = event.target && event.target.closest ? event.target.closest('[data-action="edit-voter"]') : null;
+      if (!button) return;
+      openEditVoter(button.getAttribute('data-id'));
+    });
   }
+  if (saveVoterEditBtn) saveVoterEditBtn.addEventListener('click', saveVoterEdit);
   courseFilterButtons.forEach(button => {
     button.addEventListener('click', () => {
       activeCourse = String(button.getAttribute('data-course-filter') || 'ALL').toUpperCase();

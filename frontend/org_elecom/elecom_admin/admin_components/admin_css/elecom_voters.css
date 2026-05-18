@@ -24,6 +24,19 @@
   border-left:4px solid #3b82f6;
 }
 
+.voters-search-row{
+  margin-bottom:16px;
+}
+
+.voters-search-group{
+  max-width:620px;
+}
+
+.voters-search-group .input-group-text{
+  background:#fff;
+  color:#111827;
+}
+
 .voters-filter-bar{
   display:flex;
   align-items:center;
@@ -70,8 +83,35 @@
   text-align:center;
 }
 
+.voters-action-col{
+  width:88px;
+  text-align:right;
+}
+
+.voters-table .form-check-input{
+  border-color:#111827;
+}
+
+.voters-table .form-check-input:checked{
+  background-color:#111827;
+  border-color:#111827;
+}
+
 .voter-row-check{
   cursor:pointer;
+}
+
+.voter-edit-btn{
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .15s ease;
+  white-space:nowrap;
+}
+
+.voters-table tbody tr:hover .voter-edit-btn,
+.voter-edit-btn:focus{
+  opacity:1;
+  pointer-events:auto;
 }
 
 .voter-name{
