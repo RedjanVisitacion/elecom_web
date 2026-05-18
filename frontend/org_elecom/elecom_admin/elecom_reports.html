@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260517-ratings">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css?v=20260518-report-redesign">
 </head>
 <body class="theme-elecom reports-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -48,11 +48,23 @@
     </nav>
 
     <div class="content-area">
-      <div class="card border-0 shadow-sm mb-4">
+      <div class="reports-page-heading">
+        <div>
+          <h1>Generate Reports</h1>
+          <p>Build official election summaries, review vote distribution, and export administrator-ready files.</p>
+        </div>
+      </div>
+
+      <div class="card border-0 shadow-sm mb-4 report-builder-card">
         <div class="card-body">
-          <h4 class="mb-3">Generate Election Report</h4>
+          <div class="report-builder-header">
+            <div>
+              <h4 class="mb-1">Generate Election Report</h4>
+              <p class="mb-0">Choose a date range and export format.</p>
+            </div>
+          </div>
           <div id="alertBox" class="alert alert-danger d-none mb-3"></div>
-          <div class="p-3 rounded report-range-box">
+          <div class="report-range-box">
             <div class="row g-3 align-items-end">
               <div class="col-12 col-md-6">
                 <label class="form-label">Start Date</label>
@@ -63,16 +75,16 @@
                 <input type="date" class="form-control" id="repEnd" value="">
               </div>
             </div>
-            <div class="mt-2 d-flex gap-2">
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="clearDates">Clear</button>
-              <button type="button" class="btn btn-sm btn-outline-primary d-none" id="applyWindow">Use election dates</button>
+            <div class="report-date-actions">
+              <button type="button" class="btn btn-sm btn-outline-dark" id="clearDates"><i class="bi bi-x-circle"></i> Clear</button>
+              <button type="button" class="btn btn-sm btn-dark d-none" id="applyWindow"><i class="bi bi-calendar-check"></i> Use election dates</button>
             </div>
           </div>
-          <div class="mt-4">
+          <div class="report-format-section">
             <div class="mb-2 fw-semibold">Select Report Format</div>
             <div class="row g-3">
               <div class="col-12 col-md-6">
-                <button type="button" id="fmt_text" data-format="text" class="w-100 btn btn-light text-start border format-card">
+                <button type="button" id="fmt_text" data-format="text" class="w-100 text-start format-card">
                   <div class="d-flex align-items-center gap-3">
                     <div class="rounded-circle d-flex align-items-center justify-content-center format-icon text"><i class="bi bi-file-text fs-4 text-primary"></i></div>
                     <div>
@@ -83,7 +95,7 @@
                 </button>
               </div>
               <div class="col-12 col-md-6">
-                <button type="button" id="fmt_pdf" data-format="pdf" class="w-100 btn btn-outline-primary text-start border-2 format-card active">
+                <button type="button" id="fmt_pdf" data-format="pdf" class="w-100 text-start format-card active">
                   <div class="d-flex align-items-center gap-3">
                     <div class="rounded-circle d-flex align-items-center justify-content-center format-icon pdf"><i class="bi bi-filetype-pdf fs-4 text-primary"></i></div>
                     <div>
@@ -94,7 +106,7 @@
                 </button>
               </div>
               <div class="col-12 col-md-6">
-                <button type="button" id="fmt_csv" data-format="csv" class="w-100 btn btn-light text-start border format-card">
+                <button type="button" id="fmt_csv" data-format="csv" class="w-100 text-start format-card">
                   <div class="d-flex align-items-center gap-3">
                     <div class="rounded-circle d-flex align-items-center justify-content-center format-icon csv"><i class="bi bi-filetype-csv fs-4 text-success"></i></div>
                     <div>
@@ -106,9 +118,9 @@
               </div>
             </div>
           </div>
-          <div class="mt-4 d-flex gap-2">
-            <button class="btn btn-primary" id="genReportBtn"><i class="bi bi-magic"></i> Generate Report</button>
-            <button class="btn btn-outline-secondary" id="previewBtn" type="button">Preview</button>
+          <div class="report-action-row">
+            <button class="btn btn-dark" id="genReportBtn"><i class="bi bi-magic"></i> Generate Report</button>
+            <button class="btn btn-outline-dark" id="previewBtn" type="button"><i class="bi bi-eye"></i> Preview</button>
           </div>
         </div>
       </div>
@@ -150,6 +162,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260517-opaque-route"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20260518-report-redesign"></script>
 </body>
 </html>

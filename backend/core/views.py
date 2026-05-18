@@ -5608,6 +5608,12 @@ def admin_reports_summary_api(request):
     except Exception:
         total_votes = 0
         distinct_voters = 0
+    try:
+        with connection.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM users WHERE COALESCE(role, '') ILIKE 'student'")
+            total_voters = int(cur.fetchone()[0] or 0)
+    except Exception:
+        total_voters = 0
 
     # candidates + votes per candidate
     candidates = []
@@ -5650,6 +5656,7 @@ def admin_reports_summary_api(request):
                 "total_votes": total_votes,
                 "distinct_voters": distinct_voters,
                 "total_candidates": len(candidates),
+                "total_voters": total_voters,
             },
             "by_org": by_org,
             "by_pos": by_pos,
