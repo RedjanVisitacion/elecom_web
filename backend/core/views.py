@@ -4643,35 +4643,22 @@ def admin_voters_update_api(request):
     if not id_number:
         return JsonResponse({"ok": False, "error": "Missing ID Number."}, status=400)
 
-    update_payload = {
-        "id_number": id_number,
-        "first_name": payload.get("first_name"),
-        "middle_name": payload.get("middle_name"),
-        "last_name": payload.get("last_name"),
-        "course": payload.get("course") or payload.get("department"),
-        "year": payload.get("year") or payload.get("year_level"),
-        "section": payload.get("section"),
-        "email": payload.get("email"),
-        "phone_number": payload.get("phone_number") or payload.get("phone"),
-        "role": "student",
-        "position": payload.get("position"),
-        "photo_url": payload.get("photo_url"),
-    }
+    year = _safe_int_or_none(payload.get("year") or payload.get("year_level"))
+    section = str(payload.get("section") or "").strip()
+    email = str(payload.get("email") or "").strip()
+    phone = str(payload.get("phone_number") or payload.get("phone") or "").strip()
 
-    err = _validate_voter_payload(update_payload)
-    if err:
-        return JsonResponse({"ok": False, "error": err}, status=400)
-
-    first_name = str(update_payload.get("first_name") or "").strip()
-    middle_name = str(update_payload.get("middle_name") or "").strip()
-    last_name = str(update_payload.get("last_name") or "").strip()
-    course = str(update_payload.get("course") or "").strip()
-    year = _safe_int_or_none(update_payload.get("year"))
-    section = str(update_payload.get("section") or "").strip()
-    email = str(update_payload.get("email") or "").strip()
-    phone = str(update_payload.get("phone_number") or "").strip()
-    position = str(update_payload.get("position") or "").strip() or None
-    photo_url = str(update_payload.get("photo_url") or "").strip() or None
+    missing = []
+    if year is None:
+        missing.append("Year")
+    if not section:
+        missing.append("Section")
+    if not email:
+        missing.append("Email")
+    if not phone:
+        missing.append("Phone Number")
+    if missing:
+        return JsonResponse({"ok": False, "error": f"Missing {', '.join(missing)}."}, status=400)
 
     try:
         with transaction.atomic():
@@ -4679,63 +4666,27 @@ def admin_voters_update_api(request):
                 cur.execute(
                     """
                     UPDATE student
-                    SET first_name = %s,
-                        middle_name = %s,
-                        last_name = %s,
-                        course = %s,
-                        year = %s,
+                    SET year = %s,
                         section = %s,
                         email = %s,
-                        phone_number = %s,
-                        role = 'student'
+                        phone_number = %s
                     WHERE id_number::text = %s
                     """,
-                    [first_name, middle_name, last_name, course, year, section, email, phone, id_number],
+                    [year, section, email, phone, id_number],
                 )
-                if cur.rowcount == 0:
-                    cur.execute(
-                        """
-                        INSERT INTO student (
-                            id_number, first_name, middle_name, last_name,
-                            course, year, section, email, phone_number, role
-                        )
-                        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,'student')
-                        """,
-                        [id_number, first_name, middle_name, last_name, course, year, section, email, phone],
-                    )
 
                 cur.execute(
                     """
                     UPDATE users
-                    SET role = 'student',
-                        department = %s,
-                        year_level = %s,
+                    SET year_level = %s,
                         section = %s,
-                        position = %s,
                         phone = %s,
-                        email = %s,
-                        first_name = %s,
-                        middle_name = %s,
-                        last_name = %s,
-                        photo_url = COALESCE(%s, photo_url)
+                        email = %s
                     WHERE student_id::text = %s
                       AND COALESCE(role, '') ILIKE 'student'
                     """,
-                    [course, year, section, position, phone, email, first_name, middle_name, last_name, photo_url, id_number],
+                    [year, section, phone, email, id_number],
                 )
-                if cur.rowcount == 0:
-                    password_hash = _hash_default_voter_password(id_number)
-                    cur.execute(
-                        """
-                        INSERT INTO users (
-                            student_id, password_hash, created_at, role,
-                            department, year_level, section, position, phone, email,
-                            first_name, middle_name, last_name, photo_url
-                        )
-                        VALUES (%s,%s,CURRENT_TIMESTAMP,'student',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
-                        """,
-                        [id_number, password_hash, course, year, section, position, phone, email, first_name, middle_name, last_name, photo_url],
-                    )
 
         return JsonResponse({"ok": True})
     except Exception as e:

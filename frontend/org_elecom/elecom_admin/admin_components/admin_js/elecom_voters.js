@@ -448,10 +448,6 @@ document.addEventListener('DOMContentLoaded', function(){
   function editVoterPayload() {
     return {
       id_number: editingVoterId,
-      first_name: editFirstName ? editFirstName.value.trim() : '',
-      middle_name: editMiddleName ? editMiddleName.value.trim() : '',
-      last_name: editLastName ? editLastName.value.trim() : '',
-      course: editCourse ? editCourse.value.trim() : '',
       year: editYear ? editYear.value.trim() : '',
       section: editSection ? editSection.value.trim() : '',
       email: editEmail ? editEmail.value.trim() : '',
