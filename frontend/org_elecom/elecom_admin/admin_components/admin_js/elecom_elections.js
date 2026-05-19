@@ -31,6 +31,13 @@ document.addEventListener('DOMContentLoaded', function(){
   const formHint = document.getElementById('electionFormHint');
   let loadedElections = [];
 
+  function electionIdFromRoute() {
+    const match = window.location.pathname.match(/\/elections\/(\d+)\/edit-dates\/?$/);
+    if (match) return match[1];
+    const params = new URLSearchParams(window.location.search);
+    return params.get('edit_election_id') || params.get('election_id') || '';
+  }
+
   function escapeHtml(value) {
     return String(value ?? '')
       .replace(/&/g, '&amp;')
@@ -117,8 +124,9 @@ document.addEventListener('DOMContentLoaded', function(){
     const voteCount = Number(election.vote_count || 0);
     const voterCount = Number(election.voter_count || 0);
     const turnout = voterCount > 0 ? `${Math.round((voteCount / voterCount) * 100)}%` : '0%';
-    const reportsUrl = `/static/org_elecom/elecom_admin/elecom_reports.html?election_id=${encodeURIComponent(election.id)}`;
-    const resultsUrl = `/static/org_elecom/elecom_admin/elecom_results.html?election_id=${encodeURIComponent(election.id)}`;
+    const editUrl = `/elections/${encodeURIComponent(election.id)}/edit-dates/`;
+    const reportsUrl = `/elections/${encodeURIComponent(election.id)}/reports/`;
+    const resultsUrl = `/elections/${encodeURIComponent(election.id)}/results/`;
     return `
       <article class="election-row">
         <div>
@@ -141,7 +149,7 @@ document.addEventListener('DOMContentLoaded', function(){
           </div>
         </div>
         <div class="election-actions">
-          ${election.is_active ? `<button class="btn btn-sm btn-outline-dark" type="button" data-edit-election="${escapeHtml(election.id)}"><i class="bi bi-pencil-square"></i> Edit Dates</button>` : ''}
+          ${election.is_active ? `<a class="btn btn-sm btn-outline-dark" href="${editUrl}" data-edit-election="${escapeHtml(election.id)}"><i class="bi bi-pencil-square"></i> Edit Dates</a>` : ''}
           <a class="btn btn-sm btn-outline-dark" href="${resultsUrl}"><i class="bi bi-graph-up"></i> Results</a>
           <a class="btn btn-sm btn-dark" href="${reportsUrl}"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
         </div>
@@ -163,6 +171,12 @@ document.addEventListener('DOMContentLoaded', function(){
       listEl.innerHTML = elections.length
         ? elections.map(rowHtml).join('')
         : '<div class="empty-state">No elections found. Create the first election event.</div>';
+
+      const routeElectionId = electionIdFromRoute();
+      if (routeElectionId && window.location.pathname.includes('/edit-dates/')) {
+        const election = loadedElections.find(item => String(item.id) === String(routeElectionId));
+        if (election) fillElectionForm(election);
+      }
     } catch (error) {
       if (listEl) listEl.innerHTML = '<div class="empty-state">Failed to load elections.</div>';
       showAlert(error.message || 'Failed to load elections.', 'danger');
@@ -183,6 +197,8 @@ document.addEventListener('DOMContentLoaded', function(){
     listEl.addEventListener('click', function(event){
       const editBtn = event.target.closest('[data-edit-election]');
       if (!editBtn) return;
+      if (editBtn.tagName === 'A' && window.location.pathname !== editBtn.pathname) return;
+      event.preventDefault();
       const election = loadedElections.find(item => String(item.id) === String(editBtn.dataset.editElection));
       if (!election) return;
       fillElectionForm(election);

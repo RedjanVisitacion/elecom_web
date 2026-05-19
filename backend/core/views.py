@@ -144,6 +144,36 @@ def _normalize_admin_html(html: str) -> str:
     )
 
 
+def _serve_admin_static_page(request, page: str):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    page = _normalize_admin_page_name(page)
+    root = Path(settings.BASE_DIR).parent / "frontend" / "org_elecom" / "elecom_admin"
+    page_path = (root / page).resolve()
+    if root.resolve() not in page_path.parents or not page_path.exists():
+        return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
+
+    html = _normalize_admin_html(page_path.read_text(encoding="utf-8"))
+    return HttpResponse(html, content_type="text/html")
+
+
+@require_http_methods(["GET"])
+def edit_election_dates(request, election_id):
+    return _serve_admin_static_page(request, "elecom_elections.html")
+
+
+@require_http_methods(["GET"])
+def election_results(request, election_id):
+    return _serve_admin_static_page(request, "elecom_results.html")
+
+
+@require_http_methods(["GET"])
+def election_reports(request, election_id):
+    return _serve_admin_static_page(request, "elecom_reports.html")
+
+
 def _facepp_configured() -> bool:
     return bool((getattr(settings, "FACEPP_API_KEY", None) or "").strip()) and bool(
         (getattr(settings, "FACEPP_API_SECRET", None) or "").strip()
@@ -3140,6 +3170,11 @@ def admin_page_token_api(request):
         compress=True,
     )
     page = _normalize_admin_page_name(request.GET.get("page") or "admin_dashboard.html")
+    route_query = {}
+    for key in ("election_id", "edit_election_id"):
+        value = str(request.GET.get(key) or "").strip()
+        if value.isdigit():
+            route_query[key] = value
 
     route_token = signing.dumps(
         {
@@ -3147,11 +3182,16 @@ def admin_page_token_api(request):
             "role": "admin",
             "session": request.session.session_key,
             "page": page,
+            "query": route_query,
         },
         salt=_ADMIN_PAGE_ROUTE_SALT,
         compress=True,
     )
-    return JsonResponse({"ok": True, "token": token, "route_token": route_token, "secure_url": f"/g/{route_token}/"})
+    query_string = ""
+    if route_query:
+        from urllib.parse import urlencode
+        query_string = f"?{urlencode(route_query)}"
+    return JsonResponse({"ok": True, "token": token, "route_token": route_token, "secure_url": f"/g/{route_token}/{query_string}"})
 
 
 @require_http_methods(["GET"])

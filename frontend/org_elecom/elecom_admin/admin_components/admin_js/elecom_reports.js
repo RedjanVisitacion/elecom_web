@@ -29,7 +29,8 @@ document.addEventListener('DOMContentLoaded', function(){
   const previewCard = document.getElementById('reportPreviewCard');
   const previewEl = document.getElementById('reportPreview');
   const pageParams = new URLSearchParams(window.location.search);
-  const selectedElectionId = pageParams.get('election_id') || '';
+  const routeElectionMatch = window.location.pathname.match(/\/elections\/(\d+)\/reports\/?$/);
+  const selectedElectionId = pageParams.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : '');
   let selectedFormat = 'pdf';
 
   fmtCards.forEach(btn => {

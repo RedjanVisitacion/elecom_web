@@ -79,13 +79,20 @@
     }
   };
 
-  const getSecureRouteForPage = async (page) => {
+  const getSecureRouteForPage = async (page, queryString = "") => {
     const safePage = String(page || "").trim();
     if (!safePage) return "";
-    if (secureRouteCache.has(safePage)) return secureRouteCache.get(safePage);
+    const cacheKey = `${safePage}${queryString || ""}`;
+    if (secureRouteCache.has(cacheKey)) return secureRouteCache.get(cacheKey);
 
     const url = new URL(API_ADMIN_PAGE_TOKEN, window.location.origin);
     url.searchParams.set("page", safePage);
+    const extraParams = new URLSearchParams(String(queryString || "").replace(/^\?/, ""));
+    extraParams.forEach((value, key) => {
+      if (key === "election_id" || key === "edit_election_id") {
+        url.searchParams.set(key, value);
+      }
+    });
     const resp = await fetch(url.toString(), {
       method: "GET",
       credentials: "same-origin",
@@ -95,9 +102,9 @@
     if (!resp.ok || !data.ok || !data.secure_url) return "";
 
     const secureUrl = new URL(String(data.secure_url), window.location.origin).toString();
-    secureRouteCache.set(safePage, secureUrl);
+    secureRouteCache.set(cacheKey, secureUrl);
     try {
-      sessionStorage.setItem(`elecom_admin_secure_route_${safePage}`, secureUrl);
+      sessionStorage.setItem(`elecom_admin_secure_route_${cacheKey}`, secureUrl);
     } catch (e) {
       // ignore
     }
@@ -111,7 +118,8 @@
       const href = link.getAttribute("href") || "";
       if (!isAdminStaticPage(href)) continue;
       const page = getAdminPageNameFromHref(href);
-      const secureUrl = await getSecureRouteForPage(page);
+      const parsed = new URL(href, window.location.origin);
+      const secureUrl = await getSecureRouteForPage(page, parsed.search);
       if (secureUrl) link.setAttribute("href", secureUrl);
     }
   };
@@ -718,7 +726,9 @@
     try {
       const page = getAdminPageNameFromHref(href);
       if (!page) return href;
-      const cached = secureRouteCache.get(page) || sessionStorage.getItem(`elecom_admin_secure_route_${page}`) || "";
+      const parsed = new URL(href, window.location.origin);
+      const cacheKey = `${page}${parsed.search || ""}`;
+      const cached = secureRouteCache.get(cacheKey) || sessionStorage.getItem(`elecom_admin_secure_route_${cacheKey}`) || secureRouteCache.get(page) || sessionStorage.getItem(`elecom_admin_secure_route_${page}`) || "";
       return cached || href;
     } catch (e) {
       return href;
@@ -728,7 +738,8 @@
     try {
       const page = getAdminPageNameFromHref(href);
       if (!page) return href;
-      return await getSecureRouteForPage(page) || href;
+      const parsed = new URL(href, window.location.origin);
+      return await getSecureRouteForPage(page, parsed.search) || href;
     } catch (e) {
       return href;
     }

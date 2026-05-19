@@ -429,7 +429,8 @@ document.addEventListener('DOMContentLoaded', function(){
     try {
       const params = new URLSearchParams(window.location.search);
       const url = new URL('/api/admin/results/', window.location.origin);
-      const electionId = params.get('election_id') || '';
+      const routeMatch = window.location.pathname.match(/\/elections\/(\d+)\/results\/?$/);
+      const electionId = params.get('election_id') || (routeMatch ? routeMatch[1] : '');
       if (electionId) url.searchParams.set('election_id', electionId);
       const res = await fetch(url.toString(), { credentials: 'same-origin', cache: 'no-store' });
       const data = await res.json();

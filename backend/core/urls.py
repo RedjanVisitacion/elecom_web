@@ -15,6 +15,9 @@ from .views import (
     admin_page_token_api,
     admin_secure_page_view,
     admin_verify_password_api,
+    edit_election_dates,
+    election_reports,
+    election_results,
     account_profile_api,
     account_app_rating_api,
     account_profile_photo_api,
@@ -71,6 +74,9 @@ def home_redirect(request):
 urlpatterns = [
     path('', home_redirect),
     path('g/<path:token>/', admin_secure_page_view, name='admin_secure_page_view'),
+    path("elections/<int:election_id>/edit-dates/", edit_election_dates, name="edit_election_dates"),
+    path("elections/<int:election_id>/results/", election_results, name="election_results"),
+    path("elections/<int:election_id>/reports/", election_reports, name="election_reports"),
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
