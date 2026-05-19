@@ -5812,7 +5812,12 @@ def admin_elections_api(request):
                                FROM votes vv
                                WHERE vv.election_id = w.id
                                   OR (vv.election_id IS NULL AND w.id <> %s)
-                           ) AS vote_count
+                           ) AS vote_count,
+                           (
+                               SELECT COUNT(*)
+                               FROM users uu
+                               WHERE COALESCE(uu.role, '') ILIKE 'student'
+                           ) AS voter_count
                     FROM vote_windows w
                     ORDER BY w.id DESC
                     """,
@@ -5855,6 +5860,7 @@ def admin_elections_api(request):
                     "is_active": eid == max_id,
                     "candidate_count": int(row.get("candidate_count") or 0),
                     "vote_count": int(row.get("vote_count") or 0),
+                    "voter_count": int(row.get("voter_count") or 0),
                 }
             )
         return JsonResponse({"ok": True, "active_election_id": max_id or None, "elections": elections})

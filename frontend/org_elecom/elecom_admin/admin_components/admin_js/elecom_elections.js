@@ -65,6 +65,14 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
+  function statusInfo(election) {
+    const raw = String(election.status || 'draft').toLowerCase();
+    if (election.is_active) return { className: 'active', label: 'Active' };
+    if (raw === 'upcoming') return { className: 'upcoming', label: 'Upcoming' };
+    if (raw === 'closed') return { className: 'closed', label: 'Closed' };
+    return { className: 'archived', label: 'Archived' };
+  }
+
   function setLoading(isLoading) {
     if (refreshBtn) refreshBtn.disabled = !!isLoading;
     if (createBtn) createBtn.disabled = !!isLoading;
@@ -103,7 +111,12 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function rowHtml(election) {
-    const status = String(election.status || 'draft').toLowerCase();
+    const rawStatus = String(election.status || 'draft').toLowerCase();
+    const primaryStatus = statusInfo(election);
+    const candidateCount = Number(election.candidate_count || 0);
+    const voteCount = Number(election.vote_count || 0);
+    const voterCount = Number(election.voter_count || 0);
+    const turnout = voterCount > 0 ? `${Math.round((voteCount / voterCount) * 100)}%` : '0%';
     const reportsUrl = `/static/org_elecom/elecom_admin/elecom_reports.html?election_id=${encodeURIComponent(election.id)}`;
     const resultsUrl = `/static/org_elecom/elecom_admin/elecom_results.html?election_id=${encodeURIComponent(election.id)}`;
     return `
@@ -111,15 +124,20 @@ document.addEventListener('DOMContentLoaded', function(){
         <div>
           <div class="election-title">
             <h3>${escapeHtml(election.name || `Election #${election.id}`)}</h3>
-            <span class="election-pill ${escapeHtml(status)}">${escapeHtml(status)}</span>
-            ${election.is_active ? '<span class="election-pill active">Current</span>' : ''}
+            <span class="election-pill ${escapeHtml(primaryStatus.className)}">${escapeHtml(primaryStatus.label)}</span>
+            ${rawStatus !== primaryStatus.className && rawStatus !== 'draft' ? `<span class="election-pill ${escapeHtml(rawStatus)}">${escapeHtml(rawStatus)}</span>` : ''}
           </div>
-          <div class="election-meta">
-            <span><i class="bi bi-calendar-week"></i> ${escapeHtml(election.school_year || 'No school year')}</span>
-            <span><i class="bi bi-play-circle"></i> ${escapeHtml(formatDateTime(election.start_at))}</span>
-            <span><i class="bi bi-stop-circle"></i> ${escapeHtml(formatDateTime(election.end_at))}</span>
-            <span><i class="bi bi-people"></i> ${Number(election.candidate_count || 0)} candidate(s)</span>
-            <span><i class="bi bi-check2-square"></i> ${Number(election.vote_count || 0)} vote(s)</span>
+          <div class="election-info-grid">
+            <span class="election-info"><i class="bi bi-calendar-week"></i>${escapeHtml(election.school_year || 'No school year')}</span>
+            <span class="election-info"><i class="bi bi-play-circle"></i>${escapeHtml(formatDateTime(election.start_at))}</span>
+            <span class="election-info"><i class="bi bi-stop-circle"></i>${escapeHtml(formatDateTime(election.end_at))}</span>
+            <span class="election-info"><i class="bi bi-flag"></i>${escapeHtml(formatDateTime(election.results_at))}</span>
+          </div>
+          <div class="election-stats">
+            <span class="election-stat"><i class="bi bi-people"></i> Candidates<strong>${candidateCount}</strong></span>
+            <span class="election-stat"><i class="bi bi-check2-square"></i> Votes Cast<strong>${voteCount}</strong></span>
+            <span class="election-stat"><i class="bi bi-percent"></i> Turnout<strong>${turnout}</strong></span>
+            <span class="election-stat"><i class="bi bi-activity"></i> Status<strong>${escapeHtml(primaryStatus.label)}</strong></span>
           </div>
         </div>
         <div class="election-actions">

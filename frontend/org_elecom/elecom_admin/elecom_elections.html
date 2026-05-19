@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260518-sidebar-fit">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_elections.css?v=20260518-edit-dates">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_elections.css?v=20260519-compact-admin">
 </head>
 <body class="theme-elecom election-management-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -64,37 +64,37 @@
             </div>
           </div>
           <input type="hidden" id="editingElectionId">
-          <div class="row g-3">
-            <div class="col-12">
+          <div class="election-fields">
+            <div class="field">
               <label class="form-label">Election Name</label>
               <input class="form-control" id="electionName" placeholder="ELECOM Election 2027" required>
             </div>
-            <div class="col-12">
+            <div class="field">
               <label class="form-label">School Year</label>
               <input class="form-control" id="schoolYear" placeholder="2026-2027">
             </div>
-            <div class="col-md-6">
+            <div class="field">
               <label class="form-label">Start Date & Time</label>
               <input type="datetime-local" class="form-control" id="electionStart" required>
             </div>
-            <div class="col-md-6">
+            <div class="field">
               <label class="form-label">End Date & Time</label>
               <input type="datetime-local" class="form-control" id="electionEnd" required>
             </div>
-            <div class="col-12">
+            <div class="field">
               <label class="form-label">Results Date & Time</label>
               <input type="datetime-local" class="form-control" id="electionResults">
             </div>
-            <div class="col-12">
-              <label class="form-label">Note</label>
-              <input class="form-control" id="electionNote" placeholder="General election">
-            </div>
-            <div class="col-12">
+            <div class="field">
               <label class="form-label">Admin Password</label>
               <input type="password" class="form-control" id="electionPassword" required>
             </div>
+            <div class="field field-wide">
+              <label class="form-label">Note</label>
+              <input class="form-control" id="electionNote" placeholder="General election">
+            </div>
           </div>
-          <div class="election-form-actions mt-3">
+          <div class="election-form-actions">
             <button class="btn btn-outline-secondary d-none" type="button" id="cancelEditElectionBtn">
               <i class="bi bi-x-circle"></i> Cancel Edit
             </button>
@@ -121,6 +121,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260519-sidebar-normalize"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_elections.js?v=20260518-edit-dates"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_elections.js?v=20260519-compact-admin"></script>
 </body>
 </html>
