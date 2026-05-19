@@ -53,6 +53,21 @@
     }
   };
 
+  const normalizeAdminSidebar = () => {
+    document.querySelectorAll(".sidebar .nav-link").forEach((link) => {
+      const label = link.querySelector("span");
+      const text = (label ? label.textContent : link.textContent || "").trim();
+      const page = getAdminPageNameFromHref(link.getAttribute("href") || "");
+
+      if (text === "Set Election Dates" || page === "elecom_election_date.html") {
+        if (label) label.textContent = "Election Management";
+        link.setAttribute("href", "/static/org_elecom/elecom_admin/elecom_elections.html");
+        const icon = link.querySelector("i");
+        if (icon) icon.className = "bi bi-calendar2-range";
+      }
+    });
+  };
+
   const applyAdminHashToUrl = (href, token) => {
     try {
       const url = new URL(href, window.location.origin);
@@ -90,6 +105,7 @@
   };
 
   const rewriteAdminLinks = async () => {
+    normalizeAdminSidebar();
     const links = Array.from(document.querySelectorAll('a[href]'));
     for (const link of links) {
       const href = link.getAttribute("href") || "";
@@ -511,6 +527,7 @@
     if (!mount) return;
 
     ensureAdminPageHash();
+    normalizeAdminSidebar();
 
     mount.innerHTML = buildMarkup();
 

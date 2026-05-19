@@ -1040,7 +1040,7 @@ document.addEventListener('DOMContentLoaded', function() {
         const status = election && election.status ? String(election.status) : 'No schedule';
 
         if (status === 'No schedule') {
-            electionHelperText.textContent = 'Set the election schedule in Set Election Dates.';
+            electionHelperText.textContent = 'Set the election schedule in Election Management.';
             return;
         }
 
