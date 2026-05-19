@@ -125,6 +125,25 @@ _ADMIN_PAGE_ALLOWLIST = {
 }
 
 
+def _normalize_admin_page_name(page: str) -> str:
+    page = str(page or "admin_dashboard.html").strip()
+    if page == "elecom_election_date.html":
+        return "elecom_elections.html"
+    if page not in _ADMIN_PAGE_ALLOWLIST:
+        return "admin_dashboard.html"
+    return page
+
+
+def _normalize_admin_html(html: str) -> str:
+    return (
+        html.replace("Set Election Dates", "Election Management")
+        .replace(
+            "/static/org_elecom/elecom_admin/elecom_election_date.html",
+            "/static/org_elecom/elecom_admin/elecom_elections.html",
+        )
+    )
+
+
 def _facepp_configured() -> bool:
     return bool((getattr(settings, "FACEPP_API_KEY", None) or "").strip()) and bool(
         (getattr(settings, "FACEPP_API_SECRET", None) or "").strip()
@@ -3120,9 +3139,7 @@ def admin_page_token_api(request):
         salt=_ADMIN_PAGE_TOKEN_SALT,
         compress=True,
     )
-    page = str(request.GET.get("page") or "admin_dashboard.html").strip()
-    if page not in _ADMIN_PAGE_ALLOWLIST:
-        page = "admin_dashboard.html"
+    page = _normalize_admin_page_name(request.GET.get("page") or "admin_dashboard.html")
 
     route_token = signing.dumps(
         {
@@ -3171,16 +3188,14 @@ def admin_secure_page_view(request, token):
             status=403,
         )
 
-    page = str(data.get("page") or "admin_dashboard.html").strip()
-    if page not in _ADMIN_PAGE_ALLOWLIST:
-        page = "admin_dashboard.html"
+    page = _normalize_admin_page_name(data.get("page") or "admin_dashboard.html")
 
     root = Path(settings.BASE_DIR).parent / "frontend" / "org_elecom" / "elecom_admin"
     page_path = (root / page).resolve()
     if root.resolve() not in page_path.parents or not page_path.exists():
         return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
 
-    html = page_path.read_text(encoding="utf-8")
+    html = _normalize_admin_html(page_path.read_text(encoding="utf-8"))
     return HttpResponse(html, content_type="text/html")
 
 
