@@ -37,11 +37,21 @@ if _env_path.exists():
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/4.2/howto/deployment/checklist/
 
+def _env_bool(name, default=False):
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = 'django-insecure-##nwy=7uoi&ekzp+tvn3ykl9+tr(o9@gpydbd(#*(2n1%1gox+'
+SECRET_KEY = os.getenv(
+    "DJANGO_SECRET_KEY",
+    'django-insecure-##nwy=7uoi&ekzp+tvn3ykl9+tr(o9@gpydbd(#*(2n1%1gox+',
+)
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = _env_bool("DJANGO_DEBUG", True)
 
 ALLOWED_HOSTS = [
     '192.168.2.7',
@@ -59,6 +69,11 @@ ALLOWED_HOSTS = [
     'el3com.duckdns.org',
     'localhost',
 ]
+ALLOWED_HOSTS.extend(
+    host.strip()
+    for host in os.getenv("DJANGO_ALLOWED_HOSTS", "").split(",")
+    if host.strip()
+)
 
 
 # Application definition
@@ -174,11 +189,6 @@ STATICFILES_DIRS = [
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
-# This tells Django where to look for your CSS and Images
-STATICFILES_DIRS = [
-    BASE_DIR.parent / "frontend", 
-]
 
 CLOUDINARY_CLOUD_NAME = os.getenv("CLOUDINARY_CLOUD_NAME", "")
 CLOUDINARY_API_KEY = os.getenv("CLOUDINARY_API_KEY", "")
