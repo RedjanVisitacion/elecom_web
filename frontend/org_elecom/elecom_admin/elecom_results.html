@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260518-sidebar-fit">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_results.css?v=20260517-reps-parent">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_results.css?v=20260519-election-selector">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
 <body class="theme-elecom">
@@ -62,8 +62,16 @@
     <div class="content-area">
       <div class="results-page-wrap">
         <div class="results-title-block">
-          <h2>Election Results</h2>
-          <p>Real-time tally from ELECOM database</p>
+          <div>
+            <h2>Election Results</h2>
+            <p id="resultsSubtitle">Real-time tally from ELECOM database</p>
+          </div>
+          <div class="result-election-picker">
+            <label for="resultElectionSelect">Preview election year</label>
+            <select class="form-select" id="resultElectionSelect">
+              <option value="">Current election</option>
+            </select>
+          </div>
         </div>
 
         <div class="row g-3 mb-4">
@@ -117,6 +125,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260519-election-action-routes"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_results.js?v=20260519-election-action-routes"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_results.js?v=20260519-no-result-reload"></script>
 </body>
 </html>

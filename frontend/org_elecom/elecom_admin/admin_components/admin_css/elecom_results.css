@@ -4,6 +4,10 @@
 }
 
 .results-title-block{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:18px;
   margin-bottom:22px;
 }
 
@@ -17,6 +21,26 @@
   margin:6px 0 0;
   color:#6b7280;
   font-weight:700;
+}
+
+.result-election-picker{
+  min-width:280px;
+}
+
+.result-election-picker label{
+  display:block;
+  color:#4b5563;
+  font-size:.82rem;
+  font-weight:900;
+  margin-bottom:6px;
+}
+
+.result-election-picker .form-select{
+  min-height:42px;
+  border-radius:10px;
+  border-color:#d7dbe2;
+  font-weight:800;
+  color:#111827;
 }
 
 .results-panel{
@@ -414,6 +438,15 @@
 }
 
 @media (max-width: 900px){
+  .results-title-block{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .result-election-picker{
+    min-width:0;
+  }
+
   .analytics-grid,
   .org-legend-grid{
     grid-template-columns:1fr;

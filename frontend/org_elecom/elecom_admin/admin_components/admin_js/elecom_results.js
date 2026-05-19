@@ -27,6 +27,8 @@ document.addEventListener('DOMContentLoaded', function(){
   const orgFilterTabs = document.getElementById('orgFilterTabs');
   const orgLegendGrid = document.getElementById('orgLegendGrid');
   const totalVotesCenter = document.getElementById('totalVotesCenter');
+  const resultElectionSelect = document.getElementById('resultElectionSelect');
+  const resultsSubtitle = document.getElementById('resultsSubtitle');
 
   const ORG_ORDER = ['USG', 'SITE', 'PAFE', 'AFPRO'];
   const ORG_COLORS = {
@@ -65,6 +67,17 @@ document.addEventListener('DOMContentLoaded', function(){
   const collapsedOrgs = new Set();
   let orgPieChart = null;
   let posBarChart = null;
+
+  function routeElectionId() {
+    const params = new URLSearchParams(window.location.search);
+    const routeMatch = window.location.pathname.match(/\/elections\/(\d+)\/results\/?$/);
+    return params.get('election_id') || (routeMatch ? routeMatch[1] : '');
+  }
+
+  function electionLabel(election) {
+    const name = election.name || `Election #${election.id}`;
+    return `${name}${election.school_year ? ` (${election.school_year})` : ''}`;
+  }
 
   function esc(value){
     return String(value ?? '')
@@ -425,13 +438,29 @@ document.addEventListener('DOMContentLoaded', function(){
     `).join('');
   }
 
+  async function loadElectionChoices(selectedId) {
+    if (!resultElectionSelect) return;
+    try {
+      const res = await fetch('/api/admin/elections/', { credentials: 'same-origin', cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return;
+      const elections = data.elections || [];
+      resultElectionSelect.innerHTML = elections.map((election) => {
+        const id = String(election.id || '');
+        const status = election.is_active ? 'Active' : (election.status || 'Archived');
+        return `<option value="${esc(id)}" ${id === String(selectedId || '') ? 'selected' : ''}>${esc(electionLabel(election))} - ${esc(status)}</option>`;
+      }).join('') || '<option value="">No elections found</option>';
+    } catch (e) {
+      // keep the default option
+    }
+  }
+
   async function loadResults(){
     try {
-      const params = new URLSearchParams(window.location.search);
       const url = new URL('/api/admin/results/', window.location.origin);
-      const routeMatch = window.location.pathname.match(/\/elections\/(\d+)\/results\/?$/);
-      const electionId = params.get('election_id') || (routeMatch ? routeMatch[1] : '');
+      const electionId = routeElectionId();
       if (electionId) url.searchParams.set('election_id', electionId);
+      await loadElectionChoices(electionId);
       const res = await fetch(url.toString(), { credentials: 'same-origin', cache: 'no-store' });
       const data = await res.json();
       if (!data || !data.ok) {
@@ -440,6 +469,11 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       normalizedOrgs = toOrgFirst(data.grouped || []);
+      if (resultsSubtitle) {
+        resultsSubtitle.textContent = electionId
+          ? `Previewing archived election #${electionId}`
+          : 'Real-time tally from ELECOM database';
+      }
       renderCharts(normalizedOrgs);
       renderAnalytics(normalizedOrgs);
       renderResults();
@@ -453,6 +487,23 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!btn) return;
     activeOrg = btn.dataset.orgFilter || 'ALL';
     renderResults();
+  });
+
+  resultElectionSelect?.addEventListener('change', () => {
+    const electionId = resultElectionSelect.value || '';
+    const nextPath = electionId
+      ? `/elections/${encodeURIComponent(electionId)}/results/`
+      : '/static/org_elecom/elecom_admin/elecom_results.html';
+    window.history.pushState({ electionId }, '', nextPath);
+    activeOrg = 'ALL';
+    collapsedOrgs.clear();
+    loadResults();
+  });
+
+  window.addEventListener('popstate', () => {
+    activeOrg = 'ALL';
+    collapsedOrgs.clear();
+    loadResults();
   });
 
   resultsContainer?.addEventListener('click', (event) => {

@@ -5104,28 +5104,70 @@ def admin_results_api(request):
 @require_http_methods(["GET"])
 def user_results_api(request):
     """Public results API for students - only returns data if results are published."""
+    _ensure_election_scoped_tables()
+
+    def published_dt(value):
+        if not value:
+            return None
+        if timezone.is_naive(value):
+            return timezone.make_aware(value, timezone.get_current_timezone())
+        return value.astimezone(timezone.get_current_timezone())
+
+    if str(request.GET.get("elections") or "").strip() == "1":
+        now = timezone.now()
+        try:
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, election_name, school_year, results_at, status
+                    FROM vote_windows
+                    ORDER BY id DESC
+                    """
+                )
+                rows = cur.fetchall()
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Failed to load elections."}, status=500)
+
+        elections = []
+        for eid, name, school_year, results_at, status in rows:
+            result_dt = published_dt(results_at)
+            if not result_dt or now < result_dt:
+                continue
+            elections.append(
+                {
+                    "id": int(eid),
+                    "name": name or (f"ELECOM Election {school_year}" if school_year else f"Election #{eid}"),
+                    "school_year": school_year or "",
+                    "results_at": result_dt.isoformat(),
+                    "status": status or "",
+                }
+            )
+        return JsonResponse({"ok": True, "elections": elections})
+
+    requested_election_id = _parse_election_id_from_request(
+        request,
+        {"election_id": request.GET.get("election_id")},
+    )
+
     # Check if results should be available (results_at date has passed)
     try:
         with connection.cursor() as cur:
-            cur.execute(
-                "SELECT results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
-            )
+            if requested_election_id is not None:
+                cur.execute(
+                    "SELECT id, results_at FROM vote_windows WHERE id = %s LIMIT 1",
+                    [requested_election_id],
+                )
+            else:
+                cur.execute("SELECT id, results_at FROM vote_windows ORDER BY id DESC LIMIT 1")
             row = cur.fetchone()
         
-        if not row or not row[0]:
+        if not row or not row[1]:
             return JsonResponse(
                 {"ok": True, "published": False, "message": "Results not yet scheduled."}
             )
         
-        results_at = row[0]
-
-        if timezone.is_naive(results_at):
-            results_at = timezone.make_aware(
-                results_at,
-                timezone.get_current_timezone(),
-            )
-        else:
-            results_at = results_at.astimezone(timezone.get_current_timezone())
+        selected_election_id = int(row[0] or 0) or requested_election_id
+        results_at = published_dt(row[1])
 
         now = timezone.now()
         if now < results_at:
@@ -5138,11 +5180,12 @@ def user_results_api(request):
                 }
             )
     except Exception:
+        selected_election_id = requested_election_id
         pass  # If we can't check, proceed to return results anyway
 
     _ensure_votes_tables()
-    election_where, election_params = _current_election_filter("c")
-    vote_filter, vote_params = _current_vote_filter("v")
+    election_where, election_params = _current_election_filter("c", selected_election_id)
+    vote_filter, vote_params = _current_vote_filter("v", selected_election_id)
     vote_where = f"WHERE {vote_filter}"
 
     # Return the same data structure as admin_results_api
@@ -5185,7 +5228,14 @@ def user_results_api(request):
 
     if not candidates:
         return JsonResponse(
-            {"ok": True, "published": True, "org_totals": {}, "position_totals": {}, "grouped": []}
+            {
+                "ok": True,
+                "published": True,
+                "election_id": selected_election_id or _active_election_id(),
+                "org_totals": {},
+                "position_totals": {},
+                "grouped": [],
+            }
         )
 
     usg_order = [
@@ -5298,6 +5348,7 @@ def user_results_api(request):
         {
             "ok": True,
             "published": True,
+            "election_id": selected_election_id or _active_election_id(),
             "org_totals": org_totals,
             "position_totals": position_totals,
             "grouped": grouped_out,

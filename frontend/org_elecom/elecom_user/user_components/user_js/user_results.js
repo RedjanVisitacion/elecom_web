@@ -4,6 +4,8 @@
 
     const API_RESULTS = '/api/results/';
     const API_ELECTION_WINDOW = '/api/election/window/';
+    const pageParams = new URLSearchParams(window.location.search);
+    let selectedElectionId = pageParams.get('election_id') || '';
 
     // DOM Elements
     const elements = {
@@ -21,7 +23,9 @@
         cdDays: document.getElementById('cd_days'),
         cdHours: document.getElementById('cd_hours'),
         cdMins: document.getElementById('cd_mins'),
-        cdSecs: document.getElementById('cd_secs')
+        cdSecs: document.getElementById('cd_secs'),
+        electionSelect: document.getElementById('userResultElectionSelect'),
+        electionHint: document.getElementById('userResultElectionHint')
     };
 
     let countdownInterval = null;
@@ -44,6 +48,11 @@
     };
 
     const checkResultsAvailability = async () => {
+        if (selectedElectionId) {
+            await loadResults();
+            return;
+        }
+
         try {
             const res = await fetch(API_ELECTION_WINDOW, { method: 'GET', cache: 'no-store' });
             const data = await res.json();
@@ -150,7 +159,9 @@
 
     const loadResults = async () => {
         try {
-            const res = await fetch(API_RESULTS, { method: 'GET', cache: 'no-store' });
+            const url = new URL(API_RESULTS, window.location.origin);
+            if (selectedElectionId) url.searchParams.set('election_id', selectedElectionId);
+            const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
             const data = await res.json();
 
             if (!res.ok || !data || !data.ok) {
@@ -160,7 +171,7 @@
 
             // Check if results are published
             if (!data.published) {
-                // Keep showing countdown - results not yet available
+                showLockedState(data.results_at ? new Date(data.results_at) : null);
                 return;
             }
 
@@ -180,6 +191,38 @@
         } catch (e) {
             console.error('Failed to load results:', e);
             showError('Failed to load results. Please try again later.');
+        }
+    };
+
+    const loadElectionChoices = async () => {
+        if (!elements.electionSelect) return;
+        try {
+            const url = new URL(API_RESULTS, window.location.origin);
+            url.searchParams.set('elections', '1');
+            const res = await fetch(url.toString(), { method: 'GET', cache: 'no-store' });
+            const data = await res.json();
+            if (!res.ok || !data.ok) throw new Error('failed');
+
+            const elections = data.elections || [];
+            if (!elections.length) {
+                elements.electionSelect.innerHTML = '<option value="">No published results yet</option>';
+                elements.electionSelect.disabled = true;
+                return;
+            }
+
+            if (!selectedElectionId) {
+                selectedElectionId = String(elections[0].id || '');
+            }
+
+            elements.electionSelect.innerHTML = elections.map((election) => {
+                const id = String(election.id || '');
+                const label = `${election.name || `Election #${id}`}${election.school_year ? ` (${election.school_year})` : ''}`;
+                return `<option value="${id}" ${id === String(selectedElectionId) ? 'selected' : ''}>${label}</option>`;
+            }).join('');
+            elements.electionSelect.disabled = false;
+        } catch (e) {
+            elements.electionSelect.innerHTML = '<option value="">Unable to load election years</option>';
+            elements.electionSelect.disabled = true;
         }
     };
 
@@ -492,8 +535,28 @@
     };
 
     const init = async () => {
+        await loadElectionChoices();
         await checkResultsAvailability();
     };
+
+    elements.electionSelect?.addEventListener('change', () => {
+        const electionId = elements.electionSelect.value || '';
+        const url = new URL(window.location.href);
+        if (electionId) url.searchParams.set('election_id', electionId);
+        else url.searchParams.delete('election_id');
+        selectedElectionId = electionId;
+        window.history.pushState({ electionId }, '', url.toString());
+        loadResults();
+    });
+
+    window.addEventListener('popstate', () => {
+        const params = new URLSearchParams(window.location.search);
+        selectedElectionId = params.get('election_id') || '';
+        if (elements.electionSelect) {
+            elements.electionSelect.value = selectedElectionId;
+        }
+        checkResultsAvailability();
+    });
 
     // Initialize when DOM is ready
     if (document.readyState === 'loading') {
