@@ -8,7 +8,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260519-reset-password-modal">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css?v=20260519-election-scope">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css?v=20260519-pdf-canvas-source">
 </head>
 <body class="theme-elecom reports-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -93,40 +93,50 @@
           </div>
           <div class="report-format-section">
             <div class="mb-2 fw-semibold">Select Report Format</div>
-            <div class="row g-3">
-              <div class="col-12 col-md-6">
-                <button type="button" id="fmt_text" data-format="text" class="w-100 text-start format-card">
-                  <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center format-icon text"><i class="bi bi-file-text fs-4 text-primary"></i></div>
-                    <div>
-                      <div class="fw-semibold">Text Format</div>
-                      <div class="text-muted small">Human-readable report as .txt</div>
-                    </div>
+            <div class="report-format-grid">
+              <button type="button" id="fmt_text" data-format="text" data-format-label="Text" class="text-start format-card">
+                <span class="format-check"><i class="bi bi-check-lg"></i></span>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-circle d-flex align-items-center justify-content-center format-icon text"><i class="bi bi-file-text fs-4 text-primary"></i></div>
+                  <div>
+                    <div class="fw-semibold">Text Format</div>
+                    <div class="text-muted small">Human-readable report as .txt</div>
                   </div>
-                </button>
-              </div>
-              <div class="col-12 col-md-6">
-                <button type="button" id="fmt_pdf" data-format="pdf" class="w-100 text-start format-card active">
-                  <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center format-icon pdf"><i class="bi bi-filetype-pdf fs-4 text-primary"></i></div>
-                    <div>
-                      <div class="fw-semibold">PDF Format</div>
-                      <div class="text-muted small">Printable document with layout</div>
-                    </div>
+                </div>
+              </button>
+              <button type="button" id="fmt_pdf" data-format="pdf" data-format-label="PDF" class="text-start format-card active">
+                <span class="format-check"><i class="bi bi-check-lg"></i></span>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-circle d-flex align-items-center justify-content-center format-icon pdf"><i class="bi bi-filetype-pdf fs-4 text-primary"></i></div>
+                  <div>
+                    <div class="fw-semibold">PDF Format</div>
+                    <div class="text-muted small">Printable document with layout</div>
                   </div>
-                </button>
-              </div>
-              <div class="col-12 col-md-6">
-                <button type="button" id="fmt_csv" data-format="csv" class="w-100 text-start format-card">
-                  <div class="d-flex align-items-center gap-3">
-                    <div class="rounded-circle d-flex align-items-center justify-content-center format-icon csv"><i class="bi bi-filetype-csv fs-4 text-success"></i></div>
-                    <div>
-                      <div class="fw-semibold">CSV Format</div>
-                      <div class="text-muted small">Summary as .csv</div>
-                    </div>
+                </div>
+              </button>
+              <button type="button" id="fmt_csv" data-format="csv" data-format-label="CSV" class="text-start format-card">
+                <span class="format-check"><i class="bi bi-check-lg"></i></span>
+                <div class="d-flex align-items-center gap-3">
+                  <div class="rounded-circle d-flex align-items-center justify-content-center format-icon csv"><i class="bi bi-filetype-csv fs-4 text-success"></i></div>
+                  <div>
+                    <div class="fw-semibold">CSV Format</div>
+                    <div class="text-muted small">Summary as .csv</div>
                   </div>
-                </button>
-              </div>
+                </div>
+              </button>
+            </div>
+          </div>
+          <div class="report-summary-panel" id="reportSummaryPanel">
+            <div class="report-summary-heading">
+              <i class="bi bi-clipboard-data"></i>
+              <span>Report Summary</span>
+            </div>
+            <div class="report-summary-metrics">
+              <div><span>Selected Election</span><strong id="summaryElection">All elections</strong></div>
+              <div><span>Date Coverage</span><strong id="summaryDates">All time</strong></div>
+              <div><span>Export Format</span><strong id="summaryFormat">PDF</strong></div>
+              <div><span>Estimated Records</span><strong id="summaryRecords">Ready</strong></div>
+              <div><span>Election Status</span><strong id="summaryStatus">All records</strong></div>
             </div>
           </div>
           <div class="report-action-row">
@@ -173,6 +183,6 @@
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260519-reset-password-modal"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20260519-election-scope"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20260519-pdf-canvas-source"></script>
 </body>
 </html>

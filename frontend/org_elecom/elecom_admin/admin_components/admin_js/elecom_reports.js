@@ -29,18 +29,29 @@ document.addEventListener('DOMContentLoaded', function(){
   const fmtCards = Array.from(document.querySelectorAll('.format-card'));
   const previewCard = document.getElementById('reportPreviewCard');
   const previewEl = document.getElementById('reportPreview');
+  const summaryElection = document.getElementById('summaryElection');
+  const summaryDates = document.getElementById('summaryDates');
+  const summaryFormat = document.getElementById('summaryFormat');
+  const summaryRecords = document.getElementById('summaryRecords');
+  const summaryStatus = document.getElementById('summaryStatus');
   const pageParams = new URLSearchParams(window.location.search);
   const routeElectionMatch = window.location.pathname.match(/\/elections\/(\d+)\/reports\/?$/);
   const pageScope = (pageParams.get('scope') || '').toLowerCase();
   let selectedElectionId = pageScope === 'all' ? '' : (pageParams.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : ''));
   let loadedElections = [];
   let selectedFormat = 'pdf';
+  let estimateTimer = null;
 
   fmtCards.forEach(btn => {
     btn.addEventListener('click', () => {
-      fmtCards.forEach(b => b.classList.remove('active'));
+      fmtCards.forEach(b => {
+        b.classList.remove('active');
+        b.setAttribute('aria-pressed', 'false');
+      });
       btn.classList.add('active');
+      btn.setAttribute('aria-pressed', 'true');
       selectedFormat = btn.getAttribute('data-format') || 'pdf';
+      updateSummaryPanel();
     });
   });
 
@@ -66,6 +77,81 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!selectedElectionId) return 'All elections';
     const selectedOption = reportElectionSelect?.selectedOptions?.[0];
     return selectedOption ? selectedOption.textContent.trim() : `Election #${selectedElectionId}`;
+  }
+
+  function selectedFormatLabel(){
+    const active = fmtCards.find(card => card.classList.contains('active'));
+    return active?.dataset?.formatLabel || selectedFormat.toUpperCase();
+  }
+
+  function dateCoverageLabel(){
+    const s = startEl.value || '';
+    const e = endEl.value || '';
+    if (s && e) return `${formatDate(s)} - ${formatDate(e)}`;
+    if (s) return `From ${formatDate(s)}`;
+    if (e) return `Until ${formatDate(e)}`;
+    return 'All time';
+  }
+
+  function selectedElectionStatus(){
+    if (!selectedElectionId) return 'All records';
+    const selected = selectedElectionWindow();
+    if (!selected) return 'Selected year';
+    if (selected.is_active) return 'Active';
+    return selected.status || 'Archived';
+  }
+
+  function setText(el, value){
+    if (el) el.textContent = value;
+  }
+
+  function updateSummaryPanel(data){
+    setText(summaryElection, reportScopeLabel());
+    setText(summaryDates, dateCoverageLabel());
+    setText(summaryFormat, selectedFormatLabel());
+    setText(summaryStatus, selectedElectionStatus());
+    if (data && data.totals) {
+      const votes = Number(data.totals.total_votes || 0);
+      const candidates = Number(data.totals.total_candidates || 0);
+      setText(summaryRecords, `${votes} votes / ${candidates} candidates`);
+    } else if (summaryRecords && !summaryRecords.textContent) {
+      setText(summaryRecords, 'Ready');
+    }
+  }
+
+  function buildSummaryUrl(){
+    const s = startEl.value || '';
+    const e = endEl.value || '';
+    const url = new URL('/api/admin/reports/summary/', window.location.origin);
+    if (s) url.searchParams.set('start', s);
+    if (e) url.searchParams.set('end', e);
+    if (selectedElectionId) {
+      url.searchParams.set('election_id', selectedElectionId);
+    } else {
+      url.searchParams.set('scope', 'all');
+    }
+    return url;
+  }
+
+  function scheduleSummaryEstimate(){
+    updateSummaryPanel();
+    if (!summaryRecords || !startEl || !endEl) return;
+    if (estimateTimer) window.clearTimeout(estimateTimer);
+    if (startEl.value && endEl.value && endEl.value < startEl.value) {
+      setText(summaryRecords, 'Check dates');
+      return;
+    }
+    setText(summaryRecords, 'Checking...');
+    estimateTimer = window.setTimeout(async () => {
+      try {
+        const res = await fetch(buildSummaryUrl().toString(), { credentials: 'same-origin' });
+        const data = await res.json().catch(() => ({}));
+        if (res.ok && data.ok) updateSummaryPanel(data);
+        else setText(summaryRecords, 'Ready');
+      } catch (e) {
+        setText(summaryRecords, 'Ready');
+      }
+    }, 350);
   }
 
   function pct(value, total){
@@ -95,11 +181,18 @@ document.addEventListener('DOMContentLoaded', function(){
       startEl.value='';
       endEl.value='';
       validateDates();
+      scheduleSummaryEstimate();
     });
   }
 
-  startEl.addEventListener('change', validateDates);
-  endEl.addEventListener('change', validateDates);
+  startEl.addEventListener('change', () => {
+    validateDates();
+    scheduleSummaryEstimate();
+  });
+  endEl.addEventListener('change', () => {
+    validateDates();
+    scheduleSummaryEstimate();
+  });
 
   async function loadElectionWindow(){
     try {
@@ -159,6 +252,7 @@ document.addEventListener('DOMContentLoaded', function(){
       if (defaultStart) startEl.value = defaultStart;
       if (defaultEnd) endEl.value = defaultEnd;
       validateDates();
+      scheduleSummaryEstimate();
     };
     return true;
   }
@@ -185,6 +279,7 @@ document.addEventListener('DOMContentLoaded', function(){
     }
     window.history.pushState({ electionId: selectedElectionId }, '', url.toString());
     configureElectionDateButton();
+    scheduleSummaryEstimate();
     if (previewCard && !previewCard.classList.contains('d-none')) {
       refreshPreview();
     }
@@ -196,6 +291,7 @@ document.addEventListener('DOMContentLoaded', function(){
     selectedElectionId = scope === 'all' ? '' : (params.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : ''));
     if (reportElectionSelect) reportElectionSelect.value = selectedElectionId;
     configureElectionDateButton();
+    scheduleSummaryEstimate();
     if (previewCard && !previewCard.classList.contains('d-none')) {
       refreshPreview();
     }
@@ -204,6 +300,8 @@ document.addEventListener('DOMContentLoaded', function(){
   (async ()=>{
     await loadElectionChoices();
     await configureElectionDateButton();
+    fmtCards.forEach(card => card.setAttribute('aria-pressed', card.classList.contains('active') ? 'true' : 'false'));
+    scheduleSummaryEstimate();
   })();
 
   function candidateName(c){
@@ -435,18 +533,110 @@ document.addEventListener('DOMContentLoaded', function(){
     return rows.map(r => r.map(esc).join(',')).join('\n');
   }
 
-  async function getSummary(){
-    const s = startEl.value || '';
-    const e = endEl.value || '';
-    if (!validateDates()) throw new Error('invalid_date');
-    const url = new URL('/api/admin/reports/summary/', window.location.origin);
-    if (s) url.searchParams.set('start', s);
-    if (e) url.searchParams.set('end', e);
-    if (selectedElectionId) {
-      url.searchParams.set('election_id', selectedElectionId);
-    } else {
-      url.searchParams.set('scope', 'all');
+  function blobToDataUrl(blob){
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function inlineReportImages(reportNode){
+    const images = Array.from(reportNode.querySelectorAll('img'));
+    await Promise.all(images.map(async (img) => {
+      try {
+        const src = img.getAttribute('src') || '';
+        if (!src || src.startsWith('data:')) return;
+        const absoluteUrl = new URL(src, window.location.origin).toString();
+        const res = await fetch(absoluteUrl, { credentials: 'same-origin', cache: 'force-cache' });
+        if (!res.ok) return;
+        img.src = await blobToDataUrl(await res.blob());
+      } catch (e) {
+        // Keep the original source if inlining fails.
+      }
+    }));
+    await Promise.all(images.map((img) => {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise(resolve => {
+        img.onload = resolve;
+        img.onerror = resolve;
+      });
+    }));
+  }
+
+  function trimCanvasTop(canvas){
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    if (!ctx) return canvas;
+    const { width, height } = canvas;
+    const data = ctx.getImageData(0, 0, width, height).data;
+    let firstContentRow = 0;
+    outer:
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = (y * width + x) * 4;
+        const alpha = data[i + 3];
+        const isWhite = data[i] > 248 && data[i + 1] > 248 && data[i + 2] > 248;
+        if (alpha > 12 && !isWhite) {
+          firstContentRow = Math.max(0, y - 8);
+          break outer;
+        }
+      }
     }
+    if (firstContentRow <= 0) return canvas;
+    const trimmed = document.createElement('canvas');
+    trimmed.width = width;
+    trimmed.height = height - firstContentRow;
+    const trimmedCtx = trimmed.getContext('2d');
+    trimmedCtx.fillStyle = '#ffffff';
+    trimmedCtx.fillRect(0, 0, trimmed.width, trimmed.height);
+    trimmedCtx.drawImage(canvas, 0, firstContentRow, width, trimmed.height, 0, 0, width, trimmed.height);
+    return trimmed;
+  }
+
+  async function saveCanvasAsPdf(canvas, filename){
+    await html2pdf().set({
+      margin: [8, 8, 8, 8],
+      filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      pagebreak: { mode: ['css', 'legacy'] },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(canvas, 'canvas').save();
+  }
+
+  async function exportPdfReport(data, stamp){
+    previewEl.innerHTML = buildReportHTML(data);
+    previewCard.classList.remove('d-none');
+    const reportNode = previewEl.querySelector('.official-report');
+    if (!reportNode) throw new Error('missing_report_preview');
+
+    const originalScrollX = window.scrollX;
+    const originalScrollY = window.scrollY;
+    reportNode.classList.add('pdf-rendering');
+    reportNode.scrollIntoView({ block: 'start', inline: 'nearest' });
+    await inlineReportImages(reportNode);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+    try {
+      const canvas = await html2pdf().from(reportNode).set({
+        html2canvas: {
+          scale: 2,
+          useCORS: true,
+          backgroundColor: '#ffffff',
+          windowWidth: Math.max(document.documentElement.clientWidth, reportNode.scrollWidth),
+          windowHeight: Math.max(document.documentElement.clientHeight, reportNode.scrollHeight),
+        },
+      }).toCanvas().get('canvas');
+      await saveCanvasAsPdf(trimCanvasTop(canvas), 'election_report_' + stamp + '.pdf');
+    } finally {
+      reportNode.classList.remove('pdf-rendering');
+      window.scrollTo(originalScrollX, originalScrollY);
+    }
+  }
+
+  async function getSummary(){
+    if (!validateDates()) throw new Error('invalid_date');
+    const url = buildSummaryUrl();
     const res = await fetch(url.toString(), { credentials: 'same-origin' });
     return await res.json();
   }
@@ -455,6 +645,7 @@ document.addEventListener('DOMContentLoaded', function(){
     fmtCards.forEach(btn => { btn.disabled = isLoading; });
     startEl.disabled = isLoading;
     endEl.disabled = isLoading;
+    if (reportElectionSelect) reportElectionSelect.disabled = isLoading;
     const genBtn = document.getElementById('genReportBtn');
     const prevBtn = document.getElementById('previewBtn');
     genBtn.disabled = isLoading;
@@ -476,6 +667,7 @@ document.addEventListener('DOMContentLoaded', function(){
         showAlert((data && data.error) ? data.error : 'Failed to load report summary.');
         return null;
       }
+      updateSummaryPanel(data);
       previewEl.innerHTML = buildReportHTML(data);
       previewCard.classList.remove('d-none');
       return data;
@@ -492,14 +684,7 @@ document.addEventListener('DOMContentLoaded', function(){
       if (!data) return;
       const stamp = new Date().toISOString().replace(/:/g,'-').slice(0,19);
       if (selectedFormat === 'pdf'){
-        const opt = {
-          margin: 8,
-          filename: 'election_report_' + stamp + '.pdf',
-          image: { type: 'jpeg', quality: 0.98 },
-          html2canvas: { scale: 2 },
-          jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-        };
-        await html2pdf().from(previewEl).set(opt).save();
+        await exportPdfReport(data, stamp);
       } else if (selectedFormat === 'csv') {
         const blob = new Blob([buildReportCSV(data)], {type:'text/csv'});
         const a = document.createElement('a');
