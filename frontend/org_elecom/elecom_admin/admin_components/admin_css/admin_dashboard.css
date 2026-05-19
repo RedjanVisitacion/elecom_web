@@ -914,6 +914,131 @@ body {
   align-items: center;
 }
 
+.top-navbar .admin-hidden-notif-action {
+  width: 30px;
+  height: 38px;
+  border: 0;
+  padding: 0;
+  margin-right: 2px;
+  background: transparent;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.top-navbar .admin-hidden-notif-action:focus-visible {
+  opacity: 1;
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+  border-radius: 8px;
+}
+
+.admin-password-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+.admin-password-modal-backdrop[hidden] {
+  display: none;
+}
+
+.admin-password-modal {
+  width: min(500px, 100%);
+  overflow: hidden;
+  border-radius: 10px;
+  background: #ffffff;
+  box-shadow: 0 22px 60px rgba(0, 0, 0, 0.35);
+}
+
+.admin-password-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 18px 16px;
+  background: #070003;
+  color: #ffffff;
+}
+
+.admin-password-head h2 {
+  margin: 0;
+  font-size: 1.16rem;
+  font-weight: 900;
+}
+
+.admin-password-close {
+  border: 0;
+  background: transparent;
+  color: #12070b;
+  width: 32px;
+  height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-password-close:hover {
+  color: #ffffff;
+}
+
+.admin-password-body {
+  padding: 20px 16px 16px;
+}
+
+.admin-password-body p {
+  margin: 0 0 18px;
+  color: #6b7280;
+  font-weight: 700;
+}
+
+.admin-password-body label {
+  display: block;
+  margin-bottom: 8px;
+  color: #111827;
+  font-weight: 800;
+}
+
+.admin-password-body input {
+  width: 100%;
+  min-height: 50px;
+  border: 1px solid #111827;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 1rem;
+}
+
+.admin-password-body input:focus {
+  outline: 0;
+  border-color: #111827;
+  box-shadow: 0 0 0 3px rgba(17, 24, 39, 0.16);
+}
+
+.admin-password-error {
+  min-height: 20px;
+  margin-top: 8px;
+  color: #dc2626;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.admin-password-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-top: 12px;
+}
+
+.admin-password-actions .btn {
+  min-height: 38px;
+  border-radius: 6px;
+  font-weight: 800;
+}
+
 .top-navbar .admin-notif-dropdown {
   position: absolute;
   top: calc(100% + 12px);

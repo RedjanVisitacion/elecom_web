@@ -84,7 +84,7 @@
             return;
         }
 
-        if (!window.confirm('Are you sure you want to permanently delete all vote records? This action cannot be undone.')) {
+        if (!window.confirm('Are you sure you want to permanently delete all vote records and all user notifications? This action cannot be undone.')) {
             return;
         }
 
@@ -106,8 +106,12 @@
             const data = await res.json();
 
             if (res.ok && data.ok) {
-                showSuccess('All votes have been reset successfully.');
-                setStatusMessage('Votes reset completed.', 'success');
+                const deleted = data.deleted || {};
+                showSuccess('All votes and notifications have been reset successfully.');
+                setStatusMessage(
+                    `Reset completed. Deleted ${formatNumber(deleted.votes ?? 0)} votes, ${formatNumber(deleted.vote_items ?? 0)} vote items, and ${formatNumber(deleted.notifications ?? 0)} notifications.`,
+                    'success'
+                );
                 confirmInput.value = '';
                 await fetchStatus();
             } else {
@@ -121,7 +125,7 @@
             setStatusMessage('Network error. Please try again.', 'error');
         } finally {
             btn.disabled = false;
-            btn.innerHTML = '<i class="bi bi-trash me-2"></i>Reset All Votes';
+            btn.innerHTML = '<i class="bi bi-trash me-2"></i>Reset Votes & Notifications';
         }
     }
 

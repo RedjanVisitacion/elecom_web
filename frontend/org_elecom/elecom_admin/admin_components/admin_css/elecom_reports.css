@@ -67,6 +67,14 @@ body.reports-page{
   border-radius:8px;
 }
 
+.report-range-box .form-select{
+  min-height:46px;
+  border-radius:8px;
+  border-color:#d7dbe2;
+  color:#001b3f;
+  font-weight:700;
+}
+
 .report-date-actions,
 .report-action-row{
   display:flex;
@@ -171,6 +179,15 @@ body.reports-page{
 .official-range{
   min-width:190px;
   text-align:right;
+}
+
+.official-range span,
+.official-range strong{
+  display:block;
+}
+
+.official-range span:not(:first-child){
+  margin-top:8px;
 }
 
 .report-empty-state{

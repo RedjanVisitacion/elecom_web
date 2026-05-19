@@ -33,6 +33,36 @@ When adding sidebar items, update all admin HTML files that contain a hardcoded 
 
 When changing shared static assets used by the admin pages, bump the query string version in HTML, e.g. `admin_user_menu.js?v=...` or `admin_dashboard.css?v=...`, so browsers and collected static files do not keep stale code.
 
+Current admin navigation expectations:
+
+- The **Reset Votes** sidebar item is intentionally removed from admin sidebars. Do not re-add it unless the user explicitly asks.
+- Reset Votes is opened through the small hidden header control next to the notification bell. That shortcut must ask for the admin password first, using the shared modal in `admin_user_menu.js`, then navigate to `elecom_reset.html`.
+- Keep the notification bell visible in the header and keep its behavior in `admin_user_menu.js`.
+- Shared header changes usually require updating every admin HTML page that loads `admin_user_menu.js` or `admin_dashboard.css` with a new query-string version.
+
+Election-scoped admin pages:
+
+- Election Management history action buttons must use the selected election ID, not the dashboard/home URL:
+  - `/elections/<election_id>/edit-dates/`
+  - `/elections/<election_id>/results/`
+  - `/elections/<election_id>/reports/`
+- The matching Django routes live in `backend/core/urls.py` and views in `backend/core/views.py`.
+- Buttons inside election loops should use the current election object (`election.id`/`election.pk` or the local variable used by that template), not the active election by default.
+- If an action button is a `<button>` inside a form, use `type="button"` unless it should submit the form.
+
+Results and reports election selection:
+
+- Results must support previewing the active/current election and archived previous elections without a full-page blink where possible. Prefer updating data with `history.pushState`/AJAX over forced navigation when changing the selected year.
+- Reports must support **All elections** and a specific election year. The report API should receive `scope=all` for all elections, or `election_id=<id>` for a selected election.
+- Do not let report summary endpoints silently fall back to the active election when the UI selected **All elections**.
+- When filtering reports by date, apply the same date range to totals and candidate vote breakdowns.
+
+Reset Votes behavior:
+
+- Resetting votes also clears user notifications. Keep the UI copy explicit: votes and notifications are deleted.
+- Backend reset/status code should ensure the notifications table exists before counting or deleting notifications.
+- The reset screen still requires typing `RESET`; the hidden header shortcut only gates navigation to the reset screen with the admin password.
+
 ## Production deploy notes
 
 On the Linux server, the Django/Gunicorn service is named:
@@ -124,6 +154,8 @@ Restart **`runserver`** (or the production process) after changing `.env` or URL
 - **Keep diffs tight**: avoid drive-by refactors unless necessary to complete the task.
 
 ## Git hygiene (important)
+
+Do not assume changes are staged, committed, pushed, or deployed. Check `git status --short` before answering about what changed. Only run `git add`, `git commit`, or `git push` when the user explicitly asks or clearly approves it.
 
 Do **not** commit build outputs or IDE caches. These paths should remain untracked/ignored:
 

@@ -6092,8 +6092,18 @@ def admin_reports_summary_api(request):
         return forbidden
 
     _ensure_votes_tables()
-    requested_election_id = _parse_election_id_from_request(request, {"election_id": request.GET.get("election_id")})
-    vote_filter, vote_filter_params = _current_vote_filter("v", requested_election_id)
+    _ensure_election_scoped_tables()
+    election_scope = (request.GET.get("scope") or "").strip().lower()
+    election_id_raw = (request.GET.get("election_id") or "").strip()
+    all_elections = election_scope == "all" or election_id_raw.lower() == "all"
+    requested_election_id = None if all_elections else _parse_election_id_from_request(
+        request,
+        {"election_id": request.GET.get("election_id")},
+    )
+    if all_elections:
+        vote_filter, vote_filter_params = "1=1", []
+    else:
+        vote_filter, vote_filter_params = _current_vote_filter("v", requested_election_id)
 
     start = (request.GET.get("start") or "").strip()
     end = (request.GET.get("end") or "").strip()
@@ -6156,9 +6166,20 @@ def admin_reports_summary_api(request):
     # candidates + votes per candidate
     candidates = []
     try:
-        election_where, election_params = _current_election_filter("c", requested_election_id)
-        vote_item_filter, vote_params = _current_vote_filter("v", requested_election_id)
-        vote_where = f"WHERE {vote_item_filter}"
+        if all_elections:
+            election_where, election_params = "1=1", []
+            vote_item_filter, vote_params = "1=1", []
+        else:
+            election_where, election_params = _current_election_filter("c", requested_election_id)
+            vote_item_filter, vote_params = _current_vote_filter("v", requested_election_id)
+        vote_where_parts = [vote_item_filter]
+        if start_dt:
+            vote_where_parts.append("v.created_at >= %s")
+            vote_params.append(start_dt)
+        if end_dt_exclusive:
+            vote_where_parts.append("v.created_at < %s")
+            vote_params.append(end_dt_exclusive)
+        vote_where = "WHERE " + " AND ".join(vote_where_parts)
         with connection.cursor() as cur:
             cur.execute(
                 f"""
@@ -6198,7 +6219,8 @@ def admin_reports_summary_api(request):
         {
             "ok": True,
             "range": {"start": start or None, "end": end or None},
-            "election_id": requested_election_id or _active_election_id(),
+            "scope": "all" if all_elections else "election",
+            "election_id": None if all_elections else (requested_election_id or _active_election_id()),
             "totals": {
                 "total_votes": total_votes,
                 "distinct_voters": distinct_voters,
@@ -6219,6 +6241,7 @@ def admin_reset_status_api(request):
         return forbidden
 
     _ensure_votes_tables()
+    _ensure_user_notifications_table()
 
     def safe_count(sql: str) -> int:
         try:
@@ -6259,12 +6282,15 @@ def admin_reset_votes_api(request):
 
     try:
         _ensure_votes_tables()
+        _ensure_user_notifications_table()
         with connection.cursor() as cur:
             # Check initial counts
             cur.execute("SELECT COUNT(*) FROM vote_items")
             items_before = cur.fetchone()[0] or 0
             cur.execute("SELECT COUNT(*) FROM votes")
             votes_before = cur.fetchone()[0] or 0
+            cur.execute("SELECT COUNT(*) FROM user_notifications")
+            notifications_before = cur.fetchone()[0] or 0
             
             # Delete from child table first (vote_items has FK to votes)
             cur.execute("DELETE FROM vote_items")
@@ -6273,6 +6299,10 @@ def admin_reset_votes_api(request):
             # Then delete from parent table
             cur.execute("DELETE FROM votes")
             votes_deleted = cur.rowcount
+
+            # Clear vote-related user notifications with the vote reset.
+            cur.execute("DELETE FROM user_notifications")
+            notifications_deleted = cur.rowcount
             
             # Optional: delete from legacy table
             try:
@@ -6285,18 +6315,21 @@ def admin_reset_votes_api(request):
             items_after = cur.fetchone()[0] or 0
             cur.execute("SELECT COUNT(*) FROM votes")
             votes_after = cur.fetchone()[0] or 0
+            cur.execute("SELECT COUNT(*) FROM user_notifications")
+            notifications_after = cur.fetchone()[0] or 0
         
-        if items_after > 0 or votes_after > 0:
+        if items_after > 0 or votes_after > 0 or notifications_after > 0:
             return JsonResponse({
                 "ok": False, 
-                "error": f"Failed to delete all votes. Remaining: {votes_after} votes, {items_after} items"
+                "error": f"Failed to delete all reset records. Remaining: {votes_after} votes, {items_after} items, {notifications_after} notifications"
             }, status=500)
         
         return JsonResponse({
             "ok": True, 
             "deleted": {
                 "votes": votes_before,
-                "vote_items": items_before
+                "vote_items": items_before,
+                "notifications": notifications_before
             }
         })
     except Exception as e:

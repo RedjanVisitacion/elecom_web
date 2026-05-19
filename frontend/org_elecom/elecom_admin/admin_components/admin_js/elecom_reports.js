@@ -24,13 +24,16 @@ document.addEventListener('DOMContentLoaded', function(){
   const endEl = document.getElementById('repEnd');
   const clearBtn = document.getElementById('clearDates');
   const applyWinBtn = document.getElementById('applyWindow');
+  const reportElectionSelect = document.getElementById('reportElectionSelect');
   const alertBox = document.getElementById('alertBox');
   const fmtCards = Array.from(document.querySelectorAll('.format-card'));
   const previewCard = document.getElementById('reportPreviewCard');
   const previewEl = document.getElementById('reportPreview');
   const pageParams = new URLSearchParams(window.location.search);
   const routeElectionMatch = window.location.pathname.match(/\/elections\/(\d+)\/reports\/?$/);
-  const selectedElectionId = pageParams.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : '');
+  const pageScope = (pageParams.get('scope') || '').toLowerCase();
+  let selectedElectionId = pageScope === 'all' ? '' : (pageParams.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : ''));
+  let loadedElections = [];
   let selectedFormat = 'pdf';
 
   fmtCards.forEach(btn => {
@@ -57,6 +60,12 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function formatDateTime(d = new Date()){
     return d.toLocaleString([], { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function reportScopeLabel(){
+    if (!selectedElectionId) return 'All elections';
+    const selectedOption = reportElectionSelect?.selectedOptions?.[0];
+    return selectedOption ? selectedOption.textContent.trim() : `Election #${selectedElectionId}`;
   }
 
   function pct(value, total){
@@ -108,17 +117,93 @@ document.addEventListener('DOMContentLoaded', function(){
     try { return String(iso).slice(0,10); } catch(e){ return ''; }
   }
 
-  (async ()=>{
-    const w = await loadElectionWindow();
-    if (!w || !applyWinBtn) return;
-    const defaultStart = isoDateOnly(w.start_at);
-    const defaultEnd = isoDateOnly(w.end_at);
+  function electionLabel(election){
+    const name = election.name || `Election #${election.id}`;
+    return `${name}${election.school_year ? ` (${election.school_year})` : ''}`;
+  }
+
+  async function loadElectionChoices(){
+    if (!reportElectionSelect) return;
+    try {
+      const res = await fetch('/api/admin/elections/', { credentials: 'same-origin', cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) return;
+      loadedElections = data.elections || [];
+      reportElectionSelect.innerHTML = [
+        '<option value="">All elections</option>',
+        ...loadedElections.map((election) => {
+          const id = String(election.id || '');
+          const status = election.is_active ? 'Active' : (election.status || 'Archived');
+          return `<option value="${escapeHtml(id)}" ${id === String(selectedElectionId || '') ? 'selected' : ''}>${escapeHtml(electionLabel(election))} - ${escapeHtml(status)}</option>`;
+        }),
+      ].join('');
+    } catch (e) {
+      // Leave the default "All elections" option in place.
+    }
+  }
+
+  function selectedElectionWindow(){
+    if (selectedElectionId) {
+      return loadedElections.find(election => String(election.id) === String(selectedElectionId)) || null;
+    }
+    return null;
+  }
+
+  function applyWindowToDates(windowData){
+    if (!windowData || !applyWinBtn) return false;
+    const defaultStart = isoDateOnly(windowData.start_at);
+    const defaultEnd = isoDateOnly(windowData.end_at);
+    if (!defaultStart && !defaultEnd) return false;
     applyWinBtn.classList.remove('d-none');
-    applyWinBtn.addEventListener('click', ()=>{
+    applyWinBtn.onclick = ()=>{
       if (defaultStart) startEl.value = defaultStart;
       if (defaultEnd) endEl.value = defaultEnd;
       validateDates();
-    });
+    };
+    return true;
+  }
+
+  async function configureElectionDateButton(){
+    if (!applyWinBtn) return;
+    applyWinBtn.classList.add('d-none');
+    applyWinBtn.onclick = null;
+    const selected = selectedElectionWindow();
+    if (selected && applyWindowToDates(selected)) return;
+    const w = await loadElectionWindow();
+    applyWindowToDates(w);
+  }
+
+  reportElectionSelect?.addEventListener('change', () => {
+    selectedElectionId = reportElectionSelect.value || '';
+    const url = new URL(window.location.href);
+    if (selectedElectionId) {
+      url.searchParams.set('election_id', selectedElectionId);
+      url.searchParams.delete('scope');
+    } else {
+      url.searchParams.delete('election_id');
+      url.searchParams.set('scope', 'all');
+    }
+    window.history.pushState({ electionId: selectedElectionId }, '', url.toString());
+    configureElectionDateButton();
+    if (previewCard && !previewCard.classList.contains('d-none')) {
+      refreshPreview();
+    }
+  });
+
+  window.addEventListener('popstate', () => {
+    const params = new URLSearchParams(window.location.search);
+    const scope = (params.get('scope') || '').toLowerCase();
+    selectedElectionId = scope === 'all' ? '' : (params.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : ''));
+    if (reportElectionSelect) reportElectionSelect.value = selectedElectionId;
+    configureElectionDateButton();
+    if (previewCard && !previewCard.classList.contains('d-none')) {
+      refreshPreview();
+    }
+  });
+
+  (async ()=>{
+    await loadElectionChoices();
+    await configureElectionDateButton();
   })();
 
   function candidateName(c){
@@ -207,6 +292,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const posEntries = Object.entries(enriched.byPos).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0));
     const topCandidates = enriched.candidates.slice(0, 8).map(c => [candidateName(c), Number(c.votes || 0)]);
     const rangeText = `${range.start ? formatDate(range.start) : 'All time'}${range.end ? ' - ' + formatDate(range.end) : ''}`;
+    const scopeText = reportScopeLabel();
     const highestName = enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet';
     const leadingOrg = enriched.leadingOrg ? `${enriched.leadingOrg[0]} (${enriched.leadingOrg[1]})` : 'None yet';
 
@@ -222,6 +308,8 @@ document.addEventListener('DOMContentLoaded', function(){
             </div>
           </div>
           <div class="official-range">
+            <span>Election Scope</span>
+            <strong>${escapeHtml(scopeText)}</strong>
             <span>Date Range</span>
             <strong>${escapeHtml(rangeText)}</strong>
           </div>
@@ -313,6 +401,7 @@ document.addEventListener('DOMContentLoaded', function(){
     let out = '';
     out += 'ELECOM Election Report\n';
     out += 'Generated: ' + formatDateTime() + '\n';
+    out += 'Election Scope: ' + reportScopeLabel() + '\n';
     out += 'Range: ' + (range.start||'All time') + (range.end?(' - '+range.end):'') + '\n\n';
     out += 'Summary\n';
     out += '- Total Votes: ' + enriched.totalVotes + '\n';
@@ -334,6 +423,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const enriched = enrichReport(data);
     const rows = [];
     rows.push(['Section','Key','Value','Org','Position','Name','Votes','Percentage','Status']);
+    rows.push(['Overview','election_scope',reportScopeLabel(),'','','','','','']);
     rows.push(['Overview','total_votes', String(enriched.totalVotes),'','','','','','']);
     rows.push(['Overview','distinct_voters', String(enriched.totals.distinct_voters||0),'','','','','','']);
     rows.push(['Overview','total_candidates', String(enriched.totals.total_candidates||0),'','','','','','']);
@@ -352,7 +442,11 @@ document.addEventListener('DOMContentLoaded', function(){
     const url = new URL('/api/admin/reports/summary/', window.location.origin);
     if (s) url.searchParams.set('start', s);
     if (e) url.searchParams.set('end', e);
-    if (selectedElectionId) url.searchParams.set('election_id', selectedElectionId);
+    if (selectedElectionId) {
+      url.searchParams.set('election_id', selectedElectionId);
+    } else {
+      url.searchParams.set('scope', 'all');
+    }
     const res = await fetch(url.toString(), { credentials: 'same-origin' });
     return await res.json();
   }

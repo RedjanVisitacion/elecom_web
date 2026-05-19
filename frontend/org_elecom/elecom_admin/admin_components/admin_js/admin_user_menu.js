@@ -2,6 +2,7 @@
   const API_PROFILE = "/api/account/profile/";
   const API_ADMIN_RATING_NOTIFS = "/api/admin/notifications/app-ratings/";
   const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
+  const API_ADMIN_VERIFY_PASSWORD = "/api/admin/verify-password/";
   const RATING_SEEN_KEY = "elecom_admin_seen_rating_id";
   const ADMIN_HASH_KEY = "elecom_admin_page_hash";
   const ADMIN_ROUTE_PREFIX = "/g/";
@@ -224,6 +225,7 @@
     return `
 <div class="top-navbar-actions">
   <div class="admin-notif-wrap" id="adminNotifWrap">
+  <button type="button" class="admin-hidden-notif-action" id="adminHiddenNotifButton" aria-label="Open reset votes"></button>
   <button type="button" class="notif-bell" id="adminNotifBell" aria-label="Notifications" aria-expanded="false">
     <i class="bi bi-bell"></i>
     <span class="notif-count" id="adminNotifCount" aria-label="0 unread notifications" style="display:none;">0</span>
@@ -277,10 +279,55 @@
         <span>Logout</span>
       </a>
     </div>
+</div>
+</div>
+</div>
+<div class="admin-password-modal-backdrop" id="adminPasswordModal" hidden>
+  <div class="admin-password-modal" role="dialog" aria-modal="true" aria-labelledby="adminPasswordTitle">
+    <div class="admin-password-head">
+      <h2 id="adminPasswordTitle">Admin Password Required</h2>
+      <button type="button" class="admin-password-close" id="adminPasswordClose" aria-label="Close"><i class="bi bi-x-lg"></i></button>
+    </div>
+    <form class="admin-password-body" id="adminPasswordForm">
+      <p>Enter your admin password to open Reset Votes.</p>
+      <label for="adminPasswordInput">Password</label>
+      <input type="password" id="adminPasswordInput" autocomplete="current-password">
+      <div class="admin-password-error" id="adminPasswordError" role="alert"></div>
+      <div class="admin-password-actions">
+        <button type="button" class="btn btn-secondary" id="adminPasswordCancel">Cancel</button>
+        <button type="submit" class="btn btn-dark" id="adminPasswordContinue"><i class="bi bi-shield-check"></i> Continue</button>
+      </div>
+    </form>
   </div>
 </div>
-</div>
 `;
+  };
+
+  const verifyAdminPassword = async (password) => {
+    const resp = await fetch(API_ADMIN_VERIFY_PASSWORD, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "same-origin",
+      cache: "no-store",
+      body: JSON.stringify({ password }),
+    });
+    const data = await resp.json().catch(() => ({}));
+    return !!(resp.ok && data && data.ok);
+  };
+
+  const setAdminPasswordModalOpen = (open) => {
+    const modal = document.getElementById("adminPasswordModal");
+    const input = document.getElementById("adminPasswordInput");
+    const error = document.getElementById("adminPasswordError");
+    if (!modal) return;
+    modal.hidden = !open;
+    if (error) error.textContent = "";
+    if (open) {
+      if (input) {
+        input.value = "";
+        setTimeout(() => input.focus(), 0);
+      }
+    }
   };
 
   const buildNetworkBadge = () => {
@@ -589,6 +636,7 @@
     const userMenuDropdown = document.getElementById("userMenuDropdown");
     const adminNotifWrap = document.getElementById("adminNotifWrap");
     const adminNotifBell = document.getElementById("adminNotifBell");
+    const adminHiddenNotifButton = document.getElementById("adminHiddenNotifButton");
     const adminNotifDropdown = document.getElementById("adminNotifDropdown");
     const adminNotifCount = document.getElementById("adminNotifCount");
     const adminNotifList = document.getElementById("adminNotifList");
@@ -597,6 +645,13 @@
     const menuRole = document.getElementById("menuRole");
     const profileLink = document.getElementById("profileLink");
     const userMenuLogoutLink = document.getElementById("userMenuLogoutLink");
+    const adminPasswordModal = document.getElementById("adminPasswordModal");
+    const adminPasswordForm = document.getElementById("adminPasswordForm");
+    const adminPasswordInput = document.getElementById("adminPasswordInput");
+    const adminPasswordError = document.getElementById("adminPasswordError");
+    const adminPasswordClose = document.getElementById("adminPasswordClose");
+    const adminPasswordCancel = document.getElementById("adminPasswordCancel");
+    const adminPasswordContinue = document.getElementById("adminPasswordContinue");
 
     const userAvatarImg = document.getElementById("userAvatarImg");
     const userAvatarIcon = document.getElementById("userAvatarIcon");
@@ -642,6 +697,48 @@
       });
     }
 
+    if (adminHiddenNotifButton) {
+      adminHiddenNotifButton.addEventListener("click", (e) => {
+        e.preventDefault();
+        setAdminPasswordModalOpen(true);
+      });
+    }
+
+    const closeAdminPasswordModal = () => setAdminPasswordModalOpen(false);
+    adminPasswordClose?.addEventListener("click", closeAdminPasswordModal);
+    adminPasswordCancel?.addEventListener("click", closeAdminPasswordModal);
+    adminPasswordModal?.addEventListener("click", (e) => {
+      if (e.target === adminPasswordModal) closeAdminPasswordModal();
+    });
+    adminPasswordForm?.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const password = (adminPasswordInput && adminPasswordInput.value ? adminPasswordInput.value : "").trim();
+      if (!password) {
+        if (adminPasswordError) adminPasswordError.textContent = "Enter your admin password.";
+        adminPasswordInput?.focus();
+        return;
+      }
+      if (adminPasswordContinue) {
+        adminPasswordContinue.disabled = true;
+        adminPasswordContinue.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Checking...';
+      }
+      try {
+        const ok = await verifyAdminPassword(password);
+        if (!ok) {
+          if (adminPasswordError) adminPasswordError.textContent = "Incorrect admin password.";
+          adminPasswordInput?.focus();
+          return;
+        }
+        const url = await getSecureRouteForPage("elecom_reset.html");
+        window.location.href = url || "/static/org_elecom/elecom_admin/elecom_reset.html";
+      } finally {
+        if (adminPasswordContinue) {
+          adminPasswordContinue.disabled = false;
+          adminPasswordContinue.innerHTML = '<i class="bi bi-shield-check"></i> Continue';
+        }
+      }
+    });
+
     document.addEventListener("click", (e) => {
       if (adminNotifDropdown && adminNotifWrap && adminNotifDropdown.getAttribute("data-open") === "1" && !adminNotifWrap.contains(e.target)) {
         setNotifOpen(adminNotifDropdown, adminNotifBell, false);
@@ -656,6 +753,7 @@
 
     document.addEventListener("keydown", (e) => {
       if (e.key !== "Escape") return;
+      setAdminPasswordModalOpen(false);
       setNotifOpen(adminNotifDropdown, adminNotifBell, false);
       setMenuOpen(userMenuDropdown, false);
     });
