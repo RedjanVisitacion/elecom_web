@@ -311,8 +311,52 @@ def _ensure_election_scoped_tables() -> None:
         cur.execute("DROP INDEX IF EXISTS ux_candidates_registration_student_position")
         cur.execute(
             """
+            DO $$
+            DECLARE
+                r record;
+            BEGIN
+                FOR r IN
+                    SELECT conname
+                    FROM pg_constraint
+                    WHERE conrelid = 'candidates_registration'::regclass
+                      AND contype = 'u'
+                      AND pg_get_constraintdef(oid) ILIKE '%student_id%'
+                      AND pg_get_constraintdef(oid) ILIKE '%position%'
+                      AND pg_get_constraintdef(oid) NOT ILIKE '%election_id%'
+                LOOP
+                    EXECUTE format('ALTER TABLE candidates_registration DROP CONSTRAINT IF EXISTS %I', r.conname);
+                END LOOP;
+
+                FOR r IN
+                    SELECT indexname
+                    FROM pg_indexes
+                    WHERE schemaname = 'public'
+                      AND tablename = 'candidates_registration'
+                      AND indexdef ILIKE 'CREATE UNIQUE INDEX%'
+                      AND indexdef ILIKE '%student_id%'
+                      AND indexdef ILIKE '%position%'
+                      AND indexdef NOT ILIKE '%election_id%'
+                LOOP
+                    EXECUTE format('DROP INDEX IF EXISTS %I', r.indexname);
+                END LOOP;
+            END
+            $$;
+            """
+        )
+        cur.execute(
+            """
             CREATE UNIQUE INDEX IF NOT EXISTS ux_candidates_registration_election_student_position
             ON candidates_registration (COALESCE(election_id, 0), student_id, position)
+            """
+        )
+        cur.execute(
+            """
+            SELECT setval(
+                pg_get_serial_sequence('candidates_registration', 'id'),
+                COALESCE((SELECT MAX(id) FROM candidates_registration), 0) + 1,
+                false
+            )
+            WHERE pg_get_serial_sequence('candidates_registration', 'id') IS NOT NULL
             """
         )
 
@@ -5002,6 +5046,7 @@ def admin_candidates_create_api(request):
     party_name = str(payload.get("party_name") or "").strip() or None
     candidate_type = str(payload.get("candidate_type") or "").strip() or None
     party_logo_url = str(payload.get("party_logo_url") or "").strip() or None
+    allow_existing = _post_bool(payload, "allow_existing", False)
 
     if not student_id:
         return JsonResponse({"ok": False, "error": "Student ID is required."}, status=400)
@@ -5018,6 +5063,35 @@ def admin_candidates_create_api(request):
         _ensure_election_scoped_tables()
         election_id = _active_election_id()
         with connection.cursor() as cur:
+            if allow_existing:
+                cur.execute(
+                    """
+                    SELECT id
+                    FROM candidates_registration
+                    WHERE COALESCE(election_id, %s) = %s
+                      AND student_id::text = %s
+                      AND position = %s
+                    ORDER BY id DESC
+                    LIMIT 1
+                    """,
+                    [
+                        int(election_id) if election_id is not None else 0,
+                        int(election_id) if election_id is not None else 0,
+                        student_id,
+                        position,
+                    ],
+                )
+                existing = cur.fetchone()
+                if existing:
+                    return JsonResponse(
+                        {
+                            "ok": True,
+                            "id": int(existing[0]),
+                            "skipped": True,
+                            "message": "Candidate already exists; skipped.",
+                        }
+                    )
+
             cur.execute(
                 """
                 INSERT INTO candidates_registration (

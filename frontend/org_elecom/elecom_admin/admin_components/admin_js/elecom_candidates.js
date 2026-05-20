@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', function(){
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'same-origin',
-      body: JSON.stringify(cleanPayload(payload)),
+      body: JSON.stringify({ ...cleanPayload(payload), allow_existing: true }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok || !data.ok) {
@@ -552,12 +552,14 @@ document.addEventListener('DOMContentLoaded', function(){
       if (!confirm(`Import ${payloads.length} candidate(s) from this file?`)) return;
 
       let imported = 0;
+      let skipped = 0;
       const failed = [];
       for (let i = 0; i < payloads.length; i += 1) {
         const payload = payloads[i];
         try {
-          await importCandidatePayload(payload);
-          imported += 1;
+          const result = await importCandidatePayload(payload);
+          if (result && result.skipped) skipped += 1;
+          else imported += 1;
         } catch (err) {
           const name = buildCandidateName(payload) || payload.student_id || `Row ${i + 2}`;
           failed.push(`${name}: ${err.message || 'Failed'}`);
@@ -565,7 +567,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       loadList();
-      alert(`Import finished.\n\nImported: ${imported}\nFailed: ${failed.length}${failed.length ? `\n\n${failed.slice(0, 8).join('\n')}${failed.length > 8 ? '\n...' : ''}` : ''}`);
+      alert(`Import finished.\n\nImported: ${imported}\nSkipped existing: ${skipped}\nFailed: ${failed.length}${failed.length ? `\n\n${failed.slice(0, 8).join('\n')}${failed.length > 8 ? '\n...' : ''}` : ''}`);
     } catch (err) {
       alert(err && err.message ? err.message : 'Failed to import candidates.');
     } finally {
