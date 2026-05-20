@@ -980,3 +980,153 @@ label {
   font-size: 12px;
   color: rgba(10, 20, 40, 0.35);
 }
+
+.auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 180ms ease;
+}
+
+.auth-modal.is-open {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.auth-modal__overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(3, 7, 18, 0.46);
+  backdrop-filter: blur(2px);
+}
+
+.auth-modal__panel {
+  width: min(420px, 100%);
+  position: relative;
+  z-index: 1;
+  border-radius: 16px;
+  border: 1px solid rgba(10, 20, 40, 0.14);
+  background: rgba(255, 255, 255, 0.98);
+  box-shadow: 0 24px 70px rgba(3, 7, 18, 0.24);
+  padding: 22px 20px 18px;
+  transform: translateY(10px) scale(0.98);
+  transition: transform 180ms ease;
+}
+
+.auth-modal.is-open .auth-modal__panel {
+  transform: translateY(0) scale(1);
+}
+
+.auth-modal__close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(11, 21, 51, 0.78);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.auth-modal__close:hover {
+  background: rgba(11, 21, 51, 0.06);
+}
+
+.forgot-step {
+  display: none;
+}
+
+.forgot-step.is-active {
+  display: grid;
+  gap: 11px;
+}
+
+.forgot-step h3 {
+  margin: 0;
+  padding-right: 38px;
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: rgba(11, 21, 51, 0.94);
+}
+
+.auth-modal__copy {
+  margin: 0 0 2px;
+  color: rgba(10, 20, 40, 0.66);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.forgot-label {
+  margin: 2px 0 -4px;
+  color: rgba(10, 20, 40, 0.72);
+}
+
+.forgot-action {
+  margin-top: 4px;
+}
+
+.forgot-text-btn {
+  border: 0;
+  background: transparent;
+  color: rgba(11, 21, 51, 0.9);
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 6px 8px;
+  justify-self: center;
+}
+
+.forgot-text-btn:hover {
+  text-decoration: underline;
+}
+
+.forgot-otp {
+  text-align: center;
+  letter-spacing: 0.22em;
+  font-weight: 800;
+}
+
+.auth-modal__status {
+  margin: 12px 0 0;
+  min-height: 18px;
+  color: rgba(10, 20, 40, 0.66);
+  font-size: 13px;
+  line-height: 1.45;
+  white-space: pre-line;
+}
+
+.auth-modal__status.is-error {
+  color: rgba(220, 38, 38, 0.96);
+}
+
+.auth-modal__status.is-success {
+  color: rgba(22, 101, 52, 0.96);
+}
+
+.auth-modal .btn:disabled,
+.auth-modal .forgot-text-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+}
+
+@media (max-width: 520px) {
+  .auth-modal {
+    align-items: end;
+    padding: 12px;
+  }
+
+  .auth-modal__panel {
+    border-radius: 14px;
+    padding: 20px 16px 16px;
+  }
+}

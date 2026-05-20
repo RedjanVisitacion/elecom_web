@@ -20,7 +20,7 @@
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
    
-    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}" />
+    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260520-forgot-password" />
   </head>
   <body>
     <main class="page">
@@ -105,6 +105,50 @@
         </section>
       </section>
     </main>
-    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}"></script>
+
+    <div class="auth-modal" id="forgotModal" aria-hidden="true">
+      <div class="auth-modal__overlay" data-forgot-close></div>
+      <section class="auth-modal__panel" role="dialog" aria-modal="true" aria-labelledby="forgotTitle">
+        <button class="auth-modal__close" type="button" id="forgotClose" aria-label="Close forgot password">
+          <i class="bi bi-x-lg" aria-hidden="true"></i>
+        </button>
+
+        <div class="forgot-step is-active" data-step="request">
+          <h3 id="forgotTitle">Reset password</h3>
+          <p class="auth-modal__copy">Enter your Student ID or registered email. ELECOM will send a 6-digit OTP to your email.</p>
+          <label class="forgot-label" for="forgotIdentifier">Student ID or email</label>
+          <input class="input" id="forgotIdentifier" type="text" autocomplete="username" placeholder="2023304637 or email@domain.com" />
+          <button class="btn forgot-action" type="button" id="forgotSendOtp">Send OTP</button>
+        </div>
+
+        <div class="forgot-step" data-step="verify">
+          <h3>Verify OTP</h3>
+          <p class="auth-modal__copy" id="forgotOtpHint">Enter the 6-digit code sent to your registered email.</p>
+          <label class="forgot-label" for="forgotOtp">OTP code</label>
+          <input class="input forgot-otp" id="forgotOtp" type="text" inputmode="numeric" maxlength="6" autocomplete="one-time-code" placeholder="000000" />
+          <button class="btn forgot-action" type="button" id="forgotVerifyOtp">Verify OTP</button>
+          <button class="forgot-text-btn" type="button" id="forgotResendOtp">Resend OTP</button>
+        </div>
+
+        <div class="forgot-step" data-step="reset">
+          <h3>Create new password</h3>
+          <p class="auth-modal__copy">Choose a new password for your ELECOM account.</p>
+          <label class="forgot-label" for="forgotNewPassword">New password</label>
+          <div class="input-wrap">
+            <input class="input" id="forgotNewPassword" type="password" minlength="6" autocomplete="new-password" placeholder="At least 6 characters" />
+            <button class="ghost" type="button" id="forgotTogglePassword" aria-label="Show new password">
+              <i class="bi bi-eye" aria-hidden="true"></i>
+            </button>
+          </div>
+          <label class="forgot-label" for="forgotConfirmPassword">Confirm password</label>
+          <input class="input" id="forgotConfirmPassword" type="password" minlength="6" autocomplete="new-password" placeholder="Re-enter new password" />
+          <button class="btn forgot-action" type="button" id="forgotResetPassword">Save new password</button>
+        </div>
+
+        <p class="auth-modal__status" id="forgotStatus" role="status" aria-live="polite"></p>
+      </section>
+    </div>
+
+    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260520-forgot-password"></script>
   </body>
 </html>

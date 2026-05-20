@@ -15,6 +15,20 @@
   const rememberMe = $("rememberMe");
   const agreeTerms = $("agreeTerms");
   const termsLink = $("termsLink");
+  const forgotPassword = $("forgotPassword");
+  const forgotModal = $("forgotModal");
+  const forgotClose = $("forgotClose");
+  const forgotIdentifier = $("forgotIdentifier");
+  const forgotOtp = $("forgotOtp");
+  const forgotOtpHint = $("forgotOtpHint");
+  const forgotNewPassword = $("forgotNewPassword");
+  const forgotConfirmPassword = $("forgotConfirmPassword");
+  const forgotTogglePassword = $("forgotTogglePassword");
+  const forgotSendOtp = $("forgotSendOtp");
+  const forgotVerifyOtp = $("forgotVerifyOtp");
+  const forgotResetPassword = $("forgotResetPassword");
+  const forgotResendOtp = $("forgotResendOtp");
+  const forgotStatus = $("forgotStatus");
   const TERMS_URL = "/terms-and-conditions/?from=login";
   const TERMS_DRAFT_KEY = "elecom_login_terms_draft";
 
@@ -72,6 +86,172 @@
     (form && form.dataset && form.dataset.apiBase) ||
     (typeof window !== "undefined" && window.location && window.location.origin) ||
     "http://127.0.0.1:8000";
+  const FORGOT_BASE = `${API_BASE}/api/mobile/auth`;
+
+  let forgotResetToken = "";
+  let forgotActiveIdentifier = "";
+
+  const setForgotStatus = (message, type = "") => {
+    if (!forgotStatus) return;
+    forgotStatus.textContent = message || "";
+    forgotStatus.classList.toggle("is-error", type === "error");
+    forgotStatus.classList.toggle("is-success", type === "success");
+  };
+
+  const setForgotBusy = (busy) => {
+    [forgotSendOtp, forgotVerifyOtp, forgotResetPassword, forgotResendOtp, forgotClose].forEach((btn) => {
+      if (btn) btn.disabled = !!busy;
+    });
+    [forgotIdentifier, forgotOtp, forgotNewPassword, forgotConfirmPassword, forgotTogglePassword].forEach((input) => {
+      if (input) input.disabled = !!busy;
+    });
+    [forgotSendOtp, forgotVerifyOtp, forgotResetPassword].forEach((btn) => {
+      if (btn) {
+        btn.classList.toggle("is-loading", !!busy);
+        btn.setAttribute("aria-busy", busy ? "true" : "false");
+      }
+    });
+  };
+
+  const showForgotStep = (name) => {
+    if (!forgotModal) return;
+    forgotModal.querySelectorAll(".forgot-step").forEach((step) => {
+      step.classList.toggle("is-active", step.dataset.step === name);
+    });
+  };
+
+  const openForgotModal = () => {
+    if (!forgotModal) return;
+    forgotResetToken = "";
+    forgotActiveIdentifier = (studentId?.value || "").trim();
+    if (forgotIdentifier) forgotIdentifier.value = forgotActiveIdentifier;
+    if (forgotOtp) forgotOtp.value = "";
+    if (forgotNewPassword) forgotNewPassword.value = "";
+    if (forgotConfirmPassword) forgotConfirmPassword.value = "";
+    showForgotStep("request");
+    setForgotStatus("");
+    forgotModal.classList.add("is-open");
+    forgotModal.setAttribute("aria-hidden", "false");
+    setTimeout(() => (forgotIdentifier?.value ? forgotSendOtp?.focus() : forgotIdentifier?.focus()), 40);
+  };
+
+  const closeForgotModal = () => {
+    if (!forgotModal) return;
+    forgotModal.classList.remove("is-open");
+    forgotModal.setAttribute("aria-hidden", "true");
+    setForgotBusy(false);
+  };
+
+  const forgotPost = async (path, body) => {
+    const res = await fetch(`${FORGOT_BASE}/${path}/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.ok !== true) {
+      throw new Error(data.error || data.detail || "Something went wrong. Please try again.");
+    }
+    return data;
+  };
+
+  const requestForgotOtp = async () => {
+    const identifier = (forgotIdentifier?.value || "").trim();
+    if (!identifier) {
+      setForgotStatus("Enter your Student ID or registered email.", "error");
+      forgotIdentifier?.focus();
+      return;
+    }
+
+    setForgotBusy(true);
+    setForgotStatus("Sending OTP...");
+    try {
+      const data = await forgotPost("forgot-password", { identifier });
+      forgotActiveIdentifier = identifier;
+      const masked = data.masked_email ? ` sent to ${data.masked_email}` : " sent to your registered email";
+      if (forgotOtpHint) forgotOtpHint.textContent = `Enter the 6-digit code${masked}.`;
+      showForgotStep("verify");
+      setForgotStatus(`OTP${masked}.`, "success");
+      setTimeout(() => forgotOtp?.focus(), 40);
+    } catch (err) {
+      setForgotStatus(err.message || "Failed to send OTP.", "error");
+    } finally {
+      setForgotBusy(false);
+    }
+  };
+
+  const verifyForgotOtp = async () => {
+    const otp = (forgotOtp?.value || "").trim();
+    if (!/^\d{6}$/.test(otp)) {
+      setForgotStatus("Enter the 6-digit OTP code.", "error");
+      forgotOtp?.focus();
+      return;
+    }
+
+    setForgotBusy(true);
+    setForgotStatus("Verifying OTP...");
+    try {
+      const data = await forgotPost("verify-otp", {
+        identifier: forgotActiveIdentifier,
+        otp,
+      });
+      forgotResetToken = data.reset_token || "";
+      showForgotStep("reset");
+      setForgotStatus("OTP verified. Create your new password.", "success");
+      setTimeout(() => forgotNewPassword?.focus(), 40);
+    } catch (err) {
+      setForgotStatus(err.message || "Invalid OTP code.", "error");
+      if (forgotOtp) forgotOtp.value = "";
+      forgotOtp?.focus();
+    } finally {
+      setForgotBusy(false);
+    }
+  };
+
+  const resetForgotPassword = async () => {
+    const newPass = forgotNewPassword?.value || "";
+    const confirmPass = forgotConfirmPassword?.value || "";
+    if (newPass.length < 6) {
+      setForgotStatus("Password must be at least 6 characters.", "error");
+      forgotNewPassword?.focus();
+      return;
+    }
+    if (newPass !== confirmPass) {
+      setForgotStatus("Passwords do not match.", "error");
+      forgotConfirmPassword?.focus();
+      return;
+    }
+    if (!forgotResetToken) {
+      setForgotStatus("Reset session expired. Please request a new OTP.", "error");
+      showForgotStep("request");
+      return;
+    }
+
+    setForgotBusy(true);
+    setForgotStatus("Saving new password...");
+    try {
+      await forgotPost("reset-password", {
+        reset_token: forgotResetToken,
+        new_password: newPass,
+      });
+      setForgotStatus("Password reset successfully. You can now sign in.", "success");
+      if (studentId && forgotActiveIdentifier && !forgotActiveIdentifier.includes("@")) {
+        studentId.value = forgotActiveIdentifier;
+      }
+      if (password) {
+        password.value = "";
+        password.focus();
+      }
+      setTimeout(closeForgotModal, 1100);
+    } catch (err) {
+      setForgotStatus(err.message || "Failed to reset password.", "error");
+    } finally {
+      setForgotBusy(false);
+    }
+  };
 
   const SAMPLE_USERS = {
     admin: {
@@ -159,6 +339,59 @@
         icon.classList.toggle("bi-eye", !isHidden);
         icon.classList.toggle("bi-eye-slash", isHidden);
       }
+    });
+  }
+
+  if (forgotTogglePassword && forgotNewPassword) {
+    forgotTogglePassword.addEventListener("click", () => {
+      const isHidden = forgotNewPassword.type === "password";
+      forgotNewPassword.type = isHidden ? "text" : "password";
+      forgotTogglePassword.setAttribute("aria-label", isHidden ? "Hide new password" : "Show new password");
+
+      const icon = forgotTogglePassword.querySelector("i");
+      if (icon) {
+        icon.classList.toggle("bi-eye", !isHidden);
+        icon.classList.toggle("bi-eye-slash", isHidden);
+      }
+    });
+  }
+
+  if (forgotPassword) {
+    forgotPassword.addEventListener("click", (event) => {
+      event.preventDefault();
+      openForgotModal();
+    });
+  }
+
+  if (forgotClose) forgotClose.addEventListener("click", closeForgotModal);
+  if (forgotModal) {
+    forgotModal.addEventListener("click", (event) => {
+      if (event.target && event.target.closest("[data-forgot-close]")) closeForgotModal();
+    });
+  }
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && forgotModal?.classList.contains("is-open")) {
+      closeForgotModal();
+    }
+  });
+  if (forgotSendOtp) forgotSendOtp.addEventListener("click", requestForgotOtp);
+  if (forgotResendOtp) forgotResendOtp.addEventListener("click", requestForgotOtp);
+  if (forgotVerifyOtp) forgotVerifyOtp.addEventListener("click", verifyForgotOtp);
+  if (forgotResetPassword) forgotResetPassword.addEventListener("click", resetForgotPassword);
+  [forgotIdentifier, forgotOtp, forgotNewPassword, forgotConfirmPassword].forEach((input) => {
+    if (!input) return;
+    input.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter") return;
+      event.preventDefault();
+      if (input === forgotIdentifier) requestForgotOtp();
+      else if (input === forgotOtp) verifyForgotOtp();
+      else resetForgotPassword();
+    });
+  });
+
+  if (forgotOtp) {
+    forgotOtp.addEventListener("input", () => {
+      forgotOtp.value = forgotOtp.value.replace(/\D/g, "").slice(0, 6);
     });
   }
 
