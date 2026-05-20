@@ -10,6 +10,7 @@
   let pageSize = 8;
   let latestBackup = null;
   let pendingRestoreForm = null;
+  const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
 
   const $ = (id) => document.getElementById(id);
 
@@ -63,14 +64,43 @@
   };
 
   const statusClass = (status) => {
-    return String(status || "").toLowerCase() === "completed" ? "status-completed" : "status-failed";
+    const safeStatus = String(status || "").toLowerCase();
+    if (safeStatus === "completed") return "status-completed";
+    if (safeStatus === "processing") return "status-processing";
+    if (safeStatus === "restoring") return "status-restoring";
+    return "status-failed";
+  };
+
+  const updateAnalytics = (stats, storageUsed) => {
+    const safeStats = stats || {};
+    const total = $("statTotalBackups");
+    const success = $("statSuccessBackups");
+    const failed = $("statFailedBackups");
+    const storage = $("statStorageUsed");
+    const last = $("statLastBackup");
+    if (total) total.textContent = String(safeStats.total_backups || 0);
+    if (success) success.textContent = String(safeStats.successful_backups || 0);
+    if (failed) failed.textContent = String(safeStats.failed_backups || 0);
+    if (storage) storage.textContent = formatBytes(storageUsed || 0);
+    if (last) last.textContent = safeStats.last_backup_time ? formatDate(safeStats.last_backup_time) : "None yet";
   };
 
   const renderHistory = (items) => {
     const body = $("backupHistoryBody");
     if (!body) return;
     if (!items.length) {
-      body.innerHTML = '<tr><td colspan="7" class="text-center text-muted py-4">No backups yet. Create a backup to protect election records.</td></tr>';
+      body.innerHTML = `
+        <tr>
+          <td colspan="7">
+            <div class="backup-empty-state">
+              <i class="bi bi-database-add"></i>
+              <strong>No backups yet</strong>
+              <span>Create a protected backup before changing election records or system settings.</span>
+              <button class="btn btn-sm btn-primary empty-create-backup" type="button"><i class="bi bi-plus-circle"></i> Create Backup</button>
+            </div>
+          </td>
+        </tr>
+      `;
       return;
     }
     body.innerHTML = items.map((item) => `
@@ -83,9 +113,9 @@
         <td><span class="status-badge ${statusClass(item.status)}">${escapeHtml(item.status || "completed")}</span></td>
         <td>
           <div class="backup-actions">
-            <a class="btn btn-sm btn-outline-dark" href="/backup/download/${item.id}/" title="Download"><i class="bi bi-download"></i></a>
-            <button class="btn btn-sm btn-outline-dark history-restore-btn" type="button" data-id="${item.id}" data-name="${escapeHtml(item.name)}" title="Restore"><i class="bi bi-arrow-counterclockwise"></i></button>
-            <button class="btn btn-sm btn-outline-danger delete-backup-btn" type="button" data-id="${item.id}" title="Delete"><i class="bi bi-trash"></i></button>
+            <a class="btn btn-sm btn-outline-dark download-action" href="/backup/download/${item.id}/" title="Download backup" aria-label="Download ${escapeHtml(item.name)}"><i class="bi bi-download"></i></a>
+            <button class="btn btn-sm btn-outline-warning restore-action history-restore-btn" type="button" data-id="${item.id}" data-name="${escapeHtml(item.name)}" title="Restore backup" aria-label="Restore ${escapeHtml(item.name)}"><i class="bi bi-database-down"></i></button>
+            <button class="btn btn-sm btn-outline-danger delete-backup-btn" type="button" data-id="${item.id}" title="Delete backup" aria-label="Delete ${escapeHtml(item.name)}"><i class="bi bi-trash"></i></button>
           </div>
         </td>
       </tr>
@@ -93,15 +123,35 @@
   };
 
   const updateStorage = (bytes) => {
+    const used = Number(bytes) || 0;
     const text = formatBytes(bytes);
     const storageText = $("storageUsageText");
     const meterText = $("storageMeterText");
     const fill = $("storageMeterFill");
-    if (storageText) storageText.textContent = `Storage: ${text}`;
-    if (meterText) meterText.textContent = text;
-    if (fill) {
-      const pct = Math.max(4, Math.min(100, ((Number(bytes) || 0) / (1024 * 1024 * 1024)) * 100));
-      fill.style.width = Number(bytes) > 0 ? `${pct}%` : "0";
+    const historyFill = $("historyStorageFill");
+    const historyPercent = $("historyStoragePercent");
+    const pctValue = Math.min(100, (used / STORAGE_LIMIT_BYTES) * 100);
+    const pctText = `${pctValue.toFixed(pctValue >= 10 ? 1 : 2)}%`;
+    const width = used > 0 ? `${Math.max(2, pctValue)}%` : "0";
+    if (storageText) storageText.textContent = `${text} / 5 GB Used`;
+    if (meterText) meterText.textContent = `${text} / 5 GB`;
+    if (historyPercent) historyPercent.textContent = pctText;
+    [fill, historyFill].forEach((bar) => {
+      if (!bar) return;
+      bar.style.width = width;
+      bar.classList.toggle("warn", pctValue >= 70 && pctValue < 90);
+      bar.classList.toggle("danger", pctValue >= 90);
+    });
+  };
+
+  const setButtonLoading = (button, loading, label = "Saving") => {
+    if (!button) return;
+    if (loading) {
+      button.dataset.originalHtml = button.innerHTML;
+      button.innerHTML = `<span class="spinner-border spinner-border-sm" aria-hidden="true"></span> ${escapeHtml(label)}`;
+    } else if (button.dataset.originalHtml) {
+      button.innerHTML = button.dataset.originalHtml;
+      delete button.dataset.originalHtml;
     }
   };
 
@@ -117,6 +167,7 @@
     latestBackup = data.latest_backup || (data.backups && data.backups[0]) || null;
     renderHistory(data.backups || []);
     updateStorage(data.storage_used || 0);
+    updateAnalytics(data.stats || {}, data.storage_used || 0);
     const latestText = $("latestBackupText");
     if (latestText) latestText.textContent = latestBackup ? latestBackup.name : "No backup available";
     const pageText = $("backupPageText");
@@ -219,6 +270,7 @@
     }
     pendingRestoreForm.set("password", password.value.trim());
     const confirmBtn = $("confirmRestoreBtn");
+    setButtonLoading(confirmBtn, true, "Restoring");
     if (confirmBtn) confirmBtn.disabled = true;
     try {
       const resp = await fetch(API_RESTORE, {
@@ -241,6 +293,7 @@
     } catch (restoreError) {
       if (error) error.textContent = restoreError.message;
     } finally {
+      setButtonLoading(confirmBtn, false);
       if (confirmBtn) confirmBtn.disabled = false;
     }
   };
@@ -249,24 +302,57 @@
     const enabled = !!($("autoBackupEnabled") && $("autoBackupEnabled").checked);
     const frequencyInput = document.querySelector('input[name="backupFrequency"]:checked');
     const frequency = frequencyInput ? frequencyInput.value : "weekly";
-    const resp = await fetch(API_SETTINGS, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      credentials: "same-origin",
-      cache: "no-store",
-      body: JSON.stringify({ enabled, frequency }),
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || !data.ok) {
-      showAlert(data.error || "Failed to save settings.", "error");
-      return;
+    const saveBtn = $("saveAutoSettingsBtn");
+    setButtonLoading(saveBtn, true);
+    if (saveBtn) saveBtn.disabled = true;
+    try {
+      const resp = await fetch(API_SETTINGS, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "same-origin",
+        cache: "no-store",
+        body: JSON.stringify({ enabled, frequency }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) {
+        showAlert(data.error || "Failed to save settings.", "error");
+        return;
+      }
+      showAlert("Auto backup settings saved.", "success");
+      await loadSettings();
+    } finally {
+      setButtonLoading(saveBtn, false);
+      if (saveBtn) saveBtn.disabled = false;
     }
-    showAlert("Auto backup settings saved.", "success");
-    await loadSettings();
+  };
+
+  const setupUploadDropZone = () => {
+    const zone = document.querySelector(".backup-upload-zone");
+    const input = $("backupFileInput");
+    if (!zone || !input) return;
+    ["dragenter", "dragover"].forEach((eventName) => {
+      zone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        zone.classList.add("dragover");
+      });
+    });
+    ["dragleave", "drop"].forEach((eventName) => {
+      zone.addEventListener(eventName, (event) => {
+        event.preventDefault();
+        zone.classList.remove("dragover");
+      });
+    });
+    zone.addEventListener("drop", (event) => {
+      const file = event.dataTransfer && event.dataTransfer.files && event.dataTransfer.files[0];
+      if (!file) return;
+      const transfer = new DataTransfer();
+      transfer.items.add(file);
+      input.files = transfer.files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
   };
 
   document.addEventListener("DOMContentLoaded", () => {
-    $("refreshBackupBtn")?.addEventListener("click", refreshAll);
     $("backupPrevBtn")?.addEventListener("click", () => {
       if (page > 1) {
         page -= 1;
@@ -313,6 +399,11 @@
     $("confirmRestoreBtn")?.addEventListener("click", submitRestore);
     $("saveAutoSettingsBtn")?.addEventListener("click", saveSettings);
     $("backupHistoryBody")?.addEventListener("click", (event) => {
+      const emptyCreate = event.target.closest(".empty-create-backup");
+      if (emptyCreate) {
+        createBackup("postgres");
+        return;
+      }
       const deleteBtn = event.target.closest(".delete-backup-btn");
       if (deleteBtn) {
         deleteBackup(deleteBtn.dataset.id);
@@ -327,6 +418,7 @@
         showAlert(`Confirm your password to restore ${restoreBtn.dataset.name}.`, "success");
       }
     });
+    setupUploadDropZone();
     refreshAll();
   });
 })();

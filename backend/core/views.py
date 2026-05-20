@@ -3591,6 +3591,16 @@ def admin_backup_history_api(request):
         total = int(cur.fetchone()[0] or 0)
         cur.execute(
             """
+            SELECT
+                COUNT(*) FILTER (WHERE status = 'completed') AS completed_count,
+                COUNT(*) FILTER (WHERE status = 'failed') AS failed_count,
+                MAX(created_at) FILTER (WHERE status = 'completed') AS last_success_at
+            FROM admin_backups
+            """
+        )
+        stats_row = cur.fetchone() or (0, 0, None)
+        cur.execute(
+            """
             SELECT id, backup_name, backup_type, created_at, file_size, created_by, status, notes
             FROM admin_backups
             ORDER BY created_at DESC, id DESC
@@ -3599,10 +3609,18 @@ def admin_backup_history_api(request):
             [page_size, offset],
         )
         rows = cur.fetchall()
+        cur.execute(
+            """
+            SELECT id, backup_name, backup_type, created_at, file_size, created_by, status, notes
+            FROM admin_backups
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """
+        )
+        latest = cur.fetchone()
 
     root = _backup_root()
     used = sum(p.stat().st_size for p in root.glob("*") if p.is_file())
-    latest = rows[0] if rows else None
     return JsonResponse(
         {
             "ok": True,
@@ -3610,6 +3628,12 @@ def admin_backup_history_api(request):
             "page": page,
             "page_size": page_size,
             "total": total,
+            "stats": {
+                "total_backups": total,
+                "successful_backups": int(stats_row[0] or 0),
+                "failed_backups": int(stats_row[1] or 0),
+                "last_backup_time": stats_row[2].isoformat() if stats_row[2] else None,
+            },
             "storage_used": used,
             "latest_backup": _format_backup_row(latest) if latest else None,
         }
