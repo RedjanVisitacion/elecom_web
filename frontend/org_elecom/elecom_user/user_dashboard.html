@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260520-student-maintenance">
 </head>
 <body class="theme-elecom">
 
@@ -274,38 +274,32 @@
         </div>
     </div>
 
-    <!-- APK Download Modal -->
-    <div class="modal fade" id="apkModal" tabindex="-1" aria-labelledby="apkModalLabel" aria-hidden="true" data-bs-backdrop="static" data-bs-keyboard="false">
-      <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content">
-          <div class="modal-header">
-            <div class="d-flex align-items-center gap-2">
-              <img src="/static/assets/elecom.png" alt="App" class="app-logo rounded-circle">
-              <h5 class="modal-title" id="apkModalLabel">Welcome to ELECOM</h5>
+    <div class="student-maintenance-overlay" id="studentMaintenanceOverlay" role="dialog" aria-modal="true" aria-labelledby="studentMaintenanceTitle">
+        <div class="student-maintenance-card">
+            <div class="student-maintenance-logo">
+                <img src="/static/assets/elecom.png" alt="ELECOM Logo">
             </div>
-          </div>
-          <div class="modal-body">
-            <div class="d-flex align-items-start gap-3">
-              <i class="bi bi-info-circle fs-3 text-primary"></i>
-              <div>
-                <div class="fw-semibold mb-1">Student web portal is under construction</div>
-                <div class="mb-2">Please use the SocieTree mobile app for voting and student features in the meantime.</div>
-                <a href="https://www.mediafire.com/file/mwgphtknp2mq4ve/SocieTree_v6.apk/file" class="btn btn-primary" target="_blank" rel="noopener noreferrer">
-                  <i class="bi bi-download me-1"></i> Download SocieTree Android APK
+            <p class="student-maintenance-kicker">Student Web Dashboard</p>
+            <h1 id="studentMaintenanceTitle">Under Maintenance</h1>
+            <p class="student-maintenance-copy">
+                Please download and use the ELECOM mobile app for voting and student services. The student web dashboard is temporarily unavailable while maintenance is in progress.
+            </p>
+            <div class="student-maintenance-actions">
+                <a href="https://www.mediafire.com/file/mwgphtknp2mq4ve/SocieTree_v6.apk/file" class="maintenance-download-btn" target="_blank" rel="noopener noreferrer">
+                    <i class="bi bi-download" aria-hidden="true"></i>
+                    <span>Download ELECOM Mobile App</span>
                 </a>
-              </div>
+                <button type="button" class="maintenance-logout-btn" id="modalLogout">
+                    <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+                    <span>Logout</span>
+                </button>
             </div>
-          </div>
-          <div class="modal-footer">
-            <a href="#" class="btn btn-danger" id="modalLogout">Logout</a>
-          </div>
         </div>
-      </div>
     </div>
 
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
 
-    <script src="/static/org_elecom/elecom_user/user_components/user_js/user_dashboard.js"></script>
+    <script src="/static/org_elecom/elecom_user/user_components/user_js/user_dashboard.js?v=20260520-student-maintenance"></script>
 </body>
 </html>

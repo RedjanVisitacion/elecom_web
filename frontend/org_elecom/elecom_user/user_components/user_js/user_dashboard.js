@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const systemStatusBadge = document.getElementById('systemStatusBadge');
     const systemStatusText = document.getElementById('systemStatusText');
     const modalLogout = document.getElementById('modalLogout');
+    const studentMaintenanceOverlay = document.getElementById('studentMaintenanceOverlay');
     const electionHelperText = document.getElementById('electionHelperText');
     const greetingName = document.getElementById('greetingName');
     const electionStatus = document.getElementById('electionStatus');
@@ -317,6 +318,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const toLogin = () => {
         try {
             sessionStorage.removeItem('elecom_user');
+            sessionStorage.removeItem('elecom_role');
+            sessionStorage.removeItem('elecom_user_id');
+            sessionStorage.removeItem('elecom_user_photo_url');
         } catch (e) { /* ignore */ }
         const base = window.location.origin;
         window.location.href = `${base}/login/`;
@@ -942,6 +946,10 @@ document.addEventListener('DOMContentLoaded', function() {
     } catch (e) { /* ignore */ }
 
     setNotifCount(0);
+
+    if (studentMaintenanceOverlay) {
+        document.body.classList.add('student-dashboard-maintenance');
+    }
 
     if (notifBell) {
         notifBell.addEventListener('click', (e) => {
