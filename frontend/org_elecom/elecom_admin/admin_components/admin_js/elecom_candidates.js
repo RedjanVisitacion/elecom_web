@@ -390,7 +390,10 @@ document.addEventListener('DOMContentLoaded', function(){
       const baseRows = (data && data.ok) ? (data.candidates || []) : [];
 
       if (!baseRows.length) {
-        alert('No candidates to export.');
+        await showElecomAlert({
+          title: 'Export Candidates',
+          message: 'No candidates to export.',
+        });
         return;
       }
 
@@ -451,7 +454,10 @@ document.addEventListener('DOMContentLoaded', function(){
       const stamp = new Date().toISOString().slice(0, 10);
       downloadTextFile(`elecom_candidates_${stamp}.csv`, `\uFEFF${lines.join('\r\n')}`, 'text/csv;charset=utf-8;');
     } catch (err) {
-      alert('Failed to export candidates.');
+      await showElecomAlert({
+        title: 'Export Failed',
+        message: 'Failed to export candidates.',
+      });
     } finally {
       exportCandidatesBtn.disabled = false;
       exportCandidatesBtn.innerHTML = originalHtml;
@@ -535,7 +541,10 @@ document.addEventListener('DOMContentLoaded', function(){
     try {
       const rows = await rowsFromImportFile(file);
       if (!rows.length) {
-        alert('No candidate rows found in the file.');
+        await showElecomAlert({
+          title: 'Import Candidates',
+          message: 'No candidate rows found in the file.',
+        });
         return;
       }
 
@@ -545,11 +554,20 @@ document.addEventListener('DOMContentLoaded', function(){
         .filter(Boolean);
 
       if (validationErrors.length) {
-        alert(`Please fix the import file first:\n\n${validationErrors.slice(0, 10).join('\n')}${validationErrors.length > 10 ? '\n...' : ''}`);
+        await showElecomAlert({
+          title: 'Import File Needs Review',
+          message: `Please fix the import file first:\n\n${validationErrors.slice(0, 10).join('\n')}${validationErrors.length > 10 ? '\n...' : ''}`,
+        });
         return;
       }
 
-      if (!confirm(`Import ${payloads.length} candidate(s) from this file?`)) return;
+      const confirmed = await showElecomConfirm({
+        title: 'Import Candidates',
+        message: `${payloads.length} candidate${payloads.length === 1 ? '' : 's'} will be imported from this file.`,
+        confirmText: 'Import',
+        danger: false,
+      });
+      if (!confirmed) return;
 
       let imported = 0;
       let skipped = 0;
@@ -567,9 +585,15 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       loadList();
-      alert(`Import finished.\n\nImported: ${imported}\nSkipped existing: ${skipped}\nFailed: ${failed.length}${failed.length ? `\n\n${failed.slice(0, 8).join('\n')}${failed.length > 8 ? '\n...' : ''}` : ''}`);
+      await showElecomAlert({
+        title: 'Import Finished',
+        message: `Imported: ${imported}\nSkipped existing: ${skipped}\nFailed: ${failed.length}${failed.length ? `\n\n${failed.slice(0, 8).join('\n')}${failed.length > 8 ? '\n...' : ''}` : ''}`,
+      });
     } catch (err) {
-      alert(err && err.message ? err.message : 'Failed to import candidates.');
+      await showElecomAlert({
+        title: 'Import Failed',
+        message: err && err.message ? err.message : 'Failed to import candidates.',
+      });
     } finally {
       importCandidatesBtn.disabled = false;
       if (exportCandidatesBtn) exportCandidatesBtn.disabled = false;
@@ -593,6 +617,65 @@ document.addEventListener('DOMContentLoaded', function(){
     if (bulkBtn) bulkBtn.disabled = !any;
   }
 
+  function showElecomConfirm({ title, message, confirmText = 'Confirm', danger = true, alertOnly = false }){
+    return new Promise((resolve)=>{
+      const modalEl = document.getElementById('elecomConfirmModal');
+      const titleEl = document.getElementById('elecomConfirmTitle');
+      const messageEl = document.getElementById('elecomConfirmMessage');
+      const actionBtn = document.getElementById('elecomConfirmActionBtn');
+      const cancelBtn = document.getElementById('elecomConfirmCancelBtn');
+
+      if (!modalEl || !actionBtn || !window.bootstrap) {
+        resolve(false);
+        return;
+      }
+
+      if (titleEl) titleEl.textContent = title;
+      if (messageEl) messageEl.textContent = message;
+      actionBtn.textContent = confirmText;
+      actionBtn.classList.toggle('btn-danger', danger);
+      actionBtn.classList.toggle('btn-dark', !danger);
+      actionBtn.classList.remove('btn-primary');
+      if (cancelBtn) cancelBtn.classList.toggle('d-none', alertOnly);
+
+      const modal = bootstrap.Modal.getOrCreateInstance(modalEl, {
+        backdrop: true,
+        keyboard: true,
+      });
+      let decided = false;
+
+      const cleanup = ()=>{
+        actionBtn.removeEventListener('click', onConfirm);
+        modalEl.removeEventListener('hidden.bs.modal', onHidden);
+        if (cancelBtn) cancelBtn.classList.remove('d-none');
+      };
+      const onConfirm = ()=>{
+        decided = true;
+        cleanup();
+        modal.hide();
+        resolve(true);
+      };
+      const onHidden = ()=>{
+        cleanup();
+        if (!decided) resolve(false);
+      };
+
+      actionBtn.addEventListener('click', onConfirm);
+      modalEl.addEventListener('hidden.bs.modal', onHidden, { once:true });
+      modal.show();
+    });
+  }
+
+  function showElecomAlert({ title, message, actionText = 'OK' }){
+    return showElecomConfirm({
+      title,
+      message,
+      confirmText: actionText,
+      danger: false,
+      alertOnly: true,
+    });
+  }
+
   document.addEventListener('change', (e)=>{
     if(e.target && e.target.classList.contains('row-check')){ updateBulkState(); }
   });
@@ -611,7 +694,13 @@ document.addEventListener('DOMContentLoaded', function(){
     bulkBtn.addEventListener('click', async ()=>{
       const ids = Array.from(document.querySelectorAll('.row-check:checked')).map(cb=>parseInt(cb.value,10)).filter(Boolean);
       if(ids.length===0) return;
-      if(!confirm(`Unregister ${ids.length} selected candidate(s)?`)) return;
+      const confirmed = await showElecomConfirm({
+        title: 'Unregister Candidates',
+        message: `${ids.length} selected candidate${ids.length === 1 ? '' : 's'} will be removed.`,
+        confirmText: 'Unregister',
+        danger: true,
+      });
+      if(!confirmed) return;
       const res = await fetch(API_BASE + 'bulk-delete/', {
         method:'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -620,7 +709,12 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       const d = await res.json();
       if(d && d.ok){ loadList(); }
-      else { alert(d && d.error ? d.error : 'Failed to unregister selected'); }
+      else {
+        await showElecomAlert({
+          title: 'Unregister Failed',
+          message: d && d.error ? d.error : 'Failed to unregister selected',
+        });
+      }
     });
   }
 
@@ -743,7 +837,12 @@ document.addEventListener('DOMContentLoaded', function(){
 
       const d = await res.json();
       if(d && d.ok){ if (editModal) editModal.hide(); loadList(); }
-      else { alert(d && d.error ? d.error : 'Failed to save changes'); }
+      else {
+        await showElecomAlert({
+          title: 'Save Failed',
+          message: d && d.error ? d.error : 'Failed to save changes',
+        });
+      }
     });
   }
 
@@ -759,7 +858,12 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       const d = await res.json();
       if(d && d.ok){ bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide(); loadList(); }
-      else { alert(d && d.error ? d.error : 'Failed to unregister'); }
+      else {
+        await showElecomAlert({
+          title: 'Unregister Failed',
+          message: d && d.error ? d.error : 'Failed to unregister',
+        });
+      }
     });
   }
 });

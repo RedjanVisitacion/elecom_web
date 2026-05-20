@@ -141,3 +141,105 @@
 .vd-platform{
   white-space:pre-wrap;
 }
+
+.elecom-confirm-modal .modal-dialog{
+  max-width:430px;
+}
+
+.elecom-confirm-modal .modal-content{
+  border:1px solid rgba(15,23,42,0.12);
+  border-radius:8px;
+  background:#ffffff;
+  box-shadow:0 18px 48px rgba(15,23,42,0.18);
+  overflow:hidden;
+}
+
+.elecom-confirm-modal .modal-header{
+  padding:16px 18px 10px;
+  border-bottom:0;
+  background:#ffffff;
+  color:#111827;
+}
+
+.elecom-confirm-modal .modal-title{
+  color:#111827;
+  font-size:1.05rem;
+  font-weight:800;
+  letter-spacing:0;
+}
+
+.elecom-confirm-modal .modal-body{
+  padding:0 18px 16px;
+}
+
+.elecom-confirm-modal .modal-body p{
+  color:#4b5563;
+  font-size:0.94rem;
+  line-height:1.45;
+  white-space:pre-line;
+}
+
+.elecom-confirm-modal .modal-footer{
+  gap:8px;
+  padding:14px 18px 18px;
+  border-top:1px solid rgba(15,23,42,0.08);
+}
+
+.elecom-confirm-modal .btn{
+  min-height:38px;
+  border-radius:6px;
+  font-weight:700;
+  padding:7px 14px;
+}
+
+.elecom-confirm-modal .btn-danger{
+  background:#dc2626;
+  border-color:#dc2626;
+}
+
+.elecom-confirm-modal .btn-danger:hover,
+.elecom-confirm-modal .btn-danger:focus{
+  background:#b91c1c;
+  border-color:#b91c1c;
+}
+
+.elecom-confirm-modal .btn-dark{
+  background:#111827;
+  border-color:#111827;
+  color:#ffffff;
+}
+
+.elecom-confirm-modal .btn-dark:hover,
+.elecom-confirm-modal .btn-dark:focus{
+  background:#020617;
+  border-color:#020617;
+  color:#ffffff;
+}
+
+.elecom-confirm-modal .btn-close{
+  opacity:0.72;
+  filter:none;
+}
+
+.elecom-confirm-modal .btn-close:hover{
+  opacity:1;
+}
+
+.modal-backdrop.show{
+  opacity:0.46;
+}
+
+@media (max-width: 560px){
+  .elecom-confirm-modal .modal-dialog{
+    margin:14px;
+  }
+
+  .elecom-confirm-modal .modal-footer{
+    flex-direction:column-reverse;
+    align-items:stretch;
+  }
+
+  .elecom-confirm-modal .btn{
+    width:100%;
+  }
+}
