@@ -553,6 +553,11 @@ def login_view(request):
 
 
 @require_http_methods(["GET"])
+def terms_conditions_view(request):
+    return render(request, "elecom_terms_conditions.html")
+
+
+@require_http_methods(["GET"])
 def account_profile_api(request):
     _ensure_auth_identity_tables()
 

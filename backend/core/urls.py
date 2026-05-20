@@ -73,6 +73,7 @@ from .views import (
     user_notifications_delete_api,
     mobile_tutorial_state_api,
     login_view,
+    terms_conditions_view,
 )
 
 def home_redirect(request):
@@ -93,6 +94,7 @@ urlpatterns = [
     path("backup/delete/<int:backup_id>/", admin_backup_delete_api, name="admin_backup_delete_api"),
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
+    path('terms-and-conditions/', terms_conditions_view, name='terms_conditions'),
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
     path('api/election/window/', election_window_api, name='election_window_api'),
     path('api/ballot/', eligible_ballot_api, name='eligible_ballot_api'),

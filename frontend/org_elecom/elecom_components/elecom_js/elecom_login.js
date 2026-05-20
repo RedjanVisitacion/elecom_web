@@ -14,8 +14,36 @@
   const year = $("year");
   const rememberMe = $("rememberMe");
   const agreeTerms = $("agreeTerms");
+  const termsLink = $("termsLink");
+  const TERMS_URL = "/terms-and-conditions/?from=login";
+  const TERMS_DRAFT_KEY = "elecom_login_terms_draft";
 
   if (year) year.textContent = String(new Date().getFullYear());
+
+  const saveTermsDraft = () => {
+    try {
+      sessionStorage.setItem(
+        TERMS_DRAFT_KEY,
+        JSON.stringify({
+          studentId: studentId ? studentId.value : "",
+          password: password ? password.value : "",
+          rememberMe: rememberMe ? rememberMe.checked : false,
+        }),
+      );
+    } catch {}
+  };
+
+  const restoreTermsDraft = () => {
+    try {
+      const raw = sessionStorage.getItem(TERMS_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (studentId) studentId.value = draft.studentId || "";
+      if (password) password.value = draft.password || "";
+      if (rememberMe) rememberMe.checked = !!draft.rememberMe;
+      sessionStorage.removeItem(TERMS_DRAFT_KEY);
+    } catch {}
+  };
 
   if (studentId) studentId.value = "";
   if (password) password.value = "";
@@ -25,6 +53,18 @@
     if (rememberMe && studentId && remembered) {
       rememberMe.checked = true;
       studentId.value = remembered;
+    }
+  } catch {}
+
+  try {
+    const params = new URLSearchParams(window.location.search || "");
+    if (agreeTerms && (params.get("terms") === "accepted" || sessionStorage.getItem("elecom_terms_opened") === "1")) {
+      restoreTermsDraft();
+      agreeTerms.checked = true;
+      sessionStorage.removeItem("elecom_terms_opened");
+      if (window.history && window.history.replaceState) {
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
     }
   } catch {}
 
@@ -134,6 +174,28 @@
 
   if (fillAdmin) fillAdmin.addEventListener("click", () => fill(SAMPLE_USERS.admin));
   if (fillStudent) fillStudent.addEventListener("click", () => fill(SAMPLE_USERS.student));
+
+  if (termsLink) {
+    termsLink.addEventListener("click", () => {
+      try {
+        saveTermsDraft();
+        sessionStorage.setItem("elecom_terms_opened", "1");
+      } catch {}
+    });
+  }
+
+  if (agreeTerms) {
+    agreeTerms.addEventListener("click", (event) => {
+      if (agreeTerms.checked) {
+        event.preventDefault();
+        try {
+          saveTermsDraft();
+          sessionStorage.setItem("elecom_terms_opened", "1");
+        } catch {}
+        window.location.href = TERMS_URL;
+      }
+    });
+  }
 
   if (form) {
     form.addEventListener("submit", async (e) => {
