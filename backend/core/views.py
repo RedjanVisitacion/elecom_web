@@ -5,17 +5,21 @@ from zoneinfo import ZoneInfo
 import json
 import hashlib
 import logging
+import os
+import shutil
+import subprocess
 import tempfile
 import time
 import urllib.request
 import io
 import ipaddress
+import zipfile
 from pathlib import Path
 
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone as dt_timezone
 
-from django.http import HttpResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.db import connection, transaction
 from django.views.decorators.csrf import csrf_exempt
@@ -118,6 +122,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "elecom_results.html",
     "elecom_reset.html",
     "elecom_reports.html",
+    "elecom_backup_restore.html",
     "elecom_transparency.html",
     "elecom_network_authorize.html",
     "profile.html",
@@ -172,6 +177,11 @@ def election_results(request, election_id):
 @require_http_methods(["GET"])
 def election_reports(request, election_id):
     return _serve_admin_static_page(request, "elecom_reports.html")
+
+
+@require_http_methods(["GET"])
+def backup_restore_page(request):
+    return _serve_admin_static_page(request, "elecom_backup_restore.html")
 
 
 def _facepp_configured() -> bool:
@@ -3284,6 +3294,627 @@ def admin_verify_password_api(request):
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to verify password."}, status=500)
+
+
+BACKUP_ALLOWED_TYPES = {
+    "postgres": {"label": "PostgreSQL Database", "tables": []},
+    "election_records": {"label": "Election Records", "tables": ["vote_windows", "votes", "vote_items"]},
+    "candidates": {"label": "Candidates", "tables": ["candidates_registration"]},
+    "full_system": {"label": "Full System Backup", "tables": []},
+}
+BACKUP_RESTORE_SCOPES = {
+    "database": "Restore database",
+    "election_year": "Restore election year only",
+    "candidates": "Restore candidates only",
+    "reports": "Restore reports only",
+}
+BACKUP_SKIP_TABLES = {"admin_backups", "admin_backup_settings", "audit_logs"}
+
+
+def _backup_root() -> Path:
+    root = Path(getattr(settings, "ELECOM_BACKUP_DIR", "") or (Path(settings.BASE_DIR) / "backup" / "admin_backups"))
+    root.mkdir(parents=True, exist_ok=True)
+    return root.resolve()
+
+
+def _ensure_backup_tables() -> None:
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS admin_backups (
+                id BIGSERIAL PRIMARY KEY,
+                backup_name VARCHAR(255) NOT NULL,
+                backup_type VARCHAR(60) NOT NULL,
+                file_path TEXT NOT NULL,
+                file_size BIGINT NOT NULL DEFAULT 0,
+                status VARCHAR(30) NOT NULL DEFAULT 'completed',
+                created_by VARCHAR(80) NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                restored_at TIMESTAMPTZ NULL,
+                notes TEXT NULL
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS idx_admin_backups_created_at
+            ON admin_backups (created_at DESC, id DESC)
+            """
+        )
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS admin_backup_settings (
+                id SMALLINT PRIMARY KEY DEFAULT 1,
+                enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                frequency VARCHAR(20) NOT NULL DEFAULT 'weekly',
+                updated_by VARCHAR(80) NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                CHECK (id = 1)
+            )
+            """
+        )
+        cur.execute(
+            """
+            INSERT INTO admin_backup_settings (id)
+            VALUES (1)
+            ON CONFLICT (id) DO NOTHING
+            """
+        )
+
+
+def _json_request_body(request) -> dict:
+    try:
+        return json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        return {}
+
+
+def _backup_db_config() -> dict:
+    return settings.DATABASES.get("default", {})
+
+
+def _pg_env(db: dict) -> dict:
+    env = os.environ.copy()
+    password = str(db.get("PASSWORD") or "")
+    if password:
+        env["PGPASSWORD"] = password
+    return env
+
+
+def _pg_base_args(db: dict) -> list[str]:
+    args: list[str] = []
+    host = str(db.get("HOST") or "").strip()
+    port = str(db.get("PORT") or "").strip()
+    user = str(db.get("USER") or "").strip()
+    if host:
+        args += ["--host", host]
+    if port:
+        args += ["--port", port]
+    if user:
+        args += ["--username", user]
+    return args
+
+
+def _postgres_identifier(name: str) -> str:
+    return '"' + str(name or "").replace('"', '""') + '"'
+
+
+def _postgres_literal(value) -> str:
+    if value is None:
+        return "NULL"
+    with connection.cursor() as cur:
+        return cur.mogrify("%s", [value]).decode("utf-8")
+
+
+def _backup_table_names(backup_type: str) -> list[str]:
+    configured = BACKUP_ALLOWED_TYPES.get(backup_type, {}).get("tables", [])
+    if configured:
+        return list(configured)
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT table_name
+            FROM information_schema.tables
+            WHERE table_schema = 'public'
+              AND table_type = 'BASE TABLE'
+            ORDER BY table_name
+            """
+        )
+        return [str(row[0]) for row in cur.fetchall() if str(row[0]) not in BACKUP_SKIP_TABLES]
+
+
+def _table_columns(table_name: str) -> list[str]:
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT column_name
+            FROM information_schema.columns
+            WHERE table_schema = 'public'
+              AND table_name = %s
+            ORDER BY ordinal_position
+            """,
+            [table_name],
+        )
+        return [str(row[0]) for row in cur.fetchall()]
+
+
+def _run_python_sql_backup(output_path: Path, backup_type: str) -> None:
+    tables = _backup_table_names(backup_type)
+    with output_path.open("w", encoding="utf-8", newline="\n") as out:
+        out.write("-- PostgreSQL database dump\n")
+        out.write("-- ELECOM Django fallback backup\n")
+        out.write(f"-- Created at: {timezone.now().isoformat()}\n")
+        out.write(f"-- Backup type: {backup_type}\n\n")
+        out.write("BEGIN;\n")
+        if tables:
+            joined = ", ".join(_postgres_identifier(table) for table in tables)
+            out.write(f"TRUNCATE TABLE {joined} RESTART IDENTITY CASCADE;\n")
+
+        for table in tables:
+            columns = _table_columns(table)
+            if not columns:
+                continue
+            quoted_table = _postgres_identifier(table)
+            quoted_columns = ", ".join(_postgres_identifier(column) for column in columns)
+            with connection.cursor() as cur:
+                cur.execute(f"SELECT {quoted_columns} FROM {quoted_table}")
+                while True:
+                    rows = cur.fetchmany(500)
+                    if not rows:
+                        break
+                    for row in rows:
+                        values = ", ".join(_postgres_literal(value) for value in row)
+                        out.write(f"INSERT INTO {quoted_table} ({quoted_columns}) VALUES ({values});\n")
+        out.write("COMMIT;\n")
+
+
+def _active_election_year() -> str:
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT COALESCE(EXTRACT(YEAR FROM start_at)::int, EXTRACT(YEAR FROM created_at)::int)
+                FROM vote_windows
+                ORDER BY id DESC
+                LIMIT 1
+                """
+            )
+            row = cur.fetchone()
+            if row and row[0]:
+                return str(int(row[0]))
+    except Exception:
+        return str(timezone.now().year)
+    return str(timezone.now().year)
+
+
+def _backup_filename(backup_type: str, ext: str) -> str:
+    safe_type = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in backup_type)
+    stamp = timezone.localtime(timezone.now()).strftime("%Y%m%d_%H%M%S")
+    return f"elecom_{safe_type}_{_active_election_year()}_{stamp}.{ext}"
+
+
+def _run_pg_dump(output_path: Path, backup_type: str) -> None:
+    db = _backup_db_config()
+    db_name = str(db.get("NAME") or "").strip()
+    if not db_name:
+        raise RuntimeError("Database name is not configured.")
+
+    pg_dump = shutil.which("pg_dump")
+    if not pg_dump:
+        _run_python_sql_backup(output_path, backup_type)
+        return
+
+    command = [pg_dump, *_pg_base_args(db), "--format=plain", "--no-owner", "--no-privileges"]
+    for table in BACKUP_ALLOWED_TYPES.get(backup_type, {}).get("tables", []):
+        command += ["--table", table]
+    command += ["--file", str(output_path), db_name]
+
+    result = subprocess.run(
+        command,
+        env=_pg_env(db),
+        text=True,
+        capture_output=True,
+        timeout=int(getattr(settings, "ELECOM_BACKUP_TIMEOUT_SECONDS", 180) or 180),
+    )
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "pg_dump failed.").strip()[:500])
+
+
+def _run_psql_restore(input_path: Path) -> None:
+    db = _backup_db_config()
+    db_name = str(db.get("NAME") or "").strip()
+    if not db_name:
+        raise RuntimeError("Database name is not configured.")
+
+    psql = shutil.which("psql")
+    if not psql:
+        sql_text = input_path.read_text(encoding="utf-8", errors="ignore")
+        with connection.cursor() as cur:
+            cur.execute(sql_text)
+        return
+
+    command = [psql, *_pg_base_args(db), "--dbname", db_name, "--file", str(input_path)]
+    result = subprocess.run(
+        command,
+        env=_pg_env(db),
+        text=True,
+        capture_output=True,
+        timeout=int(getattr(settings, "ELECOM_RESTORE_TIMEOUT_SECONDS", 300) or 300),
+    )
+    if result.returncode != 0:
+        raise RuntimeError((result.stderr or result.stdout or "Restore failed.").strip()[:500])
+
+
+def _record_backup(name: str, backup_type: str, file_path: Path, status: str, created_by: str, notes: str = "") -> int:
+    _ensure_backup_tables()
+    size = file_path.stat().st_size if file_path.exists() else 0
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            INSERT INTO admin_backups (backup_name, backup_type, file_path, file_size, status, created_by, notes)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
+            """,
+            [name[:255], backup_type[:60], str(file_path), int(size), status[:30], created_by[:80], notes],
+        )
+        row = cur.fetchone()
+    return int(row[0])
+
+
+def _format_backup_row(row) -> dict:
+    return {
+        "id": int(row[0]),
+        "name": row[1],
+        "type": row[2],
+        "type_label": BACKUP_ALLOWED_TYPES.get(row[2], {}).get("label", str(row[2] or "").replace("_", " ").title()),
+        "created_at": row[3].isoformat() if row[3] else None,
+        "file_size": int(row[4] or 0),
+        "created_by": row[5] or "Admin",
+        "status": row[6] or "completed",
+        "notes": row[7] or "",
+    }
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def admin_backup_history_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_backup_tables()
+    page = max(1, int(request.GET.get("page") or 1))
+    page_size = min(50, max(5, int(request.GET.get("page_size") or 8)))
+    offset = (page - 1) * page_size
+    with connection.cursor() as cur:
+        cur.execute("SELECT COUNT(*) FROM admin_backups")
+        total = int(cur.fetchone()[0] or 0)
+        cur.execute(
+            """
+            SELECT id, backup_name, backup_type, created_at, file_size, created_by, status, notes
+            FROM admin_backups
+            ORDER BY created_at DESC, id DESC
+            LIMIT %s OFFSET %s
+            """,
+            [page_size, offset],
+        )
+        rows = cur.fetchall()
+
+    root = _backup_root()
+    used = sum(p.stat().st_size for p in root.glob("*") if p.is_file())
+    latest = rows[0] if rows else None
+    return JsonResponse(
+        {
+            "ok": True,
+            "backups": [_format_backup_row(row) for row in rows],
+            "page": page,
+            "page_size": page_size,
+            "total": total,
+            "storage_used": used,
+            "latest_backup": _format_backup_row(latest) if latest else None,
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def admin_backup_settings_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_backup_tables()
+    if request.method == "POST":
+        payload = _json_request_body(request)
+        enabled = _post_bool(payload, "enabled", False)
+        frequency = str(payload.get("frequency") or "weekly").strip().lower()
+        if frequency not in {"daily", "weekly", "monthly"}:
+            return JsonResponse({"ok": False, "error": "Invalid backup frequency."}, status=400)
+        changed_by = str(request.session.get("student_id") or "admin")
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE admin_backup_settings
+                SET enabled = %s, frequency = %s, updated_by = %s, updated_at = NOW()
+                WHERE id = 1
+                """,
+                [enabled, frequency, changed_by],
+            )
+        _audit_log(table_name="admin_backups", record_id=None, action="settings", new_data=payload, changed_by=changed_by)
+
+    with connection.cursor() as cur:
+        cur.execute("SELECT enabled, frequency, updated_at FROM admin_backup_settings WHERE id = 1")
+        row = cur.fetchone()
+        cur.execute(
+            """
+            SELECT created_at
+            FROM admin_backups
+            WHERE status = 'completed'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """
+        )
+        latest = cur.fetchone()
+
+    enabled, frequency, updated_at = row if row else (False, "weekly", timezone.now())
+    latest_at = latest[0] if latest else None
+    base = latest_at or updated_at or timezone.now()
+    next_delta = {"daily": timedelta(days=1), "weekly": timedelta(days=7), "monthly": timedelta(days=30)}.get(frequency, timedelta(days=7))
+    return JsonResponse(
+        {
+            "ok": True,
+            "settings": {
+                "enabled": bool(enabled),
+                "frequency": frequency,
+                "next_scheduled_backup": (base + next_delta).isoformat() if enabled else None,
+                "latest_successful_backup": latest_at.isoformat() if latest_at else None,
+            },
+        }
+    )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_backup_create_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    payload = _json_request_body(request)
+    backup_type = str(payload.get("type") or "postgres").strip().lower()
+    if backup_type not in BACKUP_ALLOWED_TYPES:
+        return JsonResponse({"ok": False, "error": "Invalid backup type."}, status=400)
+
+    root = _backup_root()
+    created_by = str(request.session.get("student_id") or "admin")
+    ext = "zip" if backup_type == "full_system" else "sql"
+    filename = _backup_filename(backup_type, ext)
+    output_path = (root / filename).resolve()
+    if root not in output_path.parents:
+        return JsonResponse({"ok": False, "error": "Invalid backup path."}, status=400)
+
+    try:
+        if backup_type == "full_system":
+            sql_name = _backup_filename("database", "sql")
+            with tempfile.TemporaryDirectory() as tmp:
+                sql_path = Path(tmp) / sql_name
+                _run_pg_dump(sql_path, "postgres")
+                manifest = {
+                    "system": "ELECOM",
+                    "created_at": timezone.now().isoformat(),
+                    "created_by": created_by,
+                    "election_year": _active_election_year(),
+                    "contains": ["postgresql_database"],
+                }
+                with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(sql_path, arcname=sql_name)
+                    zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+        else:
+            _run_pg_dump(output_path, backup_type)
+
+        backup_id = _record_backup(filename, backup_type, output_path, "completed", created_by)
+        _audit_log(
+            table_name="admin_backups",
+            record_id=backup_id,
+            action="create",
+            new_data={"backup_name": filename, "backup_type": backup_type},
+            changed_by=created_by,
+        )
+        return JsonResponse({"ok": True, "backup": {"id": backup_id, "name": filename, "type": backup_type}})
+    except Exception as e:
+        failed_path = output_path
+        try:
+            if failed_path.exists():
+                failed_path.unlink()
+        except Exception:
+            pass
+        _record_backup(filename, backup_type, output_path, "failed", created_by, str(e))
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def admin_backup_download_api(request, backup_id):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_backup_tables()
+    with connection.cursor() as cur:
+        cur.execute("SELECT backup_name, file_path FROM admin_backups WHERE id = %s", [backup_id])
+        row = cur.fetchone()
+    if not row:
+        return JsonResponse({"ok": False, "error": "Backup not found."}, status=404)
+
+    root = _backup_root()
+    path = Path(row[1] or "").resolve()
+    if root not in path.parents or not path.exists() or not path.is_file():
+        return JsonResponse({"ok": False, "error": "Backup file is missing."}, status=404)
+    return FileResponse(path.open("rb"), as_attachment=True, filename=str(row[0] or path.name))
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_backup_restore_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    payload = {}
+    if "application/json" in (request.content_type or "").lower():
+        payload = _json_request_body(request)
+
+    password = str(request.POST.get("password") or payload.get("password") or "").strip()
+    if not password:
+        return JsonResponse({"ok": False, "error": "Admin password is required before restore."}, status=400)
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT password_hash
+                FROM users
+                WHERE (student_id::text = %s OR id::text = %s)
+                  AND COALESCE(role, '') ILIKE 'admin'
+                ORDER BY CASE WHEN student_id::text = %s THEN 0 ELSE 1 END, id DESC
+                LIMIT 1
+                """,
+                [student_id, student_id, student_id],
+            )
+            row = cur.fetchone()
+        if not row or not _verify_password(str(row[0] or ""), password):
+            return JsonResponse({"ok": False, "error": "Incorrect admin password."}, status=401)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to verify admin password."}, status=500)
+
+    scope = str(request.POST.get("scope") or payload.get("scope") or "database").strip().lower()
+    if scope not in BACKUP_RESTORE_SCOPES:
+        return JsonResponse({"ok": False, "error": "Invalid restore scope."}, status=400)
+    upload = request.FILES.get("backup_file")
+    backup_id = str(payload.get("backup_id") or request.POST.get("backup_id") or "").strip()
+    source_path: Path | None = None
+    if upload is None and backup_id.isdigit():
+        _ensure_backup_tables()
+        with connection.cursor() as cur:
+            cur.execute("SELECT backup_name, file_path FROM admin_backups WHERE id = %s", [int(backup_id)])
+            row = cur.fetchone()
+        if not row:
+            return JsonResponse({"ok": False, "error": "Backup not found."}, status=404)
+        root = _backup_root()
+        source_path = Path(row[1] or "").resolve()
+        if root not in source_path.parents or not source_path.exists() or not source_path.is_file():
+            return JsonResponse({"ok": False, "error": "Backup file is missing."}, status=404)
+        filename = Path(str(row[0] or source_path.name)).name
+    elif upload is not None:
+        filename = Path(str(upload.name or "backup.sql")).name
+    else:
+        return JsonResponse({"ok": False, "error": "Backup file or backup ID is required."}, status=400)
+
+    if not filename.lower().endswith((".sql", ".zip")):
+        return JsonResponse({"ok": False, "error": "Only .sql and .zip backup files are supported."}, status=400)
+
+    created_by = str(request.session.get("student_id") or "admin")
+    try:
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp_root = Path(tmp)
+            upload_path = tmp_root / filename
+            if upload is not None:
+                with upload_path.open("wb") as dest:
+                    for chunk in upload.chunks():
+                        dest.write(chunk)
+            else:
+                shutil.copy2(source_path, upload_path)
+
+            sql_path = upload_path
+            if upload_path.suffix.lower() == ".zip":
+                with zipfile.ZipFile(upload_path) as zf:
+                    sql_members = [m for m in zf.namelist() if m.lower().endswith(".sql") and not m.startswith("/")]
+                    if not sql_members:
+                        return JsonResponse({"ok": False, "error": "Zip backup does not contain a .sql file."}, status=400)
+                    zf.extract(sql_members[0], tmp_root)
+                    sql_path = (tmp_root / sql_members[0]).resolve()
+                    if tmp_root.resolve() not in sql_path.parents:
+                        return JsonResponse({"ok": False, "error": "Invalid zip backup structure."}, status=400)
+
+            sql_text = sql_path.read_text(encoding="utf-8", errors="ignore").lower()
+            first_kb = sql_text[:2048]
+            if "postgresql database dump" not in first_kb and "create table" not in first_kb and "insert into" not in first_kb:
+                return JsonResponse({"ok": False, "error": "Backup validation failed."}, status=400)
+            if scope != "database":
+                allowed_tables = {
+                    "election_year": {"vote_windows", "votes", "vote_items"},
+                    "candidates": {"candidates_registration"},
+                    "reports": {"votes", "vote_items"},
+                }.get(scope, set())
+                known_tables = {
+                    "student", "users", "vote_windows", "votes", "vote_items",
+                    "candidates_registration", "user_notifications", "app_ratings",
+                    "authorized_networks", "network_access_attempts",
+                }
+                if allowed_tables and not any(table in sql_text for table in allowed_tables):
+                    return JsonResponse({"ok": False, "error": "Backup does not appear to match the selected restore scope."}, status=400)
+                disallowed = [table for table in known_tables - allowed_tables if table in sql_text]
+                if disallowed:
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": "Selected restore scope only accepts a matching table-specific backup.",
+                        },
+                        status=400,
+                    )
+
+            _run_psql_restore(sql_path)
+
+        _audit_log(
+            table_name="admin_backups",
+            record_id=None,
+            action="restore",
+            new_data={"filename": filename, "scope": scope},
+            changed_by=created_by,
+        )
+        return JsonResponse({"ok": True, "message": "Backup restored successfully."})
+    except Exception as e:
+        _audit_log(
+            table_name="admin_backups",
+            record_id=None,
+            action="restore_failed",
+            new_data={"filename": filename, "scope": scope, "error": str(e)},
+            changed_by=created_by,
+        )
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST", "DELETE"])
+def admin_backup_delete_api(request, backup_id):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_backup_tables()
+    with connection.cursor() as cur:
+        cur.execute("SELECT file_path, backup_name FROM admin_backups WHERE id = %s", [backup_id])
+        row = cur.fetchone()
+    if not row:
+        return JsonResponse({"ok": False, "error": "Backup not found."}, status=404)
+
+    root = _backup_root()
+    path = Path(row[0] or "").resolve()
+    if root in path.parents and path.exists() and path.is_file():
+        path.unlink()
+    with connection.cursor() as cur:
+        cur.execute("DELETE FROM admin_backups WHERE id = %s", [backup_id])
+    changed_by = str(request.session.get("student_id") or "admin")
+    _audit_log(
+        table_name="admin_backups",
+        record_id=int(backup_id),
+        action="delete",
+        old_data={"backup_name": row[1]},
+        changed_by=changed_by,
+    )
+    return JsonResponse({"ok": True})
 
 
 def _ensure_votes_tables() -> None:
