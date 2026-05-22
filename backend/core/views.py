@@ -1950,6 +1950,40 @@ def vote_submit_api(request):
     except Exception:
         payload = {}
 
+    try:
+        user_ip, ip_source = _get_client_network_ip(request, payload)
+        with connection.cursor() as cur:
+            _ensure_network_authorization_tables(cur)
+            cur.execute("SELECT COUNT(*) FROM authorized_networks WHERE LOWER(status) = 'active'")
+            active_count = int((cur.fetchone() or [0])[0] or 0)
+            if active_count:
+                cur.execute(
+                    """
+                    SELECT network_ip::text, ip_prefix
+                    FROM authorized_networks
+                    WHERE LOWER(status) = 'active'
+                    """
+                )
+                allowed = _authorized_network_matches(user_ip, cur.fetchall())
+                message = (
+                    f"Network access authorized using {ip_source} IP {user_ip}"
+                    if allowed
+                    else f"You must be connected to the authorized network to vote. Checked {ip_source} IP {user_ip}."
+                )
+                cur.execute(
+                    """
+                    INSERT INTO network_access_attempts (user_id, student_id, ip_address, ssid, status, message, created_at)
+                    VALUES (%s, %s, %s::inet, %s, %s, %s, CURRENT_TIMESTAMP)
+                    """,
+                    [None, student_id, user_ip, None, "Allowed" if allowed else "Blocked", message],
+                )
+                if not allowed:
+                    return JsonResponse({"ok": False, "error": message}, status=403)
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to verify network access."}, status=500)
+
     selections = payload.get("selections")
     if not isinstance(selections, dict) or not selections:
         return JsonResponse({"ok": False, "error": "No selections provided."}, status=400)
