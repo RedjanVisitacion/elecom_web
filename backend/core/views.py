@@ -1951,7 +1951,6 @@ def vote_submit_api(request):
         payload = {}
 
     try:
-        user_ip, ip_source = _get_client_network_ip(request, payload)
         with connection.cursor() as cur:
             _ensure_network_authorization_tables(cur)
             cur.execute("SELECT COUNT(*) FROM authorized_networks WHERE LOWER(status) = 'active'")
@@ -1964,11 +1963,15 @@ def vote_submit_api(request):
                     WHERE LOWER(status) = 'active'
                     """
                 )
-                allowed = _authorized_network_matches(user_ip, cur.fetchall())
+                auth_result = _network_authorization_result(request, payload, cur.fetchall())
+                allowed = auth_result["allowed"]
+                user_ip = auth_result["ip"]
+                ip_source = auth_result["source"]
+                checked_ips = auth_result["checked"]
                 message = (
                     f"Network access authorized using {ip_source} IP {user_ip}"
                     if allowed
-                    else f"You must be connected to the authorized network to vote. Checked {ip_source} IP {user_ip}."
+                    else f"You must be connected to the authorized network to vote. Checked {_network_checked_ips_message(checked_ips)}."
                 )
                 cur.execute(
                     """
@@ -7184,6 +7187,44 @@ def _clean_network_ip(value: str | None) -> str:
         return ""
 
 
+_NETWORK_PUBLIC_IP_CACHE = {"ip": "", "expires_at": 0.0}
+
+
+def _is_private_network_ip(value: str | None) -> bool:
+    cleaned = _clean_network_ip(value)
+    if not cleaned:
+        return False
+    try:
+        addr = ipaddress.ip_address(cleaned)
+        return addr.is_private or addr.is_loopback or addr.is_link_local
+    except Exception:
+        return False
+
+
+def _get_server_public_ip() -> str:
+    now = time.time()
+    cached_ip = _NETWORK_PUBLIC_IP_CACHE.get("ip") or ""
+    cached_expires = float(_NETWORK_PUBLIC_IP_CACHE.get("expires_at") or 0)
+    if cached_ip and cached_expires > now:
+        return cached_ip
+
+    for url in ("https://api.ipify.org", "https://ifconfig.me/ip"):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "ELECOM-Network-Check/1.0"})
+            with urllib.request.urlopen(req, timeout=1.5) as res:
+                public_ip = _clean_network_ip(res.read(64).decode("utf-8", errors="ignore"))
+            if public_ip:
+                _NETWORK_PUBLIC_IP_CACHE["ip"] = public_ip
+                _NETWORK_PUBLIC_IP_CACHE["expires_at"] = now + 60
+                return public_ip
+        except Exception:
+            continue
+
+    _NETWORK_PUBLIC_IP_CACHE["ip"] = ""
+    _NETWORK_PUBLIC_IP_CACHE["expires_at"] = now + 10
+    return ""
+
+
 def _get_client_network_ip(request, payload: dict | None = None) -> tuple[str, str]:
     """
     Prefer the device LAN IP sent by the mobile client. The server request IP is
@@ -7208,6 +7249,22 @@ def _get_client_network_ip(request, payload: dict | None = None) -> tuple[str, s
             return cleaned, "device"
 
     return _clean_network_ip(_get_request_ip(request)) or "127.0.0.1", "request"
+
+
+def _network_check_ips(request, payload: dict | None = None) -> list[tuple[str, str]]:
+    primary_ip, primary_source = _get_client_network_ip(request, payload)
+    candidates = [(primary_ip, primary_source)]
+
+    request_ip = _clean_network_ip(_get_request_ip(request)) or ""
+    if request_ip and request_ip != primary_ip:
+        candidates.append((request_ip, "request"))
+
+    if _is_private_network_ip(primary_ip) or _is_private_network_ip(request_ip):
+        public_ip = _get_server_public_ip()
+        if public_ip and all(public_ip != ip for ip, _ in candidates):
+            candidates.append((public_ip, "server_public"))
+
+    return [(ip, source) for ip, source in candidates if ip]
 
 
 def _authorized_network_matches(client_ip: str, rows: list[tuple]) -> bool:
@@ -7235,6 +7292,30 @@ def _authorized_network_matches(client_ip: str, rows: list[tuple]) -> bool:
                 return True
 
     return False
+
+
+def _network_authorization_result(request, payload: dict | None, rows: list[tuple]) -> dict:
+    checked = _network_check_ips(request, payload)
+    for ip, source in checked:
+        if _authorized_network_matches(ip, rows):
+            return {
+                "allowed": True,
+                "ip": ip,
+                "source": source,
+                "checked": checked,
+            }
+    fallback_ip, fallback_source = checked[0] if checked else ("127.0.0.1", "request")
+    return {
+        "allowed": False,
+        "ip": fallback_ip,
+        "source": fallback_source,
+        "checked": checked,
+    }
+
+
+def _network_checked_ips_message(checked: list[tuple[str, str]]) -> str:
+    parts = [f"{source} IP {ip}" for ip, source in checked]
+    return ", ".join(parts) if parts else "request IP 127.0.0.1"
 
 
 def _ensure_network_authorization_tables(cur) -> None:
@@ -7462,7 +7543,6 @@ def check_network_access_api(request):
     except Exception:
         payload = {}
 
-    user_ip, ip_source = _get_client_network_ip(request, payload)
     request_ip = _clean_network_ip(_get_request_ip(request)) or "127.0.0.1"
     ssid = (payload.get("ssid") or request.GET.get("ssid") or "").strip() or None
     student_id = (
@@ -7492,14 +7572,20 @@ def check_network_access_api(request):
                 WHERE LOWER(status) = 'active'
                 """
             )
-            allowed = _authorized_network_matches(user_ip, cur.fetchall())
+            auth_result = _network_authorization_result(request, payload, cur.fetchall())
+            allowed = auth_result["allowed"]
+            user_ip = auth_result["ip"]
+            ip_source = auth_result["source"]
+            checked_ips = auth_result["checked"]
             message = (
                 f"Network access authorized using {ip_source} IP {user_ip}"
                 if allowed
-                else f"You must be connected to the authorized network to vote. Checked {ip_source} IP {user_ip}."
+                else f"You must be connected to the authorized network to vote. Checked {_network_checked_ips_message(checked_ips)}."
             )
             if ip_source == "request":
                 message += " Web clients are checked by the public IP seen by the server; add that IP in Network Authorize. Mobile clients should send device_ip/local_ip for LAN Wi-Fi checks."
+            elif ip_source == "server_public":
+                message += " Mobile hotspot/LAN request matched the server public IP."
 
             # Log the attempt
             cur.execute(
@@ -7517,6 +7603,7 @@ def check_network_access_api(request):
                     "message": message,
                     "checked_ip": user_ip,
                     "ip_source": ip_source,
+                    "checked_ips": [{"ip": ip, "source": source} for ip, source in checked_ips],
                     "request_ip": request_ip,
                 })
             else:
@@ -7526,6 +7613,7 @@ def check_network_access_api(request):
                     "message": message,
                     "checked_ip": user_ip,
                     "ip_source": ip_source,
+                    "checked_ips": [{"ip": ip, "source": source} for ip, source in checked_ips],
                     "request_ip": request_ip,
                 }, status=403)
 
