@@ -10,7 +10,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260519-reset-password-modal">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_voters.css?v=20260518-edit-limited">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_voters.css?v=20260520-elecom-modal-alerts">
 </head>
 <body class="theme-elecom">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -79,7 +79,7 @@
                             <button class="btn btn-outline-success btn-sm voters-action-btn" id="exportVotersBtn">
                                 <i class="bi bi-file-earmark-excel"></i> Export Excel
                             </button>
-                            <button class="btn btn-outline-primary btn-sm voters-action-btn" id="importVotersBtn">
+                            <button class="btn btn-outline-dark btn-sm voters-action-btn" id="importVotersBtn">
                                 <i class="bi bi-upload"></i> Import Excel
                             </button>
                             <button class="btn btn-outline-danger btn-sm voters-action-btn" id="removeVotersBtn" disabled>
@@ -137,6 +137,24 @@
                             </tbody>
                         </table>
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade elecom-voters-confirm-modal" id="elecomVotersConfirmModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="elecomVotersConfirmTitle">Confirm Action</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="mb-0" id="elecomVotersConfirmMessage">Please confirm this action.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal" id="elecomVotersConfirmCancelBtn">Cancel</button>
+                    <button type="button" class="btn btn-dark" id="elecomVotersConfirmActionBtn">OK</button>
                 </div>
             </div>
         </div>
@@ -200,6 +218,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260519-reset-password-modal"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_voters.js?v=20260518-edit-limited"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_voters.js?v=20260520-elecom-modal-alerts"></script>
 </body>
 </html>

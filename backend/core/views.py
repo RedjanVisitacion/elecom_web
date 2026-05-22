@@ -366,7 +366,12 @@ def _current_election_filter(alias: str = "", election_id: int | None = None) ->
     if election_id is None:
         return "1=1", []
     prefix = f"{alias}." if alias else ""
-    return f"COALESCE({prefix}election_id, %s) = %s", [int(election_id), int(election_id)]
+    return (
+        f"({prefix}election_id = %s OR "
+        f"({prefix}election_id IS NULL AND NOT EXISTS ("
+        "SELECT 1 FROM candidates_registration WHERE election_id IS NOT NULL"
+        ")))"
+    ), [int(election_id)]
 
 
 def _current_vote_filter(alias: str = "", election_id: int | None = None) -> tuple[str, list[int]]:
@@ -1178,8 +1183,13 @@ def candidates_metrics_api(request):
 
     total_candidates = 0
     try:
+        _ensure_election_scoped_tables()
+        election_where, election_params = _current_election_filter()
         with connection.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM candidates_registration")
+            cur.execute(
+                f"SELECT COUNT(*) FROM candidates_registration WHERE {election_where}",
+                election_params,
+            )
             row = cur.fetchone()
             if row and row[0] is not None:
                 total_candidates = int(row[0])
@@ -1201,26 +1211,31 @@ def candidates_search_api(request):
 
     like = f"%{q}%"
     try:
+        _ensure_election_scoped_tables()
+        election_where, election_params = _current_election_filter()
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT id, student_id, first_name, middle_name, last_name,
                        organization, position, program, year_section,
                        photo_url, party_name, candidate_type, party_logo_url,
                        platform
                 FROM candidates_registration
-                WHERE COALESCE(first_name,'') ILIKE %s
-                   OR COALESCE(middle_name,'') ILIKE %s
-                   OR COALESCE(last_name,'') ILIKE %s
-                   OR (COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'')) ILIKE %s
-                   OR CAST(student_id AS TEXT) ILIKE %s
-                   OR COALESCE(organization,'') ILIKE %s
-                   OR COALESCE(position,'') ILIKE %s
-                   OR COALESCE(party_name,'') ILIKE %s
+                WHERE {election_where}
+                  AND (
+                    COALESCE(first_name,'') ILIKE %s
+                    OR COALESCE(middle_name,'') ILIKE %s
+                    OR COALESCE(last_name,'') ILIKE %s
+                    OR (COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'')) ILIKE %s
+                    OR CAST(student_id AS TEXT) ILIKE %s
+                    OR COALESCE(organization,'') ILIKE %s
+                    OR COALESCE(position,'') ILIKE %s
+                    OR COALESCE(party_name,'') ILIKE %s
+                  )
                 ORDER BY organization, position, last_name, first_name
                 LIMIT 80
                 """,
-                [like, like, like, like, like, like, like, like],
+                election_params + [like, like, like, like, like, like, like, like],
             )
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -1243,19 +1258,22 @@ def candidates_list_api(request):
     allowed_rep = _usg_allowed_representative_positions(program_code)
 
     try:
+        _ensure_election_scoped_tables()
+        election_where, election_params = _current_election_filter()
         with connection.cursor() as cur:
             cur.execute(
-                """
+                f"""
                 SELECT id, student_id, first_name, middle_name, last_name,
                        organization, position, program, year_section,
                        photo_url, party_name, candidate_type, party_logo_url,
                        platform
                 FROM candidates_registration
                 WHERE UPPER(organization) = ANY(%s)
+                  AND {election_where}
                 ORDER BY organization, position, last_name, first_name
                 LIMIT 500
                 """,
-                [eligible_orgs],
+                [eligible_orgs] + election_params,
             )
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -2107,15 +2125,16 @@ def vote_submit_api(request):
 
             for org_u, pos, cid_i in requested:
                 position_key = f"{org_u}::{pos}"
+                candidate_election_where, candidate_election_params = _current_election_filter()
                 cur.execute(
-                    """
+                    f"""
                     SELECT organization, position
                     FROM candidates_registration
                     WHERE id = %s
-                      AND COALESCE(election_id, %s) = %s
+                      AND {candidate_election_where}
                     LIMIT 1
                     """,
-                    [cid_i, int(election_id), int(election_id)],
+                    [cid_i] + candidate_election_params,
                 )
                 cand_row = cur.fetchone()
                 if not cand_row:

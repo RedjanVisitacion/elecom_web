@@ -28,6 +28,11 @@ document.addEventListener('DOMContentLoaded', function(){
   const yearFilter = document.getElementById('yearFilter');
   const sectionFilter = document.getElementById('sectionFilter');
   const courseFilterButtons = Array.from(document.querySelectorAll('[data-course-filter]'));
+  const votersConfirmModalEl = document.getElementById('elecomVotersConfirmModal');
+  const votersConfirmTitle = document.getElementById('elecomVotersConfirmTitle');
+  const votersConfirmMessage = document.getElementById('elecomVotersConfirmMessage');
+  const votersConfirmCancelBtn = document.getElementById('elecomVotersConfirmCancelBtn');
+  const votersConfirmActionBtn = document.getElementById('elecomVotersConfirmActionBtn');
 
   const API_BASE = '/api/admin/voters/';
   const IMPORT_BATCH_SIZE = 250;
@@ -81,6 +86,59 @@ document.addEventListener('DOMContentLoaded', function(){
     link.click();
     link.remove();
     URL.revokeObjectURL(url);
+  }
+
+  function showVotersConfirm({ title, message, confirmText = 'OK', danger = false, alertOnly = false }) {
+    return new Promise((resolve) => {
+      if (!votersConfirmModalEl || !votersConfirmActionBtn || !window.bootstrap) {
+        resolve(false);
+        return;
+      }
+
+      if (votersConfirmTitle) votersConfirmTitle.textContent = title || 'Confirm Action';
+      if (votersConfirmMessage) votersConfirmMessage.textContent = message || '';
+      votersConfirmActionBtn.textContent = confirmText;
+      votersConfirmActionBtn.classList.toggle('btn-danger', !!danger);
+      votersConfirmActionBtn.classList.toggle('btn-dark', !danger);
+      votersConfirmActionBtn.classList.remove('btn-primary');
+      if (votersConfirmCancelBtn) votersConfirmCancelBtn.classList.toggle('d-none', !!alertOnly);
+
+      const modal = window.bootstrap.Modal.getOrCreateInstance(votersConfirmModalEl, {
+        backdrop: true,
+        keyboard: true,
+      });
+      let decided = false;
+
+      const cleanup = () => {
+        votersConfirmActionBtn.removeEventListener('click', onConfirm);
+        votersConfirmModalEl.removeEventListener('hidden.bs.modal', onHidden);
+        if (votersConfirmCancelBtn) votersConfirmCancelBtn.classList.remove('d-none');
+      };
+      const onConfirm = () => {
+        decided = true;
+        cleanup();
+        modal.hide();
+        resolve(true);
+      };
+      const onHidden = () => {
+        cleanup();
+        if (!decided) resolve(false);
+      };
+
+      votersConfirmActionBtn.addEventListener('click', onConfirm);
+      votersConfirmModalEl.addEventListener('hidden.bs.modal', onHidden, { once: true });
+      modal.show();
+    });
+  }
+
+  function showVotersAlert({ title, message, actionText = 'OK' }) {
+    return showVotersConfirm({
+      title,
+      message,
+      confirmText: actionText,
+      danger: false,
+      alertOnly: true,
+    });
   }
 
   function normalizeHeader(value) {
@@ -326,7 +384,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const data = await res.json().catch(() => ({}));
 
     if (res.status === 403) {
-      alert(data.error || 'Admin password is required to open voters management.');
+      await showVotersAlert({
+        title: 'Access Required',
+        message: data.error || 'Admin password is required to open voters management.',
+      });
       const dashboardUrl = '/static/org_elecom/elecom_admin/admin_dashboard.html';
       window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(dashboardUrl) : dashboardUrl;
       return;
@@ -336,7 +397,10 @@ document.addEventListener('DOMContentLoaded', function(){
       currentRows = [];
       refreshFilterOptions();
       applyVoterFilters();
-      alert(data.error || 'Failed to load voters.');
+      await showVotersAlert({
+        title: 'Load Failed',
+        message: data.error || 'Failed to load voters.',
+      });
       return;
     }
 
@@ -385,14 +449,23 @@ document.addEventListener('DOMContentLoaded', function(){
     const visibleIds = filteredRows.map(row => String(row.id_number || '')).filter(Boolean);
     const ids = Array.from(selectedVoterIds);
     if (!visibleIds.length) {
-      alert('No voters to remove.');
+      await showVotersAlert({
+        title: 'Remove Voters',
+        message: 'No voters to remove.',
+      });
       return;
     }
 
     const deletingSelected = ids.length > 0;
     const count = deletingSelected ? ids.length : visibleIds.length;
     const scopeText = deletingSelected ? `${count} selected voter(s)` : `${count} voter(s) in ${currentFilterLabel()}`;
-    if (!confirm(`Remove ${scopeText}?\n\nThis deletes their rows from users and student. This cannot be undone unless you import them again.`)) {
+    const confirmed = await showVotersConfirm({
+      title: 'Remove Voters',
+      message: `Remove ${scopeText}?\n\nThis deletes their rows from users and student. This cannot be undone unless you import them again.`,
+      confirmText: 'Remove',
+      danger: true,
+    });
+    if (!confirmed) {
       return;
     }
 
@@ -411,15 +484,24 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        alert(data.error || 'Failed to remove voters.');
+        await showVotersAlert({
+          title: 'Remove Failed',
+          message: data.error || 'Failed to remove voters.',
+        });
         return;
       }
 
       selectedVoterIds.clear();
       await loadVoters();
-      alert(`Removed ${data.deleted || 0} voter(s).`);
+      await showVotersAlert({
+        title: 'Voters Removed',
+        message: `Removed ${data.deleted || 0} voter(s).`,
+      });
     } catch (err) {
-      alert(err && err.message ? err.message : 'Failed to remove voters.');
+      await showVotersAlert({
+        title: 'Remove Failed',
+        message: err && err.message ? err.message : 'Failed to remove voters.',
+      });
     } finally {
       removeVotersBtn.disabled = false;
       if (importVotersBtn) importVotersBtn.disabled = false;
@@ -472,23 +554,32 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
-        alert(data.error || 'Failed to update voter.');
+        await showVotersAlert({
+          title: 'Update Failed',
+          message: data.error || 'Failed to update voter.',
+        });
         return;
       }
       if (editVoterModal) editVoterModal.hide();
       await loadVoters();
     } catch (err) {
-      alert(err && err.message ? err.message : 'Failed to update voter.');
+      await showVotersAlert({
+        title: 'Update Failed',
+        message: err && err.message ? err.message : 'Failed to update voter.',
+      });
     } finally {
       saveVoterEditBtn.disabled = false;
       saveVoterEditBtn.innerHTML = originalHtml;
     }
   }
 
-  function exportVoters() {
+  async function exportVoters() {
     const rowsToExport = filteredRows.length || currentRows.length ? filteredRows : [];
     if (!rowsToExport.length) {
-      alert('No voters to export.');
+      await showVotersAlert({
+        title: 'Export Voters',
+        message: 'No voters to export.',
+      });
       return;
     }
 
@@ -540,7 +631,10 @@ document.addEventListener('DOMContentLoaded', function(){
     try {
       const rows = await rowsFromImportFile(file);
       if (!rows.length) {
-        alert('No voter rows found in the file.');
+        await showVotersAlert({
+          title: 'Import Voters',
+          message: 'No voter rows found in the file.',
+        });
         return;
       }
 
@@ -549,11 +643,20 @@ document.addEventListener('DOMContentLoaded', function(){
         .map((payload, index) => validateVoterPayload(payload, index + 2))
         .filter(Boolean);
       if (errors.length) {
-        alert(`Please fix the import file first:\n\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? '\n...' : ''}`);
+        await showVotersAlert({
+          title: 'Import File Needs Review',
+          message: `Please fix the import file first:\n\n${errors.slice(0, 10).join('\n')}${errors.length > 10 ? '\n...' : ''}`,
+        });
         return;
       }
 
-      if (!confirm(`Import ${voters.length} voter(s)? Password will be set to each voter's ID number.`)) return;
+      const confirmed = await showVotersConfirm({
+        title: 'Import Voters',
+        message: `Import ${voters.length} voter(s)? Password will be set to each voter's ID number.`,
+        confirmText: 'Import',
+        danger: false,
+      });
+      if (!confirmed) return;
 
       let imported = 0;
       const failed = [];
@@ -569,9 +672,15 @@ document.addEventListener('DOMContentLoaded', function(){
       const failedText = failed.length
         ? `\n\nFailed: ${failed.length}\n${formatImportFailures(failed, 8)}`
         : '';
-      alert(`Import finished.\n\nImported: ${imported}${failedText}`);
+      await showVotersAlert({
+        title: 'Import Finished',
+        message: `Imported: ${imported}${failedText}`,
+      });
     } catch (err) {
-      alert(err && err.message ? err.message : 'Failed to import voters.');
+      await showVotersAlert({
+        title: 'Import Failed',
+        message: err && err.message ? err.message : 'Failed to import voters.',
+      });
     } finally {
       importVotersBtn.disabled = false;
       if (exportVotersBtn) exportVotersBtn.disabled = false;
