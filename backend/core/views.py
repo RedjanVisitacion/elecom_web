@@ -7318,6 +7318,20 @@ def _network_checked_ips_message(checked: list[tuple[str, str]]) -> str:
     return ", ".join(parts) if parts else "request IP 127.0.0.1"
 
 
+def _network_log_iso_or_none(dt):
+    if not dt:
+        return None
+    try:
+        if timezone.is_naive(dt):
+            dt = dt.replace(tzinfo=dt_timezone.utc)
+        return dt.astimezone(ZoneInfo("Asia/Manila")).isoformat()
+    except Exception:
+        try:
+            return dt.isoformat()
+        except Exception:
+            return None
+
+
 def _ensure_network_authorization_tables(cur) -> None:
     cur.execute(
         """
@@ -7526,7 +7540,7 @@ def admin_network_logs_api(request):
                     "status": status,
                     "message": row[3],
                     "allowed": status.lower() in ("allowed", "active", "authorized"),
-                    "timestamp": row[4],
+                    "timestamp": _network_log_iso_or_none(row[4]),
                 })
 
         return JsonResponse({"ok": True, "logs": logs})
