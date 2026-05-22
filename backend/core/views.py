@@ -4324,6 +4324,18 @@ def _iso_or_none(dt):
             return None
 
 
+def _notification_iso_or_none(dt):
+    if not dt:
+        return None
+    try:
+        return _iso_utc(dt)
+    except Exception:
+        try:
+            return dt.isoformat()
+        except Exception:
+            return None
+
+
 def _election_naive_utc_from_admin_form(dt):
     """
     Admin UI sends HTML datetime-local strings as Asia/Manila wall-clock time.
@@ -4584,8 +4596,8 @@ def user_notifications_list_api(request):
                     "type": (row.get("type") or "").strip(),
                     "title": (row.get("title") or "").strip(),
                     "body": (row.get("body") or "").strip(),
-                    "created_at": _iso_or_none(row.get("created_at")),
-                    "read_at": _iso_or_none(row.get("read_at")),
+                    "created_at": _notification_iso_or_none(row.get("created_at")),
+                    "read_at": _notification_iso_or_none(row.get("read_at")),
                     "receipt_id": row.get("receipt_id"),
                     "pinned": bool(row.get("pinned") or False),
                 }
@@ -4650,8 +4662,8 @@ def user_notifications_create_api(request):
             "type": (created.get("type") or "").strip(),
             "title": (created.get("title") or "").strip(),
             "body": (created.get("body") or "").strip(),
-            "created_at": _iso_or_none(created.get("created_at")),
-            "read_at": _iso_or_none(created.get("read_at")),
+            "created_at": _notification_iso_or_none(created.get("created_at")),
+            "read_at": _notification_iso_or_none(created.get("read_at")),
             "receipt_id": created.get("receipt_id"),
             "pinned": bool(created.get("pinned") or False),
         }
