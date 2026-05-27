@@ -2709,6 +2709,7 @@ def vote_ledger_api(request):
     previous_current_hash = ""
     normalized_rows: list[dict] = []
     changed_vote_count = 0
+    missing_vote_rows_count = 0
 
     # Detect missing blocks (gaps in id sequence)
     if rows:
@@ -2728,11 +2729,13 @@ def vote_ledger_api(request):
         election_id = int(row.get("election_id") or 0)
         vote_id = int(row.get("vote_id") or 0)
         vote_data_hash = str(row.get("vote_data_hash") or "")
-        live_vote_hash = vote_live_hashes.get(vote_id, _vote_data_hash_from_vote_item_rows([])) if vote_id > 0 else ""
-        vote_changed = bool(vote_id > 0 and vote_data_hash and live_vote_hash != vote_data_hash)
+        live_vote_items_present = vote_id > 0 and vote_id in vote_live_hashes
+        live_vote_hash = vote_live_hashes.get(vote_id, "") if live_vote_items_present else ""
+        vote_changed = bool(live_vote_items_present and vote_data_hash and live_vote_hash != vote_data_hash)
+        vote_rows_missing = bool(vote_id > 0 and not live_vote_items_present)
         vote_changed_at = vote_change_times.get(vote_id)
         vote_change_time_source = "audit" if vote_changed_at is not None else "detected"
-        if vote_changed and vote_changed_at is None:
+        if (vote_changed or vote_rows_missing) and vote_changed_at is None:
             vote_changed_at = timezone.now()
         prev_hash = str(row.get("previous_hash") or "")
         current_hash = str(row.get("current_hash") or "")
@@ -2755,6 +2758,9 @@ def vote_ledger_api(request):
         if vote_changed:
             block_ok = False
             changed_vote_count += 1
+        if vote_rows_missing:
+            block_ok = False
+            missing_vote_rows_count += 1
         if not block_ok:
             valid = False
             critical = True
@@ -2776,9 +2782,10 @@ def vote_ledger_api(request):
                 "live_vote_hash": f"{live_vote_hash[:7]}...{live_vote_hash[-4:]}" if len(live_vote_hash) > 12 else live_vote_hash,
                 "live_vote_hash_full": live_vote_hash,
                 "vote_changed": vote_changed,
+                "vote_rows_missing": vote_rows_missing,
                 "vote_changed_at": vote_changed_at.isoformat() if vote_changed_at else None,
-                "vote_change_time_source": vote_change_time_source if vote_changed else "",
-                "tamper_indicator": "Vote changed after submission" if vote_changed else "",
+                "vote_change_time_source": vote_change_time_source if (vote_changed or vote_rows_missing) else "",
+                "tamper_indicator": "Vote changed after submission" if vote_changed else ("Vote rows missing" if vote_rows_missing else ""),
                 "previous_hash": f"{prev_hash[:7]}...{prev_hash[-4:]}" if len(prev_hash) > 12 else (prev_hash or "-"),
                 "previous_hash_full": prev_hash or "",
                 "submitted_at": submitted_at.isoformat() if submitted_at else None,
@@ -2817,7 +2824,8 @@ def vote_ledger_api(request):
         "preview_blocks": preview,
         "missing_blocks_detected": missing_blocks,
         "changed_vote_count": changed_vote_count,
-        "vote_tampering_detected": changed_vote_count > 0,
+        "missing_vote_rows_count": missing_vote_rows_count,
+        "vote_tampering_detected": changed_vote_count > 0 or missing_vote_rows_count > 0,
     }
 
     return JsonResponse(
