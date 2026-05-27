@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from datetime import timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
@@ -2006,7 +2006,7 @@ def vote_submit_api(request):
             status=403,
         )
 
-    if _facepp_configured() and not _session_face_vote_valid(request, student_id):
+    if not _session_face_vote_valid(request, student_id):
         return JsonResponse(
             {
                 "ok": False,
@@ -3259,6 +3259,8 @@ def _face_verification_vote_handler(request) -> JsonResponse:
 
     if verified:
         _set_session_face_vote_verified(request, student_id)
+    else:
+        _clear_session_face_vote(request, student_id)
 
     return JsonResponse(
         {
