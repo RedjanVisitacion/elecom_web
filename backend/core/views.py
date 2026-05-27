@@ -1885,6 +1885,95 @@ def _vote_data_hash_from_requested(requested: list[tuple[str, str, int]]) -> str
     return _sha256_hex("|".join(normalized))
 
 
+def _vote_data_hash_from_vote_item_rows(rows) -> str:
+    requested: list[tuple[str, str, int]] = []
+    for position_key, candidate_id in rows:
+        raw_position = str(position_key or "").strip()
+        if "::" in raw_position:
+            org, pos = raw_position.split("::", 1)
+        else:
+            org, pos = "", raw_position
+        try:
+            cid = int(candidate_id)
+        except (TypeError, ValueError):
+            cid = 0
+        requested.append((org.strip().upper(), pos.strip(), cid))
+    return _vote_data_hash_from_requested(requested)
+
+
+def _ensure_vote_item_change_audit_table() -> None:
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vote_item_change_audit (
+                id BIGSERIAL PRIMARY KEY,
+                vote_id BIGINT NULL,
+                vote_item_id BIGINT NULL,
+                operation VARCHAR(16) NOT NULL,
+                old_position VARCHAR(256) NULL,
+                old_candidate_id BIGINT NULL,
+                new_position VARCHAR(256) NULL,
+                new_candidate_id BIGINT NULL,
+                changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS vote_item_change_audit_vote_changed_idx
+            ON vote_item_change_audit (vote_id, changed_at DESC)
+            """
+        )
+        cur.execute(
+            """
+            CREATE OR REPLACE FUNCTION elecom_log_vote_item_change()
+            RETURNS trigger AS $$
+            BEGIN
+                IF TG_OP = 'UPDATE' THEN
+                    IF OLD.position IS DISTINCT FROM NEW.position
+                       OR OLD.candidate_id IS DISTINCT FROM NEW.candidate_id THEN
+                        INSERT INTO vote_item_change_audit (
+                            vote_id, vote_item_id, operation,
+                            old_position, old_candidate_id,
+                            new_position, new_candidate_id,
+                            changed_at
+                        ) VALUES (
+                            NEW.vote_id, NEW.id, TG_OP,
+                            OLD.position, OLD.candidate_id,
+                            NEW.position, NEW.candidate_id,
+                            NOW()
+                        );
+                    END IF;
+                    RETURN NEW;
+                ELSIF TG_OP = 'DELETE' THEN
+                    INSERT INTO vote_item_change_audit (
+                        vote_id, vote_item_id, operation,
+                        old_position, old_candidate_id,
+                        changed_at
+                    ) VALUES (
+                        OLD.vote_id, OLD.id, TG_OP,
+                        OLD.position, OLD.candidate_id,
+                        NOW()
+                    );
+                    RETURN OLD;
+                ELSIF TG_OP = 'INSERT' THEN
+                    RETURN NEW;
+                END IF;
+                RETURN NULL;
+            END;
+            $$ LANGUAGE plpgsql;
+            """
+        )
+        cur.execute(
+            """
+            DROP TRIGGER IF EXISTS trg_elecom_vote_item_change ON vote_items;
+            CREATE TRIGGER trg_elecom_vote_item_change
+            AFTER INSERT OR UPDATE OR DELETE ON vote_items
+            FOR EACH ROW EXECUTE FUNCTION elecom_log_vote_item_change();
+            """
+        )
+
+
 def _compute_expected_block_hash(
     election_id,
     anonymous_voter_hash: str,
@@ -2436,6 +2525,8 @@ def vote_ledger_api(request):
 
     try:
         _ensure_vote_blocks_table()
+        _ensure_votes_tables()
+        _ensure_vote_item_change_audit_table()
         _ensure_validator_tables()
         with connection.cursor() as cur:
             cur.execute(
@@ -2570,6 +2661,43 @@ def vote_ledger_api(request):
                 }
                 for r in cur.fetchall()
             }
+
+            vote_live_hashes: dict[int, str] = {}
+            vote_change_times: dict[int, object] = {}
+            vote_ids = sorted({int(r.get("vote_id") or 0) for r in rows if int(r.get("vote_id") or 0) > 0})
+            if vote_ids:
+                cur.execute(
+                    """
+                    SELECT vote_id, position, candidate_id
+                    FROM vote_items
+                    WHERE vote_id = ANY(%s)
+                    ORDER BY vote_id ASC, position ASC, candidate_id ASC, id ASC
+                    """,
+                    [vote_ids],
+                )
+                grouped_vote_items: dict[int, list[tuple[str, int]]] = {}
+                for vote_id_raw, position, candidate_id in cur.fetchall():
+                    vote_id_i = int(vote_id_raw or 0)
+                    grouped_vote_items.setdefault(vote_id_i, []).append((position, candidate_id))
+                vote_live_hashes = {
+                    vote_id_i: _vote_data_hash_from_vote_item_rows(items)
+                    for vote_id_i, items in grouped_vote_items.items()
+                }
+
+                cur.execute(
+                    """
+                    SELECT vote_id, MAX(changed_at)
+                    FROM vote_item_change_audit
+                    WHERE vote_id = ANY(%s)
+                    GROUP BY vote_id
+                    """,
+                    [vote_ids],
+                )
+                vote_change_times = {
+                    int(vote_id_raw or 0): changed_at
+                    for vote_id_raw, changed_at in cur.fetchall()
+                    if int(vote_id_raw or 0) > 0
+                }
     except Exception as e:
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -2580,6 +2708,7 @@ def vote_ledger_api(request):
     missing_blocks = False
     previous_current_hash = ""
     normalized_rows: list[dict] = []
+    changed_vote_count = 0
 
     # Detect missing blocks (gaps in id sequence)
     if rows:
@@ -2597,7 +2726,14 @@ def vote_ledger_api(request):
     for row in rows:
         block_id = int(row.get("id") or 0)
         election_id = int(row.get("election_id") or 0)
+        vote_id = int(row.get("vote_id") or 0)
         vote_data_hash = str(row.get("vote_data_hash") or "")
+        live_vote_hash = vote_live_hashes.get(vote_id, _vote_data_hash_from_vote_item_rows([])) if vote_id > 0 else ""
+        vote_changed = bool(vote_id > 0 and vote_data_hash and live_vote_hash != vote_data_hash)
+        vote_changed_at = vote_change_times.get(vote_id)
+        vote_change_time_source = "audit" if vote_changed_at is not None else "detected"
+        if vote_changed and vote_changed_at is None:
+            vote_changed_at = timezone.now()
         prev_hash = str(row.get("previous_hash") or "")
         current_hash = str(row.get("current_hash") or "")
         submitted_at = row.get("submitted_at")
@@ -2616,6 +2752,9 @@ def vote_ledger_api(request):
         )
         if current_hash != expected_current_hash:
             block_ok = False
+        if vote_changed:
+            block_ok = False
+            changed_vote_count += 1
         if not block_ok:
             valid = False
             critical = True
@@ -2634,6 +2773,12 @@ def vote_ledger_api(request):
                 "block_hash_full": current_hash,
                 "vote_hash": f"{vote_data_hash[:7]}...{vote_data_hash[-4:]}" if len(vote_data_hash) > 12 else vote_data_hash,
                 "vote_hash_full": vote_data_hash,
+                "live_vote_hash": f"{live_vote_hash[:7]}...{live_vote_hash[-4:]}" if len(live_vote_hash) > 12 else live_vote_hash,
+                "live_vote_hash_full": live_vote_hash,
+                "vote_changed": vote_changed,
+                "vote_changed_at": vote_changed_at.isoformat() if vote_changed_at else None,
+                "vote_change_time_source": vote_change_time_source if vote_changed else "",
+                "tamper_indicator": "Vote changed after submission" if vote_changed else "",
                 "previous_hash": f"{prev_hash[:7]}...{prev_hash[-4:]}" if len(prev_hash) > 12 else (prev_hash or "-"),
                 "previous_hash_full": prev_hash or "",
                 "submitted_at": submitted_at.isoformat() if submitted_at else None,
@@ -2671,6 +2816,8 @@ def vote_ledger_api(request):
         "latest_block_status": latest.get("block_status") if latest else "pending",
         "preview_blocks": preview,
         "missing_blocks_detected": missing_blocks,
+        "changed_vote_count": changed_vote_count,
+        "vote_tampering_detected": changed_vote_count > 0,
     }
 
     return JsonResponse(
@@ -2697,6 +2844,8 @@ def vote_ledger_verify_api(request):
 
     try:
         _ensure_vote_blocks_table()
+        _ensure_votes_tables()
+        _ensure_vote_item_change_audit_table()
         _ensure_validator_tables()
 
         with connection.cursor() as cur:
