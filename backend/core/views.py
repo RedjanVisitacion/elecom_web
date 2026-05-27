@@ -2765,6 +2765,9 @@ def vote_ledger_api(request):
             valid = False
             critical = True
 
+        effective_status = "valid" if block_ok else "modified"
+        effective_block_status = block_status if block_ok else "modified"
+
         previous_current_hash = current_hash
         counts = vote_validation_counts.get(block_id, {"approved": 0, "total": 0})
         approved_count = int(counts.get("approved") or 0)
@@ -2789,8 +2792,8 @@ def vote_ledger_api(request):
                 "previous_hash": f"{prev_hash[:7]}...{prev_hash[-4:]}" if len(prev_hash) > 12 else (prev_hash or "-"),
                 "previous_hash_full": prev_hash or "",
                 "submitted_at": submitted_at.isoformat() if submitted_at else None,
-                "status": "valid" if block_ok else "warning",
-                "block_status": block_status,
+                "status": effective_status,
+                "block_status": effective_block_status,
                 "node_validation_result": f"{approved_count}/{total_validations if total_validations > 0 else active_nodes} nodes approved",
 
                 # Public transparency fields (no private vote data)
@@ -2805,7 +2808,7 @@ def vote_ledger_api(request):
     preview = list(reversed(normalized_rows[-3:]))
 
     if critical:
-        ledger_status = "Critical Warning"
+        ledger_status = "Modified"
     else:
         ledger_status = "Valid" if valid else "Warning"
 
