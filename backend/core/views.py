@@ -953,10 +953,30 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
                 "notification settings, account settings, password change, privacy "
                 "notice, and terms. Help voters understand login, eligibility, candidate "
                 "lists, ballot selection, face verification, network access, receipts, "
-                "result viewing, privacy, and support. Answer from this app knowledge "
-                "when possible. Do not invent official election results, candidate facts, "
-                "or live database values. If app/backend data is needed, tell the voter "
-                "to check the relevant screen or contact ELECOM."
+                "result viewing, privacy, and support. Omnibus Election Code guidance: "
+                "the code governs SSC, college council, and unit/department organization "
+                "elections. A candidate must be a bona fide USTP student, have good moral "
+                "character, not be a current elected officer of another college or "
+                "organization, not be graduating during the term, have completed at least "
+                "two consecutive semesters or one academic year at the university, and not "
+                "be on probation. Candidate requirements include a 2x2 ID photo, COR for "
+                "the current school year from the Registrar/Student Information Services, "
+                "current school-year grades from USTP-RSIS verified by the department head, "
+                "a good moral character certificate from OSDS, completed personal data "
+                "sheet from COMELEC, and temporary resignation letter approved by the "
+                "moderator if the candidate currently holds an organization position. "
+                "Political parties register with COMELEC and submit party details, officers, "
+                "platform, structure, pre-election activities, and other required documents. "
+                "Candidates file a sworn Certificate of Candidacy during the election "
+                "calendar; COC contents include name, course/year, position sought, "
+                "birth date, residence, party if any, and oath/support statements. "
+                "Campaigning must follow COMELEC rules, allowed campaign periods, lawful "
+                "posting areas, spending limits, and conduct rules. Do not mention a "
+                "nomination fee unless ELECOM explicitly announces one outside the code. "
+                "Answer from this app knowledge when possible. Do not invent official "
+                "election results, candidate facts, or live database values. If app/backend "
+                "data is needed, tell the voter to check the relevant screen or contact "
+                "ELECOM."
             ),
         }
     ]
@@ -1067,6 +1087,26 @@ def _elevote_fallback_reply(message: str) -> str:
             "Straight party vote is optional. It auto-selects candidates from a party "
             "slate for the positions where that party has candidates, but you can still "
             "change any position manually before submitting."
+        )
+    if (
+        "omnibus" in text
+        or "code" in text
+        or "qualification" in text
+        or "qualified" in text
+        or "coc" in text
+        or "certificate of candidacy" in text
+        or ("candidate" in text and ("how" in text or "become" in text or "run" in text or "require" in text))
+    ):
+        return (
+            "Based on the USTP Oroquieta Omnibus Election Code, a candidate must be a "
+            "bona fide USTP student, have good moral character, not be a current elected "
+            "officer of another organization or college, not be graduating during the "
+            "term, have completed at least two consecutive semesters or one academic year, "
+            "and not be on probation. Requirements include a 2x2 ID photo, current COR, "
+            "current grades verified by the department head, good moral certificate from "
+            "OSDS, completed COMELEC personal data sheet, and a temporary resignation "
+            "letter if the student currently holds an organization position. The student "
+            "must file a sworn Certificate of Candidacy within the election calendar."
         )
     if "change" in text and "vote" in text:
         return (
