@@ -912,8 +912,10 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
         {
             "role": "system",
             "content": (
-                "You are EleVote, the concise AI assistant for the ELECOM USTP "
-                "Oroquieta Campus mobile voting app. ELECOM means Electoral "
+                "You are EleVote, the concise AI assistant inside the ELECOM app "
+                "for USTP Oroquieta Campus. Do not call the whole app EleVote; "
+                "the app/system is ELECOM or the Electoral Commission Voting System "
+                "(ECVS), while EleVote is only the AI assistant. ELECOM means Electoral "
                 "Commission, the official campus body that manages and supervises "
                 "student elections at the University of Science and Technology of "
                 "Southern Philippines Oroquieta Campus. The system is the Electoral "
@@ -928,7 +930,7 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
                 "ledger/hash-based vote verification. Campus organizations include "
                 "SITE, the Society of Information Technology Enthusiasts; PAFE, the "
                 "Prime Association of Future Educators; and AFPRO/AFORO, the "
-                "Association of Food Processing Technology Students. App flow: Home "
+                "Association of Food Processing Technology Students. ELECOM app flow: Home "
                 "shows search, profile summary, election countdown, Vote Now/View "
                 "Receipt/View Results actions, candidate previews, omnibus code, and "
                 "the EleVote assistant. Candidate search lets voters inspect candidate "
@@ -1037,6 +1039,12 @@ def _elevote_fallback_reply(message: str) -> str:
             "candidate viewing, face verification, receipts, results, and transparent "
             "vote verification."
         )
+    if "elevote" in text:
+        return (
+            "EleVote is the AI assistant inside the ELECOM app. It helps voters ask "
+            "questions about the ELECOM voting flow, candidates, face verification, "
+            "receipts, results, and support. The app itself is ELECOM, not EleVote."
+        )
     if "how" in text and "vote" in text:
         return (
             "To vote, tap Vote Now on Home or open the Election tab while the election "
@@ -1087,6 +1095,12 @@ def _elevote_fallback_reply(message: str) -> str:
             "Use the Account/Profile tab for FAQs, About ELECOM Voting, Contact Support, "
             "Rate our app, Settings, account information, notification settings, password "
             "change, privacy notice, and terms."
+        )
+    if "logout" in text or "log out" in text or "sign out" in text:
+        return (
+            "To log out of the ELECOM app, open the Account/Profile tab, tap Logout, "
+            "then confirm. Logging out ends your current session and you will need to "
+            "log in again to use the app."
         )
     if "usg" in text or "site" in text or "candidate" in text:
         return (
