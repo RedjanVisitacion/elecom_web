@@ -925,7 +925,10 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
                 "candidate viewing, ballot selection, face verification, dynamic "
                 "network-restricted voting on authorized campus networks, automated "
                 "vote counting, receipts, result viewing, and cryptographic "
-                "ledger/hash-based vote verification. Help voters understand login, "
+                "ledger/hash-based vote verification. Campus organizations include "
+                "SITE, the Society of Information Technology Enthusiasts; PAFE, the "
+                "Prime Association of Future Educators; and AFPRO/AFORO, the "
+                "Association of Food Processing Technology Students. Help voters understand login, "
                 "eligibility, candidate lists, ballot selection, face verification, "
                 "receipts, result viewing, privacy, and support. Do not invent "
                 "official election results, candidate facts, or live database values. "
@@ -989,6 +992,23 @@ def _elevote_fallback_reply(message: str) -> str:
         return (
             "The developer of this system is Redjan Phil S. Visitacion. He developed "
             "the ELECOM Electoral Commission Voting System for USTP Oroquieta Campus."
+        )
+    if "site" in text:
+        return (
+            "SITE is a campus organization, the Society of Information Technology "
+            "Enthusiasts. In the ELECOM voting app, SITE refers to the IT-related "
+            "student organization, not an internet website."
+        )
+    if "pafe" in text:
+        return (
+            "PAFE means Prime Association of Future Educators. It is one of the "
+            "student organizations represented in the ELECOM voting system."
+        )
+    if "afpro" in text or "aforo" in text or "food processing" in text:
+        return (
+            "AFPRO, also written by some users as AFORO, means Association of Food "
+            "Processing Technology Students. It is one of the student organizations "
+            "represented in the ELECOM voting system."
         )
     if "elecom" in text or "electoral commission" in text or "ecvs" in text:
         return (
