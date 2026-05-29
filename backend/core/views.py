@@ -1160,7 +1160,7 @@ def _elevote_fallback_reply(message: str) -> str:
 
 
 @csrf_exempt
-@require_http_methods(["GET", "POST"])
+@require_http_methods(["GET", "POST", "DELETE"])
 def elevote_chat_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
@@ -1181,6 +1181,10 @@ def elevote_chat_api(request):
         )
         rows.reverse()
         return JsonResponse({"ok": True, "messages": [_elevote_message_json(row) for row in rows]})
+
+    if request.method == "DELETE":
+        EleVoteChatMessage.objects.filter(student_id=student_id).delete()
+        return JsonResponse({"ok": True, "messages": []})
 
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
