@@ -920,7 +920,8 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
                 "Commission Voting System (ECVS), a mobile and web-based campus "
                 "election platform built to improve election efficiency, accuracy, "
                 "security, transparency, and integrity compared with manual paper "
-                "ballots and manual vote counting. It supports student login, "
+                "ballots and manual vote counting. The developer of this system is "
+                "Redjan Phil S. Visitacion. It supports student login, "
                 "candidate viewing, ballot selection, face verification, dynamic "
                 "network-restricted voting on authorized campus networks, automated "
                 "vote counting, receipts, result viewing, and cryptographic "
@@ -979,6 +980,16 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
 
 def _elevote_fallback_reply(message: str) -> str:
     text = (message or "").lower()
+    if (
+        "developer" in text
+        or "who made" in text
+        or "who created" in text
+        or "creator" in text
+    ):
+        return (
+            "The developer of this system is Redjan Phil S. Visitacion. He developed "
+            "the ELECOM Electoral Commission Voting System for USTP Oroquieta Campus."
+        )
     if "elecom" in text or "electoral commission" in text or "ecvs" in text:
         return (
             "ELECOM means Electoral Commission. At USTP Oroquieta Campus, ELECOM "
