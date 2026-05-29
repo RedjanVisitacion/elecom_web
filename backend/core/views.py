@@ -928,12 +928,30 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
                 "ledger/hash-based vote verification. Campus organizations include "
                 "SITE, the Society of Information Technology Enthusiasts; PAFE, the "
                 "Prime Association of Future Educators; and AFPRO/AFORO, the "
-                "Association of Food Processing Technology Students. Help voters understand login, "
-                "eligibility, candidate lists, ballot selection, face verification, "
-                "receipts, result viewing, privacy, and support. Do not invent "
-                "official election results, candidate facts, or live database values. "
-                "If app/backend data is needed, tell the voter to check the relevant "
-                "screen or contact ELECOM."
+                "Association of Food Processing Technology Students. App flow: Home "
+                "shows search, profile summary, election countdown, Vote Now/View "
+                "Receipt/View Results actions, candidate previews, omnibus code, and "
+                "the EleVote assistant. Candidate search lets voters inspect candidate "
+                "profiles. Vote Now opens the Election tab and may require authorized "
+                "campus network access plus face verification before ballot access. "
+                "The Election tab shows only eligible organizations/candidates based "
+                "on the voter profile, such as USG and the voter's organization. "
+                "Straight party vote is optional and can auto-select a party slate; "
+                "manual candidate selection is still allowed. Voters must review their "
+                "choices before Submit ballot because submitted votes cannot be changed. "
+                "The Receipt tab shows the submitted ballot receipt when available. "
+                "The Results tab shows official results only after ELECOM publishes "
+                "them, with organization filters, votes by position, analytics, and "
+                "participation details. The transparency/ledger view helps verify "
+                "vote integrity using hashes. The Account/Profile flow includes FAQs, "
+                "About ELECOM Voting, support contact, app rating, settings, appearance, "
+                "notification settings, account settings, password change, privacy "
+                "notice, and terms. Help voters understand login, eligibility, candidate "
+                "lists, ballot selection, face verification, network access, receipts, "
+                "result viewing, privacy, and support. Answer from this app knowledge "
+                "when possible. Do not invent official election results, candidate facts, "
+                "or live database values. If app/backend data is needed, tell the voter "
+                "to check the relevant screen or contact ELECOM."
             ),
         }
     ]
@@ -1021,14 +1039,33 @@ def _elevote_fallback_reply(message: str) -> str:
         )
     if "how" in text and "vote" in text:
         return (
-            "To vote, open the Election tab while the election is active, choose your "
-            "candidate for each position, review your selections, complete face "
-            "verification if asked, then submit your ballot."
+            "To vote, tap Vote Now on Home or open the Election tab while the election "
+            "is active. Make sure you are on an authorized campus network if required, "
+            "complete face verification if asked, choose candidates manually or use the "
+            "optional straight-party vote, review your selections, then press Submit ballot."
+        )
+    if "home" in text:
+        return (
+            "The Home screen shows candidate search, your profile summary, the election "
+            "countdown card, Vote Now/View Receipt/View Results actions, candidate previews, "
+            "omnibus code, and the EleVote assistant."
+        )
+    if "straight" in text or "party vote" in text:
+        return (
+            "Straight party vote is optional. It auto-selects candidates from a party "
+            "slate for the positions where that party has candidates, but you can still "
+            "change any position manually before submitting."
         )
     if "change" in text and "vote" in text:
         return (
             "No. After your ballot is submitted, you cannot change your vote. Please "
             "review every selected candidate carefully before pressing Submit ballot."
+        )
+    if "network" in text or "wifi" in text or "internet" in text:
+        return (
+            "Voting may require an authorized campus network. If the app blocks voting, "
+            "connect to the approved USTP Oroquieta network or contact ELECOM if you "
+            "believe your network should be authorized."
         )
     if "receipt" in text:
         return (
@@ -1044,6 +1081,12 @@ def _elevote_fallback_reply(message: str) -> str:
         return (
             "For face verification, use good lighting, keep your face centered, and avoid "
             "covering your face. If it still fails, contact ELECOM support."
+        )
+    if "profile" in text or "account" in text or "settings" in text:
+        return (
+            "Use the Account/Profile tab for FAQs, About ELECOM Voting, Contact Support, "
+            "Rate our app, Settings, account information, notification settings, password "
+            "change, privacy notice, and terms."
         )
     if "usg" in text or "site" in text or "candidate" in text:
         return (
