@@ -935,6 +935,47 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
     return reply, model
 
 
+def _elevote_fallback_reply(message: str) -> str:
+    text = (message or "").lower()
+    if "how" in text and "vote" in text:
+        return (
+            "To vote, open the Election tab while the election is active, choose your "
+            "candidate for each position, review your selections, complete face "
+            "verification if asked, then submit your ballot."
+        )
+    if "change" in text and "vote" in text:
+        return (
+            "No. After your ballot is submitted, you cannot change your vote. Please "
+            "review every selected candidate carefully before pressing Submit ballot."
+        )
+    if "receipt" in text:
+        return (
+            "Open the Receipt tab after voting. If it says no receipt yet, wait a moment "
+            "and refresh; the receipt appears once the server has recorded it."
+        )
+    if "result" in text:
+        return (
+            "Open the Results tab. Results are shown only after ELECOM publishes them "
+            "for the election."
+        )
+    if "face" in text or "verification" in text:
+        return (
+            "For face verification, use good lighting, keep your face centered, and avoid "
+            "covering your face. If it still fails, contact ELECOM support."
+        )
+    if "usg" in text or "site" in text or "candidate" in text:
+        return (
+            "The app shows only the candidates your account is allowed to vote for, such "
+            "as USG and your organization candidates. If this looks wrong, confirm your "
+            "program/profile details with ELECOM."
+        )
+    return (
+        "I can help with voting steps, candidate eligibility, face verification, receipts, "
+        "results, and ELECOM app support. Please ask your question again with a little "
+        "more detail."
+    )
+
+
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
 def elevote_chat_api(request):
@@ -970,9 +1011,8 @@ def elevote_chat_api(request):
         reply, model = _elevote_groq_reply(student_id, message)
     except Exception as e:
         logger.exception("EleVote Groq request failed")
-        if getattr(settings, "DEBUG", False):
-            return JsonResponse({"ok": False, "error": str(e)}, status=500)
-        return JsonResponse({"ok": False, "error": "EleVote AI is unavailable."}, status=500)
+        reply = _elevote_fallback_reply(message)
+        model = "local-fallback"
 
     assistant_row = EleVoteChatMessage.objects.create(
         student_id=student_id,
