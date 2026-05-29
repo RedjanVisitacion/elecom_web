@@ -865,10 +865,40 @@ def _elevote_message_json(row: EleVoteChatMessage) -> dict:
     }
 
 
+def _ensure_elevote_chat_table() -> None:
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS elevote_chat_messages (
+                id BIGSERIAL PRIMARY KEY,
+                student_id varchar(64) NOT NULL,
+                role varchar(16) NOT NULL,
+                content text NOT NULL,
+                model varchar(128) NULL,
+                created_at timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS elevote_student_created_idx
+            ON elevote_chat_messages (student_id, created_at)
+            """
+        )
+        cur.execute(
+            """
+            CREATE INDEX IF NOT EXISTS elevote_role_idx
+            ON elevote_chat_messages (role)
+            """
+        )
+
+
 def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
     api_key = (getattr(settings, "GROQ_API_KEY", "") or "").strip()
     if not api_key:
         raise RuntimeError("Groq API key is not configured.")
+
+    _ensure_elevote_chat_table()
 
     model = (getattr(settings, "GROQ_MODEL", "") or "llama-3.1-8b-instant").strip()
     recent = list(
@@ -983,6 +1013,14 @@ def elevote_chat_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        _ensure_elevote_chat_table()
+    except Exception as e:
+        logger.exception("Failed to ensure EleVote chat table")
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "EleVote chat storage is unavailable."}, status=500)
 
     if request.method == "GET":
         rows = list(
