@@ -915,6 +915,7 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
             "Accept": "application/json",
+            "User-Agent": "ELECOM-Mobile/1.0 (+https://elecom.app)",
         },
         method="POST",
     )
