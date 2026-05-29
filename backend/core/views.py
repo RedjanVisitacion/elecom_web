@@ -10,6 +10,7 @@ import shutil
 import subprocess
 import tempfile
 import time
+import urllib.error
 import urllib.request
 import io
 import ipaddress
@@ -32,6 +33,7 @@ from django.core import signing
 from elecom_auth.models import ElecomUser
 from elecom_voting.models import (
     AppRating,
+    EleVoteChatMessage,
     FaceEnrollment,
     FaceVerificationLog,
     MobileTutorialState,
@@ -850,6 +852,140 @@ def account_app_rating_api(request):
             "rating": row.rating,
             "label": row.label,
             "created_at": row.created_at.isoformat() if row.created_at else None,
+        }
+    )
+
+
+def _elevote_message_json(row: EleVoteChatMessage) -> dict:
+    return {
+        "id": row.id,
+        "role": row.role,
+        "content": row.content,
+        "created_at": row.created_at.isoformat() if row.created_at else None,
+    }
+
+
+def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
+    api_key = (getattr(settings, "GROQ_API_KEY", "") or "").strip()
+    if not api_key:
+        raise RuntimeError("Groq API key is not configured.")
+
+    model = (getattr(settings, "GROQ_MODEL", "") or "llama-3.1-8b-instant").strip()
+    recent = list(
+        EleVoteChatMessage.objects.filter(student_id=student_id)
+        .order_by("-created_at")
+        .values("role", "content")[:12]
+    )
+    recent.reverse()
+
+    messages = [
+        {
+            "role": "system",
+            "content": (
+                "You are EleVote, the concise AI helper for the ELECOM USTP "
+                "Oroquieta Campus mobile voting app. Help voters understand "
+                "login, eligibility, candidate lists, ballot selection, face "
+                "verification, receipts, result viewing, privacy, and support. "
+                "Do not invent official election results or candidate facts. "
+                "If app/backend data is needed, tell the voter to check the "
+                "relevant screen or contact ELECOM."
+            ),
+        }
+    ]
+    for item in recent:
+        role = item.get("role") if item.get("role") in {"user", "assistant"} else "user"
+        content = str(item.get("content") or "").strip()
+        if content:
+            messages.append({"role": role, "content": content[:2000]})
+    messages.append({"role": "user", "content": message[:2000]})
+
+    payload = json.dumps(
+        {
+            "model": model,
+            "messages": messages,
+            "temperature": 0.25,
+            "max_tokens": 450,
+        }
+    ).encode("utf-8")
+
+    req = urllib.request.Request(
+        "https://api.groq.com/openai/v1/chat/completions",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urllib.request.urlopen(req, timeout=30) as resp:
+            raw = resp.read().decode("utf-8")
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="ignore")
+        raise RuntimeError(f"Groq request failed ({e.code}): {detail[:300]}")
+
+    decoded = json.loads(raw)
+    choices = decoded.get("choices")
+    if not choices:
+        raise RuntimeError("Groq returned no choices.")
+    reply = choices[0].get("message", {}).get("content", "").strip()
+    if not reply:
+        raise RuntimeError("Groq returned an empty reply.")
+    return reply, model
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def elevote_chat_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    if request.method == "GET":
+        rows = list(
+            EleVoteChatMessage.objects.filter(student_id=student_id)
+            .order_by("-created_at")[:30]
+        )
+        rows.reverse()
+        return JsonResponse({"ok": True, "messages": [_elevote_message_json(row) for row in rows]})
+
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        payload = {}
+
+    message = str(payload.get("message") or "").strip()
+    if not message:
+        return JsonResponse({"ok": False, "error": "Message is required."}, status=400)
+    if len(message) > 2000:
+        return JsonResponse({"ok": False, "error": "Message is too long."}, status=400)
+
+    user_row = EleVoteChatMessage.objects.create(
+        student_id=student_id,
+        role="user",
+        content=message,
+    )
+    try:
+        reply, model = _elevote_groq_reply(student_id, message)
+    except Exception as e:
+        logger.exception("EleVote Groq request failed")
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "EleVote AI is unavailable."}, status=500)
+
+    assistant_row = EleVoteChatMessage.objects.create(
+        student_id=student_id,
+        role="assistant",
+        content=reply,
+        model=model,
+    )
+    return JsonResponse(
+        {
+            "ok": True,
+            "reply": reply,
+            "message": _elevote_message_json(user_row),
+            "assistant_message": _elevote_message_json(assistant_row),
         }
     )
 

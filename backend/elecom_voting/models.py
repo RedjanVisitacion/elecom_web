@@ -65,6 +65,21 @@ class MobileTutorialState(models.Model):
         ]
 
 
+class EleVoteChatMessage(models.Model):
+    student_id = models.CharField(max_length=64)
+    role = models.CharField(max_length=16)
+    content = models.TextField()
+    model = models.CharField(max_length=128, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "elevote_chat_messages"
+        indexes = [
+            models.Index(fields=["student_id", "created_at"], name="elevote_student_created_idx"),
+            models.Index(fields=["role"], name="elevote_role_idx"),
+        ]
+
+
 class FaceEnrollment(models.Model):
     user_id = models.BigIntegerField(null=True, blank=True)
     student_id = models.CharField(max_length=64)

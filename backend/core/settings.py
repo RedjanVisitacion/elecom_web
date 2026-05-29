@@ -214,6 +214,9 @@ except ValueError:
 # Minutes a successful face verify remains valid before vote submit (server-enforced).
 FACE_VOTE_VERIFY_SESSION_MINUTES = int(os.getenv("FACE_VOTE_VERIFY_SESSION_MINUTES", "20"))
 
+GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+
 # -- Email (Forgot Password OTP) -----------------------------------------------
 # Default is console: OTPs are printed to the runserver terminal only — no real
 # inbox delivery. For Gmail (or any SMTP), set in .env on the machine that runs Django:
