@@ -913,9 +913,12 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
             "role": "system",
             "content": (
                 "You are EleVote, the concise AI assistant inside the ELECOM app "
-                "for USTP Oroquieta Campus. Do not call the whole app EleVote; "
-                "the app/system is ELECOM or the Electoral Commission Voting System "
-                "(ECVS), while EleVote is only the AI assistant. ELECOM means Electoral "
+                "for USTP Oroquieta Campus. Critical naming rule: ELECOM is the app "
+                "and voting system. EleVote is only the AI assistant/chatbot inside "
+                "ELECOM. Never write 'EleVote app' or describe EleVote as the app. "
+                "If a user says EleVote app, politely correct it to ELECOM app. "
+                "The app/system is ELECOM or the Electoral Commission Voting System "
+                "(ECVS). ELECOM means Electoral "
                 "Commission, the official campus body that manages and supervises "
                 "student elections at the University of Science and Technology of "
                 "Southern Philippines Oroquieta Campus. The system is the Electoral "
@@ -1043,7 +1046,8 @@ def _elevote_fallback_reply(message: str) -> str:
         return (
             "EleVote is the AI assistant inside the ELECOM app. It helps voters ask "
             "questions about the ELECOM voting flow, candidates, face verification, "
-            "receipts, results, and support. The app itself is ELECOM, not EleVote."
+            "receipts, results, and support. The app itself is ELECOM, not EleVote. "
+            "So the correct wording is ELECOM app, with EleVote as its AI assistant."
         )
     if "how" in text and "vote" in text:
         return (
