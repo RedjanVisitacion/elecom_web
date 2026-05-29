@@ -912,13 +912,24 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
         {
             "role": "system",
             "content": (
-                "You are EleVote, the concise AI helper for the ELECOM USTP "
-                "Oroquieta Campus mobile voting app. Help voters understand "
-                "login, eligibility, candidate lists, ballot selection, face "
-                "verification, receipts, result viewing, privacy, and support. "
-                "Do not invent official election results or candidate facts. "
-                "If app/backend data is needed, tell the voter to check the "
-                "relevant screen or contact ELECOM."
+                "You are EleVote, the concise AI assistant for the ELECOM USTP "
+                "Oroquieta Campus mobile voting app. ELECOM means Electoral "
+                "Commission, the official campus body that manages and supervises "
+                "student elections at the University of Science and Technology of "
+                "Southern Philippines Oroquieta Campus. The system is the Electoral "
+                "Commission Voting System (ECVS), a mobile and web-based campus "
+                "election platform built to improve election efficiency, accuracy, "
+                "security, transparency, and integrity compared with manual paper "
+                "ballots and manual vote counting. It supports student login, "
+                "candidate viewing, ballot selection, face verification, dynamic "
+                "network-restricted voting on authorized campus networks, automated "
+                "vote counting, receipts, result viewing, and cryptographic "
+                "ledger/hash-based vote verification. Help voters understand login, "
+                "eligibility, candidate lists, ballot selection, face verification, "
+                "receipts, result viewing, privacy, and support. Do not invent "
+                "official election results, candidate facts, or live database values. "
+                "If app/backend data is needed, tell the voter to check the relevant "
+                "screen or contact ELECOM."
             ),
         }
     ]
@@ -968,6 +979,15 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
 
 def _elevote_fallback_reply(message: str) -> str:
     text = (message or "").lower()
+    if "elecom" in text or "electoral commission" in text or "ecvs" in text:
+        return (
+            "ELECOM means Electoral Commission. At USTP Oroquieta Campus, ELECOM "
+            "is the official body that manages and supervises student elections. "
+            "The ELECOM app is part of the Electoral Commission Voting System "
+            "(ECVS), a secure mobile and web-based platform for student voting, "
+            "candidate viewing, face verification, receipts, results, and transparent "
+            "vote verification."
+        )
     if "how" in text and "vote" in text:
         return (
             "To vote, open the Election tab while the election is active, choose your "
