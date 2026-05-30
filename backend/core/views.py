@@ -40,7 +40,7 @@ from elecom_voting.models import (
 )
 
 from . import facepp_service
-from .cloudinary_upload import upload_enrollment_image_bytes
+from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -5542,6 +5542,335 @@ def admin_cloudinary_signature_api(request):
             {"ok": False, "error": "Failed to generate upload signature."},
             status=500,
         )
+
+
+
+def _ensure_candidate_applications_table() -> None:
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS candidate_applications (
+                id SERIAL PRIMARY KEY,
+                election_id INTEGER NULL,
+                student_id VARCHAR(64) NOT NULL,
+                first_name VARCHAR(255) NOT NULL,
+                middle_name VARCHAR(255) DEFAULT '',
+                last_name VARCHAR(255) NOT NULL,
+                organization VARCHAR(255) NOT NULL,
+                position VARCHAR(255) NOT NULL,
+                program VARCHAR(255) NOT NULL,
+                year_section VARCHAR(255) NOT NULL,
+                platform TEXT NOT NULL,
+                candidate_type VARCHAR(64) DEFAULT 'Independent',
+                party_name VARCHAR(255) NULL,
+                photo_url TEXT NOT NULL,
+                photo_public_id VARCHAR(255) NULL,
+                party_logo_url TEXT NULL,
+                party_logo_public_id VARCHAR(255) NULL,
+                status VARCHAR(32) NOT NULL DEFAULT 'pending',
+                reviewed_by VARCHAR(64) NULL,
+                reviewed_at TIMESTAMP NULL,
+                rejection_reason TEXT NULL,
+                created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_applications_status "
+            "ON candidate_applications (status)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_applications_student "
+            "ON candidate_applications (student_id)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS ix_candidate_applications_election "
+            "ON candidate_applications (COALESCE(election_id, 0))"
+        )
+        cur.execute(
+            """
+            CREATE UNIQUE INDEX IF NOT EXISTS ux_candidate_applications_pending
+            ON candidate_applications (COALESCE(election_id, 0), student_id, position)
+            WHERE status = 'pending'
+            """
+        )
+
+
+def _uploaded_candidate_image(request, field_name: str, folder: str):
+    upload = request.FILES.get(field_name)
+    if upload is None:
+        return "", ""
+    raw = upload.read()
+    if not raw or len(raw) > 8 * 1024 * 1024:
+        raise ValueError("Invalid or oversized image upload.")
+    return upload_image_bytes(raw, folder=folder)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def candidate_application_submit_api(request):
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    posted_student_id = str(request.POST.get("student_id") or student_id).strip()
+    if posted_student_id and posted_student_id != student_id:
+        return JsonResponse({"ok": False, "error": "You can only file for your own student account."}, status=403)
+
+    first_name = str(request.POST.get("first_name") or "").strip()
+    middle_name = str(request.POST.get("middle_name") or "").strip()
+    last_name = str(request.POST.get("last_name") or "").strip()
+    organization = str(request.POST.get("organization") or "").strip()
+    position = str(request.POST.get("position") or "").strip()
+    program = str(request.POST.get("program") or "").strip()
+    year_section = str(request.POST.get("year_section") or "").strip()
+    platform = str(request.POST.get("platform") or "").strip()
+    candidate_type = str(request.POST.get("candidate_type") or "Independent").strip() or "Independent"
+    party_name = str(request.POST.get("party_name") or "").strip() or None
+
+    if not first_name or not last_name:
+        return JsonResponse({"ok": False, "error": "First and last name are required."}, status=400)
+    if not organization or not position:
+        return JsonResponse({"ok": False, "error": "Organization and position are required."}, status=400)
+    if not program or not year_section:
+        return JsonResponse({"ok": False, "error": "Program and year/section are required."}, status=400)
+    if not platform:
+        return JsonResponse({"ok": False, "error": "Platform is required."}, status=400)
+    if "candidate_photo" not in request.FILES:
+        return JsonResponse({"ok": False, "error": "Candidate photo is required."}, status=400)
+    if candidate_type.lower() == "political party" and not party_name:
+        return JsonResponse({"ok": False, "error": "Party name is required."}, status=400)
+
+    try:
+        election_id = _current_election_id() or None
+        _ensure_election_scoped_tables()
+        _ensure_candidate_applications_table()
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id FROM candidates_registration
+                WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+                  AND student_id = %s
+                  AND position = %s
+                LIMIT 1
+                """,
+                [election_id, student_id, position],
+            )
+            if cur.fetchone():
+                return JsonResponse({"ok": False, "error": "You are already registered for this position."}, status=409)
+
+        photo_url, photo_public_id = _uploaded_candidate_image(
+            request, "candidate_photo", "elecom/candidate_applications/photos"
+        )
+        party_logo_url = ""
+        party_logo_public_id = ""
+        if "party_logo" in request.FILES:
+            party_logo_url, party_logo_public_id = _uploaded_candidate_image(
+                request, "party_logo", "elecom/candidate_applications/party_logos"
+            )
+
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO candidate_applications (
+                    election_id, student_id, first_name, middle_name, last_name,
+                    organization, position, program, year_section, platform,
+                    candidate_type, party_name, photo_url, photo_public_id,
+                    party_logo_url, party_logo_public_id
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id
+                """,
+                [
+                    election_id,
+                    student_id,
+                    first_name,
+                    middle_name,
+                    last_name,
+                    organization,
+                    position,
+                    program,
+                    year_section,
+                    platform,
+                    candidate_type,
+                    party_name,
+                    photo_url,
+                    photo_public_id,
+                    party_logo_url or None,
+                    party_logo_public_id or None,
+                ],
+            )
+            app_id = int(cur.fetchone()[0])
+        return JsonResponse({"ok": True, "application_id": app_id, "status": "pending"})
+    except Exception as e:
+        msg = str(e) or "Failed to submit candidate application."
+        if "ux_candidate_applications_pending" in msg or "duplicate key" in msg.lower():
+            return JsonResponse({"ok": False, "error": "You already have a pending filing for this position."}, status=409)
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": msg}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to submit candidate application."}, status=500)
+
+
+@require_http_methods(["GET"])
+def admin_candidate_applications_list_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    status = str(request.GET.get("status") or "pending").strip().lower()
+    if status not in {"pending", "approved", "rejected", "all"}:
+        status = "pending"
+    q = str(request.GET.get("q") or "").strip()
+
+    try:
+        _ensure_candidate_applications_table()
+        _ensure_election_scoped_tables()
+        election_id = _current_election_id() or None
+        where_parts = ["COALESCE(election_id, 0) = COALESCE(%s, 0)"]
+        params = [election_id]
+        if status != "all":
+            where_parts.append("status = %s")
+            params.append(status)
+        if q:
+            where_parts.append(
+                "((COALESCE(first_name,'') || ' ' || COALESCE(middle_name,'') || ' ' || COALESCE(last_name,'')) ILIKE %s "
+                "OR student_id ILIKE %s OR organization ILIKE %s OR position ILIKE %s)"
+            )
+            like = f"%{q}%"
+            params.extend([like, like, like, like])
+        with connection.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT id, election_id, student_id, first_name, middle_name, last_name,
+                       organization, position, program, year_section, platform,
+                       candidate_type, party_name, photo_url, party_logo_url,
+                       status, reviewed_by, reviewed_at, rejection_reason, created_at
+                FROM candidate_applications
+                WHERE {' AND '.join(where_parts)}
+                ORDER BY created_at DESC, id DESC
+                LIMIT 300
+                """,
+                params,
+            )
+            cols = [c[0] for c in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        for row in rows:
+            for key in ("reviewed_at", "created_at"):
+                if row.get(key):
+                    row[key] = row[key].isoformat()
+        return JsonResponse({"ok": True, "applications": rows})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load candidate applications."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_candidate_application_decision_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    payload = _json_request_body(request)
+    app_id = payload.get("id") or payload.get("application_id")
+    action = str(payload.get("action") or "").strip().lower()
+    reason = str(payload.get("reason") or "").strip()
+    if action not in {"approve", "reject"}:
+        return JsonResponse({"ok": False, "error": "Invalid decision."}, status=400)
+    try:
+        app_id = int(app_id)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid application id."}, status=400)
+
+    reviewer = str(request.session.get("student_id") or "admin").strip() or "admin"
+    try:
+        _ensure_candidate_applications_table()
+        _ensure_election_scoped_tables()
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT id, election_id, student_id, first_name, middle_name, last_name,
+                           organization, position, program, year_section, platform,
+                           candidate_type, party_name, photo_url, party_logo_url, status
+                    FROM candidate_applications
+                    WHERE id = %s
+                    FOR UPDATE
+                    """,
+                    [app_id],
+                )
+                row = cur.fetchone()
+                if not row:
+                    return JsonResponse({"ok": False, "error": "Application not found."}, status=404)
+                cols = [c[0] for c in cur.description]
+                app = dict(zip(cols, row))
+                if app.get("status") != "pending":
+                    return JsonResponse({"ok": False, "error": "Application was already reviewed."}, status=409)
+
+                if action == "reject":
+                    cur.execute(
+                        """
+                        UPDATE candidate_applications
+                        SET status = 'rejected',
+                            reviewed_by = %s,
+                            reviewed_at = CURRENT_TIMESTAMP,
+                            rejection_reason = %s,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                        """,
+                        [reviewer, reason or None, app_id],
+                    )
+                    return JsonResponse({"ok": True, "status": "rejected"})
+
+                cur.execute(
+                    """
+                    INSERT INTO candidates_registration (
+                        election_id, student_id, first_name, middle_name, last_name,
+                        organization, position, program, year_section,
+                        platform, photo_url, party_name, candidate_type, party_logo_url
+                    )
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id
+                    """,
+                    [
+                        app.get("election_id"),
+                        app.get("student_id"),
+                        app.get("first_name"),
+                        app.get("middle_name"),
+                        app.get("last_name"),
+                        app.get("organization"),
+                        app.get("position"),
+                        app.get("program"),
+                        app.get("year_section"),
+                        app.get("platform"),
+                        app.get("photo_url"),
+                        app.get("party_name"),
+                        app.get("candidate_type"),
+                        app.get("party_logo_url"),
+                    ],
+                )
+                candidate_id = int(cur.fetchone()[0])
+                cur.execute(
+                    """
+                    UPDATE candidate_applications
+                    SET status = 'approved',
+                        reviewed_by = %s,
+                        reviewed_at = CURRENT_TIMESTAMP,
+                        updated_at = CURRENT_TIMESTAMP
+                    WHERE id = %s
+                    """,
+                    [reviewer, app_id],
+                )
+        return JsonResponse({"ok": True, "status": "approved", "candidate_id": candidate_id})
+    except Exception as e:
+        msg = str(e) or "Failed to review application."
+        if "duplicate key" in msg.lower():
+            return JsonResponse({"ok": False, "error": "Candidate already exists for this position."}, status=409)
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": msg}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to review application."}, status=500)
 
 
 @require_http_methods(["GET"])

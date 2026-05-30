@@ -244,10 +244,9 @@
 
                     <div class="col-12"><hr class="my-2"></div>
                     <div class="col-md-6">
-                        <label class="form-label">Upload Candidate Photo (optional)</label>
-                        <input type="file" name="photo_file" class="form-control" accept="image/*">
-                        <div class="form-text">Or provide a URL below</div>
-                        <input type="url" name="photo_url" class="form-control mt-2" placeholder="https://...">
+                        <label class="form-label">Upload Candidate Photo</label>
+                        <input type="file" name="photo_file" class="form-control" accept="image/*" required>
+                        <div class="form-text">Upload the candidate's actual photo.</div>
                     </div>
 
                     <div class="col-12 party-fields d-none"><hr class="my-2"></div>
@@ -267,6 +266,21 @@
                     </div>
                     </div>
                 </form>
+
+                <div class="card p-3 shadow-sm border-0 reg-form-card mt-3" id="candidateApplicationsPanel">
+                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                        <div>
+                            <h5 class="mb-1">Pending Candidate Filings</h5>
+                            <div class="text-muted small">Review mobile filing requests before they become official candidates.</div>
+                        </div>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="refreshApplicationsBtn">
+                            <i class="bi bi-arrow-clockwise"></i> Refresh
+                        </button>
+                    </div>
+                    <div id="candidateApplicationsList" class="vstack gap-2">
+                        <div class="text-muted">Loading applications...</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

@@ -235,6 +235,101 @@ document.addEventListener("DOMContentLoaded", () => {
   orgSelect?.addEventListener("change", filterPositionsByOrg);
   filterPositionsByOrg();
 
+
+  const applicationsList = document.getElementById("candidateApplicationsList");
+  const refreshApplicationsBtn = document.getElementById("refreshApplicationsBtn");
+
+  const escapeHtml = (value) =>
+    String(value ?? "")
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
+
+  const candidateName = (app) =>
+    [app.first_name, app.middle_name, app.last_name]
+      .map((v) => String(v || "").trim())
+      .filter(Boolean)
+      .join(" ");
+
+  const renderApplications = (applications) => {
+    if (!applicationsList) return;
+    if (!applications.length) {
+      applicationsList.innerHTML = '<div class="text-muted">No pending candidate filings.</div>';
+      return;
+    }
+
+    applicationsList.innerHTML = applications
+      .map((app) => {
+        const photo = app.photo_url || "/static/assets/avatar-placeholder.png";
+        return `
+          <div class="border rounded-3 p-3 d-flex gap-3 align-items-start">
+            <img src="${escapeHtml(photo)}" alt="" class="rounded-3 border" style="width:72px;height:82px;object-fit:cover;">
+            <div class="flex-grow-1">
+              <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
+                <div>
+                  <strong>${escapeHtml(candidateName(app))}</strong>
+                  <div class="small text-muted">${escapeHtml(app.student_id)} • ${escapeHtml(app.organization)} • ${escapeHtml(app.position)}</div>
+                  <div class="small text-muted">${escapeHtml(app.program)} ${escapeHtml(app.year_section)} • ${escapeHtml(app.candidate_type || "Independent")}</div>
+                </div>
+                <span class="badge text-bg-warning">Pending</span>
+              </div>
+              <div class="small mt-2">${escapeHtml(app.platform || "")}</div>
+              <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
+                <button type="button" class="btn btn-outline-danger btn-sm" data-app-decision="reject" data-app-id="${escapeHtml(app.id)}">Reject</button>
+                <button type="button" class="btn btn-primary btn-sm" data-app-decision="approve" data-app-id="${escapeHtml(app.id)}">Approve</button>
+              </div>
+            </div>
+          </div>
+        `;
+      })
+      .join("");
+  };
+
+  const loadApplications = async () => {
+    if (!applicationsList) return;
+    applicationsList.innerHTML = '<div class="text-muted">Loading applications...</div>';
+    try {
+      const res = await fetch(`${window.location.origin}/api/admin/candidate-applications/list/?status=pending`, {
+        method: "GET",
+        credentials: "include",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to load applications.");
+      renderApplications(Array.isArray(data.applications) ? data.applications : []);
+    } catch (err) {
+      applicationsList.innerHTML = `<div class="text-danger">${escapeHtml(err.message || "Failed to load applications.")}</div>`;
+    }
+  };
+
+  const decideApplication = async (id, action) => {
+    const label = action === "approve" ? "approve" : "reject";
+    if (!confirm(`Are you sure you want to ${label} this filing?`)) return;
+    try {
+      const res = await fetch(`${window.location.origin}/api/admin/candidate-applications/decision/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ id, action }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to review application.");
+      showAlert("success", action === "approve" ? "Candidate approved and published." : "Candidate filing rejected.");
+      await loadApplications();
+    } catch (err) {
+      showAlert("error", err.message || "Failed to review application.");
+    }
+  };
+
+  refreshApplicationsBtn?.addEventListener("click", loadApplications);
+  applicationsList?.addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-app-decision]");
+    if (!btn) return;
+    decideApplication(btn.dataset.appId, btn.dataset.appDecision);
+  });
+  loadApplications();
+
   // Submit handler
   if (form) {
     form.addEventListener("submit", async (e) => {
@@ -260,12 +355,10 @@ document.addEventListener("DOMContentLoaded", () => {
           program: String(fd.get("program") || "").trim(),
           year_section: String(fd.get("year_section") || "").trim(),
           platform: String(fd.get("platform") || "").trim(),
-          photo_url: String(fd.get("photo_url") || "").trim(),
           party_name: String(fd.get("party_name") || "").trim(),
           party_logo_url: String(fd.get("party_logo_url") || "").trim(),
         };
 
-        if (!payload.photo_url) delete payload.photo_url;
         if (!payload.middle_name) delete payload.middle_name;
         if (!payload.party_name) delete payload.party_name;
         if (!payload.party_logo_url) delete payload.party_logo_url;
@@ -273,14 +366,17 @@ document.addEventListener("DOMContentLoaded", () => {
         setLoading(true);
 
         // Upload files if provided; file upload overrides manual URL fields
-        if (photoFile && typeof photoFile === "object" && photoFile.size > 0) {
-          const url = await uploadToCloudinary({ file: photoFile, type: "candidate_photo" });
-          if (!url) {
-            showAlert("error", "Candidate photo upload failed.");
-            return;
-          }
-          payload.photo_url = url;
+        if (!photoFile || typeof photoFile !== "object" || photoFile.size <= 0) {
+          showAlert("error", "Candidate photo upload is required.");
+          return;
         }
+
+        const photoUrl = await uploadToCloudinary({ file: photoFile, type: "candidate_photo" });
+        if (!photoUrl) {
+          showAlert("error", "Candidate photo upload failed.");
+          return;
+        }
+        payload.photo_url = photoUrl;
 
         if (partyLogoFile && typeof partyLogoFile === "object" && partyLogoFile.size > 0) {
           const url = await uploadToCloudinary({ file: partyLogoFile, type: "party_logo" });
@@ -307,6 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         showAlert("success", `Candidate registered successfully.`);
+        await loadApplications();
         form.reset();
         populateYearSections();
         filterPositionsByOrg();

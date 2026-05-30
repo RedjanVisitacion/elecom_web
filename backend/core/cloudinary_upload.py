@@ -6,15 +6,13 @@ import io
 from django.conf import settings
 
 
-def upload_enrollment_image_bytes(image_bytes: bytes) -> tuple[str, str]:
-    """Upload raw image bytes; return ``(secure_url, public_id)``."""
+def upload_image_bytes(image_bytes: bytes, *, folder: str) -> tuple[str, str]:
+    """Upload raw image bytes to the given Cloudinary folder."""
     try:
         import cloudinary
         import cloudinary.uploader
     except ImportError as e:
-        raise RuntimeError(
-            "Install cloudinary: pip install cloudinary"
-        ) from e
+        raise RuntimeError("Install cloudinary: pip install cloudinary") from e
 
     cloud_name = (getattr(settings, "CLOUDINARY_CLOUD_NAME", None) or "").strip()
     if not cloud_name:
@@ -27,7 +25,7 @@ def upload_enrollment_image_bytes(image_bytes: bytes) -> tuple[str, str]:
     )
     result = cloudinary.uploader.upload(
         io.BytesIO(image_bytes),
-        folder="elecom/face_enrollments",
+        folder=folder,
         resource_type="image",
     )
     secure_url = str(result.get("secure_url") or result.get("url") or "").strip()
@@ -35,3 +33,8 @@ def upload_enrollment_image_bytes(image_bytes: bytes) -> tuple[str, str]:
     if not secure_url:
         raise RuntimeError("Cloudinary upload did not return a URL.")
     return secure_url, public_id
+
+
+def upload_enrollment_image_bytes(image_bytes: bytes) -> tuple[str, str]:
+    """Upload raw image bytes; return ``(secure_url, public_id)``."""
+    return upload_image_bytes(image_bytes, folder="elecom/face_enrollments")
