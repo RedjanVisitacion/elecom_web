@@ -270,8 +270,8 @@ document.addEventListener("DOMContentLoaded", () => {
               <div class="d-flex flex-wrap gap-2 align-items-center justify-content-between">
                 <div>
                   <strong>${escapeHtml(candidateName(app))}</strong>
-                  <div class="small text-muted">${escapeHtml(app.student_id)} • ${escapeHtml(app.organization)} • ${escapeHtml(app.position)}</div>
-                  <div class="small text-muted">${escapeHtml(app.program)} ${escapeHtml(app.year_section)} • ${escapeHtml(app.candidate_type || "Independent")}</div>
+                  <div class="small text-muted">${escapeHtml(app.student_id)} &bull; ${escapeHtml(app.organization)} &bull; ${escapeHtml(app.position)}</div>
+                  <div class="small text-muted">${escapeHtml(app.program)} ${escapeHtml(app.year_section)} &bull; ${escapeHtml(app.candidate_type || "Independent")}</div>
                 </div>
                 <span class="badge text-bg-warning">Pending</span>
               </div>
@@ -291,10 +291,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!applicationsList) return;
     applicationsList.innerHTML = '<div class="text-muted">Loading applications...</div>';
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 12000);
       const res = await fetch(`${window.location.origin}/api/admin/candidate-applications/list/?status=pending`, {
         method: "GET",
         credentials: "include",
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.error || "Failed to load applications.");
       renderApplications(Array.isArray(data.applications) ? data.applications : []);
@@ -417,3 +421,4 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 });
+
