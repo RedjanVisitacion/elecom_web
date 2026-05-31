@@ -289,6 +289,7 @@ def _ensure_election_scoped_tables() -> None:
                 platform TEXT,
                 photo_url TEXT,
                 party_name VARCHAR(255),
+                party_code_hash VARCHAR(128),
                 candidate_type VARCHAR(64),
                 party_logo_url TEXT,
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -307,6 +308,7 @@ def _ensure_election_scoped_tables() -> None:
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS platform TEXT")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS photo_url TEXT")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS party_name VARCHAR(255)")
+        cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS party_code_hash VARCHAR(128)")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS candidate_type VARCHAR(64)")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS party_logo_url TEXT")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NULL")
@@ -5563,6 +5565,7 @@ def _ensure_candidate_applications_table() -> None:
                 platform TEXT NOT NULL,
                 candidate_type VARCHAR(64) DEFAULT 'Independent',
                 party_name VARCHAR(255) NULL,
+                party_code_hash VARCHAR(128) NULL,
                 photo_url TEXT NOT NULL,
                 photo_public_id VARCHAR(255) NULL,
                 party_logo_url TEXT NULL,
@@ -5588,6 +5591,7 @@ def _ensure_candidate_applications_table() -> None:
             "CREATE INDEX IF NOT EXISTS ix_candidate_applications_election "
             "ON candidate_applications (COALESCE(election_id, 0))"
         )
+        cur.execute("ALTER TABLE candidate_applications ADD COLUMN IF NOT EXISTS party_code_hash VARCHAR(128) NULL")
         cur.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS ux_candidate_applications_pending
@@ -5600,6 +5604,8 @@ def _ensure_candidate_applications_table() -> None:
 def _candidate_application_json(row: dict) -> dict:
     out = {}
     for key, value in row.items():
+        if key == "party_code_hash":
+            continue
         if key in {"reviewed_at", "created_at", "updated_at"} and value:
             try:
                 out[key] = value.isoformat()
@@ -5608,6 +5614,102 @@ def _candidate_application_json(row: dict) -> dict:
         else:
             out[key] = value
     return out
+
+
+def _candidate_party_code_hash(party_name: str, party_code: str) -> str:
+    normalized_party = str(party_name or "").strip().lower()
+    normalized_code = str(party_code or "").strip()
+    return hashlib.sha256(f"{normalized_party}:{normalized_code}".encode("utf-8")).hexdigest()
+
+
+def _party_position_limit(organization: str, position: str) -> int:
+    org = str(organization or "").strip().upper()
+    pos = str(position or "").strip().lower()
+    if org == "USG" and "representative" in pos:
+        return 2
+    return 1
+
+
+def _party_slot_count(cur, *, election_id, party_name: str, organization: str, position: str, exclude_application_id=None) -> int:
+    params = [election_id, party_name, organization, position]
+    app_exclusion = ""
+    if exclude_application_id is not None:
+        app_exclusion = "AND id <> %s"
+        params.append(exclude_application_id)
+    cur.execute(
+        f"""
+        SELECT COUNT(*) FROM (
+            SELECT id
+            FROM candidate_applications
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+              AND organization = %s
+              AND position = %s
+              AND status IN ('pending', 'approved')
+              {app_exclusion}
+            UNION ALL
+            SELECT id
+            FROM candidates_registration
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+              AND organization = %s
+              AND position = %s
+        ) lineup
+        """,
+        params + [election_id, party_name, organization, position],
+    )
+    row = cur.fetchone()
+    return int(row[0] or 0) if row else 0
+
+
+def _existing_party_code_hash(cur, *, election_id, party_name: str) -> str:
+    cur.execute(
+        """
+        SELECT party_code_hash
+        FROM (
+            SELECT party_code_hash, created_at
+            FROM candidate_applications
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+              AND status IN ('pending', 'approved')
+              AND COALESCE(party_code_hash, '') <> ''
+            UNION ALL
+            SELECT party_code_hash, created_at
+            FROM candidates_registration
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+              AND COALESCE(party_code_hash, '') <> ''
+        ) parties
+        ORDER BY created_at ASC NULLS LAST
+        LIMIT 1
+        """,
+        [election_id, party_name, election_id, party_name],
+    )
+    row = cur.fetchone()
+    return str(row[0] or "").strip() if row else ""
+
+
+def _party_name_exists(cur, *, election_id, party_name: str) -> bool:
+    cur.execute(
+        """
+        SELECT 1
+        FROM (
+            SELECT party_name
+            FROM candidate_applications
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+              AND status IN ('pending', 'approved')
+            UNION ALL
+            SELECT party_name
+            FROM candidates_registration
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+        ) parties
+        LIMIT 1
+        """,
+        [election_id, party_name, election_id, party_name],
+    )
+    return cur.fetchone() is not None
 
 
 def _insert_user_notification_for_student(*, student_id: str, notif_type: str, title: str, body: str) -> None:
@@ -5728,6 +5830,7 @@ def candidate_application_submit_api(request):
     platform = str(request.POST.get("platform") or "").strip()
     candidate_type = str(request.POST.get("candidate_type") or "Independent").strip() or "Independent"
     party_name = str(request.POST.get("party_name") or "").strip() or None
+    party_code = str(request.POST.get("party_code") or "").strip()
 
     if not first_name or not last_name:
         return JsonResponse({"ok": False, "error": "First and last name are required."}, status=400)
@@ -5741,11 +5844,14 @@ def candidate_application_submit_api(request):
         return JsonResponse({"ok": False, "error": "Candidate photo is required."}, status=400)
     if candidate_type.lower() == "political party" and not party_name:
         return JsonResponse({"ok": False, "error": "Party name is required."}, status=400)
+    if candidate_type.lower() == "political party" and len(party_code) < 4:
+        return JsonResponse({"ok": False, "error": "Party security code must be at least 4 characters."}, status=400)
 
     try:
         election_id = _current_election_id() or None
         _ensure_election_scoped_tables()
         _ensure_candidate_applications_table()
+        party_code_hash = None
         with connection.cursor() as cur:
             cur.execute(
                 """
@@ -5782,6 +5888,47 @@ def candidate_application_submit_api(request):
             if cur.fetchone():
                 return JsonResponse({"ok": False, "error": "You are already registered for this position."}, status=409)
 
+            if candidate_type.lower() == "political party":
+                submitted_hash = _candidate_party_code_hash(party_name, party_code)
+                existing_hash = _existing_party_code_hash(
+                    cur, election_id=election_id, party_name=party_name
+                )
+                if existing_hash and existing_hash != submitted_hash:
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": "Invalid party security code for this party.",
+                        },
+                        status=403,
+                    )
+                if not existing_hash and _party_name_exists(
+                    cur, election_id=election_id, party_name=party_name
+                ):
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": "This party does not have a security code yet. Ask ELECOM to set it up or file under a new party name.",
+                        },
+                        status=409,
+                    )
+                party_code_hash = existing_hash or submitted_hash
+                used_slots = _party_slot_count(
+                    cur,
+                    election_id=election_id,
+                    party_name=party_name,
+                    organization=organization,
+                    position=position,
+                )
+                limit = _party_position_limit(organization, position)
+                if used_slots >= limit:
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": f"{party_name} already has the maximum allowed candidate(s) for {position}.",
+                        },
+                        status=409,
+                    )
+
         photo_url, photo_public_id = _uploaded_candidate_image(
             request, "candidate_photo", "elecom/candidate_applications/photos"
         )
@@ -5798,10 +5945,10 @@ def candidate_application_submit_api(request):
                 INSERT INTO candidate_applications (
                     election_id, student_id, first_name, middle_name, last_name,
                     organization, position, program, year_section, platform,
-                    candidate_type, party_name, photo_url, photo_public_id,
+                    candidate_type, party_name, party_code_hash, photo_url, photo_public_id,
                     party_logo_url, party_logo_public_id
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, election_id, student_id, first_name, middle_name, last_name,
                           organization, position, program, year_section, platform,
                           candidate_type, party_name, photo_url, party_logo_url,
@@ -5820,6 +5967,7 @@ def candidate_application_submit_api(request):
                     platform,
                     candidate_type,
                     party_name,
+                    party_code_hash,
                     photo_url,
                     photo_public_id,
                     party_logo_url or None,
@@ -5936,7 +6084,7 @@ def admin_candidate_application_decision_api(request):
                     """
                     SELECT id, election_id, student_id, first_name, middle_name, last_name,
                            organization, position, program, year_section, platform,
-                           candidate_type, party_name, photo_url, party_logo_url, status
+                           candidate_type, party_name, party_code_hash, photo_url, party_logo_url, status
                     FROM candidate_applications
                     WHERE id = %s
                     FOR UPDATE
@@ -5975,14 +6123,36 @@ def admin_candidate_application_decision_api(request):
                     )
                     return JsonResponse({"ok": True, "status": "rejected"})
 
+                if str(app.get("candidate_type") or "").lower() == "political party":
+                    used_slots = _party_slot_count(
+                        cur,
+                        election_id=app.get("election_id"),
+                        party_name=app.get("party_name") or "",
+                        organization=app.get("organization") or "",
+                        position=app.get("position") or "",
+                        exclude_application_id=app_id,
+                    )
+                    limit = _party_position_limit(
+                        app.get("organization") or "",
+                        app.get("position") or "",
+                    )
+                    if used_slots >= limit:
+                        return JsonResponse(
+                            {
+                                "ok": False,
+                                "error": f"{app.get('party_name') or 'This party'} already has the maximum allowed candidate(s) for {app.get('position') or 'this position'}.",
+                            },
+                            status=409,
+                        )
+
                 cur.execute(
                     """
                     INSERT INTO candidates_registration (
                         election_id, student_id, first_name, middle_name, last_name,
                         organization, position, program, year_section,
-                        platform, photo_url, party_name, candidate_type, party_logo_url
+                        platform, photo_url, party_name, party_code_hash, candidate_type, party_logo_url
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """,
                     [
@@ -5998,6 +6168,7 @@ def admin_candidate_application_decision_api(request):
                         app.get("platform"),
                         app.get("photo_url"),
                         app.get("party_name"),
+                        app.get("party_code_hash"),
                         app.get("candidate_type"),
                         app.get("party_logo_url"),
                     ],
