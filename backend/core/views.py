@@ -5670,6 +5670,43 @@ def candidate_application_status_api(request):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to load candidate filing status."}, status=500)
 
+
+@require_http_methods(["GET"])
+def candidate_application_parties_api(request):
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        _ensure_candidate_applications_table()
+        _ensure_election_scoped_tables()
+        election_id = _current_election_id() or None
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT party_name
+                FROM (
+                    SELECT NULLIF(TRIM(party_name), '') AS party_name
+                    FROM candidate_applications
+                    WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+                      AND status IN ('pending', 'approved')
+                    UNION
+                    SELECT NULLIF(TRIM(party_name), '') AS party_name
+                    FROM candidates_registration
+                    WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+                ) parties
+                WHERE party_name IS NOT NULL
+                ORDER BY party_name
+                """,
+                [election_id, election_id],
+            )
+            parties = [str(row[0]).strip() for row in cur.fetchall() if str(row[0]).strip()]
+        return JsonResponse({"ok": True, "parties": parties})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load party names."}, status=500)
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def candidate_application_submit_api(request):
