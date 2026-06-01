@@ -5658,6 +5658,68 @@ def _generate_party_security_code() -> str:
     )
 
 
+def _sync_party_security_code(cur, *, election_id, party_name: str):
+    party = str(party_name or "").strip()
+    if not party:
+        return "", ""
+    cur.execute(
+        """
+        SELECT party_code
+        FROM (
+            SELECT party_code, created_at
+            FROM candidate_applications
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+              AND COALESCE(party_code, '') <> ''
+            UNION ALL
+            SELECT party_code, created_at
+            FROM candidates_registration
+            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+              AND COALESCE(party_code, '') <> ''
+        ) party_codes
+        ORDER BY created_at ASC NULLS LAST
+        LIMIT 1
+        """,
+        [election_id, party, election_id, party],
+    )
+    row = cur.fetchone()
+    code = str(row[0] or "").strip() if row else ""
+    if not code:
+        code = _generate_party_security_code()
+    code_hash = _candidate_party_code_hash(party, code)
+    cur.execute(
+        """
+        UPDATE candidate_applications
+        SET party_code = %s,
+            party_code_hash = %s,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+          AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+          AND (
+              COALESCE(party_code, '') <> %s
+              OR COALESCE(party_code_hash, '') <> %s
+          )
+        """,
+        [code, code_hash, election_id, party, code, code_hash],
+    )
+    cur.execute(
+        """
+        UPDATE candidates_registration
+        SET party_code = %s,
+            party_code_hash = %s
+        WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+          AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+          AND (
+              COALESCE(party_code, '') <> %s
+              OR COALESCE(party_code_hash, '') <> %s
+          )
+        """,
+        [code, code_hash, election_id, party, code, code_hash],
+    )
+    return code, code_hash
+
+
 def _party_position_limit(organization: str, position: str) -> int:
     org = str(organization or "").strip().upper()
     pos = str(position or "").strip().lower()
@@ -5807,6 +5869,14 @@ def candidate_application_status_api(request):
                 if official_candidate_id is None:
                     return JsonResponse({"ok": True, "application": None})
                 app["official_candidate_id"] = official_candidate_id
+            if str(app.get("candidate_type") or "").strip().lower() == "political party":
+                party_code, _ = _sync_party_security_code(
+                    cur,
+                    election_id=app.get("election_id"),
+                    party_name=app.get("party_name") or "",
+                )
+                if party_code:
+                    app["party_code"] = party_code
         return JsonResponse({"ok": True, "application": _candidate_application_json(app)})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
@@ -5844,6 +5914,10 @@ def candidate_application_parties_api(request):
                 [election_id, election_id],
             )
             parties = [str(row[0]).strip() for row in cur.fetchall() if str(row[0]).strip()]
+            for party in parties:
+                _sync_party_security_code(
+                    cur, election_id=election_id, party_name=party
+                )
         return JsonResponse({"ok": True, "parties": parties})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
@@ -5945,6 +6019,10 @@ def candidate_application_submit_api(request):
                 party_exists = _party_name_exists(
                     cur, election_id=election_id, party_name=party_name
                 )
+                if party_exists:
+                    _, existing_hash = _sync_party_security_code(
+                        cur, election_id=election_id, party_name=party_name
+                    )
                 if existing_hash:
                     if len(party_code) < 4:
                         return JsonResponse(
