@@ -6,7 +6,9 @@ import json
 import hashlib
 import logging
 import os
+import secrets
 import shutil
+import string
 import subprocess
 import tempfile
 import time
@@ -292,6 +294,7 @@ def _ensure_election_scoped_tables() -> None:
                 party_code_hash VARCHAR(128),
                 candidate_type VARCHAR(64),
                 party_logo_url TEXT,
+                party_code VARCHAR(32),
                 created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 votes INTEGER NOT NULL DEFAULT 0,
                 election_id BIGINT NULL
@@ -311,6 +314,7 @@ def _ensure_election_scoped_tables() -> None:
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS party_code_hash VARCHAR(128)")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS candidate_type VARCHAR(64)")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS party_logo_url TEXT")
+        cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS party_code VARCHAR(32)")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS created_at TIMESTAMP NULL")
         cur.execute("ALTER TABLE candidates_registration ADD COLUMN IF NOT EXISTS votes INTEGER")
         cur.execute("UPDATE candidates_registration SET created_at = COALESCE(created_at, CURRENT_TIMESTAMP) WHERE created_at IS NULL")
@@ -5566,6 +5570,7 @@ def _ensure_candidate_applications_table() -> None:
                 candidate_type VARCHAR(64) DEFAULT 'Independent',
                 party_name VARCHAR(255) NULL,
                 party_code_hash VARCHAR(128) NULL,
+                party_code VARCHAR(32) NULL,
                 photo_url TEXT NOT NULL,
                 photo_public_id VARCHAR(255) NULL,
                 party_logo_url TEXT NULL,
@@ -5592,6 +5597,7 @@ def _ensure_candidate_applications_table() -> None:
             "ON candidate_applications (COALESCE(election_id, 0))"
         )
         cur.execute("ALTER TABLE candidate_applications ADD COLUMN IF NOT EXISTS party_code_hash VARCHAR(128) NULL")
+        cur.execute("ALTER TABLE candidate_applications ADD COLUMN IF NOT EXISTS party_code VARCHAR(32) NULL")
         cur.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS ux_candidate_applications_pending
@@ -5643,6 +5649,13 @@ def _candidate_party_code_hash(party_name: str, party_code: str) -> str:
     normalized_party = str(party_name or "").strip().lower()
     normalized_code = str(party_code or "").strip()
     return hashlib.sha256(f"{normalized_party}:{normalized_code}".encode("utf-8")).hexdigest()
+
+
+def _generate_party_security_code() -> str:
+    alphabet = string.ascii_uppercase + string.digits
+    return "-".join(
+        "".join(secrets.choice(alphabet) for _ in range(4)) for _ in range(2)
+    )
 
 
 def _party_position_limit(organization: str, position: str) -> int:
@@ -5774,7 +5787,7 @@ def candidate_application_status_api(request):
                 """
                 SELECT id, election_id, student_id, first_name, middle_name, last_name,
                        organization, position, program, year_section, platform,
-                       candidate_type, party_name, photo_url, party_logo_url,
+                       candidate_type, party_name, party_code, photo_url, party_logo_url,
                        status, reviewed_by, reviewed_at, rejection_reason, created_at, updated_at
                 FROM candidate_applications
                 WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
@@ -5872,14 +5885,12 @@ def candidate_application_submit_api(request):
         return JsonResponse({"ok": False, "error": "Candidate photo is required."}, status=400)
     if candidate_type.lower() == "political party" and not party_name:
         return JsonResponse({"ok": False, "error": "Party name is required."}, status=400)
-    if candidate_type.lower() == "political party" and len(party_code) < 4:
-        return JsonResponse({"ok": False, "error": "Party security code must be at least 4 characters."}, status=400)
-
     try:
         election_id = _current_election_id() or None
         _ensure_election_scoped_tables()
         _ensure_candidate_applications_table()
         party_code_hash = None
+        generated_party_code = None
         with connection.cursor() as cur:
             cur.execute(
                 """
@@ -5928,21 +5939,32 @@ def candidate_application_submit_api(request):
                 return JsonResponse({"ok": False, "error": "You are already registered for this position."}, status=409)
 
             if candidate_type.lower() == "political party":
-                submitted_hash = _candidate_party_code_hash(party_name, party_code)
                 existing_hash = _existing_party_code_hash(
                     cur, election_id=election_id, party_name=party_name
                 )
-                if existing_hash and existing_hash != submitted_hash:
-                    return JsonResponse(
-                        {
-                            "ok": False,
-                            "error": "Invalid party security code for this party.",
-                        },
-                        status=403,
-                    )
-                if not existing_hash and _party_name_exists(
+                party_exists = _party_name_exists(
                     cur, election_id=election_id, party_name=party_name
-                ):
+                )
+                if existing_hash:
+                    if len(party_code) < 4:
+                        return JsonResponse(
+                            {
+                                "ok": False,
+                                "error": "Party security code is required for this party.",
+                            },
+                            status=400,
+                        )
+                    submitted_hash = _candidate_party_code_hash(party_name, party_code)
+                    if existing_hash != submitted_hash:
+                        return JsonResponse(
+                            {
+                                "ok": False,
+                                "error": "Invalid party security code for this party.",
+                            },
+                            status=403,
+                        )
+                    party_code_hash = existing_hash
+                elif party_exists:
                     return JsonResponse(
                         {
                             "ok": False,
@@ -5950,7 +5972,11 @@ def candidate_application_submit_api(request):
                         },
                         status=409,
                     )
-                party_code_hash = existing_hash or submitted_hash
+                else:
+                    generated_party_code = _generate_party_security_code()
+                    party_code_hash = _candidate_party_code_hash(
+                        party_name, generated_party_code
+                    )
                 used_slots = _party_slot_count(
                     cur,
                     election_id=election_id,
@@ -5984,13 +6010,13 @@ def candidate_application_submit_api(request):
                 INSERT INTO candidate_applications (
                     election_id, student_id, first_name, middle_name, last_name,
                     organization, position, program, year_section, platform,
-                    candidate_type, party_name, party_code_hash, photo_url, photo_public_id,
+                    candidate_type, party_name, party_code_hash, party_code, photo_url, photo_public_id,
                     party_logo_url, party_logo_public_id
                 )
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING id, election_id, student_id, first_name, middle_name, last_name,
                           organization, position, program, year_section, platform,
-                          candidate_type, party_name, photo_url, party_logo_url,
+                          candidate_type, party_name, party_code, photo_url, party_logo_url,
                           status, reviewed_by, reviewed_at, rejection_reason, created_at, updated_at
                 """,
                 [
@@ -6007,6 +6033,7 @@ def candidate_application_submit_api(request):
                     candidate_type,
                     party_name,
                     party_code_hash,
+                    generated_party_code,
                     photo_url,
                     photo_public_id,
                     party_logo_url or None,
@@ -6123,7 +6150,7 @@ def admin_candidate_application_decision_api(request):
                     """
                     SELECT id, election_id, student_id, first_name, middle_name, last_name,
                            organization, position, program, year_section, platform,
-                           candidate_type, party_name, party_code_hash, photo_url, party_logo_url, status
+                           candidate_type, party_name, party_code_hash, party_code, photo_url, party_logo_url, status
                     FROM candidate_applications
                     WHERE id = %s
                     FOR UPDATE
@@ -6189,9 +6216,9 @@ def admin_candidate_application_decision_api(request):
                     INSERT INTO candidates_registration (
                         election_id, student_id, first_name, middle_name, last_name,
                         organization, position, program, year_section,
-                        platform, photo_url, party_name, party_code_hash, candidate_type, party_logo_url
+                        platform, photo_url, party_name, party_code_hash, party_code, candidate_type, party_logo_url
                     )
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     RETURNING id
                     """,
                     [
@@ -6208,6 +6235,7 @@ def admin_candidate_application_decision_api(request):
                         app.get("photo_url"),
                         app.get("party_name"),
                         app.get("party_code_hash"),
+                        app.get("party_code"),
                         app.get("candidate_type"),
                         app.get("party_logo_url"),
                     ],
