@@ -5616,6 +5616,29 @@ def _candidate_application_json(row: dict) -> dict:
     return out
 
 
+def _official_candidate_id_for_application(cur, app: dict):
+    cur.execute(
+        """
+        SELECT id
+        FROM candidates_registration
+        WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+          AND student_id = %s
+          AND position = %s
+        ORDER BY id DESC
+        LIMIT 1
+        """,
+        [app.get("election_id"), app.get("student_id"), app.get("position")],
+    )
+    row = cur.fetchone()
+    return int(row[0]) if row else None
+
+
+def _approved_application_is_still_official(cur, app: dict) -> bool:
+    if str(app.get("status") or "").strip().lower() != "approved":
+        return True
+    return _official_candidate_id_for_application(cur, app) is not None
+
+
 def _candidate_party_code_hash(party_name: str, party_code: str) -> str:
     normalized_party = str(party_name or "").strip().lower()
     normalized_code = str(party_code or "").strip()
@@ -5645,7 +5668,7 @@ def _party_slot_count(cur, *, election_id, party_name: str, organization: str, p
               AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
               AND organization = %s
               AND position = %s
-              AND status IN ('pending', 'approved')
+              AND status = 'pending'
               {app_exclusion}
             UNION ALL
             SELECT id
@@ -5766,6 +5789,11 @@ def candidate_application_status_api(request):
                 return JsonResponse({"ok": True, "application": None})
             cols = [c[0] for c in cur.description]
             app = dict(zip(cols, row))
+            official_candidate_id = _official_candidate_id_for_application(cur, app)
+            if str(app.get("status") or "").strip().lower() == "approved":
+                if official_candidate_id is None:
+                    return JsonResponse({"ok": True, "application": None})
+                app["official_candidate_id"] = official_candidate_id
         return JsonResponse({"ok": True, "application": _candidate_application_json(app)})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
@@ -5855,7 +5883,7 @@ def candidate_application_submit_api(request):
         with connection.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, status FROM candidate_applications
+                SELECT id, election_id, student_id, position, status FROM candidate_applications
                 WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
                   AND student_id = %s
                 ORDER BY created_at DESC, id DESC
@@ -5864,13 +5892,24 @@ def candidate_application_submit_api(request):
                 [election_id, student_id],
             )
             existing = cur.fetchone()
-            if existing and str(existing[1] or "pending").lower() != "rejected":
+            if existing:
+                existing_cols = [c[0] for c in cur.description]
+                existing_app = dict(zip(existing_cols, existing))
+                existing_status = str(existing_app.get("status") or "pending").lower()
+            else:
+                existing_app = None
+                existing_status = ""
+            if (
+                existing_app
+                and existing_status != "rejected"
+                and _approved_application_is_still_official(cur, existing_app)
+            ):
                 return JsonResponse(
                     {
                         "ok": False,
                         "error": "You already submitted a candidate filing for this election.",
-                        "application_id": int(existing[0]),
-                        "status": str(existing[1] or "pending"),
+                        "application_id": int(existing_app["id"]),
+                        "status": existing_status or "pending",
                     },
                     status=409,
                 )
