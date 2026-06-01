@@ -5764,24 +5764,14 @@ def _existing_party_code_hash(cur, *, election_id, party_name: str) -> str:
     cur.execute(
         """
         SELECT party_code_hash
-        FROM (
-            SELECT party_code_hash, created_at
-            FROM candidate_applications
-            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
-              AND status IN ('pending', 'approved')
-              AND COALESCE(party_code_hash, '') <> ''
-            UNION ALL
-            SELECT party_code_hash, created_at
-            FROM candidates_registration
-            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
-              AND COALESCE(party_code_hash, '') <> ''
-        ) parties
+        FROM candidates_registration
+        WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+          AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
+          AND COALESCE(party_code_hash, '') <> ''
         ORDER BY created_at ASC NULLS LAST
         LIMIT 1
         """,
-        [election_id, party_name, election_id, party_name],
+        [election_id, party_name],
     )
     row = cur.fetchone()
     return str(row[0] or "").strip() if row else ""
@@ -5791,21 +5781,12 @@ def _party_name_exists(cur, *, election_id, party_name: str) -> bool:
     cur.execute(
         """
         SELECT 1
-        FROM (
-            SELECT party_name
-            FROM candidate_applications
-            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
-              AND status IN ('pending', 'approved')
-            UNION ALL
-            SELECT party_name
-            FROM candidates_registration
-            WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-              AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
-        ) parties
+        FROM candidates_registration
+        WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+          AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
         LIMIT 1
         """,
-        [election_id, party_name, election_id, party_name],
+        [election_id, party_name],
     )
     return cur.fetchone() is not None
 
@@ -5897,21 +5878,13 @@ def candidate_application_parties_api(request):
         with connection.cursor() as cur:
             cur.execute(
                 """
-                SELECT DISTINCT party_name
-                FROM (
-                    SELECT NULLIF(TRIM(party_name), '') AS party_name
-                    FROM candidate_applications
-                    WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-                      AND status IN ('pending', 'approved')
-                    UNION
-                    SELECT NULLIF(TRIM(party_name), '') AS party_name
-                    FROM candidates_registration
-                    WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-                ) parties
-                WHERE party_name IS NOT NULL
+                SELECT DISTINCT NULLIF(TRIM(party_name), '') AS party_name
+                FROM candidates_registration
+                WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+                  AND NULLIF(TRIM(party_name), '') IS NOT NULL
                 ORDER BY party_name
                 """,
-                [election_id, election_id],
+                [election_id],
             )
             parties = [str(row[0]).strip() for row in cur.fetchall() if str(row[0]).strip()]
             for party in parties:
