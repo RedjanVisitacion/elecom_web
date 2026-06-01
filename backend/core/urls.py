@@ -69,6 +69,7 @@ from .views import (
     admin_reset_votes_api,
     admin_network_settings_api,
     admin_network_logs_api,
+    app_update_api,
     check_network_access_api,
     user_notifications_list_api,
     user_notifications_create_api,
@@ -147,6 +148,7 @@ urlpatterns = [
     path('api/network/check/', check_network_access_api, name='check_network_access_api'),
 
     # Mobile namespace (same handlers; cleaner URL separation for Flutter clients)
+    path('api/mobile/app/update/', app_update_api, name='mobile_app_update_api'),
     path('api/mobile/election/window/', election_window_api, name='mobile_election_window_api'),
     path('api/mobile/ballot/', eligible_ballot_api, name='mobile_eligible_ballot_api'),
     path('api/mobile/vote/status/', vote_status_api, name='mobile_vote_status_api'),

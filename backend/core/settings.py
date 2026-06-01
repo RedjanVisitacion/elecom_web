@@ -217,6 +217,17 @@ FACE_VOTE_VERIFY_SESSION_MINUTES = int(os.getenv("FACE_VOTE_VERIFY_SESSION_MINUT
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
 
+# Mobile APK update prompt. For MediaFire distribution, update these values in
+# backend/.env whenever you publish a new APK.
+APP_UPDATE_LATEST_VERSION = os.getenv("APP_UPDATE_LATEST_VERSION", "1.0.0")
+APP_UPDATE_LATEST_BUILD = os.getenv("APP_UPDATE_LATEST_BUILD", "1")
+APP_UPDATE_APK_URL = os.getenv("APP_UPDATE_APK_URL", "")
+APP_UPDATE_FORCE = os.getenv("APP_UPDATE_FORCE", "false")
+APP_UPDATE_MESSAGE = os.getenv(
+    "APP_UPDATE_MESSAGE",
+    "A new ELECOM app update is available. Download the latest APK to continue.",
+)
+
 # -- Email (Forgot Password OTP) -----------------------------------------------
 # Default is console: OTPs are printed to the runserver terminal only — no real
 # inbox delivery. For Gmail (or any SMTP), set in .env on the machine that runs Django:

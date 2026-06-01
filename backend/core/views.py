@@ -7942,7 +7942,33 @@ def admin_election_window_api(request):
         except Exception as e:
             if getattr(settings, "DEBUG", False):
                 return JsonResponse({"ok": False, "error": str(e)}, status=500)
-            return JsonResponse({"ok": False, "error": "Failed to load election window."}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load election window."}, status=500)
+
+
+@require_http_methods(["GET"])
+def app_update_api(request):
+    latest_version = str(getattr(settings, "APP_UPDATE_LATEST_VERSION", "") or "").strip()
+    latest_build_raw = getattr(settings, "APP_UPDATE_LATEST_BUILD", 0) or 0
+    try:
+        latest_build = int(latest_build_raw)
+    except Exception:
+        latest_build = 0
+    apk_url = str(getattr(settings, "APP_UPDATE_APK_URL", "") or "").strip()
+    message = str(getattr(settings, "APP_UPDATE_MESSAGE", "") or "").strip()
+    force_update = str(
+        getattr(settings, "APP_UPDATE_FORCE", "false") or "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "latest_version": latest_version,
+            "latest_build": latest_build,
+            "apk_url": apk_url,
+            "force_update": force_update,
+            "message": message,
+        }
+    )
 
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
