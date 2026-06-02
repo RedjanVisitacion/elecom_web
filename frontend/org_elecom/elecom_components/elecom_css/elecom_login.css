@@ -16,7 +16,10 @@
 
 html,
 body {
+  width: 100%;
+  height: 100%;
   min-height: 100%;
+  overflow: hidden;
 }
 
 body {
@@ -32,15 +35,20 @@ input {
 }
 
 .login-shell {
-  min-height: 100vh;
+  width: 100%;
+  height: 100vh;
+  min-height: 0;
   display: grid;
   grid-template-columns: 50% 50%;
   background: var(--white);
+  overflow: hidden;
 }
 
 .poster,
 .login-panel {
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .poster {
@@ -73,7 +81,7 @@ input {
   position: relative;
   z-index: 1;
   min-height: 100%;
-  padding: clamp(30px, 4vw, 54px);
+  padding: clamp(24px, 3.4vw, 44px) clamp(34px, 4.5vw, 60px);
   display: flex;
   flex-direction: column;
 }
@@ -85,45 +93,30 @@ input {
 }
 
 .poster-brand__logo {
-  width: 44px;
-  height: 44px;
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
-  border-radius: 12px;
+  border-radius: 11px;
   background: rgba(255, 255, 255, 0.09);
   border: 1px solid rgba(255, 255, 255, 0.16);
 }
 
 .poster-brand__logo img {
-  width: 34px;
-  height: 34px;
+  width: 29px;
+  height: 29px;
   object-fit: contain;
-}
-
-.poster-brand__wordmark {
-  display: block;
-  width: 150px;
-  max-width: 24vw;
-  height: auto;
-  margin-bottom: 2px;
-}
-
-.poster-brand strong {
-  display: block;
-  color: rgba(255, 255, 255, 0.62);
-  font-size: 11px;
-  font-weight: 700;
 }
 
 .poster__main {
   margin: auto 0;
-  max-width: 570px;
+  max-width: 520px;
 }
 
 .eyebrow {
-  margin: 0 0 14px;
+  margin: 0 0 12px;
   color: var(--gold);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 900;
   letter-spacing: 0.14em;
   text-transform: uppercase;
@@ -131,39 +124,39 @@ input {
 
 .poster h1 {
   margin: 0;
-  max-width: 520px;
-  font-size: clamp(40px, 4.4vw, 58px);
-  line-height: 1.02;
-  letter-spacing: -0.045em;
+  max-width: 460px;
+  font-size: clamp(36px, 4vw, 54px);
+  line-height: 0.98;
+  letter-spacing: -0.04em;
   font-weight: 900;
 }
 
 .poster__subtitle {
-  margin: 18px 0 0;
-  max-width: 500px;
+  margin: 15px 0 0;
+  max-width: 450px;
   color: rgba(255, 255, 255, 0.76);
-  font-size: clamp(14px, 1.1vw, 16px);
-  line-height: 1.6;
+  font-size: clamp(13px, 1vw, 15px);
+  line-height: 1.55;
   font-weight: 500;
 }
 
 .feature-grid {
-  margin-top: 28px;
+  margin-top: 24px;
   display: grid;
   grid-template-columns: 1fr;
   gap: 10px;
-  max-width: 360px;
+  max-width: 340px;
 }
 
 .feature {
   display: flex;
   align-items: center;
   gap: 11px;
-  min-height: 50px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  min-height: 44px;
+  padding: 10px 12px;
+  border-radius: 13px;
   color: rgba(255, 255, 255, 0.92);
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   background: rgba(255, 255, 255, 0.075);
   border: 1px solid rgba(255, 255, 255, 0.13);
@@ -171,8 +164,8 @@ input {
 }
 
 .feature i {
-  width: 28px;
-  height: 28px;
+  width: 26px;
+  height: 26px;
   display: grid;
   place-items: center;
   color: var(--gold);
@@ -180,29 +173,10 @@ input {
   background: rgba(245, 179, 1, 0.11);
 }
 
-.poster-footer {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding-left: 13px;
-  border-left: 2px solid var(--gold);
-}
-
-.poster-footer strong {
-  font-size: 14px;
-  font-weight: 900;
-}
-
-.poster-footer span {
-  color: rgba(255, 255, 255, 0.58);
-  font-size: 12px;
-  font-weight: 600;
-}
-
 .login-panel {
   display: grid;
   place-items: center;
-  padding: clamp(28px, 4.6vw, 64px);
+  padding: 28px clamp(32px, 4.4vw, 60px);
   background:
     radial-gradient(560px 420px at 88% 12%, rgba(19, 43, 92, 0.06), transparent 62%),
     var(--light);
@@ -211,6 +185,7 @@ input {
 .login-card {
   width: min(420px, 100%);
   padding: 0;
+  transform: translateY(-10px);
 }
 
 .login-brand {
@@ -220,11 +195,11 @@ input {
 }
 
 .login-brand img {
-  width: 54px;
-  height: 54px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
   padding: 7px;
-  border-radius: 15px;
+  border-radius: 14px;
   background: var(--white);
   border: 1px solid var(--border);
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
@@ -237,7 +212,7 @@ input {
 
 .login-brand strong {
   color: var(--text);
-  font-size: 20px;
+  font-size: 18px;
   font-weight: 900;
   letter-spacing: -0.02em;
 }
@@ -245,18 +220,18 @@ input {
 .login-brand span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
 }
 
 .login-heading {
-  margin-top: 42px;
+  margin-top: 30px;
 }
 
 .login-heading h2 {
   margin: 0;
   color: var(--text);
-  font-size: 34px;
+  font-size: 30px;
   line-height: 1.06;
   letter-spacing: -0.04em;
   font-weight: 900;
@@ -265,15 +240,15 @@ input {
 .login-heading p {
   margin: 10px 0 0;
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13.5px;
   line-height: 1.5;
   font-weight: 500;
 }
 
 .login-form {
-  margin-top: 28px;
+  margin-top: 23px;
   display: grid;
-  gap: 14px;
+  gap: 11px;
 }
 
 .field label,
@@ -286,13 +261,13 @@ input {
 }
 
 .input-frame {
-  min-height: 52px;
+  min-height: 48px;
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 0 14px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: 13px;
   background: var(--white);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
@@ -314,7 +289,7 @@ input {
   outline: 0;
   background: transparent;
   color: var(--text);
-  font-size: 14px;
+  font-size: 13.5px;
   font-weight: 700;
 }
 
@@ -326,7 +301,7 @@ input {
 
 .input {
   width: 100%;
-  min-height: 50px;
+  min-height: 48px;
   padding: 12px 14px;
   border: 1px solid var(--border);
   border-radius: 13px;
@@ -379,7 +354,7 @@ input {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 16px;
+  gap: 12px;
 }
 
 .check {
@@ -387,7 +362,7 @@ input {
   align-items: flex-start;
   gap: 9px;
   color: #334155;
-  font-size: 12.5px;
+  font-size: 12px;
   line-height: 1.45;
   font-weight: 700;
   user-select: none;
@@ -426,7 +401,7 @@ input {
 
 .btn {
   width: 100%;
-  min-height: 54px;
+  min-height: 50px;
   border: 0;
   border-radius: 14px;
   display: inline-flex;
@@ -435,7 +410,7 @@ input {
   gap: 9px;
   color: var(--white);
   cursor: pointer;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 900;
   background: linear-gradient(135deg, var(--navy), var(--deep-blue));
   box-shadow: 0 16px 34px rgba(11, 18, 32, 0.22);
@@ -518,7 +493,7 @@ input {
 }
 
 .login-footer {
-  margin-top: 30px;
+  margin-top: 22px;
   color: #94a3b8;
   text-align: center;
   font-size: 11.5px;
@@ -662,6 +637,7 @@ input {
   html,
   body {
     height: 100%;
+    width: 100%;
     overflow: hidden;
   }
 
@@ -675,6 +651,7 @@ input {
   .login-panel {
     height: 100vh;
     min-height: 0;
+    overflow: hidden;
   }
 }
 
