@@ -7,72 +7,110 @@
     <title>ELECOM | Login</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link rel="icon" type="image/png" href="/static/assets/elecom.png?v=3">
-    <link rel="shortcut icon" type="image/png" href="/static/assets/elecom.png?v=3">
-    <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
-<link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+    <link rel="icon" type="image/png" href="/static/assets/elecom.png?v=4" />
+    <link rel="shortcut icon" type="image/png" href="/static/assets/elecom.png?v=4" />
+    <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=4" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
-
     <link
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
-   
-    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260520-forgot-password" />
+    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260602-premium-web-login" />
   </head>
   <body>
-    <main class="page">
-      <section class="wrap" aria-label="ELECOM login">
-        <aside class="hero">
-          <div class="hero__grid">
-            <div class="hero__content">
-              <div class="brand">
-                <div class="logo" aria-hidden="true">
-                  <img src="{% static 'assets/elecom.png' %}" alt="ELECOM Logo" />
-                </div>
-                <div>
-                  <div class="wordmark" aria-label="ELECOM">
-                    <img src="{% static 'assets/img_text/elecom_black1.png' %}" alt="ELECOM" />
-                  </div>
-                  <p>USTP-OROQUIETA Campus, Electoral Voting System</p>
-                </div>
-              </div>
+    <main class="login-shell" aria-label="USTP Oroquieta ELECOM login">
+      <section class="poster" aria-label="Secure campus voting portal">
+        <div class="poster__bg" aria-hidden="true"></div>
+        <div class="poster__overlay" aria-hidden="true"></div>
+        <div class="poster__network" aria-hidden="true">
+          <span class="node node--one"></span>
+          <span class="node node--two"></span>
+          <span class="node node--three"></span>
+          <span class="node node--four"></span>
+          <span class="line line--one"></span>
+          <span class="line line--two"></span>
+          <span class="line line--three"></span>
+        </div>
 
-              <div class="hero__art" aria-hidden="true">
-                <div class="social-stream" aria-hidden="true">
-                  <span class="social social--heart"><i class="bi bi-heart-fill" aria-hidden="true"></i></span>
-                  <span class="social social--like"><i class="bi bi-hand-thumbs-up-fill" aria-hidden="true"></i></span>
-                  <span class="social social--voted"><i class="bi bi-check-circle-fill" aria-hidden="true"></i></span>
-                  <span class="social social--heart2"><i class="bi bi-heart-fill" aria-hidden="true"></i></span>
-                  <span class="social social--voted2"><i class="bi bi-check-circle-fill" aria-hidden="true"></i></span>
-                </div>
-              </div>
+        <div class="poster__content">
+          <header class="poster-brand">
+            <span class="poster-brand__logo">
+              <img src="{% static 'assets/elecom.png' %}" alt="ELECOM Logo" />
+            </span>
+            <span>
+              <img class="poster-brand__wordmark" src="{% static 'assets/img_text/elecom_white.png' %}" alt="Electoral Commission" />
+              <strong>USTP Oroquieta Electoral Voting System</strong>
+            </span>
+          </header>
 
-              <h2 class="shimmer">Explore the things you vote for.</h2>
+          <div class="poster__main">
+            <p class="eyebrow">Official Digital Voting Platform</p>
+            <h1>Secure Campus Voting Portal</h1>
+            <p class="poster__subtitle">
+              Transparent, fair, and secure digital elections for USTP Oroquieta Campus.
+            </p>
+
+            <div class="feature-grid" aria-label="Security features">
+              <div class="feature"><i class="bi bi-person-bounding-box"></i><span>Face Verification</span></div>
+              <div class="feature"><i class="bi bi-shield-lock"></i><span>Secure Vote Recording</span></div>
+              <div class="feature"><i class="bi bi-calculator"></i><span>Automated Counting</span></div>
+              <div class="feature"><i class="bi bi-activity"></i><span>Real-Time Monitoring</span></div>
             </div>
           </div>
-        </aside>
 
-        <section class="card">
-          <div class="mobile-brand" aria-label="ELECOM">
-            <img class="mobile-brand__logo" src="{% static 'assets/elecom.png' %}" alt="ELECOM Logo" />
-            <img class="mobile-brand__wordmark" src="{% static 'assets/img_text/elecom_black1.png' %}" alt="ELECOM" />
+          <div class="floating-card floating-card--ballot" aria-hidden="true">
+            <div class="floating-card__head"><i class="bi bi-check2-square"></i><span>Verified Ballot</span></div>
+            <div class="ballot-row is-active"><span></span><strong>President</strong></div>
+            <div class="ballot-row"><span></span><strong>Vice President</strong></div>
+            <div class="ballot-row"><span></span><strong>Representative</strong></div>
           </div>
-          <h3>Log in</h3>
 
-          <form id="loginForm" novalidate autocomplete="off">
+          <div class="floating-card floating-card--chart" aria-hidden="true">
+            <div class="floating-card__head"><i class="bi bi-bar-chart-line"></i><span>Election Monitor</span></div>
+            <div class="bars"><span></span><span></span><span></span><span></span><span></span></div>
+            <p>Protected vote activity</p>
+          </div>
+
+          <footer class="poster-footer">
+            <strong>USTP Electoral Commission</strong>
+            <span>Official Digital Voting Platform</span>
+          </footer>
+        </div>
+      </section>
+
+      <section class="login-panel" aria-label="Login form">
+        <div class="login-card">
+          <header class="login-brand">
+            <img src="{% static 'assets/elecom.png' %}" alt="ELECOM Logo" />
             <div>
-              
-              <input class="input" id="studentId" name="studentId" type="text" placeholder="Enter your student ID" required autocomplete="off" autocapitalize="off" spellcheck="false" />
+              <strong>Electoral Commission</strong>
+              <span>USTP Oroquieta Campus</span>
+            </div>
+          </header>
+
+          <div class="login-heading">
+            <h2>Welcome Back</h2>
+            <p>Sign in to access the Electoral Voting System.</p>
+          </div>
+
+          <form id="loginForm" class="login-form" novalidate autocomplete="off">
+            <div class="field">
+              <label for="studentId">Student ID</label>
+              <div class="input-frame">
+                <i class="bi bi-person-badge" aria-hidden="true"></i>
+                <input id="studentId" name="studentId" type="text" placeholder="Enter your student ID" required autocomplete="off" autocapitalize="off" spellcheck="false" />
+              </div>
               <p class="error" id="studentIdError" role="alert" aria-live="polite"></p>
             </div>
 
-            <div>
-              
-              <div class="input-wrap">
-                <input class="input" id="password" name="password" type="password" placeholder="Enter your password" required minlength="6" autocomplete="new-password" />
+            <div class="field">
+              <label for="password">Password</label>
+              <div class="input-frame input-wrap">
+                <i class="bi bi-lock" aria-hidden="true"></i>
+                <input id="password" name="password" type="password" placeholder="Enter your password" required minlength="6" autocomplete="new-password" />
                 <button class="ghost" type="button" id="togglePassword" aria-label="Show password">
                   <i class="bi bi-eye" aria-hidden="true"></i>
                 </button>
@@ -80,29 +118,28 @@
               <p class="error" id="passwordError" role="alert" aria-live="polite"></p>
             </div>
 
-            <div class="checks">
+            <div class="form-options">
               <label class="check">
                 <input type="checkbox" id="rememberMe" name="rememberMe" />
-                <span>Remember me</span>
+                <span>Remember Me</span>
               </label>
-
-              <label class="check">
-                <input type="checkbox" id="agreeTerms" name="agreeTerms" required />
-                <span>I have read and agree to the <a class="inline-link" href="/terms-and-conditions/?from=login" id="termsLink">Terms &amp; Conditions</a></span>
-              </label>
+              <a class="forgot-inline" href="#" id="forgotPassword">Forgot Password?</a>
             </div>
 
-            <button class="btn" id="submitBtn" type="submit">Sign in</button>
+            <label class="check check--terms">
+              <input type="checkbox" id="agreeTerms" name="agreeTerms" required />
+              <span>I have read and agree to the <a class="inline-link" href="/terms-and-conditions/?from=login" id="termsLink">Terms and Conditions</a></span>
+            </label>
+
+            <button class="btn" id="submitBtn" type="submit">
+              <i class="bi bi-shield-check" aria-hidden="true"></i>
+              <span>Sign In Securely</span>
+            </button>
             <p class="status" id="formStatus" role="status" aria-live="polite"></p>
-
-            <a class="link" href="#" id="forgotPassword">Forgot password?</a>
-
-            <div class="divider" role="separator" aria-hidden="true"></div>
-
           </form>
 
-          <div class="foot">© <span id="year"></span> rpsv_codes</div>
-        </section>
+          <footer class="login-footer">© 2026 USTP Oroquieta Electoral Commission</footer>
+        </div>
       </section>
     </main>
 
@@ -134,7 +171,7 @@
           <h3>Create new password</h3>
           <p class="auth-modal__copy">Choose a new password for your ELECOM account.</p>
           <label class="forgot-label" for="forgotNewPassword">New password</label>
-          <div class="input-wrap">
+          <div class="input-wrap modal-password">
             <input class="input" id="forgotNewPassword" type="password" minlength="6" autocomplete="new-password" placeholder="At least 6 characters" />
             <button class="ghost" type="button" id="forgotTogglePassword" aria-label="Show new password">
               <i class="bi bi-eye" aria-hidden="true"></i>
@@ -149,6 +186,6 @@
       </section>
     </div>
 
-    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260520-forgot-password"></script>
+    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260602-premium-web-login"></script>
   </body>
 </html>
