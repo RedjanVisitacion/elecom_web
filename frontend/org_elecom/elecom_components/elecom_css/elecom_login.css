@@ -360,7 +360,7 @@ input {
   align-items: center;
   gap: 11px;
   padding: 0 14px;
-  border: 1px solid var(--border);
+  border: 1px solid transparent;
   border-radius: 13px;
   background: var(--white);
   transition: border-color 160ms ease, box-shadow 160ms ease;
