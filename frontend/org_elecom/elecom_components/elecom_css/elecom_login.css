@@ -77,8 +77,8 @@ input {
   z-index: 1;
   inset: 0;
   background:
-    radial-gradient(ellipse at center, transparent 48%, rgba(3, 7, 18, 0.5) 100%),
-    linear-gradient(90deg, rgba(3, 7, 18, 0.38), transparent 50%, rgba(3, 7, 18, 0.24));
+    radial-gradient(ellipse at center, transparent 50%, rgba(3, 7, 18, 0.48) 100%),
+    linear-gradient(90deg, rgba(3, 7, 18, 0.34), transparent 51%, rgba(3, 7, 18, 0.22));
 }
 
 .poster::after {
@@ -101,15 +101,15 @@ input {
 
 .poster__bg {
   background: url("/static/assets/img_text/elecom_cover_bg.jpg") center / cover no-repeat;
-  opacity: 0.9;
-  filter: saturate(1.02) contrast(1.12) brightness(0.92);
+  opacity: 0.94;
+  filter: saturate(1.04) contrast(1.15) brightness(0.96);
 }
 
 .poster__overlay {
   background:
     radial-gradient(560px 380px at 68% 26%, rgba(245, 179, 1, 0.15), transparent 62%),
     radial-gradient(520px 440px at 12% 88%, rgba(29, 78, 216, 0.17), transparent 64%),
-    linear-gradient(135deg, rgba(11, 18, 32, 0.8), rgba(11, 24, 55, 0.74) 54%, rgba(6, 11, 22, 0.82));
+    linear-gradient(135deg, rgba(11, 18, 32, 0.76), rgba(11, 24, 55, 0.7) 54%, rgba(6, 11, 22, 0.79));
 }
 
 .poster__content {
@@ -182,9 +182,9 @@ input {
 
 .poster h1 {
   margin: 0;
-  max-width: 540px;
-  font-size: clamp(44px, 4.75vw, 66px);
-  line-height: 0.98;
+  max-width: 560px;
+  font-size: clamp(44px, 4.65vw, 64px);
+  line-height: 0.96;
   letter-spacing: 0;
   font-weight: 900;
 }
@@ -213,13 +213,13 @@ input {
   border-radius: 16px;
   color: rgba(255, 255, 255, 0.86);
   background:
-    linear-gradient(180deg, rgba(255, 255, 255, 0.11), rgba(255, 255, 255, 0.055)),
-    rgba(8, 18, 39, 0.24);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+    linear-gradient(180deg, rgba(255, 255, 255, 0.13), rgba(255, 255, 255, 0.06)),
+    rgba(8, 18, 39, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.2);
   box-shadow:
-    0 18px 44px rgba(0, 0, 0, 0.18),
-    inset 0 1px 0 rgba(255, 255, 255, 0.13);
-  backdrop-filter: blur(18px);
+    0 20px 54px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(24px);
 }
 
 .security-panel div {
@@ -251,40 +251,48 @@ input {
 
 .election-preview {
   margin: 18px 0 0 67px;
-  width: min(360px, calc(100% - 67px));
-  padding: 14px;
+  width: min(430px, calc(100% - 67px));
+  padding: 15px 16px;
   display: grid;
-  gap: 12px;
-  border-radius: 16px;
+  gap: 0;
+  border-radius: 18px;
   color: rgba(255, 255, 255, 0.82);
   background:
-    linear-gradient(145deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.045)),
-    rgba(8, 18, 39, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.14);
-  box-shadow: 0 16px 42px rgba(0, 0, 0, 0.16);
-  backdrop-filter: blur(18px);
+    linear-gradient(145deg, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.05)),
+    rgba(8, 18, 39, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.19);
+  box-shadow:
+    0 20px 56px rgba(0, 0, 0, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.16);
+  backdrop-filter: blur(26px);
 }
 
-.preview-header,
-.preview-body,
-.preview-body div {
+.preview-row {
   display: flex;
   align-items: center;
-}
-
-.preview-header {
   justify-content: space-between;
   gap: 12px;
+  min-height: 32px;
 }
 
-.preview-header span,
-.preview-body span {
+.preview-row + .preview-row {
+  border-top: 1px solid rgba(255, 255, 255, 0.11);
+}
+
+.preview-row span {
   font-size: 10.5px;
   font-weight: 700;
   color: rgba(255, 255, 255, 0.58);
 }
 
-.preview-header strong {
+.preview-row strong {
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 11.5px;
+  font-weight: 800;
+  text-align: right;
+}
+
+.preview-row:first-child strong {
   position: relative;
   padding-left: 13px;
   color: #d9f99d;
@@ -293,7 +301,7 @@ input {
   letter-spacing: 0.12em;
 }
 
-.preview-header strong::before {
+.preview-row:first-child strong::before {
   content: "";
   position: absolute;
   left: 0;
@@ -306,30 +314,12 @@ input {
   box-shadow: 0 0 14px rgba(132, 204, 22, 0.65);
 }
 
-.preview-body {
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.preview-body div {
-  min-width: 0;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 3px;
-}
-
-.preview-body strong {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 12px;
-  font-weight: 800;
-}
-
 .login-panel {
   position: relative;
   display: grid;
   place-items: center;
   padding: 22px clamp(32px, 4.4vw, 60px);
-  border-left: 1px solid rgba(15, 23, 42, 0.08);
+  border-left: 1px solid rgba(15, 23, 42, 0.1);
   background:
     radial-gradient(560px 420px at 88% 12%, rgba(19, 43, 92, 0.06), transparent 62%),
     var(--light);
@@ -339,20 +329,20 @@ input {
   content: "";
   position: absolute;
   left: -1px;
-  top: 14%;
-  bottom: 14%;
+  top: 10%;
+  bottom: 10%;
   width: 1px;
-  background: linear-gradient(180deg, transparent, rgba(245, 179, 1, 0.36), transparent);
+  background: linear-gradient(180deg, transparent, rgba(245, 179, 1, 0.24), rgba(29, 78, 216, 0.18), transparent);
 }
 
 .login-card {
-  width: min(420px, 100%);
-  padding: 30px;
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.66);
-  border: 1px solid rgba(217, 226, 239, 0.9);
+  width: min(500px, 100%);
+  padding: 34px;
+  border-radius: 28px;
+  background: rgba(255, 255, 255, 0.72);
+  border: 1px solid rgba(203, 213, 225, 0.9);
   box-shadow:
-    0 24px 70px rgba(15, 23, 42, 0.08),
+    0 28px 86px rgba(15, 23, 42, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.9);
   transform: translateY(-18px);
 }
@@ -381,20 +371,20 @@ input {
 
 .login-brand strong {
   color: var(--text);
-  font-size: 17px;
-  font-weight: 900;
+  font-size: 16px;
+  font-weight: 700;
   letter-spacing: 0;
 }
 
 .login-brand span {
   margin-top: 2px;
   color: var(--muted);
-  font-size: 11.5px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 500;
 }
 
 .login-heading {
-  margin-top: 26px;
+  margin-top: 30px;
 }
 
 .login-heading h2 {
@@ -411,13 +401,13 @@ input {
   color: var(--muted);
   font-size: 13.5px;
   line-height: 1.5;
-  font-weight: 500;
+  font-weight: 400;
 }
 
 .login-form {
-  margin-top: 22px;
+  margin-top: 26px;
   display: grid;
-  gap: 10px;
+  gap: 12px;
 }
 
 .field label,
