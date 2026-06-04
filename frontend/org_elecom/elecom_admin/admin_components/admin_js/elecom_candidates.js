@@ -246,17 +246,6 @@ document.addEventListener('DOMContentLoaded', function(){
     return cleaned;
   }
 
-  let redirectedToSearch = false;
-  function goToSearchPage() {
-    if (redirectedToSearch) return;
-    redirectedToSearch = true;
-    const q = searchInput ? searchInput.value.trim() : '';
-    const url = new URL('/static/org_elecom/elecom_admin/search_results.html', window.location.origin);
-    url.searchParams.set('focus', '1');
-    if (q) url.searchParams.set('q', q);
-    window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(url.toString()) : url.toString();
-  }
-
   function cardTemplate(item){
     const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(' ');
     const hasPhoto = !!(item.photo_url && item.photo_url.startsWith('http'));
@@ -376,20 +365,25 @@ document.addEventListener('DOMContentLoaded', function(){
 
   let searchDebounce = null;
   if (searchInput) {
-    searchInput.addEventListener('focus', ()=>{ goToSearchPage(); });
-    searchInput.addEventListener('click', ()=>{ goToSearchPage(); });
     searchInput.addEventListener('keydown', e=>{
       if(e.key==='Enter'){
-        goToSearchPage();
+        e.preventDefault();
+        clearTimeout(searchDebounce);
+        loadList();
       }
     });
     searchInput.addEventListener('input', ()=>{
-      if (redirectedToSearch) return;
       clearTimeout(searchDebounce);
       searchDebounce = setTimeout(loadList, 300);
     });
   }
-  if (searchBtn) searchBtn.addEventListener('click', goToSearchPage);
+  if (searchBtn) {
+    searchBtn.addEventListener('click', (event) => {
+      event.preventDefault();
+      clearTimeout(searchDebounce);
+      loadList();
+    });
+  }
   loadList();
 
   async function fetchCandidateDetail(candidate) {
