@@ -824,25 +824,45 @@ document.addEventListener('DOMContentLoaded', function(){
     }).from(exportHost).save();
   }
 
-  function drawPdfHeader(doc, title, subtitle) {
+  async function loadPdfImageDataUrl(url) {
+    try {
+      const res = await fetch(url, { cache: 'force-cache' });
+      if (!res.ok) return '';
+      const blob = await res.blob();
+      return await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ''));
+        reader.onerror = () => resolve('');
+        reader.readAsDataURL(blob);
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function drawPdfHeader(doc, title, subtitle, logoDataUrl = '') {
     const pageWidth = doc.internal.pageSize.getWidth();
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(10, 8, pageWidth - 20, 22, 2, 2, 'F');
+    const textX = logoDataUrl ? 32 : 14;
+    if (logoDataUrl) {
+      try { doc.addImage(logoDataUrl, 'PNG', 14, 11, 13, 13); } catch (e) {}
+    }
     doc.setTextColor(0, 27, 63);
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(14);
-    doc.text(title, 14, 18);
+    doc.text(title, textX, 18);
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor(100, 116, 139);
-    doc.text(subtitle, 14, 24);
+    doc.text(subtitle, textX, 24);
     doc.setFont('helvetica', 'bold');
     doc.text(reportScopeLabel(), pageWidth - 14, 18, { align: 'right' });
   }
 
-  function addPdfPage(doc, title, subtitle) {
+  function addPdfPage(doc, title, subtitle, logoDataUrl = '') {
     doc.addPage();
-    drawPdfHeader(doc, title, subtitle);
+    drawPdfHeader(doc, title, subtitle, logoDataUrl);
     return 40;
   }
 
@@ -860,9 +880,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const marginX = 10;
     const bottom = pageHeight - 12;
     const subtitle = options.subtitle || `Generated ${formatDateTime()}`;
+    const logoDataUrl = options.logoDataUrl || '';
     const rowBaseHeight = options.rowHeight || 8;
 
-    if (y > bottom - 24) y = addPdfPage(doc, title, subtitle);
+    if (y > bottom - 24) y = addPdfPage(doc, title, subtitle, logoDataUrl);
     drawPdfText(doc, title, marginX, y, { bold: true, size: 11 });
     y += 7;
 
@@ -881,7 +902,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
       const rowHeight = Math.max(rowBaseHeight, Math.max(...lineCounts) * 4.4 + 3);
       if (y + rowHeight > bottom) {
-        y = addPdfPage(doc, title, subtitle);
+        y = addPdfPage(doc, title, subtitle, logoDataUrl);
         drawHeader();
       }
       columns.forEach((col) => {
@@ -903,10 +924,11 @@ document.addEventListener('DOMContentLoaded', function(){
     const range = data?.range || {};
     const rangeText = `${range.start ? formatDate(range.start) : 'All time'}${range.end ? ' - ' + formatDate(range.end) : ''}`;
     const subtitle = `Generated ${formatDateTime()} | ${rangeText}`;
+    const logoDataUrl = await loadPdfImageDataUrl('/static/assets/elecom.png');
     const doc = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'landscape' });
     let y = 40;
 
-    drawPdfHeader(doc, 'ELECOM Election Report', subtitle);
+    drawPdfHeader(doc, 'ELECOM Election Report', subtitle, logoDataUrl);
 
     const summaryRows = [
       { label: 'Election Scope', value: reportScopeLabel() },
@@ -927,7 +949,7 @@ document.addEventListener('DOMContentLoaded', function(){
       ],
       summaryRows,
       y,
-      { subtitle, rowHeight: 8 },
+      { subtitle, logoDataUrl, rowHeight: 8 },
     );
 
     const orgRows = sortOrgEntries(Object.entries(enriched.byOrg)).map(([org, votes]) => ({
@@ -945,7 +967,7 @@ document.addEventListener('DOMContentLoaded', function(){
       ],
       orgRows,
       y,
-      { subtitle, rowHeight: 8 },
+      { subtitle, logoDataUrl, rowHeight: 8 },
     );
 
     const posRows = sortPositionEntries(Object.entries(enriched.byPos)).map(([position, votes]) => ({
@@ -963,7 +985,7 @@ document.addEventListener('DOMContentLoaded', function(){
       ],
       posRows,
       y,
-      { subtitle, rowHeight: 8 },
+      { subtitle, logoDataUrl, rowHeight: 8 },
     );
 
     const candidateRows = enriched.candidates.map((candidate, index) => {
@@ -992,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', function(){
       ],
       candidateRows,
       y,
-      { subtitle, rowHeight: 8 },
+      { subtitle, logoDataUrl, rowHeight: 8 },
     );
 
     const totalPages = doc.getNumberOfPages();
