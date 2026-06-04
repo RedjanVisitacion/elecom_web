@@ -637,25 +637,82 @@ document.addEventListener('DOMContentLoaded', function(){
   function buildReportText(data){
     const enriched = enrichReport(data);
     const range = data?.range || {};
-    let out = '';
-    out += 'ELECOM Election Report\n';
-    out += 'Generated: ' + formatDateTime() + '\n';
-    out += 'Election Scope: ' + reportScopeLabel() + '\n';
-    out += 'Range: ' + (range.start||'All time') + (range.end?(' - '+range.end):'') + '\n\n';
-    out += 'Summary\n';
-    out += '- Total Votes: ' + enriched.totalVotes + '\n';
-    out += '- Distinct Voters: ' + (enriched.totals.distinct_voters||0) + '\n';
-    out += '- Total Candidates: ' + enriched.candidates.length + '\n';
-    out += '- Voter Turnout: ' + enriched.turnout + '%\n';
-    out += '- Leading Organization: ' + (enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet') + '\n';
-    out += '- Highest Vote Candidate: ' + (enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet') + '\n\n';
-    out += 'Votes by Organization\n';
-    sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([k,v]) => { out += '  * ' + orgDisplayName(k) + ': ' + v + '\n'; });
-    out += '\nVotes by Position\n';
-    sortPositionEntries(Object.entries(enriched.byPos)).forEach(([k,v]) => { out += '  * ' + k + ': ' + v + '\n'; });
-    out += '\nCandidates\n';
-    enriched.candidates.forEach((c, i)=>{ out += `  ${i+1}. ${orgDisplayName(c.organization || 'USG')} | ${c.position||''} | ${candidateName(c)} | votes: ${c.votes||0} | ${pct(c.votes, enriched.totalVotes)}%\n`; });
-    return out;
+    const rangeText = `${range.start ? formatDate(range.start) : 'All time'}${range.end ? ' - ' + formatDate(range.end) : ''}`;
+    const line = '='.repeat(96);
+    const thinLine = '-'.repeat(96);
+    const pad = (value, width) => String(value ?? '').slice(0, width).padEnd(width, ' ');
+    const right = (value, width) => String(value ?? '').slice(0, width).padStart(width, ' ');
+    const rows = [];
+
+    rows.push(line);
+    rows.push('USTP OROQUIETA ELECTORAL COMMISSION');
+    rows.push('OFFICIAL ELECTION REPORT');
+    rows.push(line);
+    rows.push(`Generated At    : ${formatDateTime()}`);
+    rows.push(`Election Scope  : ${reportScopeLabel()}`);
+    rows.push(`Date Coverage   : ${rangeText}`);
+    rows.push('');
+
+    rows.push('REPORT SUMMARY');
+    rows.push(thinLine);
+    rows.push(`${pad('Total Votes', 28)}: ${enriched.totalVotes}`);
+    rows.push(`${pad('Distinct Voters', 28)}: ${enriched.totals.distinct_voters || 0}`);
+    rows.push(`${pad('Total Candidates', 28)}: ${enriched.candidates.length}`);
+    rows.push(`${pad('Voter Turnout', 28)}: ${enriched.turnout}%`);
+    rows.push(`${pad('Leading Organization', 28)}: ${enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet'}`);
+    rows.push(`${pad('Highest Vote Candidate', 28)}: ${enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet'}`);
+    rows.push('');
+
+    rows.push('ORGANIZATION RESULTS');
+    rows.push(thinLine);
+    rows.push(`${pad('Organization', 68)} ${right('Votes', 10)} ${right('Share', 10)}`);
+    rows.push(thinLine);
+    sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([org, votes]) => {
+      rows.push(`${pad(orgDisplayName(org), 68)} ${right(votes || 0, 10)} ${right(`${pct(votes, enriched.totalVotes)}%`, 10)}`);
+    });
+    rows.push('');
+
+    rows.push('POSITION RESULTS');
+    rows.push(thinLine);
+    rows.push(`${pad('Position', 68)} ${right('Votes', 10)} ${right('Share', 10)}`);
+    rows.push(thinLine);
+    sortPositionEntries(Object.entries(enriched.byPos)).forEach(([position, votes]) => {
+      rows.push(`${pad(position, 68)} ${right(votes || 0, 10)} ${right(`${pct(votes, enriched.totalVotes)}%`, 10)}`);
+    });
+    rows.push('');
+
+    rows.push('CANDIDATE RESULTS');
+    rows.push(thinLine);
+    if (!enriched.candidates.length) {
+      rows.push('No candidates found for the selected report scope.');
+    } else {
+      const grouped = new Map();
+      enriched.candidates.forEach((candidate) => {
+        const org = orgDisplayName(candidate.organization || 'USG');
+        if (!grouped.has(org)) grouped.set(org, []);
+        grouped.get(org).push(candidate);
+      });
+
+      let count = 1;
+      Array.from(grouped.entries()).forEach(([org, candidates], orgIndex) => {
+        if (orgIndex > 0) rows.push('');
+        rows.push(org.toUpperCase());
+        rows.push(`${pad('No.', 5)} ${pad('Position', 28)} ${pad('Candidate Name', 34)} ${right('Votes', 8)} ${right('Share', 8)} ${pad('Status', 12)}`);
+        rows.push(thinLine);
+        candidates.forEach((candidate) => {
+          const votes = Number(candidate.votes || 0);
+          rows.push(
+            `${pad(`${count}.`, 5)} ${pad(candidate.position || '', 28)} ${pad(candidateName(candidate), 34)} ${right(votes, 8)} ${right(`${pct(votes, enriched.totalVotes)}%`, 8)} ${pad(candidateStatus(candidate, enriched.topVotes), 12)}`
+          );
+          count += 1;
+        });
+      });
+    }
+    rows.push('');
+    rows.push(line);
+    rows.push('Generated by ELECOM System');
+    rows.push(line);
+    return rows.join('\n');
   }
 
   function buildReportCSV(data){
