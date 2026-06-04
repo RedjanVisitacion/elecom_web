@@ -105,6 +105,18 @@ document.addEventListener('DOMContentLoaded', function(){
     return [index === -1 ? 999 : index, normalized];
   }
 
+  function orgDisplayName(org) {
+    const normalized = normalizeOrg(org);
+    const names = {
+      USG: 'University Student Government',
+      SITE: 'Society of Information Technology Enthusiasts',
+      PAFE: 'Prime Association of Future Educators',
+      AFPRO: 'Association of Food Processing Technology Students',
+      AFPROTECHS: 'Association of Food Processing Technology Students',
+    };
+    return names[normalized] || normalized;
+  }
+
   function buildCandidateName(candidate) {
     return [candidate.first_name, candidate.middle_name, candidate.last_name].filter(Boolean).join(' ');
   }
@@ -291,7 +303,10 @@ document.addEventListener('DOMContentLoaded', function(){
       html += `
         <section class="candidate-org-section">
           <div class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}">
-            <div class="candidate-org-title">${escapeHtml(org)}</div>
+            <div class="candidate-org-title">
+              <span>${escapeHtml(org)}</span>
+              <small>${escapeHtml(orgDisplayName(org))}</small>
+            </div>
             <span class="badge text-bg-secondary">${totalInOrg}</span>
           </div>`;
 
