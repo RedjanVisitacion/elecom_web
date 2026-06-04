@@ -327,6 +327,23 @@
   margin-top:2px;
 }
 
+.result-org-identity{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  min-width:0;
+}
+
+.result-org-logo{
+  width:34px;
+  height:34px;
+  flex:0 0 34px;
+  object-fit:contain;
+  border-radius:50%;
+  background:#ffffff;
+  box-shadow:0 1px 4px rgba(15,23,42,0.14);
+}
+
 .result-position-list[hidden]{
   display:none!important;
 }
@@ -338,7 +355,7 @@
 
 .result-org-title{
   font-size:1.45rem;
-  line-height:1;
+  line-height:1.15;
   font-weight:900;
   color:#111827;
 }

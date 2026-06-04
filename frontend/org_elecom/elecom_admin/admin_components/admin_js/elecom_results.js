@@ -125,6 +125,30 @@ document.addEventListener('DOMContentLoaded', function(){
     return [index === -1 ? 999 : index, normalized];
   }
 
+  function orgDisplayName(org) {
+    const normalized = normalizeOrg(org);
+    const names = {
+      USG: 'University Student Government (USG)',
+      SITE: 'Society of Information Technology Enthusiasts (SITE)',
+      PAFE: 'Prime Association of Future Educators (PAFE)',
+      AFPRO: 'Association of Food Processing Technology Students (AFPROTECHS)',
+      AFPROTECHS: 'Association of Food Processing Technology Students (AFPROTECHS)',
+    };
+    return names[normalized] || String(org || 'Organization');
+  }
+
+  function orgLogoUrl(org) {
+    const normalized = normalizeOrg(org);
+    const logos = {
+      USG: '/static/assets/org_logos/USG_LOGO.png',
+      SITE: '/static/assets/org_logos/SITE_LOGO.png',
+      PAFE: '/static/assets/org_logos/PAFE_LOGO.png',
+      AFPRO: '/static/assets/org_logos/AFPROTECHS_LOGO.png',
+      AFPROTECHS: '/static/assets/org_logos/AFPROTECHS_LOGO.png',
+    };
+    return logos[normalized] || '/static/assets/elecom.png';
+  }
+
   function toOrgFirst(grouped) {
     const orgMap = new Map();
 
@@ -191,7 +215,7 @@ document.addEventListener('DOMContentLoaded', function(){
       orgLegendGrid.innerHTML = orgs.map(org => `
         <div class="org-legend-item">
           <span class="legend-dot" style="background:${ORG_COLORS[org.organization] || '#6b7280'}"></span>
-          <strong>${esc(org.organization)}</strong>
+          <strong>${esc(orgDisplayName(org.organization))}</strong>
           <span>${Number(org.total_votes || 0).toLocaleString()}</span>
         </div>
       `).join('');
@@ -309,8 +333,8 @@ document.addEventListener('DOMContentLoaded', function(){
         <div class="analytics-icon"><i class="bi bi-check2-square"></i></div>
         <div>
           <div class="analytics-label">Position Participation</div>
-          <div class="analytics-line"><span>Most Voted</span><strong>${esc(most ? `${most.org} · ${most.position}` : 'Not enough data yet')}</strong></div>
-          <div class="analytics-line"><span>Least Voted</span><strong>${esc(least ? `${least.org} · ${least.position}` : 'Not enough data yet')}</strong></div>
+          <div class="analytics-line"><span>Most Voted</span><strong>${esc(most ? `${orgDisplayName(most.org)} · ${most.position}` : 'Not enough data yet')}</strong></div>
+          <div class="analytics-line"><span>Least Voted</span><strong>${esc(least ? `${orgDisplayName(least.org)} · ${least.position}` : 'Not enough data yet')}</strong></div>
           <div class="analytics-line"><span>Skipped Positions</span><strong>${skipped} (${allPositions.length ? ((skipped / allPositions.length) * 100).toFixed(1) : '0.0'}%)</strong></div>
         </div>
       </div>
@@ -329,7 +353,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!orgFilterTabs) return;
     const tabs = ['ALL', ...orgs.map(org => org.organization)];
     orgFilterTabs.innerHTML = tabs.map(tab => `
-      <button type="button" class="org-filter-btn ${activeOrg === tab ? 'active' : ''}" data-org-filter="${esc(tab)}">${esc(tab)}</button>
+      <button type="button" class="org-filter-btn ${activeOrg === tab ? 'active' : ''}" data-org-filter="${esc(tab)}">${esc(tab === 'ALL' ? 'All Organizations' : orgDisplayName(tab))}</button>
     `).join('');
   }
 
@@ -415,9 +439,12 @@ document.addEventListener('DOMContentLoaded', function(){
     resultsContainer.innerHTML = shown.map(org => `
       <section class="result-org-card result-org-${esc(org.organization.toLowerCase())}">
         <button type="button" class="result-org-head" data-toggle-org="${esc(org.organization)}" aria-expanded="${collapsedOrgs.has(org.organization) ? 'false' : 'true'}">
-          <div>
-            <div class="result-org-title">${esc(org.organization)}</div>
-            <div class="result-org-votes">${Number(org.total_votes || 0).toLocaleString()} votes</div>
+          <div class="result-org-identity">
+            <img class="result-org-logo" src="${esc(orgLogoUrl(org.organization))}" alt="${esc(orgDisplayName(org.organization))} logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+            <div>
+              <div class="result-org-title">${esc(orgDisplayName(org.organization))}</div>
+              <div class="result-org-votes">${Number(org.total_votes || 0).toLocaleString()} votes</div>
+            </div>
           </div>
           <i class="bi ${collapsedOrgs.has(org.organization) ? 'bi-chevron-down' : 'bi-chevron-up'}"></i>
         </button>
