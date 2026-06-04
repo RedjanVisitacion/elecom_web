@@ -850,7 +850,8 @@ document.addEventListener('DOMContentLoaded', function(){
     doc.setFont('helvetica', options.bold ? 'bold' : 'normal');
     doc.setFontSize(options.size || 8);
     doc.setTextColor(...(options.color || [15, 23, 42]));
-    doc.text(String(text ?? ''), x, y, options.align ? { align: options.align } : undefined);
+    const payload = Array.isArray(text) ? text : String(text ?? '');
+    doc.text(payload, x, y, options.align ? { align: options.align } : {});
   }
 
   function drawPdfTable(doc, title, columns, rows, y, options = {}) {
@@ -896,7 +897,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   async function exportStructuredPdfReport(data, stamp) {
     const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
-    if (!jsPDFCtor) return false;
+    if (!jsPDFCtor) throw new Error('missing_pdf_engine');
 
     const enriched = enrichReport(data);
     const range = data?.range || {};
@@ -1109,32 +1110,7 @@ document.addEventListener('DOMContentLoaded', function(){
   async function exportPdfReport(data, stamp){
     previewEl.innerHTML = buildReportHTML(data);
     previewCard.classList.remove('d-none');
-    if (await exportStructuredPdfReport(data, stamp)) return;
-    const reportNode = previewEl.querySelector('.official-report');
-    if (!reportNode) throw new Error('missing_report_preview');
-
-    const originalScrollX = window.scrollX;
-    const originalScrollY = window.scrollY;
-    reportNode.classList.add('pdf-rendering');
-    reportNode.scrollIntoView({ block: 'start', inline: 'nearest' });
-    const restorePdfTableStyles = prepareReportTablesForPdf(reportNode);
-    await inlineReportImages(reportNode);
-    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
-
-    let exportHost = null;
-    try {
-      exportHost = document.createElement('div');
-      exportHost.className = 'pdf-export-host';
-      document.body.appendChild(exportHost);
-      const pages = buildPdfExportPages(reportNode);
-      pages.forEach(page => exportHost.appendChild(page));
-      await saveExportHostAsPdf(exportHost, 'election_report_' + stamp + '.pdf');
-    } finally {
-      exportHost?.remove();
-      restorePdfTableStyles();
-      reportNode.classList.remove('pdf-rendering');
-      window.scrollTo(originalScrollX, originalScrollY);
-    }
+    await exportStructuredPdfReport(data, stamp);
   }
 
   async function getSummary(){
@@ -1207,6 +1183,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
     } catch(e){
       if (String(e && e.message) === 'invalid_date') showAlert('Please fix the date range before generating.');
+      else if (String(e && e.message) === 'missing_pdf_engine') showAlert('PDF engine failed to load. Please refresh the page and try again.','danger');
       else showAlert('Failed to generate report.','danger');
     }
   });
