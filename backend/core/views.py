@@ -6183,9 +6183,11 @@ def admin_candidate_application_decision_api(request):
     payload = _json_request_body(request)
     app_id = payload.get("id") or payload.get("application_id")
     action = str(payload.get("action") or "").strip().lower()
-    reason = str(payload.get("reason") or "").strip()
+    reason = str(payload.get("reason") or payload.get("remarks") or payload.get("rejection_reason") or "").strip()
     if action not in {"approve", "reject"}:
         return JsonResponse({"ok": False, "error": "Invalid decision."}, status=400)
+    if action == "reject" and not reason:
+        return JsonResponse({"ok": False, "error": "Rejection remarks are required."}, status=400)
     try:
         app_id = int(app_id)
     except Exception:

@@ -238,6 +238,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const applicationsList = document.getElementById("candidateApplicationsList");
   const refreshApplicationsBtn = document.getElementById("refreshApplicationsBtn");
+  const rejectionRemarksModalEl = document.getElementById("rejectionRemarksModal");
+  const rejectionRemarksInput = document.getElementById("rejectionRemarksInput");
+  const rejectionRemarksError = document.getElementById("rejectionRemarksError");
+  const confirmRejectApplicationBtn = document.getElementById("confirmRejectApplicationBtn");
+  const rejectionRemarksModal = rejectionRemarksModalEl && window.bootstrap
+    ? new bootstrap.Modal(rejectionRemarksModalEl)
+    : null;
+  let pendingRejectApplicationId = "";
 
   const escapeHtml = (value) =>
     String(value ?? "")
@@ -307,22 +315,44 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const decideApplication = async (id, action) => {
+  const decideApplication = async (id, action, reason = "") => {
     const label = action === "approve" ? "approve" : "reject";
-    if (!confirm(`Are you sure you want to ${label} this filing?`)) return;
+    if (action !== "reject" && !confirm(`Are you sure you want to ${label} this filing?`)) return;
     try {
+      if (confirmRejectApplicationBtn) confirmRejectApplicationBtn.disabled = true;
       const res = await fetch(`${window.location.origin}/api/admin/candidate-applications/decision/`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ id, action }),
+        body: JSON.stringify({ id, action, reason }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.error || "Failed to review application.");
       showAlert("success", action === "approve" ? "Candidate approved and published." : "Candidate filing rejected.");
+      if (action === "reject") rejectionRemarksModal?.hide();
       await loadApplications();
     } catch (err) {
       showAlert("error", err.message || "Failed to review application.");
+    } finally {
+      if (confirmRejectApplicationBtn) confirmRejectApplicationBtn.disabled = false;
+    }
+  };
+
+  const openRejectRemarks = (id) => {
+    pendingRejectApplicationId = String(id || "");
+    if (rejectionRemarksInput) rejectionRemarksInput.value = "";
+    rejectionRemarksError?.classList.add("d-none");
+    if (rejectionRemarksModal) {
+      rejectionRemarksModal.show();
+      setTimeout(() => rejectionRemarksInput?.focus(), 180);
+      return;
+    }
+
+    const reason = window.prompt("Enter rejection remarks for this candidate filing:");
+    if (reason && reason.trim()) {
+      decideApplication(pendingRejectApplicationId, "reject", reason.trim());
+    } else if (reason !== null) {
+      showAlert("error", "Rejection remarks are required.");
     }
   };
 
@@ -330,7 +360,21 @@ document.addEventListener("DOMContentLoaded", () => {
   applicationsList?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-app-decision]");
     if (!btn) return;
+    if (btn.dataset.appDecision === "reject") {
+      openRejectRemarks(btn.dataset.appId);
+      return;
+    }
     decideApplication(btn.dataset.appId, btn.dataset.appDecision);
+  });
+  confirmRejectApplicationBtn?.addEventListener("click", () => {
+    const reason = String(rejectionRemarksInput?.value || "").trim();
+    if (!reason) {
+      rejectionRemarksError?.classList.remove("d-none");
+      rejectionRemarksInput?.focus();
+      return;
+    }
+    rejectionRemarksError?.classList.add("d-none");
+    decideApplication(pendingRejectApplicationId, "reject", reason);
   });
   loadApplications();
 
