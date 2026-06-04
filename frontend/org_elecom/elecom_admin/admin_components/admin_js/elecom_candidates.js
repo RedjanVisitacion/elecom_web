@@ -117,6 +117,18 @@ document.addEventListener('DOMContentLoaded', function(){
     return names[normalized] || normalized;
   }
 
+  function orgLogoUrl(org) {
+    const normalized = normalizeOrg(org);
+    const logos = {
+      USG: '/static/assets/org_logos/USG_LOGO.png',
+      SITE: '/static/assets/org_logos/SITE_LOGO.png',
+      PAFE: '/static/assets/org_logos/PAFE_LOGO.png',
+      AFPRO: '/static/assets/org_logos/AFPROTECHS_LOGO.png',
+      AFPROTECHS: '/static/assets/org_logos/AFPROTECHS_LOGO.png',
+    };
+    return logos[normalized] || '';
+  }
+
   function buildCandidateName(candidate) {
     return [candidate.first_name, candidate.middle_name, candidate.last_name].filter(Boolean).join(' ');
   }
@@ -303,7 +315,10 @@ document.addEventListener('DOMContentLoaded', function(){
       html += `
         <section class="candidate-org-section">
           <div class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}">
-            <div class="candidate-org-title">${escapeHtml(orgDisplayName(org))}</div>
+            <div class="candidate-org-title">
+              <img src="${escapeHtml(orgLogoUrl(org))}" alt="" class="candidate-org-logo">
+              <span>${escapeHtml(orgDisplayName(org))}</span>
+            </div>
             <span class="badge text-bg-secondary">${totalInOrg}</span>
           </div>`;
 
