@@ -576,6 +576,21 @@ body.reports-page{
   overflow:visible;
 }
 
+.official-report.pdf-rendering .report-table-card{
+  break-inside:auto;
+  page-break-inside:auto;
+  overflow:visible;
+}
+
+.official-report.pdf-rendering .report-table-wrap thead th{
+  position:static;
+}
+
+.official-report.pdf-rendering .report-table-wrap tr{
+  break-inside:avoid;
+  page-break-inside:avoid;
+}
+
 .official-report.pdf-rendering .report-table-wrap table{
   min-width:0;
   width:100%;

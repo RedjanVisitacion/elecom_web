@@ -461,9 +461,10 @@ document.addEventListener('DOMContentLoaded', function(){
     const turnout = pct(totals.distinct_voters || 0, totalVoters);
     const byOrg = data?.by_org || {};
     const byPos = data?.by_pos || {};
-    const leadingOrg = Object.entries(byOrg).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0))[0];
-    const highestCandidate = voteRankedCandidates[0];
-    const topVotes = Number(highestCandidate?.votes || 0);
+    const hasVotes = totalVotes > 0;
+    const leadingOrg = hasVotes ? Object.entries(byOrg).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0))[0] : null;
+    const highestCandidate = hasVotes ? voteRankedCandidates[0] : null;
+    const topVotes = hasVotes ? Number(highestCandidate?.votes || 0) : 0;
     return { totals, candidates, voteRankedCandidates, totalVotes, totalVoters, turnout, byOrg, byPos, leadingOrg, highestCandidate, topVotes };
   }
 
@@ -735,13 +736,49 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   async function saveCanvasAsPdf(canvas, filename){
-    await html2pdf().set({
-      margin: [8, 8, 8, 8],
-      filename,
-      image: { type: 'jpeg', quality: 0.98 },
-      pagebreak: { mode: ['css', 'legacy'] },
-      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-    }).from(canvas, 'canvas').save();
+    const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
+    if (!jsPDFCtor) {
+      await html2pdf().set({
+        margin: [8, 8, 8, 8],
+        filename,
+        image: { type: 'jpeg', quality: 0.98 },
+        pagebreak: { mode: ['css', 'legacy'] },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      }).from(canvas, 'canvas').save();
+      return;
+    }
+
+    const pdf = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    const margin = 8;
+    const contentWidth = pageWidth - (margin * 2);
+    const contentHeight = pageHeight - (margin * 2);
+    const pxPerMm = canvas.width / contentWidth;
+    const sliceHeightPx = Math.max(1, Math.floor(contentHeight * pxPerMm));
+
+    for (let y = 0, page = 0; y < canvas.height; y += sliceHeightPx, page += 1) {
+      const sliceHeight = Math.min(sliceHeightPx, canvas.height - y);
+      const pageCanvas = document.createElement('canvas');
+      pageCanvas.width = canvas.width;
+      pageCanvas.height = sliceHeight;
+      const pageCtx = pageCanvas.getContext('2d');
+      pageCtx.fillStyle = '#ffffff';
+      pageCtx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+      pageCtx.drawImage(canvas, 0, y, canvas.width, sliceHeight, 0, 0, canvas.width, sliceHeight);
+
+      if (page > 0) pdf.addPage();
+      pdf.addImage(
+        pageCanvas.toDataURL('image/jpeg', 0.98),
+        'JPEG',
+        margin,
+        margin,
+        contentWidth,
+        sliceHeight / pxPerMm,
+      );
+    }
+
+    pdf.save(filename);
   }
 
   async function exportPdfReport(data, stamp){
@@ -760,7 +797,7 @@ document.addEventListener('DOMContentLoaded', function(){
     try {
       const canvas = await html2pdf().from(reportNode).set({
         html2canvas: {
-          scale: 2,
+          scale: 1.5,
           useCORS: true,
           backgroundColor: '#ffffff',
           windowWidth: Math.max(document.documentElement.clientWidth, reportNode.scrollWidth),
