@@ -8381,11 +8381,11 @@ def admin_reports_summary_api(request):
     # candidates + votes per candidate
     candidates = []
     try:
+        candidate_election_id = _active_election_id() if all_elections else requested_election_id
+        election_where, election_params = _current_election_filter("c", candidate_election_id)
         if all_elections:
-            election_where, election_params = "1=1", []
             vote_item_filter, vote_params = "1=1", []
         else:
-            election_where, election_params = _current_election_filter("c", requested_election_id)
             vote_item_filter, vote_params = _current_vote_filter("v", requested_election_id)
         vote_where_parts = [vote_item_filter]
         if start_dt:
