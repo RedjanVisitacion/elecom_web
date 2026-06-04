@@ -824,6 +824,190 @@ document.addEventListener('DOMContentLoaded', function(){
     }).from(exportHost).save();
   }
 
+  function drawPdfHeader(doc, title, subtitle) {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(10, 8, pageWidth - 20, 22, 2, 2, 'F');
+    doc.setTextColor(0, 27, 63);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(14);
+    doc.text(title, 14, 18);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(8);
+    doc.setTextColor(100, 116, 139);
+    doc.text(subtitle, 14, 24);
+    doc.setFont('helvetica', 'bold');
+    doc.text(reportScopeLabel(), pageWidth - 14, 18, { align: 'right' });
+  }
+
+  function addPdfPage(doc, title, subtitle) {
+    doc.addPage();
+    drawPdfHeader(doc, title, subtitle);
+    return 40;
+  }
+
+  function drawPdfText(doc, text, x, y, options = {}) {
+    doc.setFont('helvetica', options.bold ? 'bold' : 'normal');
+    doc.setFontSize(options.size || 8);
+    doc.setTextColor(...(options.color || [15, 23, 42]));
+    doc.text(String(text ?? ''), x, y, options.align ? { align: options.align } : undefined);
+  }
+
+  function drawPdfTable(doc, title, columns, rows, y, options = {}) {
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const marginX = 10;
+    const bottom = pageHeight - 12;
+    const subtitle = options.subtitle || `Generated ${formatDateTime()}`;
+    const rowBaseHeight = options.rowHeight || 8;
+
+    if (y > bottom - 24) y = addPdfPage(doc, title, subtitle);
+    drawPdfText(doc, title, marginX, y, { bold: true, size: 11 });
+    y += 7;
+
+    const drawHeader = () => {
+      doc.setFillColor(241, 245, 249);
+      doc.rect(marginX, y - 5, pageWidth - (marginX * 2), 8, 'F');
+      columns.forEach(col => drawPdfText(doc, col.label, col.x, y, { bold: true, size: 7, align: col.align }));
+      y += 8;
+    };
+
+    drawHeader();
+    rows.forEach((row) => {
+      const lineCounts = columns.map((col) => {
+        const text = String(row[col.key] ?? '');
+        return doc.splitTextToSize(text, col.width || 30).length;
+      });
+      const rowHeight = Math.max(rowBaseHeight, Math.max(...lineCounts) * 4.4 + 3);
+      if (y + rowHeight > bottom) {
+        y = addPdfPage(doc, title, subtitle);
+        drawHeader();
+      }
+      columns.forEach((col) => {
+        const lines = doc.splitTextToSize(String(row[col.key] ?? ''), col.width || 30);
+        drawPdfText(doc, lines, col.x, y, { size: 7, align: col.align });
+      });
+      doc.setDrawColor(226, 232, 240);
+      doc.line(marginX, y + rowHeight - 3, pageWidth - marginX, y + rowHeight - 3);
+      y += rowHeight;
+    });
+    return y + 6;
+  }
+
+  async function exportStructuredPdfReport(data, stamp) {
+    const jsPDFCtor = window.jspdf?.jsPDF || window.jsPDF;
+    if (!jsPDFCtor) return false;
+
+    const enriched = enrichReport(data);
+    const range = data?.range || {};
+    const rangeText = `${range.start ? formatDate(range.start) : 'All time'}${range.end ? ' - ' + formatDate(range.end) : ''}`;
+    const subtitle = `Generated ${formatDateTime()} | ${rangeText}`;
+    const doc = new jsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'landscape' });
+    let y = 40;
+
+    drawPdfHeader(doc, 'ELECOM Election Report', subtitle);
+
+    const summaryRows = [
+      { label: 'Election Scope', value: reportScopeLabel() },
+      { label: 'Date Range', value: rangeText },
+      { label: 'Total Votes', value: enriched.totalVotes },
+      { label: 'Distinct Voters', value: enriched.totals.distinct_voters || 0 },
+      { label: 'Total Candidates', value: enriched.candidates.length },
+      { label: 'Voter Turnout', value: `${enriched.turnout}%` },
+      { label: 'Leading Organization', value: enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet' },
+      { label: 'Highest Vote Candidate', value: enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet' },
+    ];
+    y = drawPdfTable(
+      doc,
+      'Report Summary',
+      [
+        { key: 'label', label: 'Metric', x: 12, width: 58 },
+        { key: 'value', label: 'Value', x: 78, width: 190 },
+      ],
+      summaryRows,
+      y,
+      { subtitle, rowHeight: 8 },
+    );
+
+    const orgRows = sortOrgEntries(Object.entries(enriched.byOrg)).map(([org, votes]) => ({
+      org: orgDisplayName(org),
+      votes: Number(votes || 0),
+      share: `${pct(votes, enriched.totalVotes)}%`,
+    }));
+    y = drawPdfTable(
+      doc,
+      'Organization Results',
+      [
+        { key: 'org', label: 'Organization', x: 12, width: 150 },
+        { key: 'votes', label: 'Votes', x: 214, width: 22, align: 'right' },
+        { key: 'share', label: 'Share', x: 260, width: 22, align: 'right' },
+      ],
+      orgRows,
+      y,
+      { subtitle, rowHeight: 8 },
+    );
+
+    const posRows = sortPositionEntries(Object.entries(enriched.byPos)).map(([position, votes]) => ({
+      position,
+      votes: Number(votes || 0),
+      share: `${pct(votes, enriched.totalVotes)}%`,
+    }));
+    y = drawPdfTable(
+      doc,
+      'Position Results',
+      [
+        { key: 'position', label: 'Position', x: 12, width: 120 },
+        { key: 'votes', label: 'Votes', x: 214, width: 22, align: 'right' },
+        { key: 'share', label: 'Share', x: 260, width: 22, align: 'right' },
+      ],
+      posRows,
+      y,
+      { subtitle, rowHeight: 8 },
+    );
+
+    const candidateRows = enriched.candidates.map((candidate, index) => {
+      const votes = Number(candidate.votes || 0);
+      return {
+        no: index + 1,
+        org: orgDisplayName(candidate.organization || 'USG'),
+        position: candidate.position || '',
+        name: candidateName(candidate),
+        votes,
+        pct: `${pct(votes, enriched.totalVotes)}%`,
+        status: candidateStatus(candidate, enriched.topVotes),
+      };
+    });
+    drawPdfTable(
+      doc,
+      'Candidate Results',
+      [
+        { key: 'no', label: 'No.', x: 12, width: 12 },
+        { key: 'org', label: 'Organization', x: 25, width: 72 },
+        { key: 'position', label: 'Position', x: 102, width: 45 },
+        { key: 'name', label: 'Candidate Name', x: 152, width: 55 },
+        { key: 'votes', label: 'Votes', x: 226, width: 18, align: 'right' },
+        { key: 'pct', label: 'Percent', x: 252, width: 18, align: 'right' },
+        { key: 'status', label: 'Status', x: 272, width: 18 },
+      ],
+      candidateRows,
+      y,
+      { subtitle, rowHeight: 8 },
+    );
+
+    const totalPages = doc.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i += 1) {
+      doc.setPage(i);
+      drawPdfText(doc, `Page ${i} of ${totalPages}`, doc.internal.pageSize.getWidth() - 12, doc.internal.pageSize.getHeight() - 6, {
+        size: 7,
+        color: [100, 116, 139],
+        align: 'right',
+      });
+    }
+
+    doc.save('election_report_' + stamp + '.pdf');
+    return true;
+  }
+
   async function renderPdfPageToCanvas(pageNode) {
     prepareReportTablesForPdf(pageNode);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
@@ -925,6 +1109,7 @@ document.addEventListener('DOMContentLoaded', function(){
   async function exportPdfReport(data, stamp){
     previewEl.innerHTML = buildReportHTML(data);
     previewCard.classList.remove('d-none');
+    if (await exportStructuredPdfReport(data, stamp)) return;
     const reportNode = previewEl.querySelector('.official-report');
     if (!reportNode) throw new Error('missing_report_preview');
 
