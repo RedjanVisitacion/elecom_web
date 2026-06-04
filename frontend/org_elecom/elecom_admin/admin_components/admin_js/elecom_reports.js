@@ -308,23 +308,130 @@ document.addEventListener('DOMContentLoaded', function(){
     return [c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ') || 'Unnamed candidate';
   }
 
+  const ORG_ORDER = ['USG', 'SITE', 'PAFE', 'AFPRO', 'AFPROTECHS'];
+  const USG_POSITION_ORDER = [
+    'PRESIDENT',
+    'VICE PRESIDENT',
+    'GENERAL SECRETARY',
+    'ASSOCIATE SECRETARY',
+    'TREASURER',
+    'AUDITOR',
+    'PUBLIC INFORMATION OFFICER',
+    'PIO',
+    'IT REPRESENTATIVE',
+    'BSIT REPRESENTATIVE',
+    'BTLED REPRESENTATIVE',
+    'BFPT REPRESENTATIVE',
+  ];
+  const ORG_POSITION_ORDER = [
+    'PRESIDENT',
+    'VICE PRESIDENT',
+    'GENERAL SECRETARY',
+    'ASSOCIATE SECRETARY',
+    'TREASURER',
+    'AUDITOR',
+    'PUBLIC INFORMATION OFFICER',
+    'PIO',
+  ];
+
+  function normalizeOrg(org) {
+    const up = String(org || 'USG').trim().toUpperCase();
+    if (up === 'AFPRO' || up === 'AFPROTECHS' || up.includes('AFPRO')) return 'AFPRO';
+    if (up.includes('SITE')) return 'SITE';
+    if (up.includes('PAFE')) return 'PAFE';
+    if (up.includes('USG')) return 'USG';
+    return up || 'USG';
+  }
+
+  function orgDisplayName(org) {
+    const names = {
+      USG: 'University Student Government (USG)',
+      SITE: 'Society of Information Technology Enthusiasts (SITE)',
+      PAFE: 'Prime Association of Future Educators (PAFE)',
+      AFPRO: 'Association of Food Processing Technology Students (AFPROTECHS)',
+      AFPROTECHS: 'Association of Food Processing Technology Students (AFPROTECHS)',
+    };
+    return names[normalizeOrg(org)] || String(org || 'Organization');
+  }
+
+  function normalizePosition(pos) {
+    return String(pos || 'Unspecified')
+      .trim()
+      .replace(/\bP\.?\s*I\.?\s*O\.?\b/gi, 'PIO') || 'Unspecified';
+  }
+
+  function orgSortKey(org) {
+    const normalized = normalizeOrg(org);
+    const index = ORG_ORDER.indexOf(normalized);
+    return [index === -1 ? 999 : index, normalized];
+  }
+
+  function positionSortKey(org, pos) {
+    const normalized = normalizePosition(pos).toUpperCase();
+    const order = normalizeOrg(org) === 'USG' ? USG_POSITION_ORDER : ORG_POSITION_ORDER;
+    if (normalized.includes('REPRESENTATIVE')) {
+      const repIndex = order.findIndex(label => normalized.includes(label));
+      return [repIndex === -1 ? 1000 : repIndex, normalized];
+    }
+    const index = order.findIndex((label) => {
+      if (label === 'PIO') {
+        return normalized === 'PIO' || normalized === 'P.I.O' || normalized === 'PUBLIC INFORMATION OFFICER';
+      }
+      return normalized === label || normalized.includes(label);
+    });
+    return [index === -1 ? 500 : index, normalized];
+  }
+
+  function sortByReportOrder(candidates){
+    return [...(candidates || [])].sort((a, b) => {
+      const orgA = orgSortKey(a.organization);
+      const orgB = orgSortKey(b.organization);
+      if (orgA[0] !== orgB[0]) return orgA[0] - orgB[0];
+      if (orgA[1] !== orgB[1]) return orgA[1].localeCompare(orgB[1]);
+      const posA = positionSortKey(a.organization, a.position);
+      const posB = positionSortKey(b.organization, b.position);
+      if (posA[0] !== posB[0]) return posA[0] - posB[0];
+      if (posA[1] !== posB[1]) return posA[1].localeCompare(posB[1]);
+      return candidateName(a).localeCompare(candidateName(b));
+    });
+  }
+
   function rankedCandidates(candidates){
     return [...(candidates || [])]
       .sort((a, b) => Number(b.votes || 0) - Number(a.votes || 0) || candidateName(a).localeCompare(candidateName(b)));
   }
 
+  function sortOrgEntries(entries) {
+    return [...entries].sort((a, b) => {
+      const ka = orgSortKey(a[0]);
+      const kb = orgSortKey(b[0]);
+      if (ka[0] !== kb[0]) return ka[0] - kb[0];
+      return ka[1].localeCompare(kb[1]);
+    });
+  }
+
+  function sortPositionEntries(entries) {
+    return [...entries].sort((a, b) => {
+      const ka = positionSortKey('USG', a[0]);
+      const kb = positionSortKey('USG', b[0]);
+      if (ka[0] !== kb[0]) return ka[0] - kb[0];
+      return ka[1].localeCompare(kb[1]);
+    });
+  }
+
   function enrichReport(data){
     const totals = data?.totals || {};
-    const candidates = rankedCandidates(data?.candidates || []);
+    const candidates = sortByReportOrder(data?.candidates || []);
+    const voteRankedCandidates = rankedCandidates(data?.candidates || []);
     const totalVotes = Number(totals.total_votes || 0);
     const totalVoters = Number(totals.total_voters || 0);
     const turnout = pct(totals.distinct_voters || 0, totalVoters);
     const byOrg = data?.by_org || {};
     const byPos = data?.by_pos || {};
     const leadingOrg = Object.entries(byOrg).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0))[0];
-    const highestCandidate = candidates[0];
+    const highestCandidate = voteRankedCandidates[0];
     const topVotes = Number(highestCandidate?.votes || 0);
-    return { totals, candidates, totalVotes, totalVoters, turnout, byOrg, byPos, leadingOrg, highestCandidate, topVotes };
+    return { totals, candidates, voteRankedCandidates, totalVotes, totalVoters, turnout, byOrg, byPos, leadingOrg, highestCandidate, topVotes };
   }
 
   function barRows(entries, total, emptyLabel){
@@ -361,7 +468,7 @@ document.addEventListener('DOMContentLoaded', function(){
       return `
         <tr>
           <td>${index + 1}</td>
-          <td>${escapeHtml(c.organization || 'USG')}</td>
+          <td>${escapeHtml(orgDisplayName(c.organization || 'USG'))}</td>
           <td>${escapeHtml(c.position || '')}</td>
           <td>${escapeHtml(candidateName(c))}</td>
           <td class="text-end">${votes}</td>
@@ -371,12 +478,11 @@ document.addEventListener('DOMContentLoaded', function(){
     }).join('');
   }
 
-  function simpleRows(obj, total, emptyText){
-    const entries = Object.entries(obj || {}).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0));
+  function simpleRows(entries, total, emptyText, labelFormatter = (value) => value){
     if (!entries.length) return `<tr><td colspan="3" class="text-muted text-center py-3">${escapeHtml(emptyText)}</td></tr>`;
     return entries.map(([label, value]) => `
       <tr>
-        <td>${escapeHtml(label)}</td>
+        <td>${escapeHtml(labelFormatter(label))}</td>
         <td class="text-end">${Number(value || 0)}</td>
         <td class="text-end">${pct(value, total)}%</td>
       </tr>`).join('');
@@ -386,13 +492,13 @@ document.addEventListener('DOMContentLoaded', function(){
     const range = data?.range || {};
     const enriched = enrichReport(data);
     const hasVotes = enriched.totalVotes > 0;
-    const orgEntries = Object.entries(enriched.byOrg).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0));
-    const posEntries = Object.entries(enriched.byPos).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0));
-    const topCandidates = enriched.candidates.slice(0, 8).map(c => [candidateName(c), Number(c.votes || 0)]);
+    const orgEntries = sortOrgEntries(Object.entries(enriched.byOrg));
+    const posEntries = sortPositionEntries(Object.entries(enriched.byPos));
+    const topCandidates = enriched.voteRankedCandidates.slice(0, 8).map(c => [candidateName(c), Number(c.votes || 0)]);
     const rangeText = `${range.start ? formatDate(range.start) : 'All time'}${range.end ? ' - ' + formatDate(range.end) : ''}`;
     const scopeText = reportScopeLabel();
     const highestName = enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet';
-    const leadingOrg = enriched.leadingOrg ? `${enriched.leadingOrg[0]} (${enriched.leadingOrg[1]})` : 'None yet';
+    const leadingOrg = enriched.leadingOrg ? `${orgDisplayName(enriched.leadingOrg[0])} (${enriched.leadingOrg[1]})` : 'None yet';
 
     return `
       <article class="official-report">
@@ -434,7 +540,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <section class="report-chart-grid">
           <div class="report-chart-card">
             <h3>Votes by Organization</h3>
-            ${barRows(orgEntries, Math.max(...orgEntries.map(([,v]) => Number(v || 0)), 1), 'No organization votes yet')}
+            ${barRows(orgEntries.map(([label, value]) => [orgDisplayName(label), value]), Math.max(...orgEntries.map(([,v]) => Number(v || 0)), 1), 'No organization votes yet')}
           </div>
           <div class="report-chart-card">
             <h3>Votes by Position</h3>
@@ -459,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="report-table-wrap">
               <table class="table table-sm">
                 <thead><tr><th>Organization</th><th class="text-end">Votes</th><th class="text-end">Share</th></tr></thead>
-                <tbody>${simpleRows(enriched.byOrg, enriched.totalVotes, 'No organization data')}</tbody>
+                <tbody>${simpleRows(orgEntries, enriched.totalVotes, 'No organization data', orgDisplayName)}</tbody>
               </table>
             </div>
           </div>
@@ -468,7 +574,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="report-table-wrap">
               <table class="table table-sm">
                 <thead><tr><th>Position</th><th class="text-end">Votes</th><th class="text-end">Share</th></tr></thead>
-                <tbody>${simpleRows(enriched.byPos, enriched.totalVotes, 'No position data')}</tbody>
+                <tbody>${simpleRows(posEntries, enriched.totalVotes, 'No position data')}</tbody>
               </table>
             </div>
           </div>
@@ -480,7 +586,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <table class="table table-sm candidate-report-table">
               <thead>
                 <tr>
-                  <th>Rank</th><th>Organization</th><th>Position</th><th>Candidate Name</th>
+                  <th>No.</th><th>Organization</th><th>Position</th><th>Candidate Name</th>
                   <th class="text-end">Total Votes</th><th class="text-end">Percentage</th><th>Status</th>
                 </tr>
               </thead>
@@ -506,14 +612,14 @@ document.addEventListener('DOMContentLoaded', function(){
     out += '- Distinct Voters: ' + (enriched.totals.distinct_voters||0) + '\n';
     out += '- Total Candidates: ' + (enriched.totals.total_candidates||0) + '\n';
     out += '- Voter Turnout: ' + enriched.turnout + '%\n';
-    out += '- Leading Organization: ' + (enriched.leadingOrg ? enriched.leadingOrg[0] : 'None yet') + '\n';
+    out += '- Leading Organization: ' + (enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet') + '\n';
     out += '- Highest Vote Candidate: ' + (enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet') + '\n\n';
     out += 'Votes by Organization\n';
-    Object.entries(enriched.byOrg).forEach(([k,v]) => { out += '  * ' + k + ': ' + v + '\n'; });
+    sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([k,v]) => { out += '  * ' + orgDisplayName(k) + ': ' + v + '\n'; });
     out += '\nVotes by Position\n';
-    Object.entries(enriched.byPos).forEach(([k,v]) => { out += '  * ' + k + ': ' + v + '\n'; });
+    sortPositionEntries(Object.entries(enriched.byPos)).forEach(([k,v]) => { out += '  * ' + k + ': ' + v + '\n'; });
     out += '\nCandidates\n';
-    enriched.candidates.forEach((c, i)=>{ out += `  ${i+1}. ${c.organization||'USG'} | ${c.position||''} | ${candidateName(c)} | votes: ${c.votes||0} | ${pct(c.votes, enriched.totalVotes)}%\n`; });
+    enriched.candidates.forEach((c, i)=>{ out += `  ${i+1}. ${orgDisplayName(c.organization || 'USG')} | ${c.position||''} | ${candidateName(c)} | votes: ${c.votes||0} | ${pct(c.votes, enriched.totalVotes)}%\n`; });
     return out;
   }
 
@@ -526,9 +632,9 @@ document.addEventListener('DOMContentLoaded', function(){
     rows.push(['Overview','distinct_voters', String(enriched.totals.distinct_voters||0),'','','','','','']);
     rows.push(['Overview','total_candidates', String(enriched.totals.total_candidates||0),'','','','','','']);
     rows.push(['Overview','voter_turnout_percent', String(enriched.turnout),'','','','','','']);
-    Object.entries(enriched.byOrg).forEach(([k,v]) => rows.push(['By Organization',k,String(v||0),'','','','',String(pct(v, enriched.totalVotes)),'']));
-    Object.entries(enriched.byPos).forEach(([k,v]) => rows.push(['By Position',k,String(v||0),'',''+k,'','',String(pct(v, enriched.totalVotes)),'']));
-    enriched.candidates.forEach((c, i) => rows.push(['Candidates',String(i+1),'',''+(c.organization||'USG'),''+(c.position||''),candidateName(c),String(c.votes||0),String(pct(c.votes, enriched.totalVotes)),candidateStatus(c, enriched.topVotes)]));
+    sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([k,v]) => rows.push(['By Organization',orgDisplayName(k),String(v||0),'','','','',String(pct(v, enriched.totalVotes)),'']));
+    sortPositionEntries(Object.entries(enriched.byPos)).forEach(([k,v]) => rows.push(['By Position',k,String(v||0),'',''+k,'','',String(pct(v, enriched.totalVotes)),'']));
+    enriched.candidates.forEach((c, i) => rows.push(['Candidates',String(i+1),'',''+orgDisplayName(c.organization || 'USG'),''+(c.position||''),candidateName(c),String(c.votes||0),String(pct(c.votes, enriched.totalVotes)),candidateStatus(c, enriched.topVotes)]));
     const esc = v => '"' + String(v).replace(/"/g,'""') + '"';
     return rows.map(r => r.map(esc).join(',')).join('\n');
   }
