@@ -72,10 +72,10 @@
 
   try {
     const params = new URLSearchParams(window.location.search || "");
-    if (agreeTerms && (params.get("terms") === "accepted" || sessionStorage.getItem("elecom_terms_opened") === "1")) {
+    const termsDecision = params.get("terms");
+    if (agreeTerms && (termsDecision === "accepted" || termsDecision === "declined")) {
       restoreTermsDraft();
-      agreeTerms.checked = true;
-      sessionStorage.removeItem("elecom_terms_opened");
+      agreeTerms.checked = termsDecision === "accepted";
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
@@ -412,7 +412,6 @@
     termsLink.addEventListener("click", () => {
       try {
         saveTermsDraft();
-        sessionStorage.setItem("elecom_terms_opened", "1");
       } catch {}
     });
   }
@@ -423,7 +422,6 @@
         event.preventDefault();
         try {
           saveTermsDraft();
-          sessionStorage.setItem("elecom_terms_opened", "1");
         } catch {}
         window.location.href = TERMS_URL;
       }
