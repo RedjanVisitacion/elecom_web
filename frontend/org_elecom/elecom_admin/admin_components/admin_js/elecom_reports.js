@@ -396,6 +396,38 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
+  function candidateIdentityKey(candidate) {
+    const org = normalizeOrg(candidate.organization || 'USG');
+    const position = normalizePosition(candidate.position || '');
+    const studentId = String(candidate.student_id || candidate.id_number || '').trim().toUpperCase();
+    const name = candidateName(candidate).trim().toUpperCase();
+    return [org, position.toUpperCase(), studentId || name].join('|');
+  }
+
+  function mergeDuplicateCandidates(candidates) {
+    const merged = new Map();
+    (candidates || []).forEach((candidate) => {
+      const key = candidateIdentityKey(candidate);
+      const votes = Number(candidate.votes || 0);
+      if (!merged.has(key)) {
+        merged.set(key, { ...candidate, votes });
+        return;
+      }
+      const existing = merged.get(key);
+      merged.set(key, {
+        ...existing,
+        ...candidate,
+        votes: Number(existing.votes || 0) + votes,
+        first_name: existing.first_name || candidate.first_name,
+        middle_name: existing.middle_name || candidate.middle_name,
+        last_name: existing.last_name || candidate.last_name,
+        organization: existing.organization || candidate.organization,
+        position: existing.position || candidate.position,
+      });
+    });
+    return Array.from(merged.values());
+  }
+
   function rankedCandidates(candidates){
     return [...(candidates || [])]
       .sort((a, b) => Number(b.votes || 0) - Number(a.votes || 0) || candidateName(a).localeCompare(candidateName(b)));
@@ -421,8 +453,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function enrichReport(data){
     const totals = data?.totals || {};
-    const candidates = sortByReportOrder(data?.candidates || []);
-    const voteRankedCandidates = rankedCandidates(data?.candidates || []);
+    const uniqueCandidates = mergeDuplicateCandidates(data?.candidates || []);
+    const candidates = sortByReportOrder(uniqueCandidates);
+    const voteRankedCandidates = rankedCandidates(uniqueCandidates);
     const totalVotes = Number(totals.total_votes || 0);
     const totalVoters = Number(totals.total_voters || 0);
     const turnout = pct(totals.distinct_voters || 0, totalVoters);
@@ -499,6 +532,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const scopeText = reportScopeLabel();
     const highestName = enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet';
     const leadingOrg = enriched.leadingOrg ? `${orgDisplayName(enriched.leadingOrg[0])} (${enriched.leadingOrg[1]})` : 'None yet';
+    const candidateCount = enriched.candidates.length;
 
     return `
       <article class="official-report">
@@ -531,7 +565,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <section class="report-summary-grid">
           <div class="report-summary-card"><span>Total Votes</span><strong>${enriched.totalVotes}</strong></div>
           <div class="report-summary-card"><span>Distinct Voters</span><strong>${enriched.totals.distinct_voters || 0}</strong></div>
-          <div class="report-summary-card"><span>Total Candidates</span><strong>${enriched.totals.total_candidates || 0}</strong></div>
+          <div class="report-summary-card"><span>Total Candidates</span><strong>${candidateCount}</strong></div>
           <div class="report-summary-card"><span>Voter Turnout</span><strong>${enriched.turnout}%</strong></div>
           <div class="report-summary-card wide"><span>Leading Organization</span><strong>${escapeHtml(leadingOrg)}</strong></div>
           <div class="report-summary-card wide"><span>Highest Vote Candidate</span><strong>${escapeHtml(highestName)}</strong></div>
@@ -610,7 +644,7 @@ document.addEventListener('DOMContentLoaded', function(){
     out += 'Summary\n';
     out += '- Total Votes: ' + enriched.totalVotes + '\n';
     out += '- Distinct Voters: ' + (enriched.totals.distinct_voters||0) + '\n';
-    out += '- Total Candidates: ' + (enriched.totals.total_candidates||0) + '\n';
+    out += '- Total Candidates: ' + enriched.candidates.length + '\n';
     out += '- Voter Turnout: ' + enriched.turnout + '%\n';
     out += '- Leading Organization: ' + (enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet') + '\n';
     out += '- Highest Vote Candidate: ' + (enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet') + '\n\n';
@@ -630,7 +664,7 @@ document.addEventListener('DOMContentLoaded', function(){
     rows.push(['Overview','election_scope',reportScopeLabel(),'','','','','','']);
     rows.push(['Overview','total_votes', String(enriched.totalVotes),'','','','','','']);
     rows.push(['Overview','distinct_voters', String(enriched.totals.distinct_voters||0),'','','','','','']);
-    rows.push(['Overview','total_candidates', String(enriched.totals.total_candidates||0),'','','','','','']);
+    rows.push(['Overview','total_candidates', String(enriched.candidates.length),'','','','','','']);
     rows.push(['Overview','voter_turnout_percent', String(enriched.turnout),'','','','','','']);
     sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([k,v]) => rows.push(['By Organization',orgDisplayName(k),String(v||0),'','','','',String(pct(v, enriched.totalVotes)),'']));
     sortPositionEntries(Object.entries(enriched.byPos)).forEach(([k,v]) => rows.push(['By Position',k,String(v||0),'',''+k,'','',String(pct(v, enriched.totalVotes)),'']));
