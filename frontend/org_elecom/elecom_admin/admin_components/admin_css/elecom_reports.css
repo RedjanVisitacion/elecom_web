@@ -603,9 +603,10 @@ body.reports-page{
 }
 
 .pdf-export-host{
-  position:fixed;
+  position:absolute;
   top:0;
-  left:-12000px;
+  left:0;
+  z-index:-1;
   width:1100px;
   background:#ffffff;
   pointer-events:none;
@@ -620,6 +621,16 @@ body.reports-page{
 
 .official-report.pdf-rendering .official-report-header.compact{
   margin-bottom:16px;
+}
+
+.pdf-export-page{
+  break-after:page;
+  page-break-after:always;
+}
+
+.pdf-export-page:last-child{
+  break-after:auto;
+  page-break-after:auto;
 }
 
 @media (max-width: 1100px){

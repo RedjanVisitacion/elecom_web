@@ -763,7 +763,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     for (let i = 0; i < rows.length; i += rowsPerPage) {
       const article = document.createElement('article');
-      article.className = 'official-report pdf-rendering pdf-candidate-page';
+      article.className = 'official-report pdf-rendering pdf-export-page pdf-candidate-page';
       const start = i + 1;
       const end = Math.min(i + rowsPerPage, rows.length);
       article.innerHTML = `
@@ -797,10 +797,31 @@ document.addEventListener('DOMContentLoaded', function(){
     const pages = [];
     const overview = reportNode.cloneNode(true);
     candidateReportSection(overview)?.remove();
-    overview.classList.add('pdf-rendering');
+    overview.classList.add('pdf-rendering', 'pdf-export-page');
     pages.push(overview);
     pages.push(...buildCandidatePdfPages(reportNode));
     return pages;
+  }
+
+  async function saveExportHostAsPdf(exportHost, filename) {
+    await inlineReportImages(exportHost);
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    await html2pdf().set({
+      margin: [8, 8, 8, 8],
+      filename,
+      image: { type: 'jpeg', quality: 0.98 },
+      pagebreak: { mode: ['css', 'legacy'], after: '.pdf-export-page' },
+      html2canvas: {
+        scale: 1.5,
+        useCORS: true,
+        backgroundColor: '#ffffff',
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: Math.max(document.documentElement.clientWidth, exportHost.scrollWidth),
+        windowHeight: Math.max(document.documentElement.clientHeight, exportHost.scrollHeight),
+      },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    }).from(exportHost).save();
   }
 
   async function renderPdfPageToCanvas(pageNode) {
@@ -922,11 +943,7 @@ document.addEventListener('DOMContentLoaded', function(){
       document.body.appendChild(exportHost);
       const pages = buildPdfExportPages(reportNode);
       pages.forEach(page => exportHost.appendChild(page));
-      const canvases = [];
-      for (const page of pages) {
-        canvases.push(await renderPdfPageToCanvas(page));
-      }
-      await saveCanvasesAsPdf(canvases, 'election_report_' + stamp + '.pdf');
+      await saveExportHostAsPdf(exportHost, 'election_report_' + stamp + '.pdf');
     } finally {
       exportHost?.remove();
       restorePdfTableStyles();
