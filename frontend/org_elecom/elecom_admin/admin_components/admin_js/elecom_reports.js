@@ -664,42 +664,32 @@ document.addEventListener('DOMContentLoaded', function(){
     const rangeText = `${range.start ? formatDate(range.start) : 'All time'}${range.end ? ' - ' + formatDate(range.end) : ''}`;
     const rows = [];
 
-    rows.push(['ELECOM Election Report']);
-    rows.push(['Generated', formatDateTime()]);
-    rows.push(['Election Scope', reportScopeLabel()]);
-    rows.push(['Date Range', rangeText]);
-    rows.push([]);
+    rows.push([
+      'Election Scope',
+      'Date Range',
+      'Generated At',
+      'Total Votes',
+      'Distinct Voters',
+      'Total Candidates',
+      'Voter Turnout',
+      'Organization',
+      'Position',
+      'Candidate Name',
+      'Candidate Votes',
+      'Vote Percentage',
+      'Status',
+    ]);
 
-    rows.push(['Report Summary']);
-    rows.push(['Metric', 'Value']);
-    rows.push(['Total Votes', String(enriched.totalVotes)]);
-    rows.push(['Distinct Voters', String(enriched.totals.distinct_voters || 0)]);
-    rows.push(['Total Candidates', String(enriched.candidates.length)]);
-    rows.push(['Voter Turnout', `${enriched.turnout}%`]);
-    rows.push(['Leading Organization', enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet']);
-    rows.push(['Highest Vote Candidate', enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet']);
-    rows.push([]);
-
-    rows.push(['Organization Results']);
-    rows.push(['Organization', 'Votes', 'Share']);
-    sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([org, votes]) => {
-      rows.push([orgDisplayName(org), String(votes || 0), `${pct(votes, enriched.totalVotes)}%`]);
-    });
-    rows.push([]);
-
-    rows.push(['Position Results']);
-    rows.push(['Position', 'Votes', 'Share']);
-    sortPositionEntries(Object.entries(enriched.byPos)).forEach(([position, votes]) => {
-      rows.push([position, String(votes || 0), `${pct(votes, enriched.totalVotes)}%`]);
-    });
-    rows.push([]);
-
-    rows.push(['Candidate Results']);
-    rows.push(['No.', 'Organization', 'Position', 'Candidate Name', 'Total Votes', 'Percentage', 'Status']);
     enriched.candidates.forEach((candidate, index) => {
       const votes = Number(candidate.votes || 0);
       rows.push([
-        String(index + 1),
+        reportScopeLabel(),
+        rangeText,
+        formatDateTime(),
+        String(enriched.totalVotes),
+        String(enriched.totals.distinct_voters || 0),
+        String(enriched.candidates.length),
+        `${enriched.turnout}%`,
         orgDisplayName(candidate.organization || 'USG'),
         candidate.position || '',
         candidateName(candidate),
