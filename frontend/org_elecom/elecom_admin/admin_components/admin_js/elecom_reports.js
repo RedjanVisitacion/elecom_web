@@ -660,18 +660,57 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function buildReportCSV(data){
     const enriched = enrichReport(data);
+    const range = data?.range || {};
+    const rangeText = `${range.start ? formatDate(range.start) : 'All time'}${range.end ? ' - ' + formatDate(range.end) : ''}`;
     const rows = [];
-    rows.push(['Section','Key','Value','Org','Position','Name','Votes','Percentage','Status']);
-    rows.push(['Overview','election_scope',reportScopeLabel(),'','','','','','']);
-    rows.push(['Overview','total_votes', String(enriched.totalVotes),'','','','','','']);
-    rows.push(['Overview','distinct_voters', String(enriched.totals.distinct_voters||0),'','','','','','']);
-    rows.push(['Overview','total_candidates', String(enriched.candidates.length),'','','','','','']);
-    rows.push(['Overview','voter_turnout_percent', String(enriched.turnout),'','','','','','']);
-    sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([k,v]) => rows.push(['By Organization',orgDisplayName(k),String(v||0),'','','','',String(pct(v, enriched.totalVotes)),'']));
-    sortPositionEntries(Object.entries(enriched.byPos)).forEach(([k,v]) => rows.push(['By Position',k,String(v||0),'',''+k,'','',String(pct(v, enriched.totalVotes)),'']));
-    enriched.candidates.forEach((c, i) => rows.push(['Candidates',String(i+1),'',''+orgDisplayName(c.organization || 'USG'),''+(c.position||''),candidateName(c),String(c.votes||0),String(pct(c.votes, enriched.totalVotes)),candidateStatus(c, enriched.topVotes)]));
+
+    rows.push(['ELECOM Election Report']);
+    rows.push(['Generated', formatDateTime()]);
+    rows.push(['Election Scope', reportScopeLabel()]);
+    rows.push(['Date Range', rangeText]);
+    rows.push([]);
+
+    rows.push(['Report Summary']);
+    rows.push(['Metric', 'Value']);
+    rows.push(['Total Votes', String(enriched.totalVotes)]);
+    rows.push(['Distinct Voters', String(enriched.totals.distinct_voters || 0)]);
+    rows.push(['Total Candidates', String(enriched.candidates.length)]);
+    rows.push(['Voter Turnout', `${enriched.turnout}%`]);
+    rows.push(['Leading Organization', enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet']);
+    rows.push(['Highest Vote Candidate', enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet']);
+    rows.push([]);
+
+    rows.push(['Organization Results']);
+    rows.push(['Organization', 'Votes', 'Share']);
+    sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([org, votes]) => {
+      rows.push([orgDisplayName(org), String(votes || 0), `${pct(votes, enriched.totalVotes)}%`]);
+    });
+    rows.push([]);
+
+    rows.push(['Position Results']);
+    rows.push(['Position', 'Votes', 'Share']);
+    sortPositionEntries(Object.entries(enriched.byPos)).forEach(([position, votes]) => {
+      rows.push([position, String(votes || 0), `${pct(votes, enriched.totalVotes)}%`]);
+    });
+    rows.push([]);
+
+    rows.push(['Candidate Results']);
+    rows.push(['No.', 'Organization', 'Position', 'Candidate Name', 'Total Votes', 'Percentage', 'Status']);
+    enriched.candidates.forEach((candidate, index) => {
+      const votes = Number(candidate.votes || 0);
+      rows.push([
+        String(index + 1),
+        orgDisplayName(candidate.organization || 'USG'),
+        candidate.position || '',
+        candidateName(candidate),
+        String(votes),
+        `${pct(votes, enriched.totalVotes)}%`,
+        candidateStatus(candidate, enriched.topVotes),
+      ]);
+    });
+
     const esc = v => '"' + String(v).replace(/"/g,'""') + '"';
-    return rows.map(r => r.map(esc).join(',')).join('\n');
+    return '\ufeff' + rows.map(r => r.map(esc).join(',')).join('\n');
   }
 
   function blobToDataUrl(blob){
