@@ -572,18 +572,19 @@ body.reports-page{
 }
 
 .official-report.pdf-rendering .report-table-wrap{
-  max-height:none;
-  overflow:visible;
+  max-height:none!important;
+  overflow:visible!important;
 }
 
 .official-report.pdf-rendering .report-table-card{
   break-inside:auto;
   page-break-inside:auto;
-  overflow:visible;
+  overflow:visible!important;
 }
 
 .official-report.pdf-rendering .report-table-wrap thead th{
-  position:static;
+  position:static!important;
+  top:auto!important;
 }
 
 .official-report.pdf-rendering .report-table-wrap tr{
@@ -592,12 +593,13 @@ body.reports-page{
 }
 
 .official-report.pdf-rendering .report-table-wrap table{
-  min-width:0;
-  width:100%;
+  min-width:0!important;
+  width:100%!important;
 }
 
 .official-report.pdf-rendering .candidate-report-table{
   min-width:0 !important;
+  width:100%!important;
 }
 
 @media (max-width: 1100px){

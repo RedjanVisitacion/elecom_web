@@ -706,6 +706,49 @@ document.addEventListener('DOMContentLoaded', function(){
     }));
   }
 
+  function prepareReportTablesForPdf(reportNode) {
+    const changed = [];
+    const remember = (el) => {
+      changed.push({
+        el,
+        cssText: el.style.cssText,
+        scrollTop: 'scrollTop' in el ? el.scrollTop : null,
+        scrollLeft: 'scrollLeft' in el ? el.scrollLeft : null,
+      });
+    };
+
+    reportNode.querySelectorAll('.report-table-card, .report-table-wrap').forEach((el) => {
+      remember(el);
+      el.style.maxHeight = 'none';
+      el.style.height = 'auto';
+      el.style.overflow = 'visible';
+      el.style.breakInside = 'auto';
+      el.style.pageBreakInside = 'auto';
+      if ('scrollTop' in el) el.scrollTop = 0;
+      if ('scrollLeft' in el) el.scrollLeft = 0;
+    });
+
+    reportNode.querySelectorAll('.report-table-wrap thead th').forEach((el) => {
+      remember(el);
+      el.style.position = 'static';
+      el.style.top = 'auto';
+    });
+
+    reportNode.querySelectorAll('.report-table-wrap table, .candidate-report-table').forEach((el) => {
+      remember(el);
+      el.style.minWidth = '0';
+      el.style.width = '100%';
+    });
+
+    return () => {
+      changed.reverse().forEach(({ el, cssText, scrollTop, scrollLeft }) => {
+        el.style.cssText = cssText;
+        if (scrollTop !== null) el.scrollTop = scrollTop;
+        if (scrollLeft !== null) el.scrollLeft = scrollLeft;
+      });
+    };
+  }
+
   function trimCanvasTop(canvas){
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
     if (!ctx) return canvas;
@@ -791,6 +834,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const originalScrollY = window.scrollY;
     reportNode.classList.add('pdf-rendering');
     reportNode.scrollIntoView({ block: 'start', inline: 'nearest' });
+    const restorePdfTableStyles = prepareReportTablesForPdf(reportNode);
     await inlineReportImages(reportNode);
     await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
 
@@ -806,6 +850,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }).toCanvas().get('canvas');
       await saveCanvasAsPdf(trimCanvasTop(canvas), 'election_report_' + stamp + '.pdf');
     } finally {
+      restorePdfTableStyles();
       reportNode.classList.remove('pdf-rendering');
       window.scrollTo(originalScrollX, originalScrollY);
     }
