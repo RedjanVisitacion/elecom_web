@@ -108,11 +108,11 @@ document.addEventListener('DOMContentLoaded', function(){
   function orgDisplayName(org) {
     const normalized = normalizeOrg(org);
     const names = {
-      USG: 'University Student Government',
-      SITE: 'Society of Information Technology Enthusiasts',
-      PAFE: 'Prime Association of Future Educators',
-      AFPRO: 'Association of Food Processing Technology Students',
-      AFPROTECHS: 'Association of Food Processing Technology Students',
+      USG: 'University Student Government (USG)',
+      SITE: 'Society of Information Technology Enthusiasts (SITE)',
+      PAFE: 'Prime Association of Future Educators (PAFE)',
+      AFPRO: 'Association of Food Processing Technology Students (AFPROTECHS)',
+      AFPROTECHS: 'Association of Food Processing Technology Students (AFPROTECHS)',
     };
     return names[normalized] || normalized;
   }
@@ -303,10 +303,7 @@ document.addEventListener('DOMContentLoaded', function(){
       html += `
         <section class="candidate-org-section">
           <div class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}">
-            <div class="candidate-org-title">
-              <span>${escapeHtml(org)}</span>
-              <small>${escapeHtml(orgDisplayName(org))}</small>
-            </div>
+            <div class="candidate-org-title">${escapeHtml(orgDisplayName(org))}</div>
             <span class="badge text-bg-secondary">${totalInOrg}</span>
           </div>`;
 

@@ -82,19 +82,9 @@
 }
 
 .candidate-org-title{
-  display:flex;
-  flex-direction:column;
-  gap:2px;
   font-weight:800;
   letter-spacing:0;
   font-size:1.05rem;
-}
-
-.candidate-org-title small{
-  font-size:0.78rem;
-  line-height:1.2;
-  font-weight:700;
-  opacity:0.86;
 }
 
 .candidate-position-group{
