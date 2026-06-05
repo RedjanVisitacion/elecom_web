@@ -68,6 +68,11 @@ document.addEventListener('DOMContentLoaded', function(){
   let orgPieChart = null;
   let posBarChart = null;
 
+  function collapseAllOrgsByDefault() {
+    collapsedOrgs.clear();
+    normalizedOrgs.forEach((org) => collapsedOrgs.add(org.organization));
+  }
+
   function routeElectionId() {
     const params = new URLSearchParams(window.location.search);
     const routeMatch = window.location.pathname.match(/\/elections\/(\d+)\/results\/?$/);
@@ -496,6 +501,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
 
       normalizedOrgs = toOrgFirst(data.grouped || []);
+      collapseAllOrgsByDefault();
       if (resultsSubtitle) {
         resultsSubtitle.textContent = electionId
           ? `Previewing archived election #${electionId}`
