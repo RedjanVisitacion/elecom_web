@@ -303,13 +303,17 @@ document.addEventListener('DOMContentLoaded', function(){
       const totalInOrg = Object.values(byOrg[org]).reduce((a,arr)=> a + arr.length, 0);
       html += `
         <section class="candidate-org-section">
-          <div class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}">
+          <button type="button" class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}" data-toggle-candidate-org="${escapeHtml(org)}" aria-expanded="false">
             <div class="candidate-org-title">
               <img src="${escapeHtml(orgLogoUrl(org))}" alt="" class="candidate-org-logo">
               <span>${escapeHtml(orgDisplayName(org))}</span>
             </div>
-            <span class="badge text-bg-secondary">${totalInOrg}</span>
-          </div>`;
+            <span class="candidate-org-actions">
+              <span class="badge text-bg-secondary">${totalInOrg}</span>
+              <i class="bi bi-chevron-down" aria-hidden="true"></i>
+            </span>
+          </button>
+          <div class="candidate-org-body" data-candidate-org-body="${escapeHtml(org)}" hidden>`;
 
       const positions = Object.keys(byOrg[org]).sort((a,b)=>{
         const ka = positionSortKey(org, a);
@@ -341,12 +345,27 @@ document.addEventListener('DOMContentLoaded', function(){
           </div>`;
       });
 
-      html += '</section>';
+      html += '</div></section>';
     });
 
     listEl.innerHTML = html;
     listCount.textContent = `${list.length} candidate(s)`;
   }
+
+  listEl?.addEventListener('click', (event) => {
+    const toggle = event.target.closest('[data-toggle-candidate-org]');
+    if (!toggle) return;
+    const body = toggle.closest('.candidate-org-section')?.querySelector('.candidate-org-body');
+    if (!body) return;
+    const willExpand = body.hidden;
+    body.hidden = !willExpand;
+    toggle.setAttribute('aria-expanded', willExpand ? 'true' : 'false');
+    const icon = toggle.querySelector('.bi');
+    if (icon) {
+      icon.classList.toggle('bi-chevron-up', willExpand);
+      icon.classList.toggle('bi-chevron-down', !willExpand);
+    }
+  });
 
   async function loadList(){
     if(!searchInput) return;
