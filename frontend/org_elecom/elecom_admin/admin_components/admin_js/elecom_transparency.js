@@ -40,9 +40,6 @@ document.addEventListener("DOMContentLoaded", function () {
     statusCard: document.querySelector(".status-card"),
     refreshBtn: document.getElementById("refreshLedgerBtn"),
     verifyBtn: document.getElementById("verifyLedgerBtn"),
-    verificationSummary: document.getElementById("verificationSummary"),
-    verificationPill: document.getElementById("verificationPill"),
-    verificationList: document.getElementById("verificationList"),
   };
 
   function text(el, value) {
@@ -137,22 +134,6 @@ document.addEventListener("DOMContentLoaded", function () {
       text(els.latestHash, summary.latest_hash || "-");
       if (els.statusCard) els.statusCard.dataset.state = state;
       renderRows(blocks);
-      if (summary.vote_tampering_detected) {
-        const changed = Number(summary.changed_vote_count || 0);
-        const missing = Number(summary.missing_vote_rows_count || 0);
-        text(els.verificationPill, "Modified");
-        if (els.verificationPill) els.verificationPill.className = "verification-pill critical";
-        text(
-          els.verificationSummary,
-          `${changed} changed vote(s), ${missing} missing vote row set(s) detected.`
-        );
-        if (els.verificationList) {
-          els.verificationList.innerHTML = [
-            changed ? `<li>${changed} block(s) have saved vote hashes that no longer match the current database hash.</li>` : "",
-            missing ? `<li>${missing} block(s) reference vote rows that are missing from the database.</li>` : "",
-          ].filter(Boolean).join("");
-        }
-      }
     } catch (error) {
       text(els.ledgerStatus, "Unavailable");
       text(els.lastVerified, error.message || "Failed to load ledger.");
@@ -175,27 +156,15 @@ document.addEventListener("DOMContentLoaded", function () {
       }
 
       const state = statusState(data.ledger_status);
-      text(els.verificationPill, data.ledger_status || "Warning");
-      if (els.verificationPill) {
-        els.verificationPill.className = `verification-pill ${state}`;
-      }
-      text(
-        els.verificationSummary,
-        `${data.total_vote_blocks || 0} block(s) checked. ${data.changed_vote_count || 0} changed vote(s), ${data.missing_vote_rows_count || 0} missing vote row set(s). Last verified ${formatDate(data.last_verified)}.`
-      );
-      const issues = data.issues || [];
-      if (els.verificationList) {
-        els.verificationList.innerHTML = issues.length
-          ? issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("")
-          : "<li>No issues found. Hash chain and current database vote rows are valid.</li>";
-      }
+      text(els.ledgerStatus, data.ledger_status || "Warning");
+      text(els.lastVerified, `Verified ${formatDate(data.last_verified)}`);
+      text(els.totalBlocks, String(data.total_vote_blocks || 0));
+      if (els.statusCard) els.statusCard.dataset.state = state;
+      await loadLedger();
     } catch (error) {
-      text(els.verificationPill, "Failed");
-      if (els.verificationPill) els.verificationPill.className = "verification-pill critical";
-      text(els.verificationSummary, error.message || "Failed to verify ledger.");
-      if (els.verificationList) {
-        els.verificationList.innerHTML = `<li>${escapeHtml(error.message || "Failed to verify ledger.")}</li>`;
-      }
+      text(els.ledgerStatus, "Unavailable");
+      text(els.lastVerified, error.message || "Failed to verify ledger.");
+      if (els.statusCard) els.statusCard.dataset.state = "critical";
     } finally {
       if (els.verifyBtn) els.verifyBtn.disabled = false;
     }
