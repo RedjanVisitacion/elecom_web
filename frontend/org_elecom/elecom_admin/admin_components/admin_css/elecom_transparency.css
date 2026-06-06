@@ -1,9 +1,19 @@
 .transparency-page {
   background: #f5f6f8;
+  overflow-x: hidden;
+}
+
+.transparency-page .main-content {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .transparency-shell {
   padding: 30px;
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: hidden;
 }
 
 .transparency-hero,
@@ -108,6 +118,7 @@
   border-radius: 8px;
   padding: 18px;
   margin-bottom: 18px;
+  min-width: 0;
 }
 
 .panel-head {
@@ -131,9 +142,11 @@
 
 .ledger-table-wrap {
   width: 100%;
+  max-width: 100%;
   overflow-x: auto;
   border: 1px solid #e5e7eb;
   border-radius: 8px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .ledger-table {
@@ -293,7 +306,7 @@
 
 @media (max-width: 768px) {
   .transparency-shell {
-    padding: 18px;
+    padding: 14px;
   }
 
   .transparency-hero,
@@ -304,5 +317,101 @@
 
   .transparency-grid {
     grid-template-columns: 1fr;
+  }
+
+  .transparency-hero,
+  .transparency-panel,
+  .transparency-card {
+    padding: 14px;
+  }
+
+  .transparency-hero h1 {
+    font-size: 1.65rem;
+  }
+
+  .refresh-ledger-btn,
+  .verify-ledger-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .panel-head p {
+    font-size: 0.95rem;
+    overflow-wrap: anywhere;
+  }
+
+  .ledger-table-wrap {
+    overflow-x: visible;
+    border: 0;
+  }
+
+  .ledger-table {
+    min-width: 0;
+    width: 100%;
+    border-collapse: separate;
+  }
+
+  .ledger-table thead {
+    display: none;
+  }
+
+  .ledger-table,
+  .ledger-table tbody,
+  .ledger-table tr,
+  .ledger-table td {
+    display: block;
+  }
+
+  .ledger-table tbody tr {
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    background: #ffffff;
+    padding: 10px 12px;
+    margin-bottom: 12px;
+  }
+
+  .ledger-table td {
+    display: grid;
+    grid-template-columns: minmax(92px, 36%) minmax(0, 1fr);
+    gap: 12px;
+    align-items: start;
+    padding: 9px 0;
+    border-bottom: 1px solid #eef2f7;
+  }
+
+  .ledger-table td:last-child {
+    border-bottom: 0;
+  }
+
+  .ledger-table td::before {
+    content: attr(data-label);
+    color: #64748b;
+    font-size: 0.78rem;
+    text-transform: uppercase;
+  }
+
+  .ledger-hash,
+  .ledger-status {
+    max-width: 100%;
+    overflow-wrap: anywhere;
+  }
+
+  .ledger-status.vote-integrity {
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 420px) {
+  .transparency-shell {
+    padding: 10px;
+  }
+
+  .transparency-card strong {
+    font-size: 1.35rem;
+  }
+
+  .ledger-table td {
+    grid-template-columns: 1fr;
+    gap: 4px;
   }
 }

@@ -103,16 +103,16 @@ document.addEventListener("DOMContentLoaded", function () {
         const liveVoteHash = block.vote_rows_missing ? "Missing rows" : (block.live_vote_hash || "-");
         return `
           <tr class="${voteChanged ? "ledger-row-warning" : ""}">
-            <td>#${escapeHtml(block.block_number || block.id || "-")}</td>
-            <td><span class="ledger-hash" title="${escapeHtml(block.block_hash_full || block.hash_full || "")}">${escapeHtml(block.block_hash || block.hash || "-")}</span></td>
-            <td><span class="ledger-hash" title="${escapeHtml(block.vote_hash_full || "")}">${escapeHtml(block.vote_hash || "-")}</span></td>
-            <td>
+            <td data-label="Block">#${escapeHtml(block.block_number || block.id || "-")}</td>
+            <td data-label="Block Hash"><span class="ledger-hash" title="${escapeHtml(block.block_hash_full || block.hash_full || "")}">${escapeHtml(block.block_hash || block.hash || "-")}</span></td>
+            <td data-label="Vote Hash"><span class="ledger-hash" title="${escapeHtml(block.vote_hash_full || "")}">${escapeHtml(block.vote_hash || "-")}</span></td>
+            <td data-label="Current DB Hash">
               <span class="ledger-hash" title="${escapeHtml(block.live_vote_hash_full || "Recomputed from current database vote rows")}">${escapeHtml(liveVoteHash)}</span>
               <span class="ledger-status vote-integrity ${escapeHtml(voteStatusClass)}">${escapeHtml(voteStatus)}</span>
             </td>
-            <td><span class="ledger-hash" title="${escapeHtml(block.previous_hash_full || "")}">${escapeHtml(block.previous_hash || "-")}</span></td>
-            <td><span class="ledger-status ${escapeHtml(status)}"><i class="bi bi-shield-check"></i>${escapeHtml(status)}</span></td>
-            <td>${escapeHtml(formatDate(block.submitted_at))}</td>
+            <td data-label="Previous Hash"><span class="ledger-hash" title="${escapeHtml(block.previous_hash_full || "")}">${escapeHtml(block.previous_hash || "-")}</span></td>
+            <td data-label="Status"><span class="ledger-status ${escapeHtml(status)}"><i class="bi bi-shield-check"></i>${escapeHtml(status)}</span></td>
+            <td data-label="Submitted">${escapeHtml(formatDate(block.submitted_at))}</td>
           </tr>
         `;
       })
