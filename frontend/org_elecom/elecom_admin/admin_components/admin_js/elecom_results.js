@@ -142,6 +142,31 @@ document.addEventListener('DOMContentLoaded', function(){
     return names[normalized] || String(org || 'Organization');
   }
 
+  function orgShortName(org) {
+    const normalized = normalizeOrg(org);
+    if (normalized === 'AFPRO') return 'AFPROTECHS';
+    return normalized;
+  }
+
+  function shortPositionName(position) {
+    const normalized = normalizePosition(position).toUpperCase();
+    const labels = {
+      PRESIDENT: 'President',
+      'VICE PRESIDENT': 'Vice Pres.',
+      'GENERAL SECRETARY': 'Gen. Sec.',
+      'ASSOCIATE SECRETARY': 'Assoc. Sec.',
+      TREASURER: 'Treasurer',
+      AUDITOR: 'Auditor',
+      'PUBLIC INFORMATION OFFICER': 'PIO',
+      PIO: 'PIO',
+      'IT REPRESENTATIVE': 'IT Rep.',
+      'BSIT REPRESENTATIVE': 'BSIT Rep.',
+      'BTLED REPRESENTATIVE': 'BTLED Rep.',
+      'BFPT REPRESENTATIVE': 'BFPT Rep.',
+    };
+    return labels[normalized] || normalizePosition(position);
+  }
+
   function orgLogoUrl(org) {
     const normalized = normalizeOrg(org);
     const logos = {
@@ -218,9 +243,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
     if (orgLegendGrid) {
       orgLegendGrid.innerHTML = orgs.map(org => `
-        <div class="org-legend-item">
+        <div class="org-legend-item" title="${esc(orgDisplayName(org.organization))}">
           <span class="legend-dot" style="background:${ORG_COLORS[org.organization] || '#6b7280'}"></span>
-          <strong>${esc(orgDisplayName(org.organization))}</strong>
+          <strong>${esc(orgShortName(org.organization))}</strong>
           <span>${Number(org.total_votes || 0).toLocaleString()}</span>
         </div>
       `).join('');
@@ -269,7 +294,7 @@ document.addEventListener('DOMContentLoaded', function(){
       posBarChart = new Chart(posCanvas, {
         type: 'bar',
         data: {
-          labels: positions.map(([name]) => name),
+          labels: positions.map(([name]) => shortPositionName(name)),
           datasets: [{
             label: 'Votes',
             data: positions.map(([, value]) => value),
@@ -302,6 +327,9 @@ document.addEventListener('DOMContentLoaded', function(){
               borderWidth: 1,
               titleColor: '#f9fafb',
               bodyColor: '#d1d5db',
+              callbacks: {
+                title: (items) => positions[items[0]?.dataIndex]?.[0] || '',
+              },
             },
           },
         },
@@ -358,7 +386,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!orgFilterTabs) return;
     const tabs = ['ALL', ...orgs.map(org => org.organization)];
     orgFilterTabs.innerHTML = tabs.map(tab => `
-      <button type="button" class="org-filter-btn ${activeOrg === tab ? 'active' : ''}" data-org-filter="${esc(tab)}">${esc(tab === 'ALL' ? 'All Organizations' : orgDisplayName(tab))}</button>
+      <button type="button" class="org-filter-btn ${activeOrg === tab ? 'active' : ''}" data-org-filter="${esc(tab)}" title="${esc(tab === 'ALL' ? 'All Organizations' : orgDisplayName(tab))}">${esc(tab === 'ALL' ? 'All' : orgShortName(tab))}</button>
     `).join('');
   }
 

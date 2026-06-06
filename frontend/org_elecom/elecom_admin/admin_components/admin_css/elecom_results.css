@@ -13,14 +13,16 @@
 
 .results-title-block h2{
   margin:0;
-  font-weight:900;
+  font-weight:800;
   color:#111827;
+  font-size:2rem;
+  line-height:1.15;
 }
 
 .results-title-block p{
   margin:6px 0 0;
   color:#6b7280;
-  font-weight:700;
+  font-weight:600;
 }
 
 .result-election-picker{
@@ -31,7 +33,7 @@
   display:block;
   color:#4b5563;
   font-size:.82rem;
-  font-weight:900;
+  font-weight:700;
   margin-bottom:6px;
 }
 
@@ -39,7 +41,7 @@
   min-height:42px;
   border-radius:10px;
   border-color:#d7dbe2;
-  font-weight:800;
+  font-weight:700;
   color:#111827;
 }
 
@@ -52,9 +54,9 @@
 }
 
 .panel-title{
-  font-weight:900;
+  font-weight:800;
   color:#111827;
-  font-size:1.1rem;
+  font-size:1rem;
 }
 
 .distribution-ring{
@@ -81,30 +83,38 @@
 
 .ring-center span{
   color:#6b7280;
-  font-weight:800;
+  font-weight:700;
   margin-top:6px;
 }
 
 .org-legend-grid{
   display:grid;
   grid-template-columns:repeat(2,minmax(0,1fr));
-  gap:10px;
+  gap:8px;
 }
 
 .org-legend-item{
   border:1px solid #d9dde4;
   border-radius:8px;
-  padding:10px 12px;
+  padding:9px 10px;
   display:flex;
   align-items:center;
   gap:8px;
   color:#111827;
+  min-width:0;
+}
+
+.org-legend-item strong{
+  font-size:.92rem;
+  font-weight:800;
+  line-height:1.2;
+  min-width:0;
 }
 
 .org-legend-item span:last-child{
   margin-left:auto;
   color:#4b5563;
-  font-weight:800;
+  font-weight:700;
 }
 
 .legend-dot{
@@ -151,7 +161,7 @@
 
 .market-subtitle{
   color:#6b7280;
-  font-weight:700;
+  font-weight:600;
   margin-top:4px;
 }
 
@@ -160,7 +170,7 @@
   color:#dcfce7;
   border:1px solid rgba(134,239,172,0.55);
   border-radius:999px;
-  font-weight:900;
+  font-weight:800;
   font-size:0.72rem;
   padding:5px 10px;
 }
@@ -184,16 +194,16 @@
 
 .analytics-card{
   display:flex;
-  gap:14px;
+  gap:12px;
   border:1px solid #d9dde4;
   border-radius:8px;
-  padding:16px;
+  padding:14px;
   background:#fbfbfc;
 }
 
 .analytics-icon{
-  width:44px;
-  height:44px;
+  width:40px;
+  height:40px;
   border-radius:50%;
   background:#eef0f3;
   color:#4b5563;
@@ -201,17 +211,17 @@
   align-items:center;
   justify-content:center;
   flex:0 0 auto;
-  font-size:1.25rem;
+  font-size:1.1rem;
 }
 
 .analytics-label{
-  font-weight:900;
+  font-weight:800;
   color:#111827;
 }
 
 .analytics-value{
   font-size:1.65rem;
-  font-weight:900;
+  font-weight:800;
   color:#111827;
   line-height:1.15;
   margin-top:4px;
@@ -219,36 +229,41 @@
 
 .analytics-line{
   display:grid;
-  grid-template-columns:140px 1fr;
-  gap:14px;
+  grid-template-columns:118px 1fr;
+  gap:12px;
   color:#4b5563;
-  margin-top:6px;
+  margin-top:7px;
+  line-height:1.35;
 }
 
 .analytics-line strong{
   color:#111827;
+  font-weight:800;
 }
 
 .analytics-muted{
   color:#6b7280;
-  font-weight:700;
+  font-weight:600;
 }
 
 .org-filter-tabs{
   display:flex;
-  gap:12px;
+  gap:8px;
   overflow-x:auto;
   padding:2px 0 10px;
 }
 
 .org-filter-btn{
-  min-width:92px;
+  min-width:84px;
   border:1px solid #d7dbe2;
   border-radius:8px;
-  padding:11px 20px;
+  padding:10px 14px;
   background:#ffffff;
   color:#4b5563;
-  font-weight:900;
+  font-size:.92rem;
+  font-weight:800;
+  line-height:1.2;
+  white-space:nowrap;
 }
 
 .org-filter-btn.active{
@@ -259,7 +274,7 @@
 
 .result-helper{
   color:#6b7280;
-  font-weight:700;
+  font-weight:600;
   margin-bottom:16px;
 }
 
@@ -278,7 +293,7 @@
 
 .position-summary-row span{
   color:#4b5563;
-  font-weight:800;
+  font-weight:700;
 }
 
 .summary-track,
@@ -354,15 +369,15 @@
 .result-org-afpro .result-org-head{ border-left-color:#ec4899; }
 
 .result-org-title{
-  font-size:1.45rem;
+  font-size:1.25rem;
   line-height:1.15;
-  font-weight:900;
+  font-weight:800;
   color:#111827;
 }
 
 .result-org-votes{
   color:#6b7280;
-  font-weight:900;
+  font-weight:700;
   margin-top:8px;
 }
 
@@ -372,9 +387,9 @@
 }
 
 .result-position-title{
-  font-size:1.05rem;
+  font-size:1rem;
   color:#111827;
-  font-weight:900;
+  font-weight:800;
   margin-bottom:12px;
 }
 
@@ -408,7 +423,7 @@
   align-items:center;
   justify-content:center;
   font-size:0.8rem;
-  font-weight:900;
+  font-weight:800;
 }
 
 .result-candidate-avatar{
@@ -429,12 +444,12 @@
 
 .result-candidate-name{
   color:#111827;
-  font-weight:900;
+  font-weight:800;
 }
 
 .result-candidate-meta{
   color:#6b7280;
-  font-weight:700;
+  font-weight:600;
   font-size:0.85rem;
 }
 
@@ -451,7 +466,7 @@
 
 .result-vote-count span{
   color:#6b7280;
-  font-weight:800;
+  font-weight:700;
 }
 
 @media (max-width: 900px){
