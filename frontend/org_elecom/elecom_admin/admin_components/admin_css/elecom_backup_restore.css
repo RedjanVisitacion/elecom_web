@@ -415,6 +415,180 @@
   box-shadow: inset 0 0 0 1px rgba(21, 94, 239, 0.035);
 }
 
+.backup-command-center {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: minmax(280px, 1fr) auto;
+  margin-bottom: 1rem;
+}
+
+.backup-command-main {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.backup-command-main .quick-icon {
+  background: var(--backup-success-soft);
+  color: var(--backup-success);
+  margin-bottom: 0;
+}
+
+.backup-command-main h2 {
+  color: var(--backup-text);
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 0.15rem;
+}
+
+.backup-command-main strong {
+  color: var(--backup-success);
+  display: block;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.command-meta {
+  color: var(--backup-muted);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem 1rem;
+  margin-top: 0.35rem;
+}
+
+.command-meta span {
+  font-size: 0.84rem;
+}
+
+.command-meta b {
+  color: var(--backup-text);
+  font-weight: 650;
+}
+
+.backup-command-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: flex-end;
+}
+
+.backup-primary-action,
+.backup-secondary-action {
+  align-items: center;
+  border-radius: 8px;
+  display: inline-flex;
+  font-weight: 700;
+  gap: 0.45rem;
+  min-height: 40px;
+  padding: 0.55rem 0.85rem;
+  white-space: nowrap;
+}
+
+.backup-primary-action {
+  background: var(--backup-primary);
+  border-color: var(--backup-primary);
+  color: #ffffff;
+}
+
+.backup-primary-action:hover,
+.backup-primary-action:focus {
+  background: #174ea6;
+  border-color: #174ea6;
+  color: #ffffff;
+}
+
+.backup-secondary-action {
+  background: #ffffff;
+  border: 1px solid var(--backup-line);
+  color: var(--backup-text);
+}
+
+.backup-secondary-action:hover,
+.backup-secondary-action:focus {
+  border-color: var(--backup-line-strong);
+  color: var(--backup-text);
+}
+
+.backup-command-center .backup-progress {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.backup-command-stats {
+  border-top: 1px solid var(--backup-line);
+  display: grid;
+  gap: 0.75rem;
+  grid-column: 1 / -1;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  padding-top: 0.95rem;
+}
+
+.backup-command-stats div {
+  background: var(--backup-soft);
+  border: 1px solid #edf1f7;
+  border-radius: 8px;
+  padding: 0.75rem;
+  min-width: 0;
+}
+
+.backup-command-stats small {
+  color: var(--backup-muted);
+  display: block;
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.backup-command-stats strong {
+  color: var(--backup-text);
+  display: block;
+  font-size: 1rem;
+  font-weight: 750;
+  margin-top: 0.16rem;
+  overflow-wrap: anywhere;
+}
+
+.backup-advanced {
+  margin-bottom: 1rem;
+  padding: 0;
+}
+
+.backup-advanced summary {
+  align-items: center;
+  color: var(--backup-text);
+  cursor: pointer;
+  display: flex;
+  font-weight: 700;
+  justify-content: space-between;
+  list-style: none;
+  padding: 0.95rem 1.05rem;
+}
+
+.backup-advanced summary::-webkit-details-marker {
+  display: none;
+}
+
+.backup-advanced summary span {
+  align-items: center;
+  display: inline-flex;
+  gap: 0.5rem;
+}
+
+.backup-advanced summary > .bi {
+  color: var(--backup-muted);
+  transition: transform 0.18s ease;
+}
+
+.backup-advanced[open] summary > .bi {
+  transform: rotate(180deg);
+}
+
+.backup-advanced .backup-button-grid {
+  border-top: 1px solid var(--backup-line);
+  padding: 1rem;
+}
+
 .backup-button-grid {
   display: grid;
   gap: 0.85rem;
@@ -1018,14 +1192,16 @@
 }
 
 @media (max-width: 1180px) {
-  .backup-analytics-grid {
+  .backup-analytics-grid,
+  .backup-command-stats {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 1100px) {
   .quick-action-grid,
-  .backup-layout {
+  .backup-layout,
+  .backup-command-center {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }
@@ -1045,8 +1221,19 @@
   .quick-action-grid,
   .backup-layout,
   .backup-button-grid,
-  .backup-analytics-grid {
+  .backup-analytics-grid,
+  .backup-command-center,
+  .backup-command-stats {
     grid-template-columns: 1fr;
+  }
+
+  .backup-command-actions {
+    justify-content: stretch;
+  }
+
+  .backup-primary-action,
+  .backup-secondary-action {
+    flex: 1 1 100%;
   }
 
   .backup-table-wrap {
@@ -1061,6 +1248,10 @@
 
   .quick-action-card,
   .backup-panel {
+    padding: 0.9rem;
+  }
+
+  .backup-command-center {
     padding: 0.9rem;
   }
 

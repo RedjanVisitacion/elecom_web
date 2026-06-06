@@ -10,7 +10,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260604-profile-chevron">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_backup_restore.css?v=20260606-backup-online">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_backup_restore.css?v=20260606-simple-backup">
 </head>
 <body class="theme-elecom backup-page-body">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -56,97 +56,65 @@
 
         <div class="backup-alert d-none" id="backupAlert" role="alert"></div>
 
-        <div class="quick-action-grid">
-          <button class="quick-action-card quick-backup" type="button" data-backup-type="postgres">
-            <span class="quick-icon"><i class="bi bi-database-add"></i></span>
-            <strong>Create Backup</strong>
-            <small>Generate a fresh PostgreSQL dump</small>
-          </button>
-          <button class="quick-action-card quick-restore" type="button" id="openRestoreCard">
-            <span class="quick-icon"><i class="bi bi-cloud-upload"></i></span>
-            <strong>Restore Backup</strong>
-            <small>Upload and validate a backup file</small>
-          </button>
-          <button class="quick-action-card quick-download" type="button" id="downloadLatestBtn">
-            <span class="quick-icon"><i class="bi bi-cloud-download"></i></span>
-            <strong>Download Latest Backup</strong>
-            <small id="latestBackupText">No backup available</small>
-          </button>
-          <button class="quick-action-card quick-auto" type="button" id="toggleAutoCard">
-            <span class="quick-icon"><i class="bi bi-calendar2-check"></i></span>
-            <strong>Auto Backup Status</strong>
-            <small id="autoBackupText">Loading schedule</small>
-          </button>
-        </div>
-
-        <div class="backup-layout">
-          <section class="backup-panel backup-main-panel">
-            <div class="panel-heading">
-              <div>
-                <h2>Backup Database</h2>
-                <p>Generate timestamped backups with the active election year in the filename.</p>
+        <section class="backup-panel backup-command-center">
+          <div class="backup-command-main">
+            <span class="quick-icon"><i class="bi bi-shield-check"></i></span>
+            <div>
+              <h2>Automatic Protection</h2>
+              <strong id="autoBackupText">Loading schedule</strong>
+              <div class="command-meta">
+                <span>Next: <b id="nextScheduleText">Not scheduled</b></span>
+                <span>Latest: <b id="latestSuccessText">None yet</b></span>
               </div>
-              <span class="backup-chip backup-chip-soft"><i class="bi bi-filetype-sql"></i> .sql / .zip</span>
             </div>
-            <div class="backup-progress d-none" id="backupProgress">
-              <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
-              <span id="backupProgressText">Preparing backup...</span>
-            </div>
-            <div class="backup-button-grid">
-              <button class="backup-type-btn backup-primary" type="button" data-backup-type="postgres">
-                <i class="bi bi-database"></i>
-                <span>Backup PostgreSQL Database</span>
-              </button>
-              <button class="backup-type-btn backup-primary" type="button" data-backup-type="election_records">
-                <i class="bi bi-archive"></i>
-                <span>Backup Election Records</span>
-              </button>
-              <button class="backup-type-btn backup-primary" type="button" data-backup-type="candidates">
-                <i class="bi bi-people"></i>
-                <span>Backup Candidates</span>
-              </button>
-              <button class="backup-type-btn backup-primary" type="button" data-backup-type="full_system">
-                <i class="bi bi-hdd-stack"></i>
-                <span>Full Database Archive</span>
-              </button>
-            </div>
-          </section>
-
-          <aside class="backup-panel security-panel">
-            <div class="panel-heading compact">
-              <h2>Security Features</h2>
-            </div>
-            <ul class="security-list">
-              <li><i class="bi bi-shield-lock"></i><span>Admin password confirmation before restore</span></li>
-              <li><i class="bi bi-file-earmark-check"></i><span>Backup validation before processing</span></li>
-              <li><i class="bi bi-exclamation-triangle"></i><span>Restore warning and scope selection</span></li>
-              <li><i class="bi bi-journal-text"></i><span>Audit logs for backup actions</span></li>
-            </ul>
-          </aside>
-        </div>
-
-        <section class="backup-analytics-grid" aria-label="Backup analytics">
-          <div class="analytics-card">
-            <span class="analytics-icon"><i class="bi bi-archive"></i></span>
-            <div><small>Total Backups</small><strong id="statTotalBackups">0</strong></div>
           </div>
-          <div class="analytics-card success">
-            <span class="analytics-icon"><i class="bi bi-check2-circle"></i></span>
-            <div><small>Successful Backups</small><strong id="statSuccessBackups">0</strong></div>
+          <div class="backup-command-actions">
+            <button class="btn backup-primary-action" type="button" data-backup-type="postgres">
+              <i class="bi bi-database-add"></i>
+              <span>Create Backup Now</span>
+            </button>
+            <button class="btn backup-secondary-action" type="button" id="downloadLatestBtn">
+              <i class="bi bi-download"></i>
+              <span>Download Latest</span>
+            </button>
+            <button class="btn backup-secondary-action restore-jump" type="button" id="openRestoreCard">
+              <i class="bi bi-database-down"></i>
+              <span>Restore</span>
+            </button>
           </div>
-          <div class="analytics-card danger">
-            <span class="analytics-icon"><i class="bi bi-x-circle"></i></span>
-            <div><small>Failed Backups</small><strong id="statFailedBackups">0</strong></div>
+          <div class="backup-progress d-none" id="backupProgress">
+            <div class="spinner-border spinner-border-sm" aria-hidden="true"></div>
+            <span id="backupProgressText">Preparing backup...</span>
           </div>
-          <div class="analytics-card neutral">
-            <span class="analytics-icon"><i class="bi bi-hdd"></i></span>
-            <div><small>Total Storage Used</small><strong id="statStorageUsed">0 B</strong></div>
-          </div>
-          <div class="analytics-card">
-            <span class="analytics-icon"><i class="bi bi-clock-history"></i></span>
-            <div><small>Last Backup Time</small><strong id="statLastBackup">None yet</strong></div>
+          <div class="backup-command-stats">
+            <div><small>Total</small><strong id="statTotalBackups">0</strong></div>
+            <div><small>Successful</small><strong id="statSuccessBackups">0</strong></div>
+            <div><small>Failed</small><strong id="statFailedBackups">0</strong></div>
+            <div><small>Storage</small><strong id="statStorageUsed">0 B</strong></div>
+            <div><small>Last Backup</small><strong id="statLastBackup">None yet</strong></div>
           </div>
         </section>
+
+        <details class="backup-panel backup-advanced">
+          <summary>
+            <span><i class="bi bi-sliders"></i> More backup choices</span>
+            <i class="bi bi-chevron-down"></i>
+          </summary>
+          <div class="backup-button-grid">
+            <button class="backup-type-btn backup-primary" type="button" data-backup-type="election_records">
+              <i class="bi bi-archive"></i>
+              <span>Election Records</span>
+            </button>
+            <button class="backup-type-btn backup-primary" type="button" data-backup-type="candidates">
+              <i class="bi bi-people"></i>
+              <span>Candidates Only</span>
+            </button>
+            <button class="backup-type-btn backup-primary" type="button" data-backup-type="full_system">
+              <i class="bi bi-hdd-stack"></i>
+              <span>Database Archive</span>
+            </button>
+          </div>
+        </details>
 
         <section class="backup-panel">
           <div class="panel-heading table-heading">
@@ -232,10 +200,6 @@
                 <label><input type="radio" name="backupFrequency" value="weekly" checked><span>Weekly backup</span></label>
                 <label><input type="radio" name="backupFrequency" value="monthly"><span>Monthly backup</span></label>
               </div>
-              <div class="schedule-metrics">
-                <div><span>Next Scheduled Backup</span><strong id="nextScheduleText">Not scheduled</strong></div>
-                <div><span>Latest Successful Backup</span><strong id="latestSuccessText">None yet</strong></div>
-              </div>
               <div class="storage-meter">
                 <div class="storage-meter-head"><span>Storage Usage</span><strong id="storageMeterText">0 B</strong></div>
                 <div class="storage-meter-track"><div id="storageMeterFill"></div></div>
@@ -271,6 +235,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260520-backup-polish"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_backup_restore.js?v=20260606-hourly-backup"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_backup_restore.js?v=20260606-simple-backup"></script>
 </body>
 </html>
