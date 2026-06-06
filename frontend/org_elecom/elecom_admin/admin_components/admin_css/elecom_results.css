@@ -1,6 +1,26 @@
+.results-page-body,
+.results-page-body *{
+  box-sizing:border-box;
+}
+
+.results-page-body{
+  overflow-x:hidden;
+}
+
+.results-page-body .main-content,
+.results-page-body .content-area,
+.results-page-wrap,
+.results-panel,
+.market-panel,
+.result-org-card{
+  min-width:0;
+  max-width:100%;
+}
+
 .results-page-wrap{
   max-width:1180px;
   margin:0 auto;
+  width:100%;
 }
 
 .results-title-block{
@@ -27,6 +47,7 @@
 
 .result-election-picker{
   min-width:280px;
+  max-width:100%;
 }
 
 .result-election-picker label{
@@ -177,6 +198,12 @@
 
 .chart-box{
   height:320px;
+  min-width:0;
+  max-width:100%;
+}
+
+.chart-box canvas{
+  max-width:100%!important;
 }
 
 .analytics-head{
@@ -199,6 +226,7 @@
   border-radius:8px;
   padding:14px;
   background:#fbfbfc;
+  min-width:0;
 }
 
 .analytics-icon{
@@ -251,6 +279,8 @@
   gap:8px;
   overflow-x:auto;
   padding:2px 0 10px;
+  max-width:100%;
+  -webkit-overflow-scrolling:touch;
 }
 
 .org-filter-btn{
@@ -334,6 +364,7 @@
   margin-bottom:18px;
   text-align:left;
   cursor:pointer;
+  min-width:0;
 }
 
 .result-org-head i{
@@ -373,6 +404,7 @@
   line-height:1.15;
   font-weight:800;
   color:#111827;
+  overflow-wrap:anywhere;
 }
 
 .result-org-votes{
@@ -407,6 +439,7 @@
   border:1px solid #e5e7eb;
   border-radius:8px;
   background:#ffffff;
+  min-width:0;
 }
 
 .result-candidate-row.is-winner{
@@ -445,12 +478,14 @@
 .result-candidate-name{
   color:#111827;
   font-weight:800;
+  overflow-wrap:anywhere;
 }
 
 .result-candidate-meta{
   color:#6b7280;
   font-weight:600;
   font-size:0.85rem;
+  overflow-wrap:anywhere;
 }
 
 .result-vote-count{
@@ -470,13 +505,19 @@
 }
 
 @media (max-width: 900px){
+  .results-page-body .content-area{
+    padding:1rem 0.75rem;
+  }
+
   .results-title-block{
     flex-direction:column;
     align-items:stretch;
+    gap:12px;
   }
 
   .result-election-picker{
     min-width:0;
+    width:100%;
   }
 
   .analytics-grid,
@@ -491,17 +532,152 @@
 }
 
 @media (max-width: 576px){
+  .results-title-block{
+    margin-bottom:16px;
+  }
+
+  .results-title-block h2{
+    font-size:1.55rem;
+  }
+
+  .results-title-block p{
+    font-size:0.9rem;
+  }
+
   .results-panel,
   .market-panel,
   .result-org-card{
-    padding:16px;
+    padding:14px;
+  }
+
+  .result-election-picker label{
+    font-size:0.78rem;
+  }
+
+  .result-election-picker .form-select{
+    font-size:0.92rem;
+    min-height:40px;
+  }
+
+  .distribution-ring{
+    height:220px;
+    margin:8px auto 14px;
+  }
+
+  .ring-center strong{
+    font-size:1.75rem;
+  }
+
+  .org-legend-item{
+    padding:8px;
+  }
+
+  .market-panel-head,
+  .analytics-head{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:8px;
+  }
+
+  .chart-box{
+    height:250px;
+  }
+
+  .analytics-card{
+    gap:10px;
+    padding:12px;
+  }
+
+  .analytics-icon{
+    height:34px;
+    width:34px;
+  }
+
+  .analytics-value{
+    font-size:1.35rem;
+  }
+
+  .org-filter-btn{
+    min-width:72px;
+    padding:8px 10px;
+    white-space:normal;
+  }
+
+  .position-summary-row{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:4px;
+  }
+
+  .result-org-head{
+    gap:10px;
+    margin-bottom:14px;
+    padding-left:12px;
+  }
+
+  .result-org-identity{
+    align-items:flex-start;
+    gap:10px;
+  }
+
+  .result-org-logo{
+    height:30px;
+    flex-basis:30px;
+    width:30px;
+  }
+
+  .result-org-title{
+    font-size:1rem;
   }
 
   .result-candidate-row{
     grid-template-columns:auto minmax(0,1fr) auto;
+    gap:10px;
+    padding:10px;
   }
 
   .rank-pill{
     display:none;
+  }
+
+  .result-candidate-avatar{
+    height:38px;
+    width:38px;
+  }
+
+  .result-vote-count{
+    min-width:52px;
+  }
+
+  .result-vote-count strong{
+    font-size:1rem;
+  }
+}
+
+@media (max-width: 420px){
+  .results-page-body .content-area{
+    padding:0.85rem 0.6rem;
+  }
+
+  .results-panel,
+  .market-panel,
+  .result-org-card{
+    padding:12px;
+  }
+
+  .chart-box{
+    height:220px;
+  }
+
+  .result-candidate-row{
+    grid-template-columns:minmax(0,1fr) auto;
+  }
+
+  .result-candidate-avatar{
+    display:none;
+  }
+
+  .result-vote-count{
+    text-align:right;
   }
 }
