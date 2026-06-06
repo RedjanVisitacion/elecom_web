@@ -21,16 +21,26 @@ function initSidebar() {
   const closeBtn = document.getElementById("closeSidebar");
 
   const closeSidebar = () => {
-    sidebar?.classList.remove("show");
-    overlay?.classList.remove("show");
+    sidebar?.classList.remove("active");
+    overlay?.classList.remove("active");
   };
 
   menuToggle?.addEventListener("click", () => {
-    sidebar?.classList.toggle("show");
-    overlay?.classList.toggle("show");
+    sidebar?.classList.toggle("active");
+    overlay?.classList.toggle("active");
   });
   closeBtn?.addEventListener("click", closeSidebar);
   overlay?.addEventListener("click", closeSidebar);
+
+  document.querySelectorAll(".sidebar .nav-link").forEach((link) => {
+    link.addEventListener("click", () => {
+      if (window.innerWidth <= 992) closeSidebar();
+    });
+  });
+
+  window.addEventListener("resize", () => {
+    if (window.innerWidth > 992) closeSidebar();
+  });
 }
 
 function setupEventListeners() {
