@@ -4479,7 +4479,7 @@ def _create_backup_artifact(backup_type: str, created_by: str, audit_action: str
 
 
 def _backup_frequency_delta(frequency: str) -> timedelta:
-    return {"daily": timedelta(days=1), "weekly": timedelta(days=7), "monthly": timedelta(days=30)}.get(
+    return {"hourly": timedelta(hours=1), "daily": timedelta(days=1), "weekly": timedelta(days=7), "monthly": timedelta(days=30)}.get(
         str(frequency or "weekly").lower(),
         timedelta(days=7),
     )
@@ -4650,7 +4650,7 @@ def admin_backup_settings_api(request):
         payload = _json_request_body(request)
         enabled = _post_bool(payload, "enabled", False)
         frequency = str(payload.get("frequency") or "weekly").strip().lower()
-        if frequency not in {"daily", "weekly", "monthly"}:
+        if frequency not in {"hourly", "daily", "weekly", "monthly"}:
             return JsonResponse({"ok": False, "error": "Invalid backup frequency."}, status=400)
         changed_by = str(request.session.get("student_id") or "admin")
         with connection.cursor() as cur:
