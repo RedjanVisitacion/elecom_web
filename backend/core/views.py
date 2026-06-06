@@ -3243,7 +3243,7 @@ def vote_ledger_verify_api(request):
 
             cur.execute(
                 """
-                SELECT id, election_id, anonymous_voter_hash, vote_data_hash,
+                SELECT id, election_id, vote_id, anonymous_voter_hash, vote_data_hash,
                        previous_hash, current_hash, submitted_at, block_status
                 FROM vote_blocks
                 ORDER BY id ASC
@@ -3251,6 +3251,27 @@ def vote_ledger_verify_api(request):
             )
             cols = [c[0] for c in cur.description]
             blocks = [dict(zip(cols, r)) for r in (cur.fetchall() or [])]
+
+            live_vote_hashes: dict[int, str] = {}
+            vote_ids = sorted({int(b.get("vote_id") or 0) for b in blocks if int(b.get("vote_id") or 0) > 0})
+            if vote_ids:
+                cur.execute(
+                    """
+                    SELECT vote_id, position, candidate_id
+                    FROM vote_items
+                    WHERE vote_id = ANY(%s)
+                    ORDER BY vote_id ASC, position ASC, candidate_id ASC, id ASC
+                    """,
+                    [vote_ids],
+                )
+                grouped_vote_items: dict[int, list[tuple[str, int]]] = {}
+                for vote_id_raw, position, candidate_id in cur.fetchall():
+                    vote_id_i = int(vote_id_raw or 0)
+                    grouped_vote_items.setdefault(vote_id_i, []).append((position, candidate_id))
+                live_vote_hashes = {
+                    vote_id_i: _vote_data_hash_from_vote_item_rows(items)
+                    for vote_id_i, items in grouped_vote_items.items()
+                }
     except Exception as e:
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -3283,8 +3304,12 @@ def vote_ledger_verify_api(request):
 
     # Hash chain + hash computation
     prev_current = ""
+    changed_vote_count = 0
+    missing_vote_rows_count = 0
     for b in blocks:
         bid = int(b.get("id") or 0)
+        vote_id = int(b.get("vote_id") or 0)
+        vote_data_hash = str(b.get("vote_data_hash") or "")
         prev_hash = str(b.get("previous_hash") or "")
         cur_hash = str(b.get("current_hash") or "")
         if prev_hash != prev_current:
@@ -3293,13 +3318,23 @@ def vote_ledger_verify_api(request):
         expected_hash = _compute_expected_block_hash(
             election_id=int(b.get("election_id") or 0),
             anonymous_voter_hash=str(b.get("anonymous_voter_hash") or ""),
-            vote_data_hash=str(b.get("vote_data_hash") or ""),
+            vote_data_hash=vote_data_hash,
             previous_hash=prev_hash,
             submitted_at=b.get("submitted_at"),
         )
         if expected_hash != cur_hash:
             issues.append(f"Block #{bid}: current_hash mismatch.")
             critical = True
+        if vote_id > 0:
+            live_vote_hash = live_vote_hashes.get(vote_id, "")
+            if not live_vote_hash:
+                missing_vote_rows_count += 1
+                issues.append(f"Block #{bid}: vote rows missing from database.")
+                critical = True
+            elif vote_data_hash and live_vote_hash != vote_data_hash:
+                changed_vote_count += 1
+                issues.append(f"Block #{bid}: vote data hash no longer matches database vote rows.")
+                critical = True
         prev_current = cur_hash
 
     if critical:
@@ -3325,6 +3360,9 @@ def vote_ledger_verify_api(request):
             "issues": issues[:200],
             "total_vote_blocks": len(blocks),
             "active_validator_nodes": active_nodes,
+            "changed_vote_count": changed_vote_count,
+            "missing_vote_rows_count": missing_vote_rows_count,
+            "vote_tampering_detected": changed_vote_count > 0 or missing_vote_rows_count > 0,
             "last_verified": timezone.now().isoformat(),
         }
     )

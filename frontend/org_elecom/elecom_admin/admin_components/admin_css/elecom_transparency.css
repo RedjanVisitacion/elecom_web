@@ -138,7 +138,7 @@
 
 .ledger-table {
   width: 100%;
-  min-width: 920px;
+  min-width: 1180px;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -169,6 +169,14 @@
 
 .ledger-table tbody tr:hover {
   background: #f8fafc;
+}
+
+.ledger-table tbody tr.ledger-row-warning {
+  background: #fff7ed;
+}
+
+.ledger-table tbody tr.ledger-row-warning:hover {
+  background: #ffedd5;
 }
 
 .ledger-hash {
@@ -202,6 +210,19 @@
 .ledger-status.rejected {
   background: #fee2e2;
   color: #991b1b;
+}
+
+.ledger-status.modified,
+.ledger-status.vote-integrity.warning {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.ledger-status.vote-integrity {
+  display: flex;
+  justify-content: center;
+  margin-top: 6px;
+  width: fit-content;
 }
 
 .ledger-empty {

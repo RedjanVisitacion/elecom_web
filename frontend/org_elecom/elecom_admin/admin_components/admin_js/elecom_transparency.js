@@ -51,6 +51,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function statusState(value) {
     const normalized = String(value || "").toLowerCase();
+    if (normalized.includes("modified")) return "critical";
     if (normalized.includes("critical")) return "critical";
     if (normalized.includes("warning")) return "warning";
     if (normalized.includes("valid") || normalized.includes("accepted")) return "valid";
@@ -94,10 +95,19 @@ document.addEventListener("DOMContentLoaded", function () {
     els.ledgerRows.innerHTML = blocks
       .map((block) => {
         const status = String(block.block_status || block.status || "pending").toLowerCase();
+        const voteChanged = Boolean(block.vote_changed || block.vote_rows_missing);
+        const voteStatus = block.vote_rows_missing ? "Missing" : voteChanged ? "Modified" : "Match";
+        const voteStatusClass = block.vote_rows_missing ? "rejected" : voteChanged ? "warning" : "valid";
+        const liveVoteHash = block.vote_rows_missing ? "Missing rows" : (block.live_vote_hash || "-");
         return `
-          <tr>
+          <tr class="${voteChanged ? "ledger-row-warning" : ""}">
             <td>#${escapeHtml(block.block_number || block.id || "-")}</td>
-            <td><span class="ledger-hash" title="${escapeHtml(block.hash_full || "")}">${escapeHtml(block.hash || "-")}</span></td>
+            <td><span class="ledger-hash" title="${escapeHtml(block.block_hash_full || block.hash_full || "")}">${escapeHtml(block.block_hash || block.hash || "-")}</span></td>
+            <td><span class="ledger-hash" title="${escapeHtml(block.vote_hash_full || "")}">${escapeHtml(block.vote_hash || "-")}</span></td>
+            <td>
+              <span class="ledger-hash" title="${escapeHtml(block.live_vote_hash_full || "")}">${escapeHtml(liveVoteHash)}</span>
+              <span class="ledger-status vote-integrity ${escapeHtml(voteStatusClass)}">${escapeHtml(voteStatus)}</span>
+            </td>
             <td><span class="ledger-hash" title="${escapeHtml(block.previous_hash_full || "")}">${escapeHtml(block.previous_hash || "-")}</span></td>
             <td><span class="ledger-status ${escapeHtml(status)}"><i class="bi bi-shield-check"></i>${escapeHtml(status)}</span></td>
             <td>${escapeHtml(formatDate(block.submitted_at))}</td>
@@ -132,12 +142,28 @@ document.addEventListener("DOMContentLoaded", function () {
       text(els.latestHash, summary.latest_hash || "-");
       if (els.statusCard) els.statusCard.dataset.state = state;
       renderRows(blocks);
+      if (summary.vote_tampering_detected) {
+        const changed = Number(summary.changed_vote_count || 0);
+        const missing = Number(summary.missing_vote_rows_count || 0);
+        text(els.verificationPill, "Modified");
+        if (els.verificationPill) els.verificationPill.className = "verification-pill critical";
+        text(
+          els.verificationSummary,
+          `${changed} changed vote(s), ${missing} missing vote row set(s) detected.`
+        );
+        if (els.verificationList) {
+          els.verificationList.innerHTML = [
+            changed ? `<li>${changed} block(s) have vote hashes that no longer match database vote rows.</li>` : "",
+            missing ? `<li>${missing} block(s) reference vote rows that are missing from the database.</li>` : "",
+          ].filter(Boolean).join("");
+        }
+      }
     } catch (error) {
       text(els.ledgerStatus, "Unavailable");
       text(els.lastVerified, error.message || "Failed to load ledger.");
       if (els.statusCard) els.statusCard.dataset.state = "critical";
       if (els.ledgerRows) {
-        els.ledgerRows.innerHTML = `<tr><td colspan="5" class="text-center text-danger py-4">${escapeHtml(error.message || "Failed to load ledger.")}</td></tr>`;
+        els.ledgerRows.innerHTML = `<tr><td colspan="7" class="text-center text-danger py-4">${escapeHtml(error.message || "Failed to load ledger.")}</td></tr>`;
       }
     } finally {
       setLoading(false);
@@ -160,13 +186,13 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       text(
         els.verificationSummary,
-        `${data.total_vote_blocks || 0} block(s) checked. Last verified ${formatDate(data.last_verified)}.`
+        `${data.total_vote_blocks || 0} block(s) checked. ${data.changed_vote_count || 0} changed vote(s), ${data.missing_vote_rows_count || 0} missing vote row set(s). Last verified ${formatDate(data.last_verified)}.`
       );
       const issues = data.issues || [];
       if (els.verificationList) {
         els.verificationList.innerHTML = issues.length
           ? issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("")
-          : "<li>No issues found. Hash chain is valid.</li>";
+          : "<li>No issues found. Hash chain and database vote rows are valid.</li>";
       }
     } catch (error) {
       text(els.verificationPill, "Failed");
