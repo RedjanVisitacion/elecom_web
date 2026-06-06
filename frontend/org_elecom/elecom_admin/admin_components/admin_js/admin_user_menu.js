@@ -1,6 +1,6 @@
 (function () {
   const API_PROFILE = "/api/account/profile/";
-  const API_ADMIN_ALERTS = "/api/admin/notifications/app-ratings/";
+  const API_ADMIN_ALERTS = "/api/admin/notifications/alerts/";
   const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
   const API_ADMIN_VERIFY_PASSWORD = "/api/admin/verify-password/";
   const ADMIN_ALERT_SEEN_KEY = "elecom_admin_seen_alert_ids";

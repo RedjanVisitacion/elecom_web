@@ -138,6 +138,7 @@ urlpatterns = [
     path('api/admin/elections/', admin_elections_api, name='admin_elections_api'),
     path('api/admin/election-window/', admin_election_window_api, name='admin_election_window_api'),
     path('api/admin/election/final-hash/', admin_election_finalize_hash_api, name='admin_election_finalize_hash_api'),
+    path('api/admin/notifications/alerts/', admin_app_rating_notifications_api, name='admin_alert_notifications_api'),
     path('api/admin/notifications/app-ratings/', admin_app_rating_notifications_api, name='admin_app_rating_notifications_api'),
     path('api/admin/reports/summary/', admin_reports_summary_api, name='admin_reports_summary_api'),
     path('api/admin/reset/status/', admin_reset_status_api, name='admin_reset_status_api'),
