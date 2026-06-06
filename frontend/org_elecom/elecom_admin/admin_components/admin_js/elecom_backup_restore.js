@@ -194,6 +194,11 @@
     const latest = $("latestSuccessText");
     if (next) next.textContent = settings.next_scheduled_backup ? formatDate(settings.next_scheduled_backup) : "Not scheduled";
     if (latest) latest.textContent = settings.latest_successful_backup ? formatDate(settings.latest_successful_backup) : "None yet";
+    if (data.auto_backup && data.auto_backup.ran && data.auto_backup.backup) {
+      showAlert(`Automatic backup created: ${data.auto_backup.backup.name}`, "success");
+    } else if (settings.last_attempt_error) {
+      showAlert(`Auto backup needs attention: ${settings.last_attempt_error}`, "error");
+    }
   };
 
   const refreshAll = async () => {
@@ -319,7 +324,7 @@
         return;
       }
       showAlert("Auto backup settings saved.", "success");
-      await loadSettings();
+      await Promise.all([loadHistory(), loadSettings()]);
     } finally {
       setButtonLoading(saveBtn, false);
       if (saveBtn) saveBtn.disabled = false;

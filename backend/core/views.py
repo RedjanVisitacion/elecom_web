@@ -4070,10 +4070,14 @@ def _ensure_backup_tables() -> None:
                 frequency VARCHAR(20) NOT NULL DEFAULT 'weekly',
                 updated_by VARCHAR(80) NULL,
                 updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                last_attempt_at TIMESTAMPTZ NULL,
+                last_attempt_error TEXT NULL,
                 CHECK (id = 1)
             )
             """
         )
+        cur.execute("ALTER TABLE admin_backup_settings ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ NULL")
+        cur.execute("ALTER TABLE admin_backup_settings ADD COLUMN IF NOT EXISTS last_attempt_error TEXT NULL")
         cur.execute(
             """
             INSERT INTO admin_backup_settings (id)
@@ -4225,10 +4229,22 @@ def _run_pg_dump(output_path: Path, backup_type: str) -> None:
         _run_python_sql_backup(output_path, backup_type)
         return
 
-    command = [pg_dump, *_pg_base_args(db), "--format=plain", "--no-owner", "--no-privileges"]
-    for table in BACKUP_ALLOWED_TYPES.get(backup_type, {}).get("tables", []):
+    tables = _backup_table_names(backup_type)
+    tmp_output = output_path.with_name(f"{output_path.name}.pgdump.tmp")
+    command = [
+        pg_dump,
+        *_pg_base_args(db),
+        "--format=plain",
+        "--data-only",
+        "--column-inserts",
+        "--no-owner",
+        "--no-privileges",
+        "--file",
+        str(tmp_output),
+    ]
+    for table in tables:
         command += ["--table", table]
-    command += ["--file", str(output_path), db_name]
+    command += [db_name]
 
     result = subprocess.run(
         command,
@@ -4238,7 +4254,28 @@ def _run_pg_dump(output_path: Path, backup_type: str) -> None:
         timeout=int(getattr(settings, "ELECOM_BACKUP_TIMEOUT_SECONDS", 180) or 180),
     )
     if result.returncode != 0:
+        try:
+            tmp_output.unlink(missing_ok=True)
+        except Exception:
+            pass
         raise RuntimeError((result.stderr or result.stdout or "pg_dump failed.").strip()[:500])
+    try:
+        with output_path.open("w", encoding="utf-8", newline="\n") as out:
+            out.write("-- PostgreSQL database dump\n")
+            out.write("-- ELECOM restore-ready backup\n")
+            out.write(f"-- Created at: {timezone.now().isoformat()}\n")
+            out.write(f"-- Backup type: {backup_type}\n\n")
+            out.write("BEGIN;\n")
+            if tables:
+                joined = ", ".join(_postgres_identifier(table) for table in tables)
+                out.write(f"TRUNCATE TABLE {joined} RESTART IDENTITY CASCADE;\n")
+            out.write(tmp_output.read_text(encoding="utf-8", errors="ignore"))
+            out.write("\nCOMMIT;\n")
+    finally:
+        try:
+            tmp_output.unlink(missing_ok=True)
+        except Exception:
+            pass
 
 
 def _run_psql_restore(input_path: Path) -> None:
@@ -4254,7 +4291,7 @@ def _run_psql_restore(input_path: Path) -> None:
             cur.execute(sql_text)
         return
 
-    command = [psql, *_pg_base_args(db), "--dbname", db_name, "--file", str(input_path)]
+    command = [psql, *_pg_base_args(db), "--dbname", db_name, "--set", "ON_ERROR_STOP=on", "--file", str(input_path)]
     result = subprocess.run(
         command,
         env=_pg_env(db),
@@ -4282,6 +4319,135 @@ def _record_backup(name: str, backup_type: str, file_path: Path, status: str, cr
     return int(row[0])
 
 
+def _create_backup_artifact(backup_type: str, created_by: str, audit_action: str = "create") -> dict:
+    if backup_type not in BACKUP_ALLOWED_TYPES:
+        raise ValueError("Invalid backup type.")
+
+    root = _backup_root()
+    ext = "zip" if backup_type == "full_system" else "sql"
+    filename = _backup_filename(backup_type, ext)
+    output_path = (root / filename).resolve()
+    if root not in output_path.parents:
+        raise ValueError("Invalid backup path.")
+
+    try:
+        if backup_type == "full_system":
+            sql_name = _backup_filename("database", "sql")
+            with tempfile.TemporaryDirectory() as tmp:
+                sql_path = Path(tmp) / sql_name
+                _run_pg_dump(sql_path, "postgres")
+                manifest = {
+                    "system": "ELECOM",
+                    "created_at": timezone.now().isoformat(),
+                    "created_by": created_by,
+                    "election_year": _active_election_year(),
+                    "contains": ["postgresql_database"],
+                    "note": "Database backup only. Uploaded media, source code, and server config are not included.",
+                }
+                with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    zf.write(sql_path, arcname=sql_name)
+                    zf.writestr("manifest.json", json.dumps(manifest, indent=2))
+        else:
+            _run_pg_dump(output_path, backup_type)
+
+        backup_id = _record_backup(filename, backup_type, output_path, "completed", created_by)
+        _audit_log(
+            table_name="admin_backups",
+            record_id=backup_id,
+            action=audit_action,
+            new_data={"backup_name": filename, "backup_type": backup_type},
+            changed_by=created_by,
+        )
+        return {"id": backup_id, "name": filename, "type": backup_type}
+    except Exception as e:
+        try:
+            if output_path.exists():
+                output_path.unlink()
+        except Exception:
+            pass
+        _record_backup(filename, backup_type, output_path, "failed", created_by, str(e))
+        raise
+
+
+def _backup_frequency_delta(frequency: str) -> timedelta:
+    return {"daily": timedelta(days=1), "weekly": timedelta(days=7), "monthly": timedelta(days=30)}.get(
+        str(frequency or "weekly").lower(),
+        timedelta(days=7),
+    )
+
+
+def _maybe_run_due_auto_backup() -> dict:
+    _ensure_backup_tables()
+    now = timezone.now()
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT enabled, frequency, updated_at, last_attempt_at
+            FROM admin_backup_settings
+            WHERE id = 1
+            """
+        )
+        settings_row = cur.fetchone()
+        cur.execute(
+            """
+            SELECT created_at
+            FROM admin_backups
+            WHERE status = 'completed'
+            ORDER BY created_at DESC, id DESC
+            LIMIT 1
+            """
+        )
+        latest_row = cur.fetchone()
+
+    enabled, frequency, updated_at, last_attempt_at = settings_row if settings_row else (False, "weekly", now, None)
+    latest_at = latest_row[0] if latest_row else None
+    base = latest_at or updated_at or now
+    next_due_at = base + _backup_frequency_delta(frequency)
+    if not enabled:
+        return {"ran": False, "next_due_at": None, "error": None}
+    if now < next_due_at:
+        return {"ran": False, "next_due_at": next_due_at.isoformat(), "error": None}
+    if last_attempt_at and now - last_attempt_at < timedelta(minutes=30):
+        return {"ran": False, "next_due_at": next_due_at.isoformat(), "error": None}
+
+    lock_acquired = False
+    try:
+        with connection.cursor() as cur:
+            cur.execute("SELECT pg_try_advisory_lock(24062026)")
+            lock_acquired = bool(cur.fetchone()[0])
+        if not lock_acquired:
+            return {"ran": False, "next_due_at": next_due_at.isoformat(), "error": None}
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE admin_backup_settings
+                SET last_attempt_at = NOW(), last_attempt_error = NULL
+                WHERE id = 1
+                """
+            )
+        backup = _create_backup_artifact("postgres", "auto", audit_action="auto_create")
+        return {"ran": True, "next_due_at": (now + _backup_frequency_delta(frequency)).isoformat(), "error": None, "backup": backup}
+    except Exception as e:
+        message = str(e)[:500]
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE admin_backup_settings
+                SET last_attempt_at = NOW(), last_attempt_error = %s
+                WHERE id = 1
+                """,
+                [message],
+            )
+        return {"ran": False, "next_due_at": next_due_at.isoformat(), "error": message}
+    finally:
+        if lock_acquired:
+            try:
+                with connection.cursor() as cur:
+                    cur.execute("SELECT pg_advisory_unlock(24062026)")
+            except Exception:
+                pass
+
+
 def _format_backup_row(row) -> dict:
     return {
         "id": int(row[0]),
@@ -4304,6 +4470,7 @@ def admin_backup_history_api(request):
         return forbidden
 
     _ensure_backup_tables()
+    auto_status = _maybe_run_due_auto_backup()
     page = max(1, int(request.GET.get("page") or 1))
     page_size = min(50, max(5, int(request.GET.get("page_size") or 8)))
     offset = (page - 1) * page_size
@@ -4357,6 +4524,7 @@ def admin_backup_history_api(request):
             },
             "storage_used": used,
             "latest_backup": _format_backup_row(latest) if latest else None,
+            "auto_backup": auto_status,
         }
     )
 
@@ -4387,8 +4555,15 @@ def admin_backup_settings_api(request):
             )
         _audit_log(table_name="admin_backups", record_id=None, action="settings", new_data=payload, changed_by=changed_by)
 
+    auto_status = _maybe_run_due_auto_backup()
     with connection.cursor() as cur:
-        cur.execute("SELECT enabled, frequency, updated_at FROM admin_backup_settings WHERE id = 1")
+        cur.execute(
+            """
+            SELECT enabled, frequency, updated_at, last_attempt_at, last_attempt_error
+            FROM admin_backup_settings
+            WHERE id = 1
+            """
+        )
         row = cur.fetchone()
         cur.execute(
             """
@@ -4401,10 +4576,10 @@ def admin_backup_settings_api(request):
         )
         latest = cur.fetchone()
 
-    enabled, frequency, updated_at = row if row else (False, "weekly", timezone.now())
+    enabled, frequency, updated_at, last_attempt_at, last_attempt_error = row if row else (False, "weekly", timezone.now(), None, None)
     latest_at = latest[0] if latest else None
     base = latest_at or updated_at or timezone.now()
-    next_delta = {"daily": timedelta(days=1), "weekly": timedelta(days=7), "monthly": timedelta(days=30)}.get(frequency, timedelta(days=7))
+    next_delta = _backup_frequency_delta(frequency)
     return JsonResponse(
         {
             "ok": True,
@@ -4413,7 +4588,10 @@ def admin_backup_settings_api(request):
                 "frequency": frequency,
                 "next_scheduled_backup": (base + next_delta).isoformat() if enabled else None,
                 "latest_successful_backup": latest_at.isoformat() if latest_at else None,
+                "last_attempt_at": last_attempt_at.isoformat() if last_attempt_at else None,
+                "last_attempt_error": last_attempt_error or auto_status.get("error"),
             },
+            "auto_backup": auto_status,
         }
     )
 
@@ -4430,50 +4608,12 @@ def admin_backup_create_api(request):
     if backup_type not in BACKUP_ALLOWED_TYPES:
         return JsonResponse({"ok": False, "error": "Invalid backup type."}, status=400)
 
-    root = _backup_root()
     created_by = str(request.session.get("student_id") or "admin")
-    ext = "zip" if backup_type == "full_system" else "sql"
-    filename = _backup_filename(backup_type, ext)
-    output_path = (root / filename).resolve()
-    if root not in output_path.parents:
-        return JsonResponse({"ok": False, "error": "Invalid backup path."}, status=400)
 
     try:
-        if backup_type == "full_system":
-            sql_name = _backup_filename("database", "sql")
-            with tempfile.TemporaryDirectory() as tmp:
-                sql_path = Path(tmp) / sql_name
-                _run_pg_dump(sql_path, "postgres")
-                manifest = {
-                    "system": "ELECOM",
-                    "created_at": timezone.now().isoformat(),
-                    "created_by": created_by,
-                    "election_year": _active_election_year(),
-                    "contains": ["postgresql_database"],
-                }
-                with zipfile.ZipFile(output_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
-                    zf.write(sql_path, arcname=sql_name)
-                    zf.writestr("manifest.json", json.dumps(manifest, indent=2))
-        else:
-            _run_pg_dump(output_path, backup_type)
-
-        backup_id = _record_backup(filename, backup_type, output_path, "completed", created_by)
-        _audit_log(
-            table_name="admin_backups",
-            record_id=backup_id,
-            action="create",
-            new_data={"backup_name": filename, "backup_type": backup_type},
-            changed_by=created_by,
-        )
-        return JsonResponse({"ok": True, "backup": {"id": backup_id, "name": filename, "type": backup_type}})
+        backup = _create_backup_artifact(backup_type, created_by)
+        return JsonResponse({"ok": True, "backup": backup})
     except Exception as e:
-        failed_path = output_path
-        try:
-            if failed_path.exists():
-                failed_path.unlink()
-        except Exception:
-            pass
-        _record_backup(filename, backup_type, output_path, "failed", created_by, str(e))
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
