@@ -2256,6 +2256,20 @@ def _iso_utc(dt_obj) -> str:
     return dt_obj.astimezone(dt_timezone.utc).isoformat()
 
 
+def _iso_manila_from_utc(dt_obj) -> str | None:
+    if not dt_obj:
+        return None
+    try:
+        if getattr(dt_obj, "tzinfo", None) is None:
+            dt_obj = dt_obj.replace(tzinfo=dt_timezone.utc)
+        return dt_obj.astimezone(ZoneInfo("Asia/Manila")).isoformat()
+    except Exception:
+        try:
+            return dt_obj.isoformat()
+        except Exception:
+            return None
+
+
 def _vote_data_hash_from_requested(requested: list[tuple[str, str, int]]) -> str:
     normalized = [f"{org}::{pos}::{cid}" for org, pos, cid in requested]
     normalized.sort()
@@ -3163,12 +3177,12 @@ def vote_ledger_api(request):
                 "live_vote_hash_full": live_vote_hash,
                 "vote_changed": vote_changed,
                 "vote_rows_missing": vote_rows_missing,
-                "vote_changed_at": vote_changed_at.isoformat() if vote_changed_at else None,
+                "vote_changed_at": _iso_manila_from_utc(vote_changed_at),
                 "vote_change_time_source": vote_change_time_source if (vote_changed or vote_rows_missing) else "",
                 "tamper_indicator": "Vote changed after submission" if vote_changed else ("Vote rows missing" if vote_rows_missing else ""),
                 "previous_hash": f"{prev_hash[:7]}...{prev_hash[-4:]}" if len(prev_hash) > 12 else (prev_hash or "-"),
                 "previous_hash_full": prev_hash or "",
-                "submitted_at": submitted_at.isoformat() if submitted_at else None,
+                "submitted_at": _iso_manila_from_utc(submitted_at),
                 "status": effective_status,
                 "block_status": effective_block_status,
                 "node_validation_result": f"{approved_count}/{total_validations if total_validations > 0 else active_nodes} nodes approved",
@@ -3199,7 +3213,7 @@ def vote_ledger_api(request):
         if latest and latest.get("block_status") == "pending"
         else "Consensus warning",
         "latest_hash": latest.get("hash") if latest else "-",
-        "last_verified": timezone.now().isoformat(),
+        "last_verified": _iso_manila_from_utc(timezone.now()),
         "latest_block_status": latest.get("block_status") if latest else "pending",
         "preview_blocks": preview,
         "missing_blocks_detected": missing_blocks,
@@ -3288,7 +3302,7 @@ def vote_ledger_verify_api(request):
                 "issues": ["No blocks found."],
                 "total_vote_blocks": 0,
                 "active_validator_nodes": active_nodes,
-                "last_verified": timezone.now().isoformat(),
+                "last_verified": _iso_manila_from_utc(timezone.now()),
             }
         )
 
@@ -3363,7 +3377,7 @@ def vote_ledger_verify_api(request):
             "changed_vote_count": changed_vote_count,
             "missing_vote_rows_count": missing_vote_rows_count,
             "vote_tampering_detected": changed_vote_count > 0 or missing_vote_rows_count > 0,
-            "last_verified": timezone.now().isoformat(),
+            "last_verified": _iso_manila_from_utc(timezone.now()),
         }
     )
 

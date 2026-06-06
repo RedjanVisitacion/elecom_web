@@ -10,7 +10,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260604-profile-chevron">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20260606-vote-hash">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20260606-time-db-hash">
 </head>
 <body class="theme-elecom transparency-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -85,7 +85,7 @@
         <div class="panel-head">
           <div>
             <h2>Public Ledger</h2>
-            <p>Anonymous block and vote hashes are shown. Voter choices and identities are not exposed.</p>
+            <p>Vote Hash is the saved ledger fingerprint. Current DB Hash is recalculated from today&apos;s database rows to detect edited or deleted votes. Voter choices and identities are not exposed.</p>
           </div>
           <button class="btn btn-outline-dark verify-ledger-btn" id="verifyLedgerBtn">
             <i class="bi bi-patch-check"></i>
@@ -106,7 +106,7 @@
                 <th>Block</th>
                 <th>Block Hash</th>
                 <th>Vote Hash</th>
-                <th>Database Vote Hash</th>
+                <th>Current DB Hash</th>
                 <th>Previous Hash</th>
                 <th>Status</th>
                 <th>Submitted</th>
@@ -136,6 +136,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260519-reset-password-modal"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20260606-vote-hash"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20260606-time-db-hash"></script>
 </body>
 </html>

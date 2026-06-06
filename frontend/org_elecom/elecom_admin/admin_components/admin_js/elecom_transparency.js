@@ -62,13 +62,15 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!value) return "-";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
-    return date.toLocaleString(undefined, {
+    return `${date.toLocaleString("en-PH", {
+      timeZone: "Asia/Manila",
       year: "numeric",
       month: "short",
       day: "2-digit",
       hour: "2-digit",
       minute: "2-digit",
-    });
+      hour12: true,
+    })} PHT`;
   }
 
   function escapeHtml(value) {
@@ -105,7 +107,7 @@ document.addEventListener("DOMContentLoaded", function () {
             <td><span class="ledger-hash" title="${escapeHtml(block.block_hash_full || block.hash_full || "")}">${escapeHtml(block.block_hash || block.hash || "-")}</span></td>
             <td><span class="ledger-hash" title="${escapeHtml(block.vote_hash_full || "")}">${escapeHtml(block.vote_hash || "-")}</span></td>
             <td>
-              <span class="ledger-hash" title="${escapeHtml(block.live_vote_hash_full || "")}">${escapeHtml(liveVoteHash)}</span>
+              <span class="ledger-hash" title="${escapeHtml(block.live_vote_hash_full || "Recomputed from current database vote rows")}">${escapeHtml(liveVoteHash)}</span>
               <span class="ledger-status vote-integrity ${escapeHtml(voteStatusClass)}">${escapeHtml(voteStatus)}</span>
             </td>
             <td><span class="ledger-hash" title="${escapeHtml(block.previous_hash_full || "")}">${escapeHtml(block.previous_hash || "-")}</span></td>
@@ -153,7 +155,7 @@ document.addEventListener("DOMContentLoaded", function () {
         );
         if (els.verificationList) {
           els.verificationList.innerHTML = [
-            changed ? `<li>${changed} block(s) have vote hashes that no longer match database vote rows.</li>` : "",
+            changed ? `<li>${changed} block(s) have saved vote hashes that no longer match the current database hash.</li>` : "",
             missing ? `<li>${missing} block(s) reference vote rows that are missing from the database.</li>` : "",
           ].filter(Boolean).join("");
         }
@@ -192,7 +194,7 @@ document.addEventListener("DOMContentLoaded", function () {
       if (els.verificationList) {
         els.verificationList.innerHTML = issues.length
           ? issues.map((issue) => `<li>${escapeHtml(issue)}</li>`).join("")
-          : "<li>No issues found. Hash chain and database vote rows are valid.</li>";
+          : "<li>No issues found. Hash chain and current database vote rows are valid.</li>";
       }
     } catch (error) {
       text(els.verificationPill, "Failed");
