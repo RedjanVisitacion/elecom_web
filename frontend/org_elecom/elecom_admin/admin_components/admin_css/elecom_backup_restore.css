@@ -21,6 +21,20 @@
   --backup-neutral: #374151;
 }
 
+.backup-page-body,
+.backup-page-body * {
+  box-sizing: border-box;
+}
+
+.backup-page-body {
+  overflow-x: hidden;
+}
+
+.backup-page-body .main-content,
+.backup-page-body .content-area {
+  min-width: 0;
+}
+
 .backup-page-body .content-area {
   background:
     linear-gradient(180deg, #f8fafd 0%, var(--backup-bg) 260px),
@@ -63,6 +77,8 @@
 .backup-shell {
   max-width: 1180px;
   margin: 0 auto;
+  min-width: 0;
+  width: 100%;
 }
 
 .backup-page-header {
@@ -161,6 +177,8 @@
   border: 1px solid var(--backup-line);
   border-radius: 10px;
   box-shadow: var(--backup-shadow);
+  max-width: 100%;
+  min-width: 0;
   transition: transform 0.22s ease, box-shadow 0.22s ease, border-color 0.22s ease, background-color 0.22s ease;
 }
 
@@ -481,6 +499,7 @@
   display: inline-flex;
   font-weight: 700;
   gap: 0.45rem;
+  max-width: 100%;
   min-height: 40px;
   padding: 0.55rem 0.85rem;
   white-space: nowrap;
@@ -707,8 +726,15 @@
 .backup-table-wrap {
   border: 1px solid var(--backup-line-strong);
   border-radius: 10px;
-  overflow: hidden;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+}
+
+.backup-history-table {
+  min-width: 760px;
 }
 
 .backup-history-table thead th {
@@ -1282,6 +1308,10 @@
     justify-content: stretch;
   }
 
+  .backup-command-actions .btn {
+    justify-content: center;
+  }
+
   .restore-step {
     grid-template-columns: 1fr;
   }
@@ -1294,16 +1324,31 @@
   .backup-primary-action,
   .backup-secondary-action {
     flex: 1 1 100%;
+    white-space: normal;
   }
 
   .backup-table-wrap {
     border-radius: 8px;
   }
+
+  .backup-history-table {
+    min-width: 720px;
+  }
 }
 
 @media (max-width: 520px) {
+  .backup-page-body .content-area {
+    padding: 1rem 0.75rem;
+  }
+
   .backup-page-header h1 {
     font-size: 1.55rem;
+  }
+
+  .backup-page-header p,
+  .panel-heading p,
+  .backup-command-main strong {
+    font-size: 0.9rem;
   }
 
   .quick-action-card,
@@ -1315,8 +1360,70 @@
     padding: 0.9rem;
   }
 
+  .backup-command-main {
+    align-items: flex-start;
+  }
+
+  .backup-command-main .quick-icon {
+    height: 40px;
+    width: 40px;
+  }
+
+  .command-meta {
+    display: grid;
+    gap: 0.22rem;
+  }
+
+  .backup-command-stats {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .backup-command-stats div:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .backup-upload-zone {
+    min-height: 118px;
+    padding: 0.9rem;
+  }
+
+  .restore-options label,
+  .frequency-grid label {
+    min-height: 42px;
+    padding: 0.62rem 0.7rem;
+  }
+
+  .backup-chip {
+    align-self: flex-start;
+    white-space: normal;
+  }
+
+  .backup-pagination .btn {
+    justify-content: center;
+    width: 100%;
+  }
+
   .backup-actions .btn {
     height: 34px;
     width: 34px;
+  }
+}
+
+@media (max-width: 380px) {
+  .backup-command-main {
+    gap: 0.75rem;
+  }
+
+  .backup-command-main .quick-icon {
+    height: 36px;
+    width: 36px;
+  }
+
+  .backup-command-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .backup-command-stats div:last-child {
+    grid-column: auto;
   }
 }
