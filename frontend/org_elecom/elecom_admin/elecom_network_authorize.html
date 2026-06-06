@@ -11,7 +11,22 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260604-profile-chevron">
     <style>
-        .network-page { max-width: 1120px; margin: 0 auto; }
+        .network-page-body,
+        .network-page-body * {
+            box-sizing: border-box;
+        }
+        .network-page-body {
+            overflow-x: hidden;
+        }
+        .network-page-body .main-content,
+        .network-page-body .content-area,
+        .network-page,
+        .network-panel,
+        .logs-card {
+            min-width: 0;
+            max-width: 100%;
+        }
+        .network-page { max-width: 1120px; margin: 0 auto; width: 100%; }
         .network-panel {
             background: #fff;
             border: 1px solid #cfcfcf;
@@ -29,9 +44,10 @@
         }
         .authorized-grid {
             display: grid;
-            grid-template-columns: minmax(240px, 0.8fr) minmax(420px, 1.2fr);
+            grid-template-columns: minmax(240px, 0.8fr) minmax(0, 1.2fr);
             border: 1px solid #c8c8c8;
             min-height: 260px;
+            min-width: 0;
         }
         .authorized-form {
             padding: 1.15rem;
@@ -83,6 +99,7 @@
         .authorized-table {
             margin: 0;
             table-layout: fixed;
+            min-width: 620px;
         }
         .authorized-table thead th {
             background: #d1d1d1;
@@ -115,13 +132,65 @@
             margin-top: 1.5rem;
             padding: 1rem;
         }
+        .network-table-wrap {
+            max-width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }
+        #accessLogsTable {
+            min-width: 620px;
+        }
         @media (max-width: 900px) {
             .authorized-grid { grid-template-columns: 1fr; }
             .authorized-form { border-right: 0; border-bottom: 1px solid #c8c8c8; }
         }
+        @media (max-width: 576px) {
+            .network-page-body .content-area {
+                padding: 1rem 0.75rem;
+            }
+            .network-panel,
+            .logs-card {
+                padding: 0.85rem;
+            }
+            .network-notice {
+                font-size: 0.88rem;
+                margin-bottom: 1rem;
+                padding: 0.9rem 1rem;
+            }
+            .authorized-form {
+                padding: 0.9rem;
+            }
+            .authorized-form-title {
+                margin-bottom: 0.9rem;
+            }
+            .network-input,
+            .network-add-btn {
+                height: 40px;
+            }
+            .detected-network {
+                overflow-wrap: anywhere;
+            }
+            .authorized-table,
+            #accessLogsTable {
+                min-width: 560px;
+            }
+        }
+        @media (max-width: 420px) {
+            .network-page-body .content-area {
+                padding: 0.85rem 0.6rem;
+            }
+            .network-panel,
+            .logs-card {
+                padding: 0.7rem;
+            }
+            .authorized-grid {
+                border-left: 0;
+                border-right: 0;
+            }
+        }
     </style>
 </head>
-<body class="theme-elecom">
+<body class="theme-elecom network-page-body">
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -227,7 +296,7 @@
                             <button class="btn btn-dark network-add-btn" id="addNetworkBtn" type="button">Add</button>
                         </div>
 
-                        <div class="table-responsive">
+                        <div class="table-responsive network-table-wrap">
                             <table class="table authorized-table">
                                 <thead>
                                     <tr>
@@ -250,7 +319,7 @@
 
                 <div class="logs-card">
                     <h5 class="mb-3">Recent Network Access Attempts</h5>
-                    <div class="table-responsive">
+                    <div class="table-responsive network-table-wrap">
                         <table class="table table-hover mb-0" id="accessLogsTable">
                             <thead>
                                 <tr>
