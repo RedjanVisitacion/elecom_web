@@ -238,6 +238,14 @@
   width: fit-content;
 }
 
+.ledger-reason {
+  margin-top: 8px;
+  color: #92400e;
+  font-size: 0.86rem;
+  line-height: 1.35;
+  max-width: 280px;
+}
+
 .ledger-empty {
   text-align: center;
   padding: 46px 20px;

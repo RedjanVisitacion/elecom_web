@@ -95,13 +95,25 @@ document.addEventListener("DOMContentLoaded", function () {
       .map((block) => {
         const status = String(block.block_status || block.status || "pending").toLowerCase();
         const voteChanged = Boolean(block.vote_changed || block.vote_rows_missing);
+        const tamperReason = block.vote_rows_missing
+          ? "Vote rows are missing for this block."
+          : block.vote_changed
+            ? "Vote rows were changed after this block was recorded."
+            : "";
+        const changedAt = block.vote_changed_at ? formatDate(block.vote_changed_at) : "";
+        const reasonText = tamperReason
+          ? `${tamperReason}${changedAt ? ` Changed at ${changedAt}.` : ""}`
+          : "";
         return `
           <tr class="${voteChanged ? "ledger-row-warning" : ""}">
             <td data-label="Block">#${escapeHtml(block.block_number || block.id || "-")}</td>
             <td data-label="Block Hash"><span class="ledger-hash" title="${escapeHtml(block.block_hash_full || block.hash_full || "")}">${escapeHtml(block.block_hash || block.hash || "-")}</span></td>
             <td data-label="Vote Hash"><span class="ledger-hash" title="${escapeHtml(block.vote_hash_full || "")}">${escapeHtml(block.vote_hash || "-")}</span></td>
             <td data-label="Previous Hash"><span class="ledger-hash" title="${escapeHtml(block.previous_hash_full || "")}">${escapeHtml(block.previous_hash || "-")}</span></td>
-            <td data-label="Status"><span class="ledger-status ${escapeHtml(status)}"><i class="bi bi-shield-check"></i>${escapeHtml(status)}</span></td>
+            <td data-label="Status">
+              <span class="ledger-status ${escapeHtml(status)}"><i class="bi bi-shield-check"></i>${escapeHtml(status)}</span>
+              ${reasonText ? `<div class="ledger-reason">${escapeHtml(reasonText)}</div>` : ""}
+            </td>
             <td data-label="Submitted">${escapeHtml(formatDate(block.submitted_at))}</td>
           </tr>
         `;
