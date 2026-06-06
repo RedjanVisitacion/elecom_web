@@ -1,9 +1,9 @@
 (function () {
   const API_PROFILE = "/api/account/profile/";
-  const API_ADMIN_RATING_NOTIFS = "/api/admin/notifications/app-ratings/";
+  const API_ADMIN_ALERTS = "/api/admin/notifications/app-ratings/";
   const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
   const API_ADMIN_VERIFY_PASSWORD = "/api/admin/verify-password/";
-  const RATING_SEEN_KEY = "elecom_admin_seen_rating_id";
+  const ADMIN_ALERT_SEEN_KEY = "elecom_admin_seen_alert_ids";
   const ADMIN_HASH_KEY = "elecom_admin_page_hash";
   const ADMIN_ROUTE_PREFIX = "/g/";
   const secureRouteCache = new Map();
@@ -234,12 +234,12 @@
     <div class="admin-notif-head">
       <div>
         <div class="admin-notif-title">Notifications</div>
-        <div class="admin-notif-subtitle" id="adminNotifSummary">App ratings from users</div>
+        <div class="admin-notif-subtitle" id="adminNotifSummary">Election operations and security alerts</div>
       </div>
-      <i class="bi bi-star-fill"></i>
+      <i class="bi bi-shield-exclamation"></i>
     </div>
     <div class="admin-notif-list" id="adminNotifList">
-      <div class="admin-notif-empty">No app ratings yet.</div>
+      <div class="admin-notif-empty">No admin alerts right now.</div>
     </div>
   </div>
   </div>
@@ -341,37 +341,44 @@
     return wrap;
   };
 
-  const getSeenRatingId = () => {
+  const getSeenAlertIds = () => {
     try {
-      return Number(localStorage.getItem(RATING_SEEN_KEY) || "0") || 0;
+      const raw = localStorage.getItem(ADMIN_ALERT_SEEN_KEY) || "[]";
+      const parsed = JSON.parse(raw);
+      return new Set(Array.isArray(parsed) ? parsed.map(String) : []);
     } catch (e) {
-      return 0;
+      return new Set();
     }
   };
 
-  const setSeenRatingId = (id) => {
+  const setSeenAlertIds = (ids) => {
     try {
-      if (id) localStorage.setItem(RATING_SEEN_KEY, String(id));
+      const safe = Array.from(new Set((ids || []).map(String))).slice(0, 100);
+      localStorage.setItem(ADMIN_ALERT_SEEN_KEY, JSON.stringify(safe));
     } catch (e) {
       // ignore
     }
   };
 
-  const formatRatingDate = (value) => {
+  const formatAlertDate = (value) => {
     if (!value) return "";
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return "";
-    return date.toLocaleString("en-US", {
+    return date.toLocaleString("en-PH", {
       month: "short",
       day: "numeric",
       hour: "2-digit",
       minute: "2-digit",
+      hour12: true,
     });
   };
 
-  const ratingStars = (rating) => {
-    const safe = Math.max(0, Math.min(5, Number(rating) || 0));
-    return "★".repeat(safe) + "☆".repeat(5 - safe);
+  const severityLabel = (severity) => {
+    const normalized = String(severity || "info").toLowerCase();
+    if (normalized === "critical") return "Critical";
+    if (normalized === "warning") return "Warning";
+    if (normalized === "action") return "Action";
+    return "Info";
   };
 
   const setNotifOpen = (dropdown, bell, open) => {
@@ -390,52 +397,61 @@
     countEl.style.display = safe > 0 ? "inline-flex" : "none";
   };
 
-  const renderRatingNotifications = ({ listEl, summaryEl, countEl, data }) => {
+  const renderAdminAlerts = ({ listEl, summaryEl, countEl, data }) => {
     const items = (data && data.notifications) || [];
-    const latestId = Number(data && data.latest_id) || 0;
-    const seenId = getSeenRatingId();
-    const unread = items.filter((item) => Number(item.id) > seenId).length;
+    const seenIds = getSeenAlertIds();
+    const unread = items.filter((item) => !seenIds.has(String(item.id || ""))).length;
 
     setNotifCount(countEl, unread);
 
     if (summaryEl) {
-      const avg = data && data.average_rating ? Number(data.average_rating).toFixed(1) : "0.0";
-      summaryEl.textContent = `${data && data.total_count ? data.total_count : 0} ratings · ${avg}/5 average`;
+      const critical = Number(data && data.critical_count) || 0;
+      const warning = Number(data && data.warning_count) || 0;
+      const total = Number(data && data.total_count) || items.length || 0;
+      summaryEl.textContent = total
+        ? `${total} alert${total === 1 ? "" : "s"} · ${critical} critical · ${warning} warning`
+        : "No action needed";
     }
 
     if (!listEl) return;
     if (!items.length) {
-      listEl.innerHTML = '<div class="admin-notif-empty">No app ratings yet.</div>';
+      listEl.innerHTML = '<div class="admin-notif-empty">No admin alerts right now.</div>';
       return;
     }
 
     listEl.innerHTML = items.map((item) => {
-      const isUnread = Number(item.id) > seenId;
+      const id = String(item.id || "");
+      const isUnread = !seenIds.has(id);
+      const severity = String(item.severity || "info").toLowerCase();
+      const icon = String(item.icon || "bi-bell");
+      const href = String(item.href || "");
+      const tag = href ? "a" : "div";
+      const hrefAttr = href ? ` href="${escapeHtml(href)}"` : "";
       return `
-        <div class="admin-notif-item ${isUnread ? "is-unread" : ""}">
-          <div class="admin-notif-icon"><i class="bi bi-star-fill"></i></div>
+        <${tag} class="admin-notif-item is-${escapeHtml(severity)} ${isUnread ? "is-unread" : ""}"${hrefAttr}>
+          <div class="admin-notif-icon"><i class="bi ${escapeHtml(icon)}"></i></div>
           <div class="admin-notif-copy">
             <div class="admin-notif-row">
-              <strong>${escapeHtml(item.student_id || "Student")}</strong>
-              <span>${escapeHtml(formatRatingDate(item.created_at))}</span>
+              <strong>${escapeHtml(item.title || "Admin alert")}</strong>
+              <span>${escapeHtml(formatAlertDate(item.created_at))}</span>
             </div>
-            <div class="admin-notif-rating" aria-label="${escapeHtml(String(item.rating || 0))} out of 5">${ratingStars(item.rating)}</div>
-            <div class="admin-notif-body">${escapeHtml(item.label || "Rated the app")}</div>
+            <div class="admin-notif-severity">${escapeHtml(severityLabel(severity))}</div>
+            <div class="admin-notif-body">${escapeHtml(item.body || "")}</div>
           </div>
-        </div>
+        </${tag}>
       `;
     }).join("");
 
-    listEl.dataset.latestRatingId = latestId ? String(latestId) : "";
+    listEl.dataset.alertIds = JSON.stringify(items.map((item) => String(item.id || "")).filter(Boolean));
   };
 
-  const loadRatingNotifications = async (els) => {
+  const loadAdminAlerts = async (els) => {
     try {
-      const resp = await fetch(API_ADMIN_RATING_NOTIFS, { method: "GET", cache: "no-store" });
+      const resp = await fetch(API_ADMIN_ALERTS, { method: "GET", cache: "no-store" });
       if (!resp.ok) return;
       const data = await resp.json();
       if (!data || !data.ok) return;
-      renderRatingNotifications({ ...els, data });
+      renderAdminAlerts({ ...els, data });
     } catch (e) {
       // ignore
     }
@@ -690,8 +706,13 @@
         const isOpen = adminNotifDropdown.getAttribute("data-open") === "1";
         setNotifOpen(adminNotifDropdown, adminNotifBell, !isOpen);
         if (!isOpen) {
-          const latestId = Number(adminNotifList && adminNotifList.dataset.latestRatingId) || 0;
-          setSeenRatingId(latestId);
+          let alertIds = [];
+          try {
+            alertIds = JSON.parse((adminNotifList && adminNotifList.dataset.alertIds) || "[]");
+          } catch (err) {
+            alertIds = [];
+          }
+          setSeenAlertIds(alertIds);
           setNotifCount(adminNotifCount, 0);
         }
       });
@@ -790,13 +811,13 @@
     }
 
     loadAccountProfileName({ displayName, menuName });
-    loadRatingNotifications({
+    loadAdminAlerts({
       listEl: adminNotifList,
       summaryEl: adminNotifSummary,
       countEl: adminNotifCount,
     });
     setInterval(() => {
-      loadRatingNotifications({
+      loadAdminAlerts({
         listEl: adminNotifList,
         summaryEl: adminNotifSummary,
         countEl: adminNotifCount,
