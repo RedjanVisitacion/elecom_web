@@ -29,6 +29,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
 from django.conf import settings
+from django.apps import apps
 from django.utils import timezone
 from django.core import signing
 
@@ -45,6 +46,59 @@ from . import facepp_service
 from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes
 
 logger = logging.getLogger(__name__)
+
+
+def _ensure_django_model_tables() -> None:
+    """
+    Recreate missing Django-managed model tables.
+
+    This restores table structure only. Deleted rows still require a backup restore.
+    """
+    existing = set(connection.introspection.table_names())
+    managed_models = [
+        model
+        for model in apps.get_models(include_auto_created=True)
+        if model._meta.managed and model._meta.db_table not in existing
+    ]
+    if not managed_models:
+        return
+
+    for model in managed_models:
+        table_name = model._meta.db_table
+        if table_name in connection.introspection.table_names():
+            continue
+        try:
+            with connection.schema_editor() as schema_editor:
+                schema_editor.create_model(model)
+            logger.warning("Auto-created missing Django model table: %s", table_name)
+        except Exception:
+            logger.exception("Failed to auto-create Django model table: %s", table_name)
+
+
+def _ensure_all_system_tables() -> None:
+    """
+    Best-effort table self-healing for ELECOM.
+
+    This protects accidental table drops by recreating missing structures. It does
+    not recover deleted data; use Backup & Restore for that.
+    """
+    _ensure_django_model_tables()
+    _ensure_auth_identity_tables()
+    _ensure_election_scoped_tables()
+    _ensure_elevote_chat_table()
+    _ensure_votes_tables()
+    _ensure_vote_blocks_table()
+    _ensure_audit_logs_table()
+    _ensure_validator_tables()
+    _ensure_vote_item_change_audit_table()
+    _ensure_election_final_hashes_table()
+    _ensure_backup_tables()
+    _ensure_face_verification_tables()
+    _ensure_user_notifications_table()
+    _ensure_election_broadcast_state_table()
+    _ensure_candidate_applications_table()
+    with connection.cursor() as cur:
+        _ensure_network_authorization_tables(cur)
 
 def _ensure_auth_identity_tables() -> None:
     with connection.cursor() as cur:
