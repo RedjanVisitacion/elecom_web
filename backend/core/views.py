@@ -4269,7 +4269,7 @@ def _run_pg_dump(output_path: Path, backup_type: str) -> None:
             if tables:
                 joined = ", ".join(_postgres_identifier(table) for table in tables)
                 out.write(f"TRUNCATE TABLE {joined} RESTART IDENTITY CASCADE;\n")
-            out.write(tmp_output.read_text(encoding="utf-8", errors="ignore"))
+            out.write(_sanitize_restore_sql_text(tmp_output.read_text(encoding="utf-8", errors="ignore")))
             out.write("\nCOMMIT;\n")
     finally:
         try:
@@ -4278,29 +4278,138 @@ def _run_pg_dump(output_path: Path, backup_type: str) -> None:
             pass
 
 
-def _run_psql_restore(input_path: Path) -> None:
+def _sanitize_restore_sql_text(sql_text: str) -> str:
+    skipped_prefixes = (
+        "set transaction_timeout",
+    )
+    lines = []
+    for line in str(sql_text or "").splitlines():
+        normalized = line.strip().lower()
+        if any(normalized.startswith(prefix) for prefix in skipped_prefixes):
+            lines.append(f"-- Skipped unsupported PostgreSQL setting: {line}")
+            continue
+        lines.append(line)
+    return "\n".join(lines)
+
+
+def _backup_type_for_restore_scope(scope: str) -> str:
+    return {
+        "candidates": "candidates",
+        "election_year": "election_records",
+        "reports": "election_records",
+    }.get(str(scope or "database").lower(), "postgres")
+
+
+def _sql_table_from_statement(line: str, keyword: str) -> str:
+    text = str(line or "").strip()
+    lower = text.lower()
+    prefix = f"{keyword.lower()} "
+    if not lower.startswith(prefix):
+        return ""
+    rest = text[len(prefix):].strip()
+    if keyword.lower() == "insert into":
+        rest = rest.split(" ", 1)[0]
+    else:
+        rest = rest.split("(", 1)[0].strip()
+    table = rest.split(".")[-1].strip().strip('"')
+    return table
+
+
+def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
+    lower = str(sql_text or "").lower()
+    if "type: table" not in lower or "create table" not in lower:
+        return _sanitize_restore_sql_text(sql_text)
+
+    tables = _backup_table_names(backup_type)
+    allowed_tables = set(tables)
+    out = [
+        "-- PostgreSQL database dump",
+        "-- ELECOM data-only restore extracted from a schema dump",
+        f"-- Extracted at: {timezone.now().isoformat()}",
+        "",
+        "BEGIN;",
+    ]
+    if tables:
+        joined = ", ".join(_postgres_identifier(table) for table in tables)
+        out.append(f"TRUNCATE TABLE {joined} RESTART IDENTITY CASCADE;")
+
+    in_copy = False
+    keep_copy = False
+    for line in str(sql_text or "").splitlines():
+        stripped = line.strip()
+        normalized = stripped.lower()
+        if any(normalized.startswith(prefix) for prefix in ("set transaction_timeout",)):
+            out.append(f"-- Skipped unsupported PostgreSQL setting: {line}")
+            continue
+        if in_copy:
+            if keep_copy:
+                out.append(line)
+            if stripped == r"\.":
+                in_copy = False
+                keep_copy = False
+            continue
+        if normalized.startswith("copy "):
+            keep_copy = _sql_table_from_statement(line, "copy") in allowed_tables
+            in_copy = True
+            if keep_copy:
+                out.append(line)
+            continue
+        if normalized.startswith("insert into "):
+            if _sql_table_from_statement(line, "insert into") in allowed_tables:
+                out.append(line)
+            continue
+        if normalized.startswith("select pg_catalog.setval("):
+            out.append(line)
+
+    out.append("COMMIT;")
+    return "\n".join(out)
+
+
+def _sanitized_restore_file(input_path: Path, scope: str = "database") -> Path:
+    sql_text = input_path.read_text(encoding="utf-8", errors="ignore")
+    sanitized = _pg_dump_data_only_sql(sql_text, _backup_type_for_restore_scope(scope))
+    if sanitized == sql_text:
+        return input_path
+    tmp = tempfile.NamedTemporaryFile("w", encoding="utf-8", newline="\n", suffix=".sql", delete=False)
+    try:
+        tmp.write(sanitized)
+        tmp.flush()
+        return Path(tmp.name)
+    finally:
+        tmp.close()
+
+
+def _run_psql_restore(input_path: Path, scope: str = "database") -> None:
     db = _backup_db_config()
     db_name = str(db.get("NAME") or "").strip()
     if not db_name:
         raise RuntimeError("Database name is not configured.")
 
+    restore_path = _sanitized_restore_file(input_path, scope)
     psql = shutil.which("psql")
-    if not psql:
-        sql_text = input_path.read_text(encoding="utf-8", errors="ignore")
-        with connection.cursor() as cur:
-            cur.execute(sql_text)
-        return
+    try:
+        if not psql:
+            sql_text = restore_path.read_text(encoding="utf-8", errors="ignore")
+            with connection.cursor() as cur:
+                cur.execute(sql_text)
+            return
 
-    command = [psql, *_pg_base_args(db), "--dbname", db_name, "--set", "ON_ERROR_STOP=on", "--file", str(input_path)]
-    result = subprocess.run(
-        command,
-        env=_pg_env(db),
-        text=True,
-        capture_output=True,
-        timeout=int(getattr(settings, "ELECOM_RESTORE_TIMEOUT_SECONDS", 300) or 300),
-    )
-    if result.returncode != 0:
-        raise RuntimeError((result.stderr or result.stdout or "Restore failed.").strip()[:500])
+        command = [psql, *_pg_base_args(db), "--dbname", db_name, "--set", "ON_ERROR_STOP=on", "--file", str(restore_path)]
+        result = subprocess.run(
+            command,
+            env=_pg_env(db),
+            text=True,
+            capture_output=True,
+            timeout=int(getattr(settings, "ELECOM_RESTORE_TIMEOUT_SECONDS", 300) or 300),
+        )
+        if result.returncode != 0:
+            raise RuntimeError((result.stderr or result.stdout or "Restore failed.").strip()[:500])
+    finally:
+        if restore_path != input_path:
+            try:
+                restore_path.unlink(missing_ok=True)
+            except Exception:
+                pass
 
 
 def _record_backup(name: str, backup_type: str, file_path: Path, status: str, created_by: str, notes: str = "") -> int:
@@ -4750,7 +4859,7 @@ def admin_backup_restore_api(request):
                         status=400,
                     )
 
-            _run_psql_restore(sql_path)
+            _run_psql_restore(sql_path, scope)
 
         _audit_log(
             table_name="admin_backups",
