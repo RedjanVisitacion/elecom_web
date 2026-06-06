@@ -4,6 +4,23 @@
   max-width:760px;
 }
 
+.candidates-page-body,
+.candidates-page-body *{
+  box-sizing:border-box;
+}
+
+.candidates-page-body{
+  overflow-x:hidden;
+}
+
+.candidates-page-body .main-content,
+.candidates-page-body .content-area,
+.candidates-page-body .card,
+.candidates-page-body .card-body{
+  min-width:0;
+  max-width:100%;
+}
+
 .top-navbar .search-pill{
   width:min(520px, 100%)!important;
   min-width:320px;
@@ -81,11 +98,75 @@
 }
 
 @media (max-width: 768px){
+  .candidates-page-body .content-area{
+    padding:1rem 0.75rem;
+  }
+
+  .candidates-page-body .card-body{
+    padding:1rem;
+  }
+
+  .candidates-page-body .top-navbar{
+    align-items:stretch!important;
+    flex-wrap:wrap;
+    gap:0.75rem!important;
+  }
+
   .top-navbar .search-pill{
     width:100%!important;
-    min-width:0;
+    min-width:0!important;
+    max-width:100%!important;
     flex:1 1 100%!important;
     order:3;
+  }
+
+  .top-navbar .search-pill .search-input-group{
+    height:42px;
+    min-height:42px;
+    max-height:42px;
+  }
+
+  .top-navbar .search-pill .form-control{
+    height:40px;
+    line-height:40px;
+    min-height:40px;
+    padding:0 13px;
+  }
+
+  .top-navbar .search-pill .search-btn{
+    flex-basis:46px;
+    height:42px;
+    min-height:42px;
+    width:46px;
+  }
+
+  .candidate-toolbar{
+    align-items:stretch!important;
+    flex-direction:column;
+  }
+
+  .candidate-toolbar-actions{
+    align-items:stretch!important;
+    display:grid!important;
+    gap:0.6rem!important;
+    grid-template-columns:1fr 1fr;
+    width:100%;
+  }
+
+  .candidate-toolbar-actions h5,
+  .candidate-toolbar-actions .form-check{
+    grid-column:1 / -1;
+  }
+
+  .candidate-toolbar-actions .btn{
+    justify-content:center;
+    min-height:38px;
+    white-space:normal;
+    width:100%;
+  }
+
+  #listCount{
+    align-self:flex-start;
   }
 }
 
@@ -120,6 +201,13 @@
 
 .candidate-card{
   cursor:pointer;
+  min-width:0;
+  max-width:100%;
+}
+
+.candidate-card > .flex-grow-1{
+  min-width:0;
+  overflow-wrap:anywhere;
 }
 
 .candidate-org-section{
@@ -128,6 +216,8 @@
   overflow:hidden;
   background:#ffffff;
   margin-top:14px;
+  max-width:100%;
+  min-width:0;
 }
 
 .candidate-org-header{
@@ -193,6 +283,8 @@
   font-weight:800;
   letter-spacing:0;
   font-size:1.05rem;
+  min-width:0;
+  overflow-wrap:anywhere;
 }
 
 .candidate-org-logo{
@@ -222,6 +314,7 @@
   margin-bottom:10px;
   font-weight:800;
   color:#111827;
+  min-width:0;
 }
 
 .candidate-position-header small{
@@ -352,6 +445,55 @@
 }
 
 @media (max-width: 560px){
+  .candidate-card{
+    align-items:flex-start!important;
+    flex-wrap:wrap;
+    gap:0.75rem!important;
+    padding:0.8rem!important;
+  }
+
+  .candidate-card > .form-check{
+    margin-top:0.35rem;
+  }
+
+  .candidate-card > .flex-grow-1{
+    flex:1 1 calc(100% - 92px);
+  }
+
+  .candidate-card > .d-flex:last-child{
+    justify-content:flex-end;
+    width:100%;
+  }
+
+  .candidate-org-header{
+    gap:0.65rem;
+    padding:12px;
+  }
+
+  .candidate-org-title{
+    font-size:0.94rem;
+    line-height:1.25;
+  }
+
+  .candidate-org-logo{
+    height:28px;
+    width:28px;
+  }
+
+  .candidate-org-actions{
+    gap:0.45rem;
+  }
+
+  .candidate-position-group{
+    padding:12px;
+  }
+
+  .candidate-position-header{
+    align-items:flex-start;
+    flex-direction:column;
+    gap:0.2rem;
+  }
+
   .elecom-confirm-modal .modal-dialog{
     margin:14px;
   }
@@ -363,5 +505,24 @@
 
   .elecom-confirm-modal .btn{
     width:100%;
+  }
+}
+
+@media (max-width: 420px){
+  .candidate-toolbar-actions{
+    grid-template-columns:1fr;
+  }
+
+  .candidate-toolbar-actions .btn{
+    font-size:0.86rem;
+  }
+
+  .candidate-org-header .badge{
+    font-size:0.72rem;
+    min-width:28px;
+  }
+
+  .candidate-org-title{
+    gap:0.45rem;
   }
 }
