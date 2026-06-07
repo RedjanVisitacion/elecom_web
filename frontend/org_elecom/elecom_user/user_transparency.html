@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transparency - ELECOM</title>
+    <link rel="icon" type="image/png" href="/static/assets/elecom.png?v=3">
+    <link rel="shortcut icon" type="image/png" href="/static/assets/elecom.png?v=3">
+    <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260607-web-test">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20260607-student">
+</head>
+<body class="theme-elecom transparency-page">
+    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-header-content">
+                <div class="logo-container">
+                    <img src="/static/assets/elecom.png" alt="ELECOM Logo">
+                    <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
+                </div>
+                <button class="btn-close-sidebar" id="closeSidebar" type="button" aria-label="Close sidebar">
+                    <i class="bi bi-x-lg"></i>
+                </button>
+            </div>
+        </div>
+        <div class="sidebar-menu">
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_user/user_dashboard.html">
+                        <i class="bi bi-house-door"></i>
+                        <span>Home</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_user/user_election.html">
+                        <i class="bi bi-box-arrow-in-down"></i>
+                        <span>Election</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_user/user_results.html">
+                        <i class="bi bi-file-bar-graph"></i>
+                        <span>Results</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_user/user_receipt.html">
+                        <i class="bi bi-check2"></i>
+                        <span>Voting Receipt</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link active" href="/static/org_elecom/elecom_user/user_transparency.html">
+                        <i class="bi bi-shield-check"></i>
+                        <span>Transparency</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="/static/org_elecom/elecom_user/profile.html">
+                        <i class="bi bi-gear"></i>
+                        <span>Settings</span>
+                    </a>
+                </li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="main-content">
+        <nav class="top-navbar">
+            <div class="d-flex align-items-center">
+                <button class="btn btn-link d-lg-none me-3" id="menuToggle" type="button" aria-label="Open sidebar">
+                    <i class="bi bi-list fs-4"></i>
+                </button>
+                <div class="network-badge high" id="systemStatusBadge" title="Network authorization status">
+                    <span class="status-dot"></span>
+                    <span id="systemStatusText">Network High</span>
+                </div>
+            </div>
+            <div class="d-flex align-items-center gap-3">
+                <button type="button" class="notif-bell" id="notifBell" aria-label="Notifications">
+                    <i class="bi bi-bell"></i>
+                    <span class="notif-count" id="notifCount" aria-label="0 unread notifications">0</span>
+                </button>
+                <div class="user-menu" id="userMenu">
+                    <button type="button" class="btn p-0 border-0 bg-transparent d-flex align-items-center gap-2" id="userMenuToggle" aria-label="Profile menu">
+                        <div class="user-avatar user-avatar--nav">
+                            <img id="userAvatarImg" src="" alt="" style="display:none; width:40px; height:40px; border-radius:50%; object-fit:cover;">
+                            <i class="bi bi-person-circle" id="userAvatarIcon"></i>
+                        </div>
+                    </button>
+                    <div class="user-menu-dropdown" id="userMenuDropdown" role="menu" aria-hidden="true">
+                        <div class="user-menu-header">
+                            <div class="user-avatar user-avatar--menu">
+                                <img id="menuAvatarImg" src="" alt="" style="display:none; width:48px; height:48px; border-radius:50%; object-fit:cover;">
+                                <i class="bi bi-person-circle" id="menuAvatarIcon"></i>
+                            </div>
+                            <div class="min-w-0">
+                                <div class="fw-semibold text-truncate" id="menuName">Student</div>
+                                <div class="small text-muted" id="menuRole">Voter</div>
+                            </div>
+                        </div>
+                        <a class="dropdown-item d-flex align-items-center gap-2" href="/static/org_elecom/elecom_user/profile.html" id="profileLink">
+                            <i class="bi bi-person"></i>
+                            <span>Profile</span>
+                        </a>
+                        <div class="dropdown-divider"></div>
+                        <a class="dropdown-item d-flex align-items-center gap-2 text-danger" href="#" id="userMenuLogoutLink">
+                            <i class="bi bi-box-arrow-right"></i>
+                            <span>Logout</span>
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <main class="content-area transparency-shell">
+            <section class="transparency-hero">
+                <div>
+                    <div class="page-kicker">Student / Transparency</div>
+                    <h1>Election Transparency</h1>
+                    <p>Review the public vote ledger and tamper-check status. Vote identities and selections stay private.</p>
+                </div>
+                <button class="btn btn-dark refresh-ledger-btn" id="refreshLedgerBtn" type="button">
+                    <i class="bi bi-arrow-clockwise"></i>
+                    Refresh
+                </button>
+            </section>
+
+            <section class="transparency-grid" aria-label="Ledger summary">
+                <article class="transparency-card status-card">
+                    <span class="card-label">Ledger Status</span>
+                    <strong id="ledgerStatus">Loading</strong>
+                    <small id="lastVerified">Checking ledger...</small>
+                </article>
+                <article class="transparency-card">
+                    <span class="card-label">Vote Blocks</span>
+                    <strong id="totalBlocks">0</strong>
+                    <small>Public anonymous records</small>
+                </article>
+                <article class="transparency-card hash-card">
+                    <span class="card-label">Latest Hash</span>
+                    <strong id="latestHash">-</strong>
+                    <small>Newest verified ledger block</small>
+                </article>
+            </section>
+
+            <section class="transparency-panel">
+                <div class="panel-heading">
+                    <div>
+                        <h2>Public Vote Ledger</h2>
+                        <p>Anonymous vote hashes are shown for transparency. The system checks current database rows to detect edited or deleted votes.</p>
+                    </div>
+                    <button class="btn btn-outline-dark verify-ledger-btn" id="verifyLedgerBtn" type="button">
+                        <i class="bi bi-shield-check"></i>
+                        Verify Ledger
+                    </button>
+                </div>
+
+                <div class="ledger-empty" id="ledgerEmpty" hidden>
+                    <i class="bi bi-inbox"></i>
+                    <h3>No vote blocks yet</h3>
+                    <p>The transparency ledger will update automatically after voters submit ballots.</p>
+                </div>
+
+                <div class="ledger-table-wrap" id="ledgerTableWrap">
+                    <table class="ledger-table">
+                        <thead>
+                            <tr>
+                                <th>Block</th>
+                                <th>Block Hash</th>
+                                <th>Vote Hash</th>
+                                <th>Previous Hash</th>
+                                <th>Status</th>
+                                <th>Submitted</th>
+                            </tr>
+                        </thead>
+                        <tbody id="ledgerRows">
+                            <tr><td colspan="6" class="text-center text-muted py-4">Loading ledger...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="/static/org_elecom/elecom_user/user_components/user_js/user_dashboard.js?v=20260607-web-test"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20260607-student"></script>
+</body>
+</html>

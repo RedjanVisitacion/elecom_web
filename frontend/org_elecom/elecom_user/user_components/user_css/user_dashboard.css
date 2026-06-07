@@ -63,14 +63,12 @@ body {
 
 /* Left sidebar navigation */
 .sidebar {
-  background: rgba(8, 2, 4, 0.88);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  background: var(--brand-primary);
   color: var(--brand-primary-contrast);
   width: 260px;
   min-height: 100vh;
   transition: all 0.3s;
-  box-shadow: 3px 0 18px rgba(0,0,0,0.18);
+  box-shadow: 3px 0 10px rgba(0,0,0,0.1);
   position: fixed;
   z-index: 1000;
   overflow-y: auto;
@@ -78,8 +76,7 @@ body {
 
 .sidebar-header {
   padding: 20px;
-  background: rgba(8, 2, 4, 0.44);
-  border-bottom: 1px solid rgba(255,255,255,0.14);
+  border-bottom: 1px solid rgba(255,255,255,0.1);
 }
 
 .sidebar-header-content {
@@ -151,7 +148,7 @@ body {
 .nav-link:hover,
 .nav-link.active {
   color: var(--brand-primary-contrast);
-  background: rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.1);
   border-left: 5px solid var(--brand-dark);
 }
 
