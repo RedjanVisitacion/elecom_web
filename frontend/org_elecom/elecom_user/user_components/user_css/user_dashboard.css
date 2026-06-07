@@ -940,6 +940,68 @@ body {
   background: #ffffff;
 }
 
+@media (max-width: 768px) {
+  .student-notif-wrap {
+    position: static;
+  }
+
+  .student-notif-dropdown {
+    position: fixed;
+    top: 72px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-height: calc(100vh - 96px);
+    border-radius: 8px;
+  }
+
+  .student-notif-dropdown::before {
+    display: none;
+  }
+
+  .student-notif-header {
+    padding: 12px 14px;
+  }
+
+  .student-notif-list {
+    max-height: calc(100vh - 168px);
+  }
+
+  .student-notif-item {
+    padding: 12px 14px;
+  }
+
+  .student-notif-copy strong {
+    font-size: 0.86rem;
+  }
+
+  .student-notif-copy span {
+    font-size: 0.8rem;
+  }
+}
+
+@media (max-width: 420px) {
+  .student-notif-dropdown {
+    top: 66px;
+    left: 8px;
+    right: 8px;
+    max-height: calc(100vh - 82px);
+  }
+
+  .student-notif-header {
+    align-items: flex-start;
+  }
+
+  .student-notif-header button {
+    font-size: 0.74rem;
+  }
+
+  .student-notif-icon {
+    width: 30px;
+    height: 30px;
+  }
+}
+
 .user-avatar.user-avatar-sm {
   width: 34px;
   height: 34px;
