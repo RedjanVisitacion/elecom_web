@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Face Enrollment - ELECOM</title>
+    <link rel="icon" type="image/png" href="/static/assets/elecom.png?v=3">
+    <link rel="shortcut icon" type="image/png" href="/static/assets/elecom.png?v=3">
+    <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260607-face-enrollment">
+</head>
+<body class="theme-elecom face-enrollment-body">
+    <main class="face-enroll-shell">
+        <section class="face-enroll-panel" aria-labelledby="faceEnrollTitle">
+            <div class="face-enroll-brand">
+                <img src="/static/assets/elecom.png" alt="ELECOM Logo">
+                <div>
+                    <span>Student Account Setup</span>
+                    <h1 id="faceEnrollTitle">Register Your Face</h1>
+                </div>
+            </div>
+
+            <p class="face-enroll-copy">
+                Face enrollment is required before opening the student dashboard and voting tools.
+            </p>
+
+            <div class="face-camera-card">
+                <video id="faceVideo" class="face-camera-video" autoplay playsinline muted></video>
+                <canvas id="faceCanvas" class="face-camera-canvas" width="720" height="540" hidden></canvas>
+                <div class="face-camera-placeholder" id="facePlaceholder">
+                    <i class="bi bi-camera-video"></i>
+                    <span>Allow camera access to begin enrollment.</span>
+                </div>
+            </div>
+
+            <div class="face-enroll-status" id="faceEnrollStatus" role="status">
+                Keep your face centered with good lighting.
+            </div>
+
+            <div class="face-enroll-actions">
+                <button type="button" class="btn btn-outline-secondary" id="retakeFaceBtn" disabled>
+                    <i class="bi bi-arrow-counterclockwise"></i>
+                    Retake
+                </button>
+                <button type="button" class="btn btn-dark" id="captureFaceBtn" disabled>
+                    <i class="bi bi-camera"></i>
+                    Capture
+                </button>
+                <button type="button" class="btn btn-primary" id="submitFaceBtn" disabled>
+                    <i class="bi bi-shield-check"></i>
+                    Complete Enrollment
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const video = document.getElementById('faceVideo');
+            const canvas = document.getElementById('faceCanvas');
+            const placeholder = document.getElementById('facePlaceholder');
+            const statusEl = document.getElementById('faceEnrollStatus');
+            const captureBtn = document.getElementById('captureFaceBtn');
+            const retakeBtn = document.getElementById('retakeFaceBtn');
+            const submitBtn = document.getElementById('submitFaceBtn');
+            const params = new URLSearchParams(window.location.search);
+            const next = params.get('next') || '/static/org_elecom/elecom_user/user_dashboard.html';
+            let stream = null;
+            let capturedBlob = null;
+
+            const setStatus = (message, tone) => {
+                statusEl.textContent = message;
+                statusEl.dataset.tone = tone || '';
+            };
+
+            const safeNext = () => {
+                if (next.startsWith('/static/org_elecom/elecom_user/')) return next;
+                return '/static/org_elecom/elecom_user/user_dashboard.html';
+            };
+
+            const stopCamera = () => {
+                if (!stream) return;
+                stream.getTracks().forEach((track) => track.stop());
+                stream = null;
+            };
+
+            const startCamera = async () => {
+                try {
+                    stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 540 } },
+                        audio: false,
+                    });
+                    video.srcObject = stream;
+                    placeholder.hidden = true;
+                    captureBtn.disabled = false;
+                    setStatus('Keep your face centered, then capture your enrollment photo.');
+                } catch (error) {
+                    setStatus('Camera access is required. Allow camera permission, then reload this page.', 'error');
+                    placeholder.hidden = false;
+                }
+            };
+
+            const captureFace = () => {
+                const width = video.videoWidth || 720;
+                const height = video.videoHeight || 540;
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, width, height);
+                canvas.toBlob((blob) => {
+                    if (!blob) {
+                        setStatus('Could not capture image. Please try again.', 'error');
+                        return;
+                    }
+                    capturedBlob = blob;
+                    canvas.hidden = false;
+                    video.hidden = true;
+                    captureBtn.disabled = true;
+                    retakeBtn.disabled = false;
+                    submitBtn.disabled = false;
+                    setStatus('Captured. Submit to complete face enrollment.', 'success');
+                }, 'image/jpeg', 0.92);
+            };
+
+            const retakeFace = () => {
+                capturedBlob = null;
+                canvas.hidden = true;
+                video.hidden = false;
+                captureBtn.disabled = false;
+                retakeBtn.disabled = true;
+                submitBtn.disabled = true;
+                setStatus('Keep your face centered, then capture your enrollment photo.');
+            };
+
+            const submitFace = async () => {
+                if (!capturedBlob) return;
+                submitBtn.disabled = true;
+                captureBtn.disabled = true;
+                retakeBtn.disabled = true;
+                setStatus('Saving your face enrollment...');
+
+                const formData = new FormData();
+                formData.append('face_image', capturedBlob, 'face-enrollment.jpg');
+
+                try {
+                    const response = await fetch('/api/mobile/face/enrollment/save/', {
+                        method: 'POST',
+                        credentials: 'same-origin',
+                        body: formData,
+                    });
+                    const data = await response.json().catch(() => ({}));
+                    if (response.status === 401) {
+                        window.location.href = '/login/';
+                        return;
+                    }
+                    if (!response.ok || data.ok !== true) {
+                        throw new Error(data.error || 'Failed to save face enrollment.');
+                    }
+                    setStatus('Face enrollment complete. Opening your student dashboard...', 'success');
+                    stopCamera();
+                    window.location.replace(safeNext());
+                } catch (error) {
+                    setStatus(error.message || 'Failed to save face enrollment.', 'error');
+                    retakeBtn.disabled = false;
+                    submitBtn.disabled = false;
+                }
+            };
+
+            captureBtn.addEventListener('click', captureFace);
+            retakeBtn.addEventListener('click', retakeFace);
+            submitBtn.addEventListener('click', submitFace);
+            window.addEventListener('beforeunload', stopCamera);
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                setStatus('This browser does not support camera enrollment. Please use a modern browser.', 'error');
+                return;
+            }
+
+            startCamera();
+        });
+    </script>
+</body>
+</html>

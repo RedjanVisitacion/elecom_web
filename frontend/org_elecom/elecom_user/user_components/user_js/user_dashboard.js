@@ -59,6 +59,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_NOTIFICATIONS = '/api/mobile/notifications/';
     const API_NOTIFICATIONS_READ = '/api/mobile/notifications/read/';
     const API_NOTIFICATIONS_READ_ALL = '/api/mobile/notifications/read-all/';
+    const API_FACE_ENROLLMENT_STATUS = '/api/mobile/face/enrollment/status/';
 
     const NET_LEVELS = {
         HIGH: 'high',
@@ -592,9 +593,6 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    initVotingStatus();
-    initTotalCandidatesCard();
-
     const setNotifCount = (count) => {
         if (!notifCount) return;
         const n = Number(count || 0);
@@ -801,6 +799,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
         loadNotifications();
         setInterval(loadNotifications, 45000);
+    };
+
+    const enforceFaceEnrollment = async () => {
+        const path = window.location.pathname || '';
+        if (path.endsWith('/user_face_enrollment.html')) return true;
+
+        try {
+            const res = await fetch(API_FACE_ENROLLMENT_STATUS, {
+                method: 'GET',
+                cache: 'no-store',
+                credentials: 'same-origin',
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                toLogin();
+                return false;
+            }
+            if (!res.ok || !data || data.ok !== true) return true;
+            if (data.enrolled === true) return true;
+
+            const next = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+            window.location.replace(`/static/org_elecom/elecom_user/user_face_enrollment.html?next=${encodeURIComponent(next)}`);
+            return false;
+        } catch (e) {
+            return true;
+        }
     };
 
     const setNetworkUi = ({ level }) => {
@@ -1146,13 +1170,17 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cachedPhoto) setAvatarUrl(cachedPhoto);
     } catch (e) { /* ignore */ }
 
-    initNotifications();
+    void (async () => {
+        const allowed = await enforceFaceEnrollment();
+        if (!allowed) return;
 
-    startNetworkWatch();
-
-    initOmnibusSlideshow();
-
-    void loadAccountProfileName();
+        initVotingStatus();
+        initTotalCandidatesCard();
+        initNotifications();
+        startNetworkWatch();
+        initOmnibusSlideshow();
+        void loadAccountProfileName();
+    })();
 
     if (menuToggle) {
         menuToggle.addEventListener('click', function() {
