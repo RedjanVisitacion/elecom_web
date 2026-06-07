@@ -493,6 +493,23 @@
             ? `${staticBase}/elecom_admin/admin_dashboard.html`
             : `${staticBase}/elecom_user/user_dashboard.html`;
 
+        if (data.role !== "admin" && isHttp) {
+          try {
+            const faceStatusRes = await fetch(`${API_BASE}/api/mobile/face/enrollment/status/`, {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            });
+            const faceStatus = await faceStatusRes.json().catch(() => ({}));
+            if (faceStatusRes.ok && faceStatus.ok && faceStatus.enrolled !== true) {
+              const next = "/static/org_elecom/elecom_user/user_dashboard.html";
+              redirectUrl = `${staticBase}/elecom_user/user_face_enrollment.html?next=${encodeURIComponent(next)}`;
+            }
+          } catch {
+            // The dashboard guard will enforce enrollment if this check cannot complete.
+          }
+        }
+
         if (data.role === "admin" && isHttp) {
           try {
             const tokenUrl = new URL(`${API_BASE}/api/admin/page-token/`);
