@@ -56,6 +56,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_CANDIDATES_METRICS = '/api/candidates/metrics/';
     const API_BALLOT = '/api/ballot/';
     const API_VOTE_SUBMIT = '/api/vote/submit/';
+    const API_NOTIFICATIONS = '/api/mobile/notifications/';
+    const API_NOTIFICATIONS_READ = '/api/mobile/notifications/read/';
+    const API_NOTIFICATIONS_READ_ALL = '/api/mobile/notifications/read-all/';
 
     const NET_LEVELS = {
         HIGH: 'high',
@@ -601,6 +604,205 @@ document.addEventListener('DOMContentLoaded', function() {
         notifCount.setAttribute('aria-label', `${safe} unread notifications`);
     };
 
+    const escapeHtml = (value) => String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
+
+    const formatNotificationTime = (value) => {
+        if (!value) return '';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return String(value);
+        return date.toLocaleString('en-PH', {
+            timeZone: 'Asia/Manila',
+            month: 'short',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true,
+        });
+    };
+
+    const notificationIconForType = (type) => {
+        const key = String(type || '').toLowerCase();
+        if (key.includes('result')) return 'bi-bar-chart';
+        if (key.includes('election')) return 'bi-calendar-event';
+        if (key.includes('candidate')) return 'bi-person-badge';
+        if (key.includes('receipt') || key.includes('vote')) return 'bi-check2-circle';
+        return 'bi-bell';
+    };
+
+    const initNotifications = () => {
+        if (!notifBell) {
+            setNotifCount(0);
+            return;
+        }
+
+        const parent = notifBell.parentElement;
+        let dropdown = document.getElementById('studentNotifDropdown');
+        let list = document.getElementById('studentNotifList');
+        let markAllBtn = document.getElementById('studentNotifMarkAll');
+        let notifWrap = document.getElementById('studentNotifWrap');
+        let notifications = [];
+
+        if (!notifWrap && parent) {
+            notifWrap = document.createElement('div');
+            notifWrap.className = 'student-notif-wrap';
+            notifWrap.id = 'studentNotifWrap';
+            parent.insertBefore(notifWrap, notifBell);
+            notifWrap.appendChild(notifBell);
+        }
+
+        if (!dropdown && notifWrap) {
+            dropdown = document.createElement('div');
+            dropdown.className = 'student-notif-dropdown';
+            dropdown.id = 'studentNotifDropdown';
+            dropdown.setAttribute('aria-hidden', 'true');
+            dropdown.innerHTML = `
+                <div class="student-notif-header">
+                    <div>
+                        <strong>Notifications</strong>
+                        <span id="studentNotifSub">Latest updates</span>
+                    </div>
+                    <button type="button" id="studentNotifMarkAll">Mark all read</button>
+                </div>
+                <div class="student-notif-list" id="studentNotifList">
+                    <div class="student-notif-empty">Loading notifications...</div>
+                </div>
+            `;
+            notifWrap.appendChild(dropdown);
+            list = document.getElementById('studentNotifList');
+            markAllBtn = document.getElementById('studentNotifMarkAll');
+        }
+
+        const setOpen = (open) => {
+            if (!dropdown) return;
+            if (open) {
+                dropdown.setAttribute('data-open', '1');
+                dropdown.setAttribute('aria-hidden', 'false');
+            } else {
+                dropdown.removeAttribute('data-open');
+                dropdown.setAttribute('aria-hidden', 'true');
+            }
+            notifBell.setAttribute('aria-expanded', open ? 'true' : 'false');
+        };
+
+        const renderNotifications = () => {
+            if (!list) return;
+            if (!notifications.length) {
+                list.innerHTML = '<div class="student-notif-empty">No notifications yet.</div>';
+                return;
+            }
+
+            list.innerHTML = notifications.map((item) => {
+                const unread = !item.read_at;
+                const icon = notificationIconForType(item.type);
+                return `
+                    <button type="button" class="student-notif-item${unread ? ' is-unread' : ''}" data-id="${escapeHtml(item.id)}">
+                        <span class="student-notif-icon"><i class="bi ${escapeHtml(icon)}"></i></span>
+                        <span class="student-notif-copy">
+                            <strong>${escapeHtml(item.title || 'Notification')}</strong>
+                            <span>${escapeHtml(item.body || '')}</span>
+                            <small>${escapeHtml(formatNotificationTime(item.created_at))}</small>
+                        </span>
+                    </button>
+                `;
+            }).join('');
+        };
+
+        const loadNotifications = async () => {
+            try {
+                const res = await fetch(API_NOTIFICATIONS, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    credentials: 'same-origin',
+                });
+                const data = await res.json().catch(() => ({}));
+                if (res.status === 401) {
+                    setNotifCount(0);
+                    if (list) list.innerHTML = '<div class="student-notif-empty">Please sign in again.</div>';
+                    return;
+                }
+                if (!res.ok || !data || data.ok !== true) throw new Error(data.error || 'Failed');
+                notifications = Array.isArray(data.notifications) ? data.notifications : [];
+                setNotifCount(data.unread_count || 0);
+                renderNotifications();
+            } catch (e) {
+                if (list) list.innerHTML = '<div class="student-notif-empty">Unable to load notifications.</div>';
+            }
+        };
+
+        const markRead = async (id) => {
+            if (!id) return;
+            try {
+                const res = await fetch(API_NOTIFICATIONS_READ, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ id }),
+                });
+                if (!res.ok) return;
+                notifications = notifications.map((item) => {
+                    if (String(item.id) !== String(id)) return item;
+                    return { ...item, read_at: item.read_at || new Date().toISOString() };
+                });
+                setNotifCount(notifications.filter((item) => !item.read_at).length);
+                renderNotifications();
+            } catch (e) { /* ignore */ }
+        };
+
+        const markAllRead = async () => {
+            try {
+                const res = await fetch(API_NOTIFICATIONS_READ_ALL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({}),
+                });
+                if (!res.ok) return;
+                notifications = notifications.map((item) => ({
+                    ...item,
+                    read_at: item.read_at || new Date().toISOString(),
+                }));
+                setNotifCount(0);
+                renderNotifications();
+            } catch (e) { /* ignore */ }
+        };
+
+        notifBell.setAttribute('aria-haspopup', 'true');
+        notifBell.setAttribute('aria-expanded', 'false');
+        notifBell.addEventListener('click', (e) => {
+            e.preventDefault();
+            const open = dropdown && dropdown.getAttribute('data-open') === '1';
+            setOpen(!open);
+            if (!open) loadNotifications();
+        });
+
+        if (list) {
+            list.addEventListener('click', (e) => {
+                const item = e.target.closest('.student-notif-item');
+                if (!item) return;
+                markRead(item.getAttribute('data-id'));
+            });
+        }
+
+        if (markAllBtn) markAllBtn.addEventListener('click', markAllRead);
+
+        document.addEventListener('click', (e) => {
+            if (!notifWrap || !dropdown || dropdown.getAttribute('data-open') !== '1') return;
+            if (!notifWrap.contains(e.target)) setOpen(false);
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') setOpen(false);
+        });
+
+        loadNotifications();
+        setInterval(loadNotifications, 45000);
+    };
+
     const setNetworkUi = ({ level }) => {
         if (!systemStatusBadge || !systemStatusText) return;
         systemStatusBadge.classList.remove('is-high', 'is-low', 'is-offline');
@@ -944,14 +1146,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (cachedPhoto) setAvatarUrl(cachedPhoto);
     } catch (e) { /* ignore */ }
 
-    setNotifCount(0);
-
-    if (notifBell) {
-        notifBell.addEventListener('click', (e) => {
-            e.preventDefault();
-            // Placeholder until notifications feature exists
-        });
-    }
+    initNotifications();
 
     startNetworkWatch();
 
