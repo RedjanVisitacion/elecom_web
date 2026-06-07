@@ -3887,6 +3887,7 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
                 results = []
             else:
                 raise
+        stale_tokens_to_remove: set[str] = set()
         for r in results:
             try:
                 conf = float(r.get("confidence") or 0.0)
@@ -3898,16 +3899,10 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
             if not matched_token:
                 continue
             # Best signal: Face++ user_id (we set it to student_id on enrollment).
+            # If the DB enrollment was manually deleted, Face++ can still return an
+            # orphan token. Treat that as stale external memory, remove it, and
+            # allow the account to enroll again.
             rid = str(r.get("user_id") or r.get("userid") or "").strip()
-            if rid and rid != student_id:
-                return JsonResponse(
-                    {
-                        "ok": False,
-                        "error": _DUP_FACE_ENROLL_MSG,
-                        "code": "face_already_enrolled",
-                    },
-                    status=409,
-                )
             owner = FaceEnrollment.objects.filter(
                 enrollment_status="active",
                 facepp_face_token__iexact=matched_token,
@@ -3921,9 +3916,31 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
                     },
                     status=409,
                 )
+            if rid and rid != student_id:
+                rid_owner = FaceEnrollment.objects.filter(
+                    student_id=rid,
+                    enrollment_status="active",
+                ).first()
+                if rid_owner is not None:
+                    return JsonResponse(
+                        {
+                            "ok": False,
+                            "error": _DUP_FACE_ENROLL_MSG,
+                            "code": "face_already_enrolled",
+                        },
+                        status=409,
+                    )
+                stale_tokens_to_remove.add(matched_token)
+                continue
+            if owner is None:
+                stale_tokens_to_remove.add(matched_token)
+                continue
 
         prev = FaceEnrollment.objects.filter(student_id=student_id, enrollment_status="active").first()
         old_token = (prev.facepp_face_token or "").strip() if prev else ""
+
+        for stale_token in stale_tokens_to_remove:
+            facepp_service.remove_face_from_faceset(stale_token)
 
         facepp_service.add_face_to_faceset(new_token)
         try:
