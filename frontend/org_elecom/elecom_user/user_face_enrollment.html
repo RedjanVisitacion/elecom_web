@@ -9,17 +9,23 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260607-face-enrollment">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260607-face-liveness">
 </head>
 <body class="theme-elecom face-enrollment-body">
     <main class="face-enroll-shell">
         <section class="face-enroll-panel" aria-labelledby="faceEnrollTitle">
-            <div class="face-enroll-brand">
-                <img src="/static/assets/elecom.png" alt="ELECOM Logo">
-                <div>
-                    <span>Student Account Setup</span>
-                    <h1 id="faceEnrollTitle">Register Your Face</h1>
+            <div class="face-enroll-top">
+                <div class="face-enroll-brand">
+                    <img src="/static/assets/elecom.png" alt="ELECOM Logo">
+                    <div>
+                        <span>Student Account Setup</span>
+                        <h1 id="faceEnrollTitle">Register Your Face</h1>
+                    </div>
                 </div>
+                <button type="button" class="btn btn-outline-danger face-enroll-logout" id="faceLogoutBtn">
+                    <i class="bi bi-box-arrow-right"></i>
+                    Logout
+                </button>
             </div>
 
             <p class="face-enroll-copy">
@@ -29,9 +35,33 @@
             <div class="face-camera-card">
                 <video id="faceVideo" class="face-camera-video" autoplay playsinline muted></video>
                 <canvas id="faceCanvas" class="face-camera-canvas" width="720" height="540" hidden></canvas>
+                <canvas id="faceAnalysisCanvas" width="240" height="180" hidden></canvas>
+                <div class="face-guide-overlay" aria-hidden="true">
+                    <div class="face-guide-frame" id="faceGuideFrame">
+                        <span class="face-guide-corner face-guide-corner--tl"></span>
+                        <span class="face-guide-corner face-guide-corner--tr"></span>
+                        <span class="face-guide-corner face-guide-corner--bl"></span>
+                        <span class="face-guide-corner face-guide-corner--br"></span>
+                    </div>
+                </div>
                 <div class="face-camera-placeholder" id="facePlaceholder">
                     <i class="bi bi-camera-video"></i>
                     <span>Allow camera access to begin enrollment.</span>
+                </div>
+            </div>
+
+            <div class="face-liveness-steps" aria-label="Face enrollment checks">
+                <div class="face-liveness-step" id="faceStepPosition">
+                    <i class="bi bi-person-bounding-box"></i>
+                    <span>Center face</span>
+                </div>
+                <div class="face-liveness-step" id="faceStepBlink">
+                    <i class="bi bi-eye"></i>
+                    <span>Blink once</span>
+                </div>
+                <div class="face-liveness-step" id="faceStepCapture">
+                    <i class="bi bi-camera"></i>
+                    <span>Capture</span>
                 </div>
             </div>
 
@@ -60,15 +90,28 @@
         document.addEventListener('DOMContentLoaded', () => {
             const video = document.getElementById('faceVideo');
             const canvas = document.getElementById('faceCanvas');
+            const analysisCanvas = document.getElementById('faceAnalysisCanvas');
             const placeholder = document.getElementById('facePlaceholder');
             const statusEl = document.getElementById('faceEnrollStatus');
             const captureBtn = document.getElementById('captureFaceBtn');
             const retakeBtn = document.getElementById('retakeFaceBtn');
             const submitBtn = document.getElementById('submitFaceBtn');
+            const logoutBtn = document.getElementById('faceLogoutBtn');
+            const guideFrame = document.getElementById('faceGuideFrame');
+            const stepPosition = document.getElementById('faceStepPosition');
+            const stepBlink = document.getElementById('faceStepBlink');
+            const stepCapture = document.getElementById('faceStepCapture');
             const params = new URLSearchParams(window.location.search);
             const next = params.get('next') || '/static/org_elecom/elecom_user/user_dashboard.html';
             let stream = null;
             let capturedBlob = null;
+            let detector = null;
+            let detectionTimer = null;
+            let faceCentered = false;
+            let blinkDetected = false;
+            let livenessPassed = false;
+            let lastEyePixels = null;
+            let stableCenteredFrames = 0;
 
             const setStatus = (message, tone) => {
                 statusEl.textContent = message;
@@ -81,9 +124,127 @@
             };
 
             const stopCamera = () => {
+                if (detectionTimer) {
+                    clearInterval(detectionTimer);
+                    detectionTimer = null;
+                }
                 if (!stream) return;
                 stream.getTracks().forEach((track) => track.stop());
                 stream = null;
+            };
+
+            const setStep = (el, state) => {
+                if (!el) return;
+                el.dataset.state = state || '';
+            };
+
+            const updateLivenessUi = () => {
+                setStep(stepPosition, faceCentered ? 'done' : 'active');
+                setStep(stepBlink, blinkDetected ? 'done' : (faceCentered ? 'active' : ''));
+                setStep(stepCapture, livenessPassed ? 'active' : '');
+                if (guideFrame) {
+                    guideFrame.dataset.state = livenessPassed ? 'done' : (faceCentered ? 'ready' : 'searching');
+                }
+                captureBtn.disabled = !livenessPassed || video.hidden;
+            };
+
+            const detectWithBrowserApi = async () => {
+                if (!detector || video.readyState < 2) return null;
+                try {
+                    const faces = await detector.detect(video);
+                    if (!faces || !faces.length) return null;
+                    return faces[0].boundingBox || null;
+                } catch (e) {
+                    return null;
+                }
+            };
+
+            const fallbackFaceBox = () => {
+                if (video.readyState < 2) return null;
+                const w = video.videoWidth || 720;
+                const h = video.videoHeight || 540;
+                return {
+                    x: w * 0.24,
+                    y: h * 0.14,
+                    width: w * 0.52,
+                    height: h * 0.68,
+                };
+            };
+
+            const isFaceCentered = (box) => {
+                if (!box) return false;
+                const w = video.videoWidth || 720;
+                const h = video.videoHeight || 540;
+                const cx = box.x + box.width / 2;
+                const cy = box.y + box.height / 2;
+                const sizeOk = box.width >= w * 0.22 && box.width <= w * 0.72 && box.height >= h * 0.28;
+                const xOk = cx > w * 0.32 && cx < w * 0.68;
+                const yOk = cy > h * 0.28 && cy < h * 0.70;
+                return sizeOk && xOk && yOk;
+            };
+
+            const sampleEyeBand = (box) => {
+                if (!analysisCanvas || !box || video.readyState < 2) return null;
+                const srcW = video.videoWidth || 720;
+                const srcH = video.videoHeight || 540;
+                const scale = Math.min(1, 240 / srcW);
+                analysisCanvas.width = Math.max(1, Math.round(srcW * scale));
+                analysisCanvas.height = Math.max(1, Math.round(srcH * scale));
+                const ctx = analysisCanvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, analysisCanvas.width, analysisCanvas.height);
+
+                const ex = Math.max(0, Math.round((box.x + box.width * 0.18) * scale));
+                const ey = Math.max(0, Math.round((box.y + box.height * 0.24) * scale));
+                const ew = Math.max(8, Math.round(box.width * 0.64 * scale));
+                const eh = Math.max(6, Math.round(box.height * 0.16 * scale));
+                const safeW = Math.min(ew, analysisCanvas.width - ex);
+                const safeH = Math.min(eh, analysisCanvas.height - ey);
+                if (safeW <= 0 || safeH <= 0) return null;
+                return ctx.getImageData(ex, ey, safeW, safeH).data;
+            };
+
+            const averagePixelDiff = (a, b) => {
+                if (!a || !b || a.length !== b.length) return 0;
+                let total = 0;
+                let count = 0;
+                for (let i = 0; i < a.length; i += 4) {
+                    const ag = (a[i] + a[i + 1] + a[i + 2]) / 3;
+                    const bg = (b[i] + b[i + 1] + b[i + 2]) / 3;
+                    total += Math.abs(ag - bg);
+                    count += 1;
+                }
+                return count ? total / count : 0;
+            };
+
+            const analyzeFace = async () => {
+                if (!stream || video.hidden || capturedBlob) return;
+                const detectedBox = await detectWithBrowserApi();
+                const box = detectedBox || fallbackFaceBox();
+                const centeredNow = isFaceCentered(box);
+                stableCenteredFrames = centeredNow ? Math.min(stableCenteredFrames + 1, 10) : 0;
+                faceCentered = stableCenteredFrames >= 2;
+
+                if (!faceCentered) {
+                    lastEyePixels = null;
+                    setStatus('Position your face inside the frame.');
+                    updateLivenessUi();
+                    return;
+                }
+
+                const eyePixels = sampleEyeBand(box);
+                const diff = averagePixelDiff(lastEyePixels, eyePixels);
+                if (lastEyePixels && diff > 11) {
+                    blinkDetected = true;
+                    livenessPassed = true;
+                }
+                lastEyePixels = eyePixels;
+
+                if (livenessPassed) {
+                    setStatus('Blink detected. You can now capture your enrollment photo.', 'success');
+                } else {
+                    setStatus('Face centered. Blink once to continue.');
+                }
+                updateLivenessUi();
             };
 
             const startCamera = async () => {
@@ -94,8 +255,17 @@
                     });
                     video.srcObject = stream;
                     placeholder.hidden = true;
-                    captureBtn.disabled = false;
-                    setStatus('Keep your face centered, then capture your enrollment photo.');
+                    captureBtn.disabled = true;
+                    try {
+                        if ('FaceDetector' in window) {
+                            detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+                        }
+                    } catch (e) {
+                        detector = null;
+                    }
+                    setStatus('Position your face inside the frame.');
+                    updateLivenessUi();
+                    detectionTimer = setInterval(analyzeFace, 260);
                 } catch (error) {
                     setStatus('Camera access is required. Allow camera permission, then reload this page.', 'error');
                     placeholder.hidden = false;
@@ -103,6 +273,10 @@
             };
 
             const captureFace = () => {
+                if (!livenessPassed) {
+                    setStatus('Please center your face and blink once before capturing.', 'error');
+                    return;
+                }
                 const width = video.videoWidth || 720;
                 const height = video.videoHeight || 540;
                 canvas.width = width;
@@ -126,12 +300,18 @@
 
             const retakeFace = () => {
                 capturedBlob = null;
+                faceCentered = false;
+                blinkDetected = false;
+                livenessPassed = false;
+                lastEyePixels = null;
+                stableCenteredFrames = 0;
                 canvas.hidden = true;
                 video.hidden = false;
-                captureBtn.disabled = false;
+                captureBtn.disabled = true;
                 retakeBtn.disabled = true;
                 submitBtn.disabled = true;
-                setStatus('Keep your face centered, then capture your enrollment photo.');
+                setStatus('Position your face inside the frame.');
+                updateLivenessUi();
             };
 
             const submitFace = async () => {
@@ -168,9 +348,20 @@
                 }
             };
 
+            const logout = () => {
+                try {
+                    sessionStorage.removeItem('elecom_role');
+                    sessionStorage.removeItem('elecom_user');
+                    sessionStorage.removeItem('elecom_user_photo_url');
+                } catch (e) { /* ignore */ }
+                stopCamera();
+                window.location.href = '/login/';
+            };
+
             captureBtn.addEventListener('click', captureFace);
             retakeBtn.addEventListener('click', retakeFace);
             submitBtn.addEventListener('click', submitFace);
+            logoutBtn.addEventListener('click', logout);
             window.addEventListener('beforeunload', stopCamera);
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
