@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-status-in-frame">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260609-face-quality-v2">
 </head>
 <body class="theme-elecom face-enrollment-body">
     <main class="face-enroll-shell">
@@ -55,17 +55,51 @@
             <div class="face-liveness-steps" aria-label="Face enrollment checks">
                 <div class="face-liveness-step" id="faceStepPosition" data-state="active">
                     <i class="bi bi-person-bounding-box"></i>
-                    <span>Center face</span>
+                    <span>Align face</span>
                 </div>
                 <div class="face-liveness-step" id="faceStepBlink">
-                    <i class="bi bi-eye"></i>
-                    <span>Blink once</span>
+                    <i class="bi bi-shield-check"></i>
+                    <span id="faceChallengeLabel">Liveness</span>
                 </div>
                 <div class="face-liveness-step" id="faceStepCapture">
                     <i class="bi bi-camera"></i>
-                    <span>Capture</span>
+                    <span id="faceCaptureStepLabel">Ready</span>
                 </div>
             </div>
+
+            <div class="face-readiness-panel" aria-label="Enrollment readiness scores">
+                <div class="face-score-row">
+                    <span>Face Alignment</span>
+                    <strong id="faceAlignmentScore">0%</strong>
+                </div>
+                <div class="face-score-row">
+                    <span>Lighting</span>
+                    <strong id="faceLightingScore">0%</strong>
+                </div>
+                <div class="face-score-row">
+                    <span>Image Quality</span>
+                    <strong id="faceQualityScore">0%</strong>
+                </div>
+                <div class="face-score-row">
+                    <span>Liveness</span>
+                    <strong id="faceLivenessScore">0%</strong>
+                </div>
+                <div class="face-score-row face-score-row--overall">
+                    <span>Overall Readiness</span>
+                    <strong id="faceOverallScore">0%</strong>
+                </div>
+            </div>
+
+            <div class="face-capture-strip" aria-label="Enrollment capture sequence">
+                <span id="facePoseFront" data-state="active">Front</span>
+                <span id="facePoseLeft">Slight left</span>
+                <span id="facePoseRight">Slight right</span>
+            </div>
+
+            <button type="button" class="btn btn-primary face-capture-btn" id="faceCaptureBtn" disabled>
+                <i class="bi bi-camera"></i>
+                Capture Enrollment Frame
+            </button>
 
             <div class="face-enroll-status" id="faceEnrollStatus" role="status">
                 Position your face inside the frame, then blink once.
@@ -74,12 +108,13 @@
         </section>
     </main>
 
-    <script>
+    <script type="module">
+        import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+
         document.addEventListener('DOMContentLoaded', () => {
             const video = document.getElementById('faceVideo');
             const canvas = document.getElementById('faceCanvas');
             const analysisCanvas = document.getElementById('faceAnalysisCanvas');
-            const detectCanvas = document.getElementById('faceDetectCanvas');
             const placeholder = document.getElementById('facePlaceholder');
             const statusEl = document.getElementById('faceEnrollStatus');
             const logoutBtn = document.getElementById('faceLogoutBtn');
@@ -88,29 +123,63 @@
             const stepPosition = document.getElementById('faceStepPosition');
             const stepBlink = document.getElementById('faceStepBlink');
             const stepCapture = document.getElementById('faceStepCapture');
+            const challengeLabel = document.getElementById('faceChallengeLabel');
+            const captureStepLabel = document.getElementById('faceCaptureStepLabel');
+            const captureBtn = document.getElementById('faceCaptureBtn');
+            const scoreEls = {
+                alignment: document.getElementById('faceAlignmentScore'),
+                lighting: document.getElementById('faceLightingScore'),
+                quality: document.getElementById('faceQualityScore'),
+                liveness: document.getElementById('faceLivenessScore'),
+                overall: document.getElementById('faceOverallScore'),
+            };
+            const poseEls = {
+                front: document.getElementById('facePoseFront'),
+                left: document.getElementById('facePoseLeft'),
+                right: document.getElementById('facePoseRight'),
+            };
             const params = new URLSearchParams(window.location.search);
             const next = params.get('next') || '/static/org_elecom/elecom_user/user_dashboard.html';
             let stream = null;
+            let faceLandmarker = null;
             let capturedBlob = null;
             let detectionTimer = null;
-            let faceCentered = false;
-            let blinkDetected = false;
-            let livenessPassed = false;
-            let lastEyePixels = null;
-            let stableCenteredFrames = 0;
-            let autoCaptureStarted = false;
             let submitting = false;
             let detectorReady = false;
-            let lastDetectionAt = 0;
-            let lastBackendCheckAt = 0;
-            let detectRequestInFlight = false;
-            let cachedDetectedBox = null;
-            let blinkCandidateFrames = 0;
-            let lastCenteredBox = null;
-            let eyesOpenSeen = false;
-            let centeredOpenFrames = 0;
-            let readyForBlinkAt = 0;
-            let maskDetected = false;
+            let lastVideoTime = -1;
+            let currentMetrics = null;
+            let challenge = null;
+            let challengeState = {};
+            let captureSequence = ['front', 'left', 'right'];
+            let captureIndex = 0;
+            let capturedFrames = [];
+            let readyFrames = 0;
+            let frameHistory = [];
+
+            const CONFIG = {
+                minOverall: 90,
+                minLiveness: 95,
+                yawLimit: 15,
+                pitchLimit: 15,
+                rollLimit: 10,
+                faceScaleMin: 0.60,
+                faceScaleMax: 0.80,
+                blurMin: 28,
+                brightnessMin: 62,
+                brightnessMax: 205,
+                overexposedMax: 0.10,
+                underexposedMax: 0.16,
+                backlightMax: 70,
+                maskConfidenceMin: 90,
+            };
+
+            const CHALLENGES = [
+                { type: 'blink_once', label: 'Blink once' },
+                { type: 'blink_twice', label: 'Blink twice' },
+                { type: 'turn_left', label: 'Turn head left' },
+                { type: 'turn_right', label: 'Turn head right' },
+                { type: 'smile', label: 'Smile' },
+            ];
 
             const setStatus = (message, tone) => {
                 statusEl.textContent = message;
@@ -119,6 +188,20 @@
                     guideLabel.textContent = message;
                     guideLabel.dataset.tone = tone || '';
                 }
+            };
+
+            const pct = (value) => `${Math.max(0, Math.min(100, Math.round(value || 0)))}%`;
+            const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value));
+            const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+            const angleDeg = (a, b) => Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI;
+            const randomChallenge = (pose = 'front') => {
+                const allowed = CHALLENGES.filter((item) => {
+                    if (pose === 'front') return !item.type.startsWith('turn_');
+                    if (pose === 'left') return item.type !== 'turn_right';
+                    if (pose === 'right') return item.type !== 'turn_left';
+                    return true;
+                });
+                return allowed[Math.floor(Math.random() * allowed.length)];
             };
 
             const safeNext = () => {
@@ -141,308 +224,310 @@
                 el.dataset.state = state || '';
             };
 
-            const updateLivenessUi = () => {
-                setStep(stepPosition, faceCentered ? 'done' : 'active');
-                setStep(stepBlink, blinkDetected ? 'done' : (faceCentered ? 'active' : ''));
-                setStep(stepCapture, livenessPassed ? 'active' : '');
+            const updateScoreUi = (metrics) => {
+                const scores = metrics?.scores || {};
+                scoreEls.alignment.textContent = pct(scores.alignment);
+                scoreEls.lighting.textContent = pct(scores.lighting);
+                scoreEls.quality.textContent = pct(scores.quality);
+                scoreEls.liveness.textContent = pct(scores.liveness);
+                scoreEls.overall.textContent = pct(scores.overall);
+                const ready = Boolean(metrics?.ready);
+                captureBtn.disabled = !ready || submitting;
+                captureBtn.dataset.state = ready ? 'ready' : '';
+                setStep(stepPosition, scores.alignment >= 90 ? 'done' : 'active');
+                setStep(stepBlink, scores.liveness >= CONFIG.minLiveness ? 'done' : (scores.alignment >= 80 ? 'active' : ''));
+                setStep(stepCapture, ready ? 'active' : '');
+                captureStepLabel.textContent = ready ? 'Capture' : 'Ready';
                 if (guideFrame) {
-                    guideFrame.dataset.state = livenessPassed ? 'done' : (faceCentered ? 'ready' : 'searching');
+                    guideFrame.dataset.state = metrics?.tone || 'searching';
                 }
             };
 
-            const detectWithBrowserApi = async () => {
-                if (!detectorReady || !detectCanvas || video.readyState < 2) return null;
-                const now = Date.now();
-                if (cachedDetectedBox && now - lastBackendCheckAt < 600) {
-                    return cachedDetectedBox;
-                }
-                if (detectRequestInFlight) {
-                    return cachedDetectedBox;
-                }
-                detectRequestInFlight = true;
+            const getFrameStats = (landmarks) => {
                 const srcW = video.videoWidth || 720;
                 const srcH = video.videoHeight || 540;
-                const targetW = 420;
-                const targetH = Math.max(1, Math.round(targetW * (srcH / srcW)));
-                detectCanvas.width = targetW;
-                detectCanvas.height = targetH;
-                const ctx = detectCanvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, targetW, targetH);
-                const blob = await new Promise((resolve) => {
-                    detectCanvas.toBlob(resolve, 'image/jpeg', 0.72);
-                });
-                if (!blob) return null;
-
-                const formData = new FormData();
-                formData.append('face_image', blob, 'face-detect.jpg');
-                try {
-                    const response = await fetch('/api/mobile/face/detect/', {
-                        method: 'POST',
-                        credentials: 'same-origin',
-                        body: formData,
-                    });
-                    if (response.status === 401) {
-                        window.location.href = '/login/';
-                        return null;
-                    }
-                    const data = await response.json().catch(() => ({}));
-                    if (!response.ok || data.ok !== true || data.face_detected !== true || !data.rectangle) {
-                        cachedDetectedBox = null;
-                        lastBackendCheckAt = Date.now();
-                        return null;
-                    }
-                    const rect = data.rectangle;
-                    const scaleX = srcW / targetW;
-                    const scaleY = srcH / targetH;
-                    const box = {
-                        x: Math.max(0, Number(rect.left || 0) * scaleX),
-                        y: Math.max(0, Number(rect.top || 0) * scaleY),
-                        width: Math.max(1, Number(rect.width || 0) * scaleX),
-                        height: Math.max(1, Number(rect.height || 0) * scaleY),
-                        maskDetected: data.mask_detected === true,
-                        eyesClosed: data.eyes_closed === true,
-                        eyesOpen: data.eyes_open === true,
-                    };
-                    cachedDetectedBox = box;
-                    lastBackendCheckAt = Date.now();
-                    lastDetectionAt = Date.now();
-                    return box;
-                } catch (e) {
-                    setStatus('Face detection connection failed. Checking again...', 'error');
-                    cachedDetectedBox = null;
-                    lastBackendCheckAt = Date.now();
-                    return null;
-                } finally {
-                    detectRequestInFlight = false;
+                const w = 240;
+                const h = Math.max(1, Math.round(w * srcH / srcW));
+                analysisCanvas.width = w;
+                analysisCanvas.height = h;
+                const ctx = analysisCanvas.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(video, 0, 0, w, h);
+                const data = ctx.getImageData(0, 0, w, h).data;
+                let sum = 0;
+                let over = 0;
+                let under = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    const y = 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                    sum += y;
+                    if (y > 242) over += 1;
+                    if (y < 28) under += 1;
                 }
+                const avg = sum / (data.length / 4);
+                const faceBox = landmarks ? landmarkBox(landmarks) : null;
+                const faceBrightness = faceBox ? regionBrightness(ctx, faceBox, w, h) : avg;
+                const bgBrightness = faceBox ? backgroundBrightness(ctx, faceBox, w, h) : avg;
+                return {
+                    avg,
+                    overRatio: over / (data.length / 4),
+                    underRatio: under / (data.length / 4),
+                    backlightDelta: bgBrightness - faceBrightness,
+                    blur: laplacianScore(ctx, w, h),
+                    faceBrightness,
+                };
             };
 
-            const isFaceCentered = (box) => {
-                if (!box) return false;
-                const w = video.videoWidth || 720;
-                const h = video.videoHeight || 540;
+            const landmarkBox = (lm) => {
+                let minX = 1;
+                let minY = 1;
+                let maxX = 0;
+                let maxY = 0;
+                lm.forEach((p) => {
+                    minX = Math.min(minX, p.x);
+                    minY = Math.min(minY, p.y);
+                    maxX = Math.max(maxX, p.x);
+                    maxY = Math.max(maxY, p.y);
+                });
+                return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+            };
+
+            const regionBrightness = (ctx, box, w, h) => {
+                const x = clamp(Math.round(box.x * w), 0, w - 1);
+                const y = clamp(Math.round(box.y * h), 0, h - 1);
+                const rw = clamp(Math.round(box.width * w), 1, w - x);
+                const rh = clamp(Math.round(box.height * h), 1, h - y);
+                const data = ctx.getImageData(x, y, rw, rh).data;
+                let sum = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                }
+                return sum / Math.max(1, data.length / 4);
+            };
+
+            const backgroundBrightness = (ctx, box, w, h) => {
+                const data = ctx.getImageData(0, 0, w, h).data;
+                let sum = 0;
+                let count = 0;
+                for (let py = 0; py < h; py += 2) {
+                    for (let px = 0; px < w; px += 2) {
+                        const nx = px / w;
+                        const ny = py / h;
+                        if (nx > box.x - 0.03 && nx < box.x + box.width + 0.03 && ny > box.y - 0.03 && ny < box.y + box.height + 0.03) continue;
+                        const i = (py * w + px) * 4;
+                        sum += 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                        count += 1;
+                    }
+                }
+                return count ? sum / count : 0;
+            };
+
+            const laplacianScore = (ctx, w, h) => {
+                const data = ctx.getImageData(0, 0, w, h).data;
+                let sum = 0;
+                let sumSq = 0;
+                let count = 0;
+                const gray = (x, y) => {
+                    const i = (y * w + x) * 4;
+                    return 0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2];
+                };
+                for (let y = 1; y < h - 1; y += 2) {
+                    for (let x = 1; x < w - 1; x += 2) {
+                        const v = 4 * gray(x, y) - gray(x - 1, y) - gray(x + 1, y) - gray(x, y - 1) - gray(x, y + 1);
+                        sum += v;
+                        sumSq += v * v;
+                        count += 1;
+                    }
+                }
+                const mean = sum / Math.max(1, count);
+                return Math.sqrt(Math.max(0, sumSq / Math.max(1, count) - mean * mean));
+            };
+
+            const ear = (lm, indices) => {
+                const [p1, p2, p3, p4, p5, p6] = indices.map((i) => lm[i]);
+                return (dist(p2, p6) + dist(p3, p5)) / Math.max(0.001, 2 * dist(p1, p4));
+            };
+
+            const analyzeLandmarks = (lm) => {
+                const box = landmarkBox(lm);
+                const leftEye = lm[33];
+                const rightEye = lm[263];
+                const nose = lm[1];
+                const mouthLeft = lm[61];
+                const mouthRight = lm[291];
+                const mouthTop = lm[13];
+                const mouthBottom = lm[14];
+                const chin = lm[152];
+                const forehead = lm[10];
+                const leftCheek = lm[234];
+                const rightCheek = lm[454];
                 const cx = box.x + box.width / 2;
                 const cy = box.y + box.height / 2;
-                const frameLeft = w * 0.25;
-                const frameRight = w * 0.75;
-                const frameTop = h * 0.12;
-                const frameBottom = h * 0.86;
-                const sizeOk = box.width >= w * 0.18 && box.width <= w * 0.70 && box.height >= h * 0.25 && box.height <= h * 0.88;
-                const xOk = cx > frameLeft && cx < frameRight;
-                const yOk = cy > frameTop && cy < frameBottom;
-                const overlapLeft = Math.max(box.x, frameLeft);
-                const overlapTop = Math.max(box.y, frameTop);
-                const overlapRight = Math.min(box.x + box.width, frameRight);
-                const overlapBottom = Math.min(box.y + box.height, frameBottom);
-                const overlapArea = Math.max(0, overlapRight - overlapLeft) * Math.max(0, overlapBottom - overlapTop);
-                const faceArea = Math.max(1, box.width * box.height);
-                const overlapOk = overlapArea / faceArea >= 0.52;
-                return sizeOk && xOk && yOk && overlapOk;
+                const faceScale = box.height / 0.78;
+                const offsetX = cx - 0.5;
+                const offsetY = cy - 0.48;
+                const roll = angleDeg(leftEye, rightEye);
+                const eyeMidX = (leftEye.x + rightEye.x) / 2;
+                const faceHalf = Math.max(0.001, Math.abs(rightCheek.x - leftCheek.x) / 2);
+                const yaw = ((nose.x - eyeMidX) / faceHalf) * 38;
+                const verticalMid = (forehead.y + chin.y) / 2;
+                const pitch = ((nose.y - verticalMid) / Math.max(0.001, chin.y - forehead.y)) * 72;
+                const leftEar = ear(lm, [33, 160, 158, 133, 153, 144]);
+                const rightEar = ear(lm, [362, 385, 387, 263, 373, 380]);
+                const avgEar = (leftEar + rightEar) / 2;
+                const mouthOpen = dist(mouthTop, mouthBottom) / Math.max(0.001, dist(mouthLeft, mouthRight));
+                const smile = dist(mouthLeft, mouthRight) / Math.max(0.001, dist(leftEye, rightEye));
+                const mouthVisible = mouthOpen > 0.015 && mouthTop.visibility !== 0 && mouthBottom.visibility !== 0;
+                const noseVisible = nose.visibility !== 0 && nose.x > box.x && nose.x < box.x + box.width;
+                const eyesVisible = leftEar > 0.08 && rightEar > 0.08;
+                const lowerFaceCovered = mouthOpen < 0.012 && avgEar > 0.19 && Math.abs(yaw) < 12;
+                const maskConfidence = lowerFaceCovered ? clamp(72 + (0.012 - mouthOpen) * 2200) : 0;
+                return {
+                    box,
+                    faceScale,
+                    offsetX,
+                    offsetY,
+                    yaw,
+                    pitch,
+                    roll,
+                    avgEar,
+                    blinkClosed: avgEar < 0.17,
+                    eyesVisible,
+                    noseVisible,
+                    mouthVisible,
+                    smile,
+                    smiling: smile > 1.55 && mouthOpen > 0.035,
+                    maskConfidence,
+                    fullFaceVisible: box.x > 0.03 && box.y > 0.02 && box.x + box.width < 0.97 && box.y + box.height < 0.98,
+                };
             };
 
-            const sampleEyeBand = (box) => {
-                if (!analysisCanvas || !box || video.readyState < 2) return null;
-                const srcW = video.videoWidth || 720;
-                const srcH = video.videoHeight || 540;
-                const scale = Math.min(1, 240 / srcW);
-                analysisCanvas.width = Math.max(1, Math.round(srcW * scale));
-                analysisCanvas.height = Math.max(1, Math.round(srcH * scale));
-                const ctx = analysisCanvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, analysisCanvas.width, analysisCanvas.height);
-
-                const ex = Math.max(0, Math.round((box.x + box.width * 0.18) * scale));
-                const ey = Math.max(0, Math.round((box.y + box.height * 0.24) * scale));
-                const ew = Math.max(8, Math.round(box.width * 0.64 * scale));
-                const eh = Math.max(6, Math.round(box.height * 0.16 * scale));
-                const safeW = Math.min(ew, analysisCanvas.width - ex);
-                const safeH = Math.min(eh, analysisCanvas.height - ey);
-                if (safeW <= 0 || safeH <= 0) return null;
-                return ctx.getImageData(ex, ey, safeW, safeH).data;
-            };
-
-            const averagePixelDiff = (a, b) => {
-                if (!a || !b || a.length !== b.length) return 0;
-                let total = 0;
-                let count = 0;
-                for (let i = 0; i < a.length; i += 4) {
-                    const ag = (a[i] + a[i + 1] + a[i + 2]) / 3;
-                    const bg = (b[i] + b[i + 1] + b[i + 2]) / 3;
-                    total += Math.abs(ag - bg);
-                    count += 1;
+            const updateChallenge = (geo) => {
+                if (!challenge) {
+                    challenge = randomChallenge(captureSequence[captureIndex]);
+                    challengeState = { startedAt: Date.now(), blinks: 0, wasOpen: true, passed: false };
+                    challengeLabel.textContent = challenge.label;
                 }
-                return count ? total / count : 0;
-            };
-
-            const skinRatio = (data) => {
-                if (!data || !data.length) return 0;
-                let skin = 0;
-                let count = 0;
-                for (let i = 0; i < data.length; i += 4) {
-                    const r = data[i];
-                    const g = data[i + 1];
-                    const b = data[i + 2];
-                    const mx = Math.max(r, g, b);
-                    const mn = Math.min(r, g, b);
-                    const cb = 0.5 + (-0.168736 * r + 0.331264 * g + 0.5 * b) / 255;
-                    const cr = 0.5 + (0.5 * r - 0.418688 * g - 0.081312 * b) / 255;
-                    if (mx - mn >= 12 && cb >= 0.30 && cb <= 0.62 && cr >= 0.48 && cr <= 0.78 && r > b * 0.72) {
-                        skin += 1;
+                if (!geo) return false;
+                const open = geo.avgEar > 0.21;
+                if (challenge.type.startsWith('blink')) {
+                    if (challengeState.wasOpen && geo.blinkClosed) challengeState.closedSeen = true;
+                    if (challengeState.closedSeen && open) {
+                        challengeState.blinks += 1;
+                        challengeState.closedSeen = false;
                     }
-                    count += 1;
+                    challengeState.wasOpen = open;
+                    challengeState.passed = challenge.type === 'blink_twice' ? challengeState.blinks >= 2 : challengeState.blinks >= 1;
+                } else if (challenge.type === 'turn_left') {
+                    challengeState.passed = geo.yaw <= -12;
+                } else if (challenge.type === 'turn_right') {
+                    challengeState.passed = geo.yaw >= 12;
+                } else if (challenge.type === 'smile') {
+                    challengeState.passed = geo.smiling;
                 }
-                return count ? skin / count : 0;
+                return challengeState.passed;
             };
 
-            const sampleFaceBand = (box, topRatio, bottomRatio) => {
-                if (!analysisCanvas || !box || video.readyState < 2) return null;
-                const srcW = video.videoWidth || 720;
-                const srcH = video.videoHeight || 540;
-                const scale = Math.min(1, 240 / srcW);
-                analysisCanvas.width = Math.max(1, Math.round(srcW * scale));
-                analysisCanvas.height = Math.max(1, Math.round(srcH * scale));
-                const ctx = analysisCanvas.getContext('2d');
-                ctx.drawImage(video, 0, 0, analysisCanvas.width, analysisCanvas.height);
-
-                const x = Math.max(0, Math.round((box.x + box.width * 0.18) * scale));
-                const y = Math.max(0, Math.round((box.y + box.height * topRatio) * scale));
-                const w = Math.max(8, Math.round(box.width * 0.64 * scale));
-                const h = Math.max(6, Math.round(box.height * (bottomRatio - topRatio) * scale));
-                const safeW = Math.min(w, analysisCanvas.width - x);
-                const safeH = Math.min(h, analysisCanvas.height - y);
-                if (safeW <= 0 || safeH <= 0) return null;
-                return ctx.getImageData(x, y, safeW, safeH).data;
-            };
-
-            const lowerFaceLooksCovered = (box) => {
-                const upper = skinRatio(sampleFaceBand(box, 0.32, 0.56));
-                const lower = skinRatio(sampleFaceBand(box, 0.58, 0.88));
-                return upper >= 0.08 && lower <= Math.max(0.045, upper * 0.45);
-            };
-
-            const faceBoxMotion = (a, b) => {
-                if (!a || !b) return 1;
-                const w = video.videoWidth || 720;
-                const h = video.videoHeight || 540;
-                const acx = a.x + a.width / 2;
-                const acy = a.y + a.height / 2;
-                const bcx = b.x + b.width / 2;
-                const bcy = b.y + b.height / 2;
-                const centerMove = Math.hypot((acx - bcx) / w, (acy - bcy) / h);
-                const sizeMove = Math.abs(a.width - b.width) / w + Math.abs(a.height - b.height) / h;
-                return centerMove + sizeMove;
-            };
-
-            const analyzeFace = async () => {
-                if (!stream || video.hidden || capturedBlob || autoCaptureStarted || submitting) return;
-                const detectedBox = await detectWithBrowserApi();
-                if (!detectorReady) {
-                    setStatus('Face detection is starting. Keep your face inside the frame.');
-                    updateLivenessUi();
-                    return;
+            const scoreMetrics = (geo, frame) => {
+                if (!geo) {
+                    return { ready: false, tone: 'invalid', scores: {}, message: 'Looking for your face. Move closer and face the camera.' };
                 }
-                if (!detectedBox) {
-                    stableCenteredFrames = 0;
-                    faceCentered = false;
-                    blinkDetected = false;
-                    blinkCandidateFrames = 0;
-                    lastCenteredBox = null;
-                    eyesOpenSeen = false;
-                    centeredOpenFrames = 0;
-                    readyForBlinkAt = 0;
-                    maskDetected = false;
-                    lastEyePixels = null;
-                    const status = lastDetectionAt
-                        ? 'Face lost. Move closer and keep your full face inside the frame.'
-                        : 'Looking for your face. Move closer and face the camera.';
-                    setStatus(status);
-                    updateLivenessUi();
-                    return;
-                }
-                const box = detectedBox;
-                maskDetected = box.maskDetected === true || lowerFaceLooksCovered(box);
+                const centerScore = 100 - Math.hypot(geo.offsetX / 0.18, geo.offsetY / 0.16) * 50;
+                const scaleMid = (CONFIG.faceScaleMin + CONFIG.faceScaleMax) / 2;
+                const scaleScore = 100 - Math.abs(geo.faceScale - scaleMid) / 0.12 * 45;
+                const angleScore = Math.min(
+                    100 - Math.abs(geo.yaw) / CONFIG.yawLimit * 35,
+                    100 - Math.abs(geo.pitch) / CONFIG.pitchLimit * 35,
+                    100 - Math.abs(geo.roll) / CONFIG.rollLimit * 35,
+                );
+                const featureScore = [geo.fullFaceVisible, geo.eyesVisible, geo.noseVisible, geo.mouthVisible].filter(Boolean).length * 25;
+                const alignment = clamp(Math.min(centerScore, scaleScore, angleScore, featureScore));
+                const brightnessScore = frame.avg < CONFIG.brightnessMin
+                    ? frame.avg / CONFIG.brightnessMin * 100
+                    : frame.avg > CONFIG.brightnessMax
+                        ? 100 - (frame.avg - CONFIG.brightnessMax) / 45 * 100
+                        : 100;
+                const exposureScore = 100 - Math.max(frame.overRatio / CONFIG.overexposedMax, frame.underRatio / CONFIG.underexposedMax) * 45;
+                const backlightScore = 100 - Math.max(0, frame.backlightDelta - 20) / CONFIG.backlightMax * 100;
+                const lighting = clamp(Math.min(brightnessScore, exposureScore, backlightScore));
+                const blurScore = clamp(frame.blur / CONFIG.blurMin * 100);
+                const resolutionScore = clamp((geo.box.height * (video.videoHeight || 540)) / 260 * 100);
+                const quality = clamp(Math.min(blurScore, resolutionScore, featureScore));
+                const challengePassed = updateChallenge(geo);
+                const movement = updateMotionHistory(geo);
+                const spoofPenalty = frameHistory.length >= 8 && movement < 0.001 && !geo.blinkClosed && !geo.smiling ? 8 : 0;
+                const liveness = clamp((challengePassed ? 100 : 55) - spoofPenalty);
+                const overall = Math.min(alignment, lighting, quality, liveness);
+                const maskDetected = geo.maskConfidence >= CONFIG.maskConfidenceMin && !geo.mouthVisible;
+                let message = challengePassed ? `Ready for ${captureSequence[captureIndex].replace('_', ' ')} capture.` : challenge.label;
+                let tone = overall >= CONFIG.minOverall ? 'done' : 'ready';
                 if (maskDetected) {
-                    stableCenteredFrames = 0;
-                    faceCentered = false;
-                    blinkDetected = false;
-                    livenessPassed = false;
-                    blinkCandidateFrames = 0;
-                    eyesOpenSeen = false;
-                    centeredOpenFrames = 0;
-                    readyForBlinkAt = 0;
-                    lastCenteredBox = null;
-                    lastEyePixels = null;
-                    setStatus('Face mask detected. Please remove your mask before enrollment.', 'error');
-                    updateLivenessUi();
-                    return;
+                    message = 'Mask detected. Please remove your mask.';
+                    tone = 'invalid';
+                } else if (!geo.fullFaceVisible || !geo.eyesVisible || !geo.noseVisible || !geo.mouthVisible) {
+                    message = 'Keep your entire face, eyes, nose, and mouth visible.';
+                    tone = 'invalid';
+                } else if (geo.faceScale < CONFIG.faceScaleMin) {
+                    message = 'Move closer.';
+                } else if (geo.faceScale > CONFIG.faceScaleMax) {
+                    message = 'Move farther.';
+                } else if (geo.offsetX < -0.08) {
+                    message = 'Move right.';
+                } else if (geo.offsetX > 0.08) {
+                    message = 'Move left.';
+                } else if (geo.offsetY < -0.08) {
+                    message = 'Lower your head.';
+                } else if (geo.offsetY > 0.08) {
+                    message = 'Raise your head.';
+                } else if (Math.abs(geo.yaw) > CONFIG.yawLimit || Math.abs(geo.pitch) > CONFIG.pitchLimit || Math.abs(geo.roll) > CONFIG.rollLimit) {
+                    message = 'Face the camera directly.';
+                } else if (frame.avg < CONFIG.brightnessMin || frame.underRatio > CONFIG.underexposedMax) {
+                    message = 'Environment too dark. Improve room lighting.';
+                    tone = 'invalid';
+                } else if (frame.avg > CONFIG.brightnessMax || frame.overRatio > CONFIG.overexposedMax) {
+                    message = 'Face not clearly visible. Reduce direct light.';
+                    tone = 'invalid';
+                } else if (frame.backlightDelta > CONFIG.backlightMax) {
+                    message = 'Too much light behind user.';
+                    tone = 'invalid';
+                } else if (frame.blur < CONFIG.blurMin) {
+                    message = 'Image is blurry. Hold still.';
+                    tone = 'invalid';
+                } else if (!challengePassed) {
+                    message = challenge.label;
                 }
+                const readyNow = overall >= CONFIG.minOverall && liveness >= CONFIG.minLiveness && !maskDetected;
+                readyFrames = readyNow ? Math.min(readyFrames + 1, 8) : 0;
+                return {
+                    ready: readyFrames >= 3,
+                    tone,
+                    message,
+                    geo,
+                    frame,
+                    scores: { alignment, lighting, quality, liveness, overall },
+                    maskDetected,
+                };
+            };
 
-                const centeredNow = isFaceCentered(box);
-                stableCenteredFrames = centeredNow ? Math.min(stableCenteredFrames + 1, 12) : 0;
-                faceCentered = stableCenteredFrames >= 2;
+            const updateMotionHistory = (geo) => {
+                const now = Date.now();
+                frameHistory.push({ t: now, x: geo.box.x + geo.box.width / 2, y: geo.box.y + geo.box.height / 2, s: geo.box.height });
+                frameHistory = frameHistory.filter((f) => now - f.t < 1600);
+                if (frameHistory.length < 4) return 0.01;
+                const first = frameHistory[0];
+                const last = frameHistory[frameHistory.length - 1];
+                return Math.hypot(last.x - first.x, last.y - first.y) + Math.abs(last.s - first.s);
+            };
 
-                if (!faceCentered) {
-                    lastEyePixels = null;
-                    blinkCandidateFrames = 0;
-                    lastCenteredBox = null;
-                    eyesOpenSeen = false;
-                    centeredOpenFrames = 0;
-                    readyForBlinkAt = 0;
-                    setStatus('Position your face inside the frame.');
-                    updateLivenessUi();
-                    return;
-                }
-
-                const motion = faceBoxMotion(lastCenteredBox, box);
-                lastCenteredBox = { x: box.x, y: box.y, width: box.width, height: box.height };
-                if (motion > 0.09) {
-                    lastEyePixels = null;
-                    blinkCandidateFrames = 0;
-                    centeredOpenFrames = 0;
-                    readyForBlinkAt = 0;
-                    setStatus('Hold still inside the frame, then blink once.');
-                    updateLivenessUi();
-                    return;
-                }
-
-                const eyePixels = sampleEyeBand(box);
-                const eyeDiff = averagePixelDiff(lastEyePixels, eyePixels);
-                const localBlink = eyesOpenSeen && lastEyePixels && eyeDiff > 12 && eyeDiff < 95;
-                lastEyePixels = eyePixels;
-
-                if (box.eyesOpen || !box.eyesClosed) {
-                    centeredOpenFrames = Math.min(centeredOpenFrames + 1, 6);
-                } else {
-                    centeredOpenFrames = 0;
-                }
-
-                if (box.eyesOpen || centeredOpenFrames >= 2) {
-                    if (!eyesOpenSeen) {
-                        readyForBlinkAt = Date.now();
-                    }
-                    eyesOpenSeen = true;
-                    blinkCandidateFrames = 0;
-                } else if (eyesOpenSeen && readyForBlinkAt && Date.now() - readyForBlinkAt >= 650 && (box.eyesClosed || localBlink)) {
-                    if (box.eyesClosed || eyeDiff > 24) {
-                        blinkCandidateFrames += 1;
-                    }
-                } else {
-                    blinkCandidateFrames = 0;
-                }
-                if (blinkCandidateFrames >= 2 || (box.eyesClosed && blinkCandidateFrames >= 1)) {
-                    blinkDetected = true;
-                    livenessPassed = true;
-                }
-
-                if (livenessPassed) {
-                    setStatus('Blink detected. Capturing your enrollment photo...', 'success');
-                    if (!autoCaptureStarted) {
-                        autoCaptureStarted = true;
-                        window.setTimeout(captureFace, 350);
-                    }
-                } else {
-                    setStatus(eyesOpenSeen ? 'Now blink slowly once.' : 'Face centered. Keep eyes open, then blink once.');
-                }
-                updateLivenessUi();
+            const analyzeFace = () => {
+                if (!stream || video.hidden || capturedBlob || submitting || !detectorReady || !faceLandmarker || video.readyState < 2) return;
+                if (video.currentTime === lastVideoTime) return;
+                lastVideoTime = video.currentTime;
+                const result = faceLandmarker.detectForVideo(video, performance.now());
+                const landmarks = result.faceLandmarks && result.faceLandmarks[0];
+                const geo = landmarks ? analyzeLandmarks(landmarks) : null;
+                const frame = getFrameStats(landmarks);
+                currentMetrics = scoreMetrics(geo, frame);
+                setStatus(currentMetrics.message, currentMetrics.tone === 'invalid' ? 'error' : (currentMetrics.ready ? 'success' : ''));
+                updateScoreUi(currentMetrics);
             };
 
             const startCamera = async () => {
@@ -453,25 +538,44 @@
                     });
                     video.srcObject = stream;
                     placeholder.hidden = true;
+                    setStatus('Loading face landmark model...');
+                    const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+                    faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+                        baseOptions: {
+                            modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',
+                            delegate: 'GPU',
+                        },
+                        runningMode: 'VIDEO',
+                        numFaces: 1,
+                        minFaceDetectionConfidence: 0.72,
+                        minFacePresenceConfidence: 0.72,
+                        minTrackingConfidence: 0.72,
+                    });
                     detectorReady = true;
+                    challenge = randomChallenge(captureSequence[captureIndex]);
+                    challengeState = { startedAt: Date.now(), blinks: 0, wasOpen: true, passed: false };
+                    challengeLabel.textContent = challenge.label;
                     setStatus('Position your face inside the frame.');
-                    updateLivenessUi();
-                    detectionTimer = setInterval(analyzeFace, 260);
+                    updateScoreUi(null);
+                    detectionTimer = setInterval(analyzeFace, 120);
                 } catch (error) {
-                    setStatus('Camera access is required. Allow camera permission, then reload this page.', 'error');
+                    setStatus('Camera and face model access are required. Check permission and internet connection, then reload.', 'error');
                     placeholder.hidden = false;
                 }
             };
 
             const captureFace = () => {
-                if (maskDetected) {
-                    setStatus('Face mask detected. Please remove your mask before enrollment.', 'error');
-                    autoCaptureStarted = false;
+                if (!currentMetrics?.ready || submitting) {
+                    setStatus('Capture is available only when readiness is at least 90%.', 'error');
                     return;
                 }
-                if (!livenessPassed || submitting) {
-                    setStatus('Please center your face and blink once before capturing.', 'error');
-                    autoCaptureStarted = false;
+                const pose = captureSequence[captureIndex];
+                if (pose === 'left' && currentMetrics.geo.yaw > -7) {
+                    setStatus('Turn slightly left for this enrollment frame.', 'error');
+                    return;
+                }
+                if (pose === 'right' && currentMetrics.geo.yaw < 7) {
+                    setStatus('Turn slightly right for this enrollment frame.', 'error');
                     return;
                 }
                 const width = video.videoWidth || 720;
@@ -485,34 +589,42 @@
                         setStatus('Could not capture image. Please try again.', 'error');
                         return;
                     }
-                    capturedBlob = blob;
+                    capturedFrames.push({ pose, blob, metrics: currentMetrics });
+                    poseEls[pose].dataset.state = 'done';
+                    captureIndex += 1;
+                    if (captureIndex < captureSequence.length) {
+                        const nextPose = captureSequence[captureIndex];
+                        poseEls[nextPose].dataset.state = 'active';
+                        challenge = randomChallenge(nextPose);
+                        challengeState = { startedAt: Date.now(), blinks: 0, wasOpen: true, passed: false };
+                        challengeLabel.textContent = challenge.label;
+                        readyFrames = 0;
+                        setStatus(nextPose === 'left' ? 'Turn slightly left and complete the liveness challenge.' : 'Turn slightly right and complete the liveness challenge.');
+                        return;
+                    }
+                    capturedBlob = capturedFrames[0].blob;
                     canvas.hidden = false;
                     video.hidden = true;
-                    setStatus('Captured. Saving your face enrollment...', 'success');
+                    setStatus('Captured three enrollment frames. Saving your face enrollment...', 'success');
                     submitFace();
                 }, 'image/jpeg', 0.92);
             };
 
             const resetAutoFlow = () => {
                 capturedBlob = null;
-                faceCentered = false;
-                blinkDetected = false;
-                livenessPassed = false;
-                lastEyePixels = null;
-                stableCenteredFrames = 0;
-                autoCaptureStarted = false;
-                blinkCandidateFrames = 0;
-                lastCenteredBox = null;
-                eyesOpenSeen = false;
-                centeredOpenFrames = 0;
-                readyForBlinkAt = 0;
-                maskDetected = false;
-                cachedDetectedBox = null;
-                lastBackendCheckAt = 0;
+                currentMetrics = null;
+                captureIndex = 0;
+                capturedFrames = [];
+                readyFrames = 0;
+                frameHistory = [];
+                Object.keys(poseEls).forEach((key) => { poseEls[key].dataset.state = key === 'front' ? 'active' : ''; });
+                challenge = randomChallenge(captureSequence[captureIndex]);
+                challengeState = { startedAt: Date.now(), blinks: 0, wasOpen: true, passed: false };
+                challengeLabel.textContent = challenge.label;
                 canvas.hidden = true;
                 video.hidden = false;
                 setStatus('Position your face inside the frame.');
-                updateLivenessUi();
+                updateScoreUi(null);
             };
 
             const submitFace = async () => {
@@ -522,6 +634,11 @@
 
                 const formData = new FormData();
                 formData.append('face_image', capturedBlob, 'face-enrollment.jpg');
+                formData.append('liveness_passed', 'true');
+                formData.append('readiness_score', String(Math.round(capturedFrames[0]?.metrics?.scores?.overall || 0)));
+                capturedFrames.forEach((frame) => {
+                    formData.append(`face_image_${frame.pose}`, frame.blob, `face-enrollment-${frame.pose}.jpg`);
+                });
 
                 try {
                     const response = await fetch('/api/mobile/face/enrollment/save/', {
@@ -561,6 +678,7 @@
             };
 
             logoutBtn.addEventListener('click', logout);
+            captureBtn.addEventListener('click', captureFace);
             window.addEventListener('beforeunload', stopCamera);
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {

@@ -3828,11 +3828,10 @@ def _face_detail_flags(detail: dict) -> dict:
     mask_value_is_none = mask_value in {"none", "no_mask", "nomask", "0", "false", "no"}
     mask_value_is_mask = bool(mask_value) and not mask_value_is_none
     mask_detected = (
-        mask_value_is_mask
-        or (not mask_value and mask_confidence >= 60.0)
-        or mouth_mask_score >= 25.0
-        or mouth_occlusion_score >= 45.0
-        or (bool(mouthstatus) and mouth_visible_score <= 10.0 and (left_eye or right_eye))
+        (mask_value_is_mask and mask_confidence >= 90.0)
+        or (not mask_value and mask_confidence >= 90.0)
+        or mouth_mask_score >= 90.0
+        or mouth_occlusion_score >= 90.0
     )
     left_closed = _score(left_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
     right_closed = _score(right_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
@@ -3840,9 +3839,42 @@ def _face_detail_flags(detail: dict) -> dict:
     right_open = _score(right_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 20.0
     return {
         "mask_detected": bool(mask_detected),
+        "mask_confidence": max(mask_confidence, mouth_mask_score, mouth_occlusion_score),
         "eyes_closed": bool(left_closed and right_closed),
         "eyes_open": bool(left_open and right_open),
     }
+
+
+def _server_face_image_quality(raw: bytes) -> tuple[bool, str]:
+    try:
+        from PIL import Image, ImageFilter, ImageOps, ImageStat  # type: ignore
+    except Exception:
+        return True, ""
+
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img = ImageOps.exif_transpose(img).convert("L")
+    except Exception:
+        return False, "Invalid enrollment image."
+
+    w, h = img.size
+    if w < 360 or h < 360:
+        return False, "Face image resolution is too low. Move closer and try again."
+
+    stat = ImageStat.Stat(img)
+    brightness = float(stat.mean[0] if stat.mean else 0.0)
+    if brightness < 45:
+        return False, "Environment too dark. Improve room lighting."
+    if brightness > 220:
+        return False, "Face image is overexposed. Reduce direct light."
+
+    thumb = img.resize((160, max(1, int(160 * h / w))))
+    edges = thumb.filter(ImageFilter.FIND_EDGES)
+    edge_stat = ImageStat.Stat(edges)
+    sharpness = float(edge_stat.var[0] if edge_stat.var else 0.0)
+    if sharpness < 85:
+        return False, "Enrollment image is blurry. Hold still and try again."
+    return True, ""
 
 
 def _lower_face_covered_heuristic(image_bytes: bytes, rect: dict) -> bool:
@@ -3920,7 +3952,6 @@ def face_detect_api(request):
         detail = facepp_service.detect_face_detail_bytes(raw)
         rect = detail.get("rectangle") or {}
         flags = _face_detail_flags(detail)
-        flags["mask_detected"] = bool(flags.get("mask_detected")) or _lower_face_covered_heuristic(raw, rect)
         detected = bool(rect.get("width") and rect.get("height"))
         return JsonResponse(
             {
@@ -4019,10 +4050,13 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
     thr = getattr(settings, "FACEPP_DUPLICATE_THRESHOLD", 80.0)
     try:
         facepp_service.create_faceset_if_missing()
+        quality_ok, quality_error = _server_face_image_quality(raw)
+        if not quality_ok:
+            return JsonResponse({"ok": False, "error": quality_error, "code": "face_image_quality_failed"}, status=400)
         face_detail = facepp_service.detect_face_detail_bytes(raw)
         rect = face_detail.get("rectangle") or {}
         flags = _face_detail_flags(face_detail)
-        if flags.get("mask_detected") or _lower_face_covered_heuristic(raw, rect):
+        if flags.get("mask_detected"):
             return JsonResponse(
                 {"ok": False, "error": "Please remove your face mask before enrollment.", "code": "face_mask_detected"},
                 status=400,
