@@ -3803,6 +3803,36 @@ def face_enrollment_status_api(request):
     )
 
 
+def _face_detail_flags(detail: dict) -> dict:
+    attrs = detail.get("attributes") or {}
+    mask = attrs.get("mask") or {}
+    eyestatus = attrs.get("eyestatus") or {}
+    left_eye = eyestatus.get("left_eye_status") or {}
+    right_eye = eyestatus.get("right_eye_status") or {}
+
+    def _score(d: dict, *keys: str) -> float:
+        vals = []
+        for key in keys:
+            try:
+                vals.append(float(d.get(key) or 0.0))
+            except (TypeError, ValueError):
+                vals.append(0.0)
+        return max(vals) if vals else 0.0
+
+    mask_value = str(mask.get("value") or "").strip().lower()
+    mask_confidence = _score(mask, "confidence")
+    mask_detected = mask_value in {"mask", "1", "true", "yes"} or mask_confidence >= 60.0
+    left_closed = _score(left_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
+    right_closed = _score(right_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
+    left_open = _score(left_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 35.0
+    right_open = _score(right_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 35.0
+    return {
+        "mask_detected": bool(mask_detected),
+        "eyes_closed": bool(left_closed and right_closed),
+        "eyes_open": bool(left_open and right_open),
+    }
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def face_detect_api(request):
@@ -3824,12 +3854,14 @@ def face_detect_api(request):
     try:
         detail = facepp_service.detect_face_detail_bytes(raw)
         rect = detail.get("rectangle") or {}
+        flags = _face_detail_flags(detail)
         detected = bool(rect.get("width") and rect.get("height"))
         return JsonResponse(
             {
                 "ok": True,
                 "face_detected": detected,
                 "rectangle": rect,
+                **flags,
             }
         )
     except facepp_service.FacePPError as e:
@@ -3921,7 +3953,15 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
     thr = getattr(settings, "FACEPP_DUPLICATE_THRESHOLD", 80.0)
     try:
         facepp_service.create_faceset_if_missing()
-        new_token = facepp_service.detect_face(raw)
+        face_detail = facepp_service.detect_face_detail_bytes(raw)
+        if _face_detail_flags(face_detail).get("mask_detected"):
+            return JsonResponse(
+                {"ok": False, "error": "Please remove your face mask before enrollment.", "code": "face_mask_detected"},
+                status=400,
+            )
+        new_token = str(face_detail.get("face_token") or "").strip()
+        if not new_token:
+            raise facepp_service.FacePPError("No face token returned.", "no_face_token")
         try:
             results = facepp_service.search_duplicate_face(new_token)
         except facepp_service.FacePPError as e:

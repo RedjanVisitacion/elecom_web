@@ -106,6 +106,8 @@
             let cachedDetectedBox = null;
             let blinkCandidateFrames = 0;
             let lastCenteredBox = null;
+            let eyesOpenSeen = false;
+            let maskDetected = false;
 
             const setStatus = (message, tone) => {
                 statusEl.textContent = message;
@@ -144,7 +146,7 @@
             const detectWithBrowserApi = async () => {
                 if (!detectorReady || !detectCanvas || video.readyState < 2) return null;
                 const now = Date.now();
-                if (cachedDetectedBox && now - lastBackendCheckAt < 1200) {
+                if (cachedDetectedBox && now - lastBackendCheckAt < 600) {
                     return cachedDetectedBox;
                 }
                 if (detectRequestInFlight) {
@@ -190,6 +192,9 @@
                         y: Math.max(0, Number(rect.top || 0) * scaleY),
                         width: Math.max(1, Number(rect.width || 0) * scaleX),
                         height: Math.max(1, Number(rect.height || 0) * scaleY),
+                        maskDetected: data.mask_detected === true,
+                        eyesClosed: data.eyes_closed === true,
+                        eyesOpen: data.eyes_open === true,
                     };
                     cachedDetectedBox = box;
                     lastBackendCheckAt = Date.now();
@@ -288,6 +293,8 @@
                     blinkDetected = false;
                     blinkCandidateFrames = 0;
                     lastCenteredBox = null;
+                    eyesOpenSeen = false;
+                    maskDetected = false;
                     lastEyePixels = null;
                     const status = lastDetectionAt
                         ? 'Face lost. Move closer and keep your full face inside the frame.'
@@ -297,14 +304,30 @@
                     return;
                 }
                 const box = detectedBox;
+                maskDetected = box.maskDetected === true;
+                if (maskDetected) {
+                    stableCenteredFrames = 0;
+                    faceCentered = false;
+                    blinkDetected = false;
+                    livenessPassed = false;
+                    blinkCandidateFrames = 0;
+                    eyesOpenSeen = false;
+                    lastCenteredBox = null;
+                    lastEyePixels = null;
+                    setStatus('Face mask detected. Please remove your mask before enrollment.', 'error');
+                    updateLivenessUi();
+                    return;
+                }
+
                 const centeredNow = isFaceCentered(box);
                 stableCenteredFrames = centeredNow ? Math.min(stableCenteredFrames + 1, 12) : 0;
-                faceCentered = stableCenteredFrames >= 5;
+                faceCentered = stableCenteredFrames >= 3;
 
                 if (!faceCentered) {
                     lastEyePixels = null;
                     blinkCandidateFrames = 0;
                     lastCenteredBox = null;
+                    eyesOpenSeen = false;
                     setStatus('Position your face inside the frame.');
                     updateLivenessUi();
                     return;
@@ -320,14 +343,18 @@
                     return;
                 }
 
-                const eyePixels = sampleEyeBand(box);
-                const diff = averagePixelDiff(lastEyePixels, eyePixels);
-                blinkCandidateFrames = lastEyePixels && diff > 22 && diff < 58 ? blinkCandidateFrames + 1 : 0;
-                if (blinkCandidateFrames >= 2) {
+                if (box.eyesOpen) {
+                    eyesOpenSeen = true;
+                    blinkCandidateFrames = 0;
+                } else if (eyesOpenSeen && box.eyesClosed) {
+                    blinkCandidateFrames += 1;
+                } else {
+                    blinkCandidateFrames = 0;
+                }
+                if (blinkCandidateFrames >= 1) {
                     blinkDetected = true;
                     livenessPassed = true;
                 }
-                lastEyePixels = eyePixels;
 
                 if (livenessPassed) {
                     setStatus('Blink detected. Capturing your enrollment photo...', 'success');
@@ -336,7 +363,7 @@
                         window.setTimeout(captureFace, 350);
                     }
                 } else {
-                    setStatus('Face centered. Blink once to continue.');
+                    setStatus(eyesOpenSeen ? 'Now blink slowly once.' : 'Face centered. Open your eyes, then blink once.');
                 }
                 updateLivenessUi();
             };
@@ -360,6 +387,11 @@
             };
 
             const captureFace = () => {
+                if (maskDetected) {
+                    setStatus('Face mask detected. Please remove your mask before enrollment.', 'error');
+                    autoCaptureStarted = false;
+                    return;
+                }
                 if (!livenessPassed || submitting) {
                     setStatus('Please center your face and blink once before capturing.', 'error');
                     autoCaptureStarted = false;
@@ -394,6 +426,8 @@
                 autoCaptureStarted = false;
                 blinkCandidateFrames = 0;
                 lastCenteredBox = null;
+                eyesOpenSeen = false;
+                maskDetected = false;
                 cachedDetectedBox = null;
                 lastBackendCheckAt = 0;
                 canvas.hidden = true;
