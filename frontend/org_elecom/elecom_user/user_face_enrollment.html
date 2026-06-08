@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-auto-capture">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-auto-capture-strict">
 </head>
 <body class="theme-elecom face-enrollment-body">
     <main class="face-enroll-shell">
@@ -98,6 +98,9 @@
             let stableCenteredFrames = 0;
             let autoCaptureStarted = false;
             let submitting = false;
+            let detectorReady = false;
+            let blinkCandidateFrames = 0;
+            let lastCenteredBox = null;
 
             const setStatus = (message, tone) => {
                 statusEl.textContent = message;
@@ -144,28 +147,27 @@
                 }
             };
 
-            const fallbackFaceBox = () => {
-                if (video.readyState < 2) return null;
-                const w = video.videoWidth || 720;
-                const h = video.videoHeight || 540;
-                return {
-                    x: w * 0.24,
-                    y: h * 0.14,
-                    width: w * 0.52,
-                    height: h * 0.68,
-                };
-            };
-
             const isFaceCentered = (box) => {
                 if (!box) return false;
                 const w = video.videoWidth || 720;
                 const h = video.videoHeight || 540;
                 const cx = box.x + box.width / 2;
                 const cy = box.y + box.height / 2;
-                const sizeOk = box.width >= w * 0.22 && box.width <= w * 0.72 && box.height >= h * 0.28;
-                const xOk = cx > w * 0.32 && cx < w * 0.68;
-                const yOk = cy > h * 0.28 && cy < h * 0.70;
-                return sizeOk && xOk && yOk;
+                const frameLeft = w * 0.30;
+                const frameRight = w * 0.70;
+                const frameTop = h * 0.18;
+                const frameBottom = h * 0.78;
+                const sizeOk = box.width >= w * 0.24 && box.width <= w * 0.56 && box.height >= h * 0.34 && box.height <= h * 0.72;
+                const xOk = cx > frameLeft && cx < frameRight;
+                const yOk = cy > frameTop && cy < frameBottom;
+                const overlapLeft = Math.max(box.x, frameLeft);
+                const overlapTop = Math.max(box.y, frameTop);
+                const overlapRight = Math.min(box.x + box.width, frameRight);
+                const overlapBottom = Math.min(box.y + box.height, frameBottom);
+                const overlapArea = Math.max(0, overlapRight - overlapLeft) * Math.max(0, overlapBottom - overlapTop);
+                const faceArea = Math.max(1, box.width * box.height);
+                const overlapOk = overlapArea / faceArea >= 0.72;
+                return sizeOk && xOk && yOk && overlapOk;
             };
 
             const sampleEyeBand = (box) => {
@@ -201,24 +203,66 @@
                 return count ? total / count : 0;
             };
 
+            const faceBoxMotion = (a, b) => {
+                if (!a || !b) return 1;
+                const w = video.videoWidth || 720;
+                const h = video.videoHeight || 540;
+                const acx = a.x + a.width / 2;
+                const acy = a.y + a.height / 2;
+                const bcx = b.x + b.width / 2;
+                const bcy = b.y + b.height / 2;
+                const centerMove = Math.hypot((acx - bcx) / w, (acy - bcy) / h);
+                const sizeMove = Math.abs(a.width - b.width) / w + Math.abs(a.height - b.height) / h;
+                return centerMove + sizeMove;
+            };
+
             const analyzeFace = async () => {
                 if (!stream || video.hidden || capturedBlob || autoCaptureStarted || submitting) return;
                 const detectedBox = await detectWithBrowserApi();
-                const box = detectedBox || fallbackFaceBox();
+                if (!detectorReady) {
+                    setStatus('Face detection is starting. Keep your face inside the frame.');
+                    updateLivenessUi();
+                    return;
+                }
+                if (!detectedBox) {
+                    stableCenteredFrames = 0;
+                    faceCentered = false;
+                    blinkDetected = false;
+                    blinkCandidateFrames = 0;
+                    lastCenteredBox = null;
+                    lastEyePixels = null;
+                    setStatus('No face detected. Position your face inside the frame.');
+                    updateLivenessUi();
+                    return;
+                }
+                const box = detectedBox;
                 const centeredNow = isFaceCentered(box);
-                stableCenteredFrames = centeredNow ? Math.min(stableCenteredFrames + 1, 10) : 0;
-                faceCentered = stableCenteredFrames >= 2;
+                stableCenteredFrames = centeredNow ? Math.min(stableCenteredFrames + 1, 12) : 0;
+                faceCentered = stableCenteredFrames >= 5;
 
                 if (!faceCentered) {
                     lastEyePixels = null;
+                    blinkCandidateFrames = 0;
+                    lastCenteredBox = null;
                     setStatus('Position your face inside the frame.');
+                    updateLivenessUi();
+                    return;
+                }
+
+                const motion = faceBoxMotion(lastCenteredBox, box);
+                lastCenteredBox = { x: box.x, y: box.y, width: box.width, height: box.height };
+                if (motion > 0.035) {
+                    lastEyePixels = null;
+                    blinkCandidateFrames = 0;
+                    setStatus('Hold still inside the frame, then blink once.');
                     updateLivenessUi();
                     return;
                 }
 
                 const eyePixels = sampleEyeBand(box);
                 const diff = averagePixelDiff(lastEyePixels, eyePixels);
-                if (lastEyePixels && diff > 11) {
+                blinkCandidateFrames = lastEyePixels && diff > 22 && diff < 58 ? blinkCandidateFrames + 1 : 0;
+                if (blinkCandidateFrames >= 2) {
                     blinkDetected = true;
                     livenessPassed = true;
                 }
@@ -247,9 +291,14 @@
                     try {
                         if ('FaceDetector' in window) {
                             detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
+                            detectorReady = true;
                         }
                     } catch (e) {
                         detector = null;
+                    }
+                    if (!detectorReady) {
+                        setStatus('This browser cannot detect face position. Please use Chrome or Edge for face enrollment.', 'error');
+                        return;
                     }
                     setStatus('Position your face inside the frame.');
                     updateLivenessUi();
@@ -293,6 +342,8 @@
                 lastEyePixels = null;
                 stableCenteredFrames = 0;
                 autoCaptureStarted = false;
+                blinkCandidateFrames = 0;
+                lastCenteredBox = null;
                 canvas.hidden = true;
                 video.hidden = false;
                 setStatus('Position your face inside the frame.');
