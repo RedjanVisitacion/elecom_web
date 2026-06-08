@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-auto-capture-mediapipe">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-auto-capture-accurate">
 </head>
 <body class="theme-elecom face-enrollment-body">
     <main class="face-enroll-shell">
@@ -103,6 +103,7 @@
             let detectorType = '';
             let mediaPipeDetector = null;
             let latestMediaPipeBox = null;
+            let lastDetectionAt = 0;
             let blinkCandidateFrames = 0;
             let lastCenteredBox = null;
 
@@ -142,20 +143,22 @@
 
             const detectWithBrowserApi = async () => {
                 if (video.readyState < 2) return null;
-                if (detectorType === 'native' && detector) {
-                    try {
-                        const faces = await detector.detect(video);
-                        if (!faces || !faces.length) return null;
-                        return faces[0].boundingBox || null;
-                    } catch (e) {
-                        return null;
-                    }
-                }
                 if (detectorType === 'mediapipe' && mediaPipeDetector) {
                     try {
                         latestMediaPipeBox = null;
                         await mediaPipeDetector.send({ image: video });
-                        return latestMediaPipeBox;
+                        if (latestMediaPipeBox) return latestMediaPipeBox;
+                    } catch (e) {
+                        // Fall through to native detection when available.
+                    }
+                }
+                if (detectorType === 'native' && detector) {
+                    try {
+                        const faces = await detector.detect(video);
+                        if (!faces || !faces.length) return null;
+                        const box = faces[0].boundingBox || null;
+                        if (box) lastDetectionAt = Date.now();
+                        return box;
                     } catch (e) {
                         return null;
                     }
@@ -247,7 +250,10 @@
                     blinkCandidateFrames = 0;
                     lastCenteredBox = null;
                     lastEyePixels = null;
-                    setStatus('No face detected. Position your face inside the frame.');
+                    const status = lastDetectionAt
+                        ? 'Face lost. Move closer and keep your full face inside the frame.'
+                        : 'Looking for your face. Move closer and face the camera.';
+                    setStatus(status);
                     updateLivenessUi();
                     return;
                 }
@@ -304,39 +310,57 @@
                     });
                     video.srcObject = stream;
                     placeholder.hidden = true;
-                    try {
-                        if ('FaceDetector' in window) {
-                            detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
-                            detectorType = 'native';
-                            detectorReady = true;
-                        }
-                    } catch (e) {
-                        detector = null;
-                    }
-                    if (!detectorReady && window.FaceDetection) {
+                    if (window.FaceDetection) {
                         mediaPipeDetector = new window.FaceDetection({
                             locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/face_detection/${file}`,
                         });
                         mediaPipeDetector.setOptions({
                             model: 'short',
-                            minDetectionConfidence: 0.7,
+                            modelSelection: 0,
+                            minDetectionConfidence: 0.35,
                         });
                         mediaPipeDetector.onResults((results) => {
                             latestMediaPipeBox = null;
                             const detection = results && results.detections && results.detections[0];
-                            const relativeBox = detection && detection.locationData && detection.locationData.relativeBoundingBox;
-                            if (!relativeBox) return;
+                            const locationData = detection && detection.locationData;
+                            const relativeBox = locationData && locationData.relativeBoundingBox;
+                            const absoluteBox = detection && detection.boundingBox;
                             const w = video.videoWidth || 720;
                             const h = video.videoHeight || 540;
-                            latestMediaPipeBox = {
-                                x: Math.max(0, relativeBox.xMin * w),
-                                y: Math.max(0, relativeBox.yMin * h),
-                                width: Math.max(1, relativeBox.width * w),
-                                height: Math.max(1, relativeBox.height * h),
-                            };
+                            if (relativeBox) {
+                                latestMediaPipeBox = {
+                                    x: Math.max(0, (relativeBox.xMin ?? relativeBox.x ?? 0) * w),
+                                    y: Math.max(0, (relativeBox.yMin ?? relativeBox.y ?? 0) * h),
+                                    width: Math.max(1, (relativeBox.width ?? 0) * w),
+                                    height: Math.max(1, (relativeBox.height ?? 0) * h),
+                                };
+                            } else if (absoluteBox) {
+                                const xCenter = absoluteBox.xCenter ?? absoluteBox.x ?? absoluteBox.left ?? 0;
+                                const yCenter = absoluteBox.yCenter ?? absoluteBox.y ?? absoluteBox.top ?? 0;
+                                const boxWidth = absoluteBox.width ?? absoluteBox.right ?? 0;
+                                const boxHeight = absoluteBox.height ?? absoluteBox.bottom ?? 0;
+                                latestMediaPipeBox = {
+                                    x: Math.max(0, xCenter - boxWidth / 2),
+                                    y: Math.max(0, yCenter - boxHeight / 2),
+                                    width: Math.max(1, boxWidth),
+                                    height: Math.max(1, boxHeight),
+                                };
+                            }
+                            if (latestMediaPipeBox) lastDetectionAt = Date.now();
                         });
                         detectorType = 'mediapipe';
                         detectorReady = true;
+                    }
+                    if (!detectorReady) {
+                        try {
+                            if ('FaceDetector' in window) {
+                                detector = new window.FaceDetector({ fastMode: false, maxDetectedFaces: 1 });
+                                detectorType = 'native';
+                                detectorReady = true;
+                            }
+                        } catch (e) {
+                            detector = null;
+                        }
                     }
                     if (!detectorReady) {
                         setStatus('Face detector did not load. Check internet connection, then reload this page.', 'error');
