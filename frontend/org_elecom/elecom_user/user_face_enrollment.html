@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-liveness-visible">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-auto-capture">
 </head>
 <body class="theme-elecom face-enrollment-body">
     <main class="face-enroll-shell">
@@ -70,24 +70,6 @@
                 Position your face inside the frame, then blink once.
             </div>
 
-            <div class="face-enroll-actions">
-                <button type="button" class="btn btn-outline-danger" id="faceLogoutBottomBtn">
-                    <i class="bi bi-box-arrow-right"></i>
-                    Logout
-                </button>
-                <button type="button" class="btn btn-outline-secondary" id="retakeFaceBtn" disabled>
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                    Retake
-                </button>
-                <button type="button" class="btn btn-dark" id="captureFaceBtn" disabled>
-                    <i class="bi bi-camera"></i>
-                    Capture
-                </button>
-                <button type="button" class="btn btn-primary" id="submitFaceBtn" disabled>
-                    <i class="bi bi-shield-check"></i>
-                    Complete Enrollment
-                </button>
-            </div>
         </section>
     </main>
 
@@ -98,11 +80,7 @@
             const analysisCanvas = document.getElementById('faceAnalysisCanvas');
             const placeholder = document.getElementById('facePlaceholder');
             const statusEl = document.getElementById('faceEnrollStatus');
-            const captureBtn = document.getElementById('captureFaceBtn');
-            const retakeBtn = document.getElementById('retakeFaceBtn');
-            const submitBtn = document.getElementById('submitFaceBtn');
             const logoutBtn = document.getElementById('faceLogoutBtn');
-            const logoutBottomBtn = document.getElementById('faceLogoutBottomBtn');
             const guideFrame = document.getElementById('faceGuideFrame');
             const stepPosition = document.getElementById('faceStepPosition');
             const stepBlink = document.getElementById('faceStepBlink');
@@ -118,6 +96,8 @@
             let livenessPassed = false;
             let lastEyePixels = null;
             let stableCenteredFrames = 0;
+            let autoCaptureStarted = false;
+            let submitting = false;
 
             const setStatus = (message, tone) => {
                 statusEl.textContent = message;
@@ -151,7 +131,6 @@
                 if (guideFrame) {
                     guideFrame.dataset.state = livenessPassed ? 'done' : (faceCentered ? 'ready' : 'searching');
                 }
-                captureBtn.disabled = !livenessPassed || video.hidden;
             };
 
             const detectWithBrowserApi = async () => {
@@ -223,7 +202,7 @@
             };
 
             const analyzeFace = async () => {
-                if (!stream || video.hidden || capturedBlob) return;
+                if (!stream || video.hidden || capturedBlob || autoCaptureStarted || submitting) return;
                 const detectedBox = await detectWithBrowserApi();
                 const box = detectedBox || fallbackFaceBox();
                 const centeredNow = isFaceCentered(box);
@@ -246,7 +225,11 @@
                 lastEyePixels = eyePixels;
 
                 if (livenessPassed) {
-                    setStatus('Blink detected. You can now capture your enrollment photo.', 'success');
+                    setStatus('Blink detected. Capturing your enrollment photo...', 'success');
+                    if (!autoCaptureStarted) {
+                        autoCaptureStarted = true;
+                        window.setTimeout(captureFace, 350);
+                    }
                 } else {
                     setStatus('Face centered. Blink once to continue.');
                 }
@@ -261,7 +244,6 @@
                     });
                     video.srcObject = stream;
                     placeholder.hidden = true;
-                    captureBtn.disabled = true;
                     try {
                         if ('FaceDetector' in window) {
                             detector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 1 });
@@ -279,8 +261,9 @@
             };
 
             const captureFace = () => {
-                if (!livenessPassed) {
+                if (!livenessPassed || submitting) {
                     setStatus('Please center your face and blink once before capturing.', 'error');
+                    autoCaptureStarted = false;
                     return;
                 }
                 const width = video.videoWidth || 720;
@@ -297,34 +280,28 @@
                     capturedBlob = blob;
                     canvas.hidden = false;
                     video.hidden = true;
-                    captureBtn.disabled = true;
-                    retakeBtn.disabled = false;
-                    submitBtn.disabled = false;
-                    setStatus('Captured. Submit to complete face enrollment.', 'success');
+                    setStatus('Captured. Saving your face enrollment...', 'success');
+                    submitFace();
                 }, 'image/jpeg', 0.92);
             };
 
-            const retakeFace = () => {
+            const resetAutoFlow = () => {
                 capturedBlob = null;
                 faceCentered = false;
                 blinkDetected = false;
                 livenessPassed = false;
                 lastEyePixels = null;
                 stableCenteredFrames = 0;
+                autoCaptureStarted = false;
                 canvas.hidden = true;
                 video.hidden = false;
-                captureBtn.disabled = true;
-                retakeBtn.disabled = true;
-                submitBtn.disabled = true;
                 setStatus('Position your face inside the frame.');
                 updateLivenessUi();
             };
 
             const submitFace = async () => {
-                if (!capturedBlob) return;
-                submitBtn.disabled = true;
-                captureBtn.disabled = true;
-                retakeBtn.disabled = true;
+                if (!capturedBlob || submitting) return;
+                submitting = true;
                 setStatus('Saving your face enrollment...');
 
                 const formData = new FormData();
@@ -348,9 +325,12 @@
                     stopCamera();
                     window.location.replace(safeNext());
                 } catch (error) {
-                    setStatus(error.message || 'Failed to save face enrollment.', 'error');
-                    retakeBtn.disabled = false;
-                    submitBtn.disabled = false;
+                    const message = error.message || 'Failed to save face enrollment.';
+                    submitting = false;
+                    setStatus(message, 'error');
+                    if (!/already registered|contact ELECOM/i.test(message)) {
+                        window.setTimeout(resetAutoFlow, 2000);
+                    }
                 }
             };
 
@@ -364,11 +344,7 @@
                 window.location.href = '/login/';
             };
 
-            captureBtn.addEventListener('click', captureFace);
-            retakeBtn.addEventListener('click', retakeFace);
-            submitBtn.addEventListener('click', submitFace);
             logoutBtn.addEventListener('click', logout);
-            logoutBottomBtn.addEventListener('click', logout);
             window.addEventListener('beforeunload', stopCamera);
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {

@@ -1214,26 +1214,6 @@ body {
   border-color: #fecaca;
 }
 
-.face-enroll-actions {
-  margin-top: 18px;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.face-enroll-actions .btn {
-  min-height: 42px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-#faceLogoutBottomBtn {
-  margin-right: auto;
-}
-
 @media (max-width: 640px) {
   .face-enroll-shell {
     align-items: start;
@@ -1265,13 +1245,6 @@ body {
     grid-template-columns: 1fr;
   }
 
-  .face-enroll-actions .btn {
-    width: 100%;
-  }
-
-  #faceLogoutBottomBtn {
-    margin-right: 0;
-  }
 }
 
 @media (max-width: 768px) {
