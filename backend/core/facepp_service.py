@@ -114,6 +114,30 @@ def detect_face_bytes(image_bytes: bytes) -> str:
     return token
 
 
+def detect_face_detail_bytes(image_bytes: bytes) -> dict:
+    """Run Detect API and return token plus Face++ rectangle details."""
+    if not image_bytes or len(image_bytes) < 512:
+        raise FacePPError("Image data is too small.", "face_invalid_image")
+    j = _post("detect", {"return_landmark": 0}, image_bytes)
+    faces = j.get("faces") or []
+    if not faces:
+        raise FacePPError("No face detected.", "no_face")
+    face = faces[0] or {}
+    token = (face.get("face_token") or "").strip()
+    rect = face.get("face_rectangle") or {}
+    if not token:
+        raise FacePPError("No face token returned.", "no_face_token")
+    return {
+        "face_token": token,
+        "rectangle": {
+            "top": int(rect.get("top") or 0),
+            "left": int(rect.get("left") or 0),
+            "width": int(rect.get("width") or 0),
+            "height": int(rect.get("height") or 0),
+        },
+    }
+
+
 def detect_face(image_file):
     """
     Detect face from an uploaded file-like object (``read()``) or ``bytes``.

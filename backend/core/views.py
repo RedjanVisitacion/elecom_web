@@ -3805,6 +3805,51 @@ def face_enrollment_status_api(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def face_detect_api(request):
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    upload = _multipart_face_upload(request)
+    if upload is None:
+        return JsonResponse({"ok": False, "error": "Send image as multipart field face_image."}, status=400)
+
+    raw = upload.read()
+    max_bytes = 2 * 1024 * 1024
+    if not raw or len(raw) > max_bytes:
+        return JsonResponse({"ok": False, "error": "Invalid or oversized image upload."}, status=400)
+    if not _facepp_configured():
+        return JsonResponse({"ok": False, "error": "Face detection is not configured."}, status=503)
+
+    try:
+        detail = facepp_service.detect_face_detail_bytes(raw)
+        rect = detail.get("rectangle") or {}
+        detected = bool(rect.get("width") and rect.get("height"))
+        return JsonResponse(
+            {
+                "ok": True,
+                "face_detected": detected,
+                "rectangle": rect,
+            }
+        )
+    except facepp_service.FacePPError as e:
+        status = 200 if e.code == "no_face" else 502
+        return JsonResponse(
+            {
+                "ok": True if e.code == "no_face" else False,
+                "face_detected": False,
+                "error": e.message,
+                "code": e.code,
+            },
+            status=status,
+        )
+    except Exception:
+        logger.exception("Face detect API failed")
+        return JsonResponse({"ok": False, "error": "Failed to detect face."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def face_enrollment_upsert_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
