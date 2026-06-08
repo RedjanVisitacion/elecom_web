@@ -9,7 +9,7 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-backend-detect">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260608-face-status-in-frame">
 </head>
 <body class="theme-elecom face-enrollment-body">
     <main class="face-enroll-shell">
@@ -84,6 +84,7 @@
             const statusEl = document.getElementById('faceEnrollStatus');
             const logoutBtn = document.getElementById('faceLogoutBtn');
             const guideFrame = document.getElementById('faceGuideFrame');
+            const guideLabel = guideFrame ? guideFrame.querySelector('.face-guide-label') : null;
             const stepPosition = document.getElementById('faceStepPosition');
             const stepBlink = document.getElementById('faceStepBlink');
             const stepCapture = document.getElementById('faceStepCapture');
@@ -114,6 +115,10 @@
             const setStatus = (message, tone) => {
                 statusEl.textContent = message;
                 statusEl.dataset.tone = tone || '';
+                if (guideLabel) {
+                    guideLabel.textContent = message;
+                    guideLabel.dataset.tone = tone || '';
+                }
             };
 
             const safeNext = () => {
