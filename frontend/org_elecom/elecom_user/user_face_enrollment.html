@@ -217,11 +217,11 @@
                 const h = video.videoHeight || 540;
                 const cx = box.x + box.width / 2;
                 const cy = box.y + box.height / 2;
-                const frameLeft = w * 0.30;
-                const frameRight = w * 0.70;
-                const frameTop = h * 0.18;
-                const frameBottom = h * 0.78;
-                const sizeOk = box.width >= w * 0.24 && box.width <= w * 0.56 && box.height >= h * 0.34 && box.height <= h * 0.72;
+                const frameLeft = w * 0.25;
+                const frameRight = w * 0.75;
+                const frameTop = h * 0.12;
+                const frameBottom = h * 0.86;
+                const sizeOk = box.width >= w * 0.18 && box.width <= w * 0.70 && box.height >= h * 0.25 && box.height <= h * 0.88;
                 const xOk = cx > frameLeft && cx < frameRight;
                 const yOk = cy > frameTop && cy < frameBottom;
                 const overlapLeft = Math.max(box.x, frameLeft);
@@ -230,7 +230,7 @@
                 const overlapBottom = Math.min(box.y + box.height, frameBottom);
                 const overlapArea = Math.max(0, overlapRight - overlapLeft) * Math.max(0, overlapBottom - overlapTop);
                 const faceArea = Math.max(1, box.width * box.height);
-                const overlapOk = overlapArea / faceArea >= 0.72;
+                const overlapOk = overlapArea / faceArea >= 0.52;
                 return sizeOk && xOk && yOk && overlapOk;
             };
 
@@ -324,7 +324,7 @@
 
                 const centeredNow = isFaceCentered(box);
                 stableCenteredFrames = centeredNow ? Math.min(stableCenteredFrames + 1, 12) : 0;
-                faceCentered = stableCenteredFrames >= 3;
+                faceCentered = stableCenteredFrames >= 2;
 
                 if (!faceCentered) {
                     lastEyePixels = null;
@@ -339,7 +339,7 @@
 
                 const motion = faceBoxMotion(lastCenteredBox, box);
                 lastCenteredBox = { x: box.x, y: box.y, width: box.width, height: box.height };
-                if (motion > 0.035) {
+                if (motion > 0.09) {
                     lastEyePixels = null;
                     blinkCandidateFrames = 0;
                     centeredOpenFrames = 0;
@@ -348,17 +348,24 @@
                     return;
                 }
 
+                const eyePixels = sampleEyeBand(box);
+                const eyeDiff = averagePixelDiff(lastEyePixels, eyePixels);
+                const localBlink = eyesOpenSeen && lastEyePixels && eyeDiff > 12 && eyeDiff < 95;
+                lastEyePixels = eyePixels;
+
                 if (box.eyesOpen || !box.eyesClosed) {
                     centeredOpenFrames = Math.min(centeredOpenFrames + 1, 6);
                 } else {
                     centeredOpenFrames = 0;
                 }
 
-                if (box.eyesOpen || centeredOpenFrames >= 2) {
+                if (box.eyesClosed || localBlink) {
+                    if (eyesOpenSeen) {
+                        blinkCandidateFrames += 1;
+                    }
+                } else if (box.eyesOpen || centeredOpenFrames >= 1) {
                     eyesOpenSeen = true;
                     blinkCandidateFrames = 0;
-                } else if (eyesOpenSeen && box.eyesClosed) {
-                    blinkCandidateFrames += 1;
                 } else {
                     blinkCandidateFrames = 0;
                 }
