@@ -123,7 +123,7 @@ def detect_face_detail_bytes(image_bytes: bytes) -> dict:
             "detect",
             {
                 "return_landmark": 0,
-                "return_attributes": "eyestatus,mask,facequality",
+                "return_attributes": "eyestatus,mask,mouthstatus,facequality",
             },
             image_bytes,
         )

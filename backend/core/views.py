@@ -3806,6 +3806,7 @@ def face_enrollment_status_api(request):
 def _face_detail_flags(detail: dict) -> dict:
     attrs = detail.get("attributes") or {}
     mask = attrs.get("mask") or {}
+    mouthstatus = attrs.get("mouthstatus") or {}
     eyestatus = attrs.get("eyestatus") or {}
     left_eye = eyestatus.get("left_eye_status") or {}
     right_eye = eyestatus.get("right_eye_status") or {}
@@ -3821,7 +3822,18 @@ def _face_detail_flags(detail: dict) -> dict:
 
     mask_value = str(mask.get("value") or "").strip().lower()
     mask_confidence = _score(mask, "confidence")
-    mask_detected = mask_value in {"mask", "1", "true", "yes"} or mask_confidence >= 60.0
+    mouth_mask_score = _score(mouthstatus, "surgical_mask_or_respirator")
+    mouth_occlusion_score = _score(mouthstatus, "other_occlusion")
+    mouth_visible_score = _score(mouthstatus, "close", "open")
+    mask_value_is_none = mask_value in {"none", "no_mask", "nomask", "0", "false", "no"}
+    mask_value_is_mask = bool(mask_value) and not mask_value_is_none
+    mask_detected = (
+        mask_value_is_mask
+        or (not mask_value and mask_confidence >= 60.0)
+        or mouth_mask_score >= 25.0
+        or mouth_occlusion_score >= 45.0
+        or (bool(mouthstatus) and mouth_visible_score <= 10.0 and (left_eye or right_eye))
+    )
     left_closed = _score(left_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
     right_closed = _score(right_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
     left_open = _score(left_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 20.0
