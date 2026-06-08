@@ -3845,6 +3845,59 @@ def _face_detail_flags(detail: dict) -> dict:
     }
 
 
+def _lower_face_covered_heuristic(image_bytes: bytes, rect: dict) -> bool:
+    try:
+        from PIL import Image, ImageOps  # type: ignore
+    except Exception:
+        return False
+
+    try:
+        img = Image.open(io.BytesIO(image_bytes))
+        img = ImageOps.exif_transpose(img).convert("RGB")
+    except Exception:
+        return False
+
+    try:
+        x = int(rect.get("left") or 0)
+        y = int(rect.get("top") or 0)
+        w = int(rect.get("width") or 0)
+        h = int(rect.get("height") or 0)
+    except (TypeError, ValueError):
+        return False
+    if w <= 0 or h <= 0:
+        return False
+
+    img_w, img_h = img.size
+    x0 = max(0, min(img_w - 1, x))
+    y0 = max(0, min(img_h - 1, y))
+    x1 = max(x0 + 1, min(img_w, x + w))
+    y1 = max(y0 + 1, min(img_h, y + h))
+    face = img.crop((x0, y0, x1, y1))
+    fw, fh = face.size
+    if fw < 24 or fh < 24:
+        return False
+
+    def skin_ratio(region) -> float:
+        pixels = list(region.resize((40, 40)).getdata())
+        if not pixels:
+            return 0.0
+        skin = 0
+        for r, g, b in pixels:
+            mx = max(r, g, b)
+            mn = min(r, g, b)
+            cb = 0.5 + (-0.168736 * r + 0.331264 * g + 0.5 * b) / 255
+            cr = 0.5 + (0.5 * r - 0.418688 * g - 0.081312 * b) / 255
+            if mx - mn >= 12 and 0.30 <= cb <= 0.62 and 0.48 <= cr <= 0.78 and r > b * 0.72:
+                skin += 1
+        return skin / len(pixels)
+
+    upper = face.crop((int(fw * 0.20), int(fh * 0.32), int(fw * 0.80), int(fh * 0.56)))
+    lower = face.crop((int(fw * 0.18), int(fh * 0.58), int(fw * 0.82), int(fh * 0.88)))
+    upper_skin = skin_ratio(upper)
+    lower_skin = skin_ratio(lower)
+    return upper_skin >= 0.08 and lower_skin <= max(0.045, upper_skin * 0.45)
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def face_detect_api(request):
@@ -3867,6 +3920,7 @@ def face_detect_api(request):
         detail = facepp_service.detect_face_detail_bytes(raw)
         rect = detail.get("rectangle") or {}
         flags = _face_detail_flags(detail)
+        flags["mask_detected"] = bool(flags.get("mask_detected")) or _lower_face_covered_heuristic(raw, rect)
         detected = bool(rect.get("width") and rect.get("height"))
         return JsonResponse(
             {
@@ -3966,7 +4020,9 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
     try:
         facepp_service.create_faceset_if_missing()
         face_detail = facepp_service.detect_face_detail_bytes(raw)
-        if _face_detail_flags(face_detail).get("mask_detected"):
+        rect = face_detail.get("rectangle") or {}
+        flags = _face_detail_flags(face_detail)
+        if flags.get("mask_detected") or _lower_face_covered_heuristic(raw, rect):
             return JsonResponse(
                 {"ok": False, "error": "Please remove your face mask before enrollment.", "code": "face_mask_detected"},
                 status=400,

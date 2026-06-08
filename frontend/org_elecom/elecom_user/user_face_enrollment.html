@@ -267,6 +267,52 @@
                 return count ? total / count : 0;
             };
 
+            const skinRatio = (data) => {
+                if (!data || !data.length) return 0;
+                let skin = 0;
+                let count = 0;
+                for (let i = 0; i < data.length; i += 4) {
+                    const r = data[i];
+                    const g = data[i + 1];
+                    const b = data[i + 2];
+                    const mx = Math.max(r, g, b);
+                    const mn = Math.min(r, g, b);
+                    const cb = 0.5 + (-0.168736 * r + 0.331264 * g + 0.5 * b) / 255;
+                    const cr = 0.5 + (0.5 * r - 0.418688 * g - 0.081312 * b) / 255;
+                    if (mx - mn >= 12 && cb >= 0.30 && cb <= 0.62 && cr >= 0.48 && cr <= 0.78 && r > b * 0.72) {
+                        skin += 1;
+                    }
+                    count += 1;
+                }
+                return count ? skin / count : 0;
+            };
+
+            const sampleFaceBand = (box, topRatio, bottomRatio) => {
+                if (!analysisCanvas || !box || video.readyState < 2) return null;
+                const srcW = video.videoWidth || 720;
+                const srcH = video.videoHeight || 540;
+                const scale = Math.min(1, 240 / srcW);
+                analysisCanvas.width = Math.max(1, Math.round(srcW * scale));
+                analysisCanvas.height = Math.max(1, Math.round(srcH * scale));
+                const ctx = analysisCanvas.getContext('2d');
+                ctx.drawImage(video, 0, 0, analysisCanvas.width, analysisCanvas.height);
+
+                const x = Math.max(0, Math.round((box.x + box.width * 0.18) * scale));
+                const y = Math.max(0, Math.round((box.y + box.height * topRatio) * scale));
+                const w = Math.max(8, Math.round(box.width * 0.64 * scale));
+                const h = Math.max(6, Math.round(box.height * (bottomRatio - topRatio) * scale));
+                const safeW = Math.min(w, analysisCanvas.width - x);
+                const safeH = Math.min(h, analysisCanvas.height - y);
+                if (safeW <= 0 || safeH <= 0) return null;
+                return ctx.getImageData(x, y, safeW, safeH).data;
+            };
+
+            const lowerFaceLooksCovered = (box) => {
+                const upper = skinRatio(sampleFaceBand(box, 0.32, 0.56));
+                const lower = skinRatio(sampleFaceBand(box, 0.58, 0.88));
+                return upper >= 0.08 && lower <= Math.max(0.045, upper * 0.45);
+            };
+
             const faceBoxMotion = (a, b) => {
                 if (!a || !b) return 1;
                 const w = video.videoWidth || 720;
@@ -306,7 +352,7 @@
                     return;
                 }
                 const box = detectedBox;
-                maskDetected = box.maskDetected === true;
+                maskDetected = box.maskDetected === true || lowerFaceLooksCovered(box);
                 if (maskDetected) {
                     stableCenteredFrames = 0;
                     faceCentered = false;
