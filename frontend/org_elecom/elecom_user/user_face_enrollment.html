@@ -107,6 +107,7 @@
             let blinkCandidateFrames = 0;
             let lastCenteredBox = null;
             let eyesOpenSeen = false;
+            let centeredOpenFrames = 0;
             let maskDetected = false;
 
             const setStatus = (message, tone) => {
@@ -294,6 +295,7 @@
                     blinkCandidateFrames = 0;
                     lastCenteredBox = null;
                     eyesOpenSeen = false;
+                    centeredOpenFrames = 0;
                     maskDetected = false;
                     lastEyePixels = null;
                     const status = lastDetectionAt
@@ -312,6 +314,7 @@
                     livenessPassed = false;
                     blinkCandidateFrames = 0;
                     eyesOpenSeen = false;
+                    centeredOpenFrames = 0;
                     lastCenteredBox = null;
                     lastEyePixels = null;
                     setStatus('Face mask detected. Please remove your mask before enrollment.', 'error');
@@ -328,6 +331,7 @@
                     blinkCandidateFrames = 0;
                     lastCenteredBox = null;
                     eyesOpenSeen = false;
+                    centeredOpenFrames = 0;
                     setStatus('Position your face inside the frame.');
                     updateLivenessUi();
                     return;
@@ -338,12 +342,19 @@
                 if (motion > 0.035) {
                     lastEyePixels = null;
                     blinkCandidateFrames = 0;
+                    centeredOpenFrames = 0;
                     setStatus('Hold still inside the frame, then blink once.');
                     updateLivenessUi();
                     return;
                 }
 
-                if (box.eyesOpen) {
+                if (box.eyesOpen || !box.eyesClosed) {
+                    centeredOpenFrames = Math.min(centeredOpenFrames + 1, 6);
+                } else {
+                    centeredOpenFrames = 0;
+                }
+
+                if (box.eyesOpen || centeredOpenFrames >= 2) {
                     eyesOpenSeen = true;
                     blinkCandidateFrames = 0;
                 } else if (eyesOpenSeen && box.eyesClosed) {
@@ -363,7 +374,7 @@
                         window.setTimeout(captureFace, 350);
                     }
                 } else {
-                    setStatus(eyesOpenSeen ? 'Now blink slowly once.' : 'Face centered. Open your eyes, then blink once.');
+                    setStatus(eyesOpenSeen ? 'Now blink slowly once.' : 'Face centered. Keep eyes open, then blink once.');
                 }
                 updateLivenessUi();
             };
@@ -427,6 +438,7 @@
                 blinkCandidateFrames = 0;
                 lastCenteredBox = null;
                 eyesOpenSeen = false;
+                centeredOpenFrames = 0;
                 maskDetected = false;
                 cachedDetectedBox = null;
                 lastBackendCheckAt = 0;

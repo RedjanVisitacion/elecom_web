@@ -3824,8 +3824,8 @@ def _face_detail_flags(detail: dict) -> dict:
     mask_detected = mask_value in {"mask", "1", "true", "yes"} or mask_confidence >= 60.0
     left_closed = _score(left_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
     right_closed = _score(right_eye, "normal_glass_eye_close", "no_glass_eye_close", "occlusion") >= 45.0
-    left_open = _score(left_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 35.0
-    right_open = _score(right_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 35.0
+    left_open = _score(left_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 20.0
+    right_open = _score(right_eye, "normal_glass_eye_open", "no_glass_eye_open") >= 20.0
     return {
         "mask_detected": bool(mask_detected),
         "eyes_closed": bool(left_closed and right_closed),
