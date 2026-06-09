@@ -8141,6 +8141,14 @@ def user_results_api(request):
     election_where, election_params = _current_election_filter("c", selected_election_id)
     vote_filter, vote_params = _current_vote_filter("v", selected_election_id)
     vote_where = f"WHERE {vote_filter}"
+    student_id = (request.session.get("student_id") or "").strip()
+    program_code = _get_student_program_code(student_id) if student_id else ""
+    eligible_orgs = _eligible_orgs_for_program(program_code) if student_id else []
+    candidate_visibility_sql = ""
+    candidate_visibility_params: list = []
+    if eligible_orgs:
+        candidate_visibility_sql = "AND UPPER(c.organization) = ANY(%s)"
+        candidate_visibility_params.append(eligible_orgs)
     total_voters = 0
     votes_cast = 0
 
@@ -8218,15 +8226,29 @@ def user_results_api(request):
                     GROUP BY vi.candidate_id
                 ) vv ON vv.cid = c.id
                 WHERE {election_where}
+                  {candidate_visibility_sql}
                 ORDER BY c.party_name, c.organization, c.position, c.last_name, c.first_name
                 """
                 ,
-                vote_params + election_params,
+                vote_params + election_params + candidate_visibility_params,
             )
             cols = [c[0] for c in cur.description]
             candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load results."}, status=500)
+
+    if student_id:
+        allowed_rep = _usg_allowed_representative_positions(program_code)
+        candidates = [
+            c
+            for c in candidates
+            if (c.get("organization") or "").upper() != "USG"
+            or "REPRESENTATIVE" not in (c.get("position") or "").upper()
+            or (
+                allowed_rep
+                and any(allowed in (c.get("position") or "").upper() for allowed in allowed_rep)
+            )
+        ]
 
     if not candidates:
         return JsonResponse(
