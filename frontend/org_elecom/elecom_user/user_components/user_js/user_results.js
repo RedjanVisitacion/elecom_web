@@ -211,15 +211,15 @@
                 return;
             }
 
-            if (!selectedElectionId) {
-                selectedElectionId = String(elections[0].id || '');
-            }
-
-            elements.electionSelect.innerHTML = elections.map((election) => {
+            const options = [
+                `<option value="" ${selectedElectionId ? '' : 'selected'}>Current election</option>`
+            ];
+            options.push(...elections.map((election) => {
                 const id = String(election.id || '');
                 const label = `${election.name || `Election #${id}`}${election.school_year ? ` (${election.school_year})` : ''}`;
                 return `<option value="${id}" ${id === String(selectedElectionId) ? 'selected' : ''}>${label}</option>`;
-            }).join('');
+            }));
+            elements.electionSelect.innerHTML = options.join('');
             elements.electionSelect.disabled = false;
         } catch (e) {
             elements.electionSelect.innerHTML = '<option value="">Unable to load election years</option>';
