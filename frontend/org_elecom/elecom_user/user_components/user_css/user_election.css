@@ -344,6 +344,20 @@
     font-size: 0.86rem;
 }
 
+.straight-group-list {
+    display: grid;
+    gap: 0.85rem;
+}
+
+.straight-group-title {
+    margin-bottom: 0.45rem;
+    color: #334155;
+    font-size: 0.78rem;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
 .straight-party-list {
     display: flex;
     flex-wrap: wrap;

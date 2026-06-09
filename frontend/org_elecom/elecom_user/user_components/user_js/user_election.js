@@ -12,7 +12,7 @@
         selections: {},
         ballotData: null,
         candidatesMap: new Map(),
-        straightParty: '',
+        straightParties: {},
         collapsedOrgs: new Set(),
         isSubmitting: false,
         hasVoted: false
@@ -283,7 +283,7 @@
             }
 
             updateSelectedCount();
-            state.straightParty = '';
+            delete state.straightParties[positionKey.split('::')[0]];
             updateStraightVoteActive();
         });
 
@@ -368,7 +368,7 @@
                 }
 
                 updateSelectedCount();
-                state.straightParty = '';
+                delete state.straightParties[positionKey.split('::')[0]];
                 updateStraightVoteActive();
             } else {
                 // Select this candidate
@@ -383,9 +383,12 @@
 
     const getPartyKey = (value) => String(value || '').trim();
 
-    const getStraightVoteParties = (ballot) => {
-        const parties = new Map();
+    const getStraightVoteGroups = (ballot) => {
+        const groups = new Map();
         (ballot || []).forEach((orgBlock) => {
+            const org = normalizeOrg(orgBlock.organization);
+            if (!groups.has(org)) groups.set(org, new Map());
+            const parties = groups.get(org);
             (orgBlock.positions || []).forEach((posBlock) => {
                 (posBlock.candidates || []).forEach((candidate) => {
                     const party = getPartyKey(candidate.party_name);
@@ -396,32 +399,43 @@
                 });
             });
         });
-        return Array.from(parties.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+        return Array.from(groups.entries())
+            .map(([org, parties]) => ({
+                org,
+                title: org === 'USG' ? 'USG Party' : `${org} Party`,
+                parties: Array.from(parties.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name)),
+            }))
+            .filter((group) => group.parties.length)
+            .sort((a, b) => (a.org === 'USG' ? -1 : b.org === 'USG' ? 1 : a.org.localeCompare(b.org)));
     };
 
     const updateStraightVoteActive = () => {
         if (!elements.straightVoteRoot) return;
         elements.straightVoteRoot.querySelectorAll('[data-party]').forEach((btn) => {
-            btn.classList.toggle('active', btn.dataset.party === state.straightParty);
+            btn.classList.toggle('active', state.straightParties[btn.dataset.org] === btn.dataset.party);
         });
     };
 
     const clearSelections = () => {
         state.selections = {};
-        state.straightParty = '';
+        state.straightParties = {};
         syncInputsFromSelections();
         updateStraightVoteActive();
     };
 
-    const applyStraightVote = (partyName) => {
+    const applyStraightVote = (orgName, partyName) => {
         if (!state.ballotData || !Array.isArray(state.ballotData.ballot)) return;
+        const targetOrg = normalizeOrg(orgName);
         const targetParty = getPartyKey(partyName);
-        if (!targetParty) return;
+        if (!targetOrg || !targetParty) return;
 
-        const nextSelections = {};
+        const nextSelections = { ...state.selections };
+        Object.keys(nextSelections).forEach((key) => {
+            if (key.split('::')[0] === targetOrg) delete nextSelections[key];
+        });
         state.ballotData.ballot.forEach((orgBlock) => {
             const org = normalizeOrg(orgBlock.organization);
-            if (!org) return;
+            if (org !== targetOrg) return;
 
             (orgBlock.positions || []).forEach((posBlock) => {
                 const pos = String(posBlock.position || '');
@@ -437,7 +451,7 @@
         });
 
         state.selections = nextSelections;
-        state.straightParty = targetParty;
+        state.straightParties[targetOrg] = targetParty;
         syncInputsFromSelections();
         updateStraightVoteActive();
         elements.reviewBallotBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -445,17 +459,24 @@
 
     const renderStraightVote = (ballot) => {
         if (!elements.straightVoteRoot) return;
-        const parties = getStraightVoteParties(ballot);
-        if (!parties.length) {
+        const groups = getStraightVoteGroups(ballot);
+        if (!groups.length) {
             elements.straightVoteRoot.innerHTML = '';
             return;
         }
 
-        const buttons = parties.map((party) => `
-            <button type="button" class="straight-party-btn" data-party="${escapeHtml(party.name)}">
-                <span>${escapeHtml(party.name)}</span>
-                <small>${party.count} candidate${party.count !== 1 ? 's' : ''}</small>
-            </button>
+        const groupHtml = groups.map((group) => `
+            <div class="straight-group">
+                <div class="straight-group-title">${escapeHtml(group.title)}</div>
+                <div class="straight-party-list">
+                    ${group.parties.map((party) => `
+                        <button type="button" class="straight-party-btn" data-org="${escapeHtml(group.org)}" data-party="${escapeHtml(party.name)}">
+                            <span>${escapeHtml(party.name)}</span>
+                            <small>${party.count} candidate${party.count !== 1 ? 's' : ''}</small>
+                        </button>
+                    `).join('')}
+                </div>
+            </div>
         `).join('');
 
         elements.straightVoteRoot.innerHTML = `
@@ -463,16 +484,16 @@
                 <div class="straight-vote-head">
                     <div>
                         <div class="straight-vote-title"><i class="bi bi-lightning-charge"></i> Vote Straight</div>
-                        <p>Select one party to auto-fill matching candidates. You can still edit any choice.</p>
+                        <p>Select one USG party and one organization party. You can still edit any choice.</p>
                     </div>
                     <button type="button" class="straight-clear-btn" id="clearStraightVote">Clear</button>
                 </div>
-                <div class="straight-party-list">${buttons}</div>
+                <div class="straight-group-list">${groupHtml}</div>
             </section>
         `;
 
         elements.straightVoteRoot.querySelectorAll('[data-party]').forEach((button) => {
-            button.addEventListener('click', () => applyStraightVote(button.dataset.party || ''));
+            button.addEventListener('click', () => applyStraightVote(button.dataset.org || '', button.dataset.party || ''));
         });
         elements.straightVoteRoot.querySelector('#clearStraightVote')?.addEventListener('click', clearSelections);
     };
