@@ -3,6 +3,7 @@
     'use strict';
 
     const API_RECEIPT = '/api/vote/receipt/';
+    const expandedReceiptOrgs = new Set();
 
     // DOM Elements
     const elements = {
@@ -24,11 +25,11 @@
     };
 
     const showSection = (el) => {
-        if (el) el.style.display = '';
+        if (el) el.style.removeProperty('display');
     };
 
     const hideSection = (el) => {
-        if (el) el.style.display = 'none !important';
+        if (el) el.style.setProperty('display', 'none', 'important');
     };
 
     const formatDateTime = (iso) => {
@@ -100,8 +101,8 @@
         hideSection(elements.receiptCard);
         hideSection(elements.actionsCard);
         
-        // Show no vote sections
-        showSection(elements.noVoteBanner);
+        // Show no vote section
+        hideSection(elements.noVoteBanner);
         showSection(elements.goVoteCard);
         
         // Clear receipt content
@@ -115,10 +116,10 @@
 
     const showVotedState = () => {
         // Show receipt sections
-        showSection(elements.progressSteps);
+        hideSection(elements.progressSteps);
         showSection(elements.successBanner);
         showSection(elements.receiptCard);
-        showSection(elements.actionsCard);
+        hideSection(elements.actionsCard);
         
         // Hide no vote sections
         hideSection(elements.noVoteBanner);
@@ -132,6 +133,14 @@
     const getCandidateInfo = (id, candidatesMap) => {
         return candidatesMap?.[String(id)] || { id, name: 'Unknown Candidate', party_name: '', photo_url: null };
     };
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    })[ch]);
 
     const renderReceipt = (data) => {
         // First show the voted state sections
@@ -165,6 +174,7 @@
 
             let hasSelections = false;
             let orgContent = '';
+            let orgSelectionCount = 0;
 
             (orgBlock.positions || []).forEach((posBlock) => {
                 const pos = String(posBlock.position || '');
@@ -175,6 +185,7 @@
 
                 hasSelections = true;
                 const ids = Array.isArray(selectedIds) ? selectedIds : [selectedIds];
+                orgSelectionCount += ids.length;
 
                 let candidatesHTML = '';
                 ids.forEach(id => {
@@ -183,13 +194,13 @@
                         <div class="receipt-candidate">
                             <div class="receipt-candidate-avatar">
                                 ${candidate.photo_url 
-                                    ? `<img src="${candidate.photo_url}" alt="">`
+                                    ? `<img src="${escapeHtml(candidate.photo_url)}" alt="">`
                                     : '<i class="bi bi-person-circle"></i>'
                                 }
                             </div>
                             <div class="receipt-candidate-info">
-                                <div class="receipt-candidate-name">${candidate.name}</div>
-                                ${candidate.party_name ? `<div class="receipt-candidate-party">${candidate.party_name}</div>` : ''}
+                                <div class="receipt-candidate-name">${escapeHtml(candidate.name)}</div>
+                                ${candidate.party_name ? `<div class="receipt-candidate-party">${escapeHtml(candidate.party_name)}</div>` : ''}
                             </div>
                             <i class="bi bi-check-circle-fill receipt-check-icon"></i>
                         </div>
@@ -198,17 +209,25 @@
 
                 orgContent += `
                     <div class="receipt-position">
-                        <div class="receipt-position-title">${pos}</div>
+                        <div class="receipt-position-title">${escapeHtml(pos)}</div>
                         ${candidatesHTML}
                     </div>
                 `;
             });
 
             if (hasSelections) {
+                const isOpen = expandedReceiptOrgs.has(org);
+                const orgId = `receipt-org-${org.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
                 receiptHTML += `
-                    <div class="receipt-org-section">
-                        <div class="receipt-org-header">${org}</div>
-                        ${orgContent}
+                    <div class="receipt-org-section ${isOpen ? 'is-open' : 'is-collapsed'}" data-org="${escapeHtml(org)}">
+                        <button type="button" class="receipt-org-header" aria-expanded="${isOpen ? 'true' : 'false'}" aria-controls="${escapeHtml(orgId)}">
+                            <span>${escapeHtml(org)}</span>
+                            <span class="receipt-org-count">${orgSelectionCount} selected</span>
+                            <i class="bi bi-chevron-down receipt-org-chevron" aria-hidden="true"></i>
+                        </button>
+                        <div class="receipt-org-body" id="${escapeHtml(orgId)}" ${isOpen ? '' : 'hidden'}>
+                            ${orgContent}
+                        </div>
                     </div>
                 `;
             }
@@ -216,6 +235,22 @@
 
         if (elements.receiptContent) {
             elements.receiptContent.innerHTML = receiptHTML || '<p class="text-muted">No selections recorded.</p>';
+            elements.receiptContent.querySelectorAll('.receipt-org-header').forEach((button) => {
+                button.addEventListener('click', () => {
+                    const section = button.closest('.receipt-org-section');
+                    const body = section?.querySelector('.receipt-org-body');
+                    const org = section?.dataset.org || '';
+                    const nextOpen = button.getAttribute('aria-expanded') !== 'true';
+
+                    button.setAttribute('aria-expanded', nextOpen ? 'true' : 'false');
+                    if (body) body.hidden = !nextOpen;
+                    section?.classList.toggle('is-open', nextOpen);
+                    section?.classList.toggle('is-collapsed', !nextOpen);
+
+                    if (nextOpen) expandedReceiptOrgs.add(org);
+                    else expandedReceiptOrgs.delete(org);
+                });
+            });
         }
     };
 
