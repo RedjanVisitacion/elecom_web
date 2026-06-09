@@ -1016,14 +1016,14 @@ body {
 }
 
 .poster__bg {
-  opacity: 0.9;
-  filter: saturate(0.82) contrast(1.05) brightness(0.9);
+  opacity: 0.96;
+  filter: saturate(0.92) contrast(1.02) brightness(1.02);
 }
 
 .poster__overlay {
   background:
-    linear-gradient(90deg, rgba(6, 19, 36, 0.16), rgba(6, 19, 36, 0.56)),
-    rgba(13, 60, 94, 0.18);
+    linear-gradient(90deg, rgba(6, 19, 36, 0.08), rgba(6, 19, 36, 0.32)),
+    rgba(13, 60, 94, 0.08);
 }
 
 .poster__content {
