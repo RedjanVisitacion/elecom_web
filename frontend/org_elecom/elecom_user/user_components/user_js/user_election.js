@@ -28,6 +28,7 @@
         ballotProgramLine: document.getElementById('ballotProgramLine'),
         eligibleOrgLine: document.getElementById('eligibleOrgLine'),
         ballotHint: document.getElementById('ballotHint'),
+        selectionSummaryCard: document.getElementById('selectionSummaryCard'),
         selectedCount: document.getElementById('selectedCount'),
         reviewBallotBtn: document.getElementById('reviewBallotBtn'),
         reviewModal: document.getElementById('reviewModal'),
@@ -961,6 +962,7 @@
         if (elements.ballotRoot) elements.ballotRoot.style.display = 'none';
         if (elements.ballotLoading) elements.ballotLoading.style.display = 'none';
         if (elements.ballotHint) elements.ballotHint.style.display = 'none';
+        if (elements.selectionSummaryCard) elements.selectionSummaryCard.style.display = 'none';
 
         const selectionCounter = document.getElementById('selectionCounter');
         if (selectionCounter) selectionCounter.style.display = 'none';
@@ -1011,6 +1013,7 @@
         if (elements.ballotRoot) elements.ballotRoot.style.display = 'none';
         if (elements.ballotLoading) elements.ballotLoading.style.display = 'none';
         if (elements.ballotHint) elements.ballotHint.style.display = 'none';
+        if (elements.selectionSummaryCard) elements.selectionSummaryCard.style.display = 'none';
         
         // Hide selection counter and review button
         const selectionCounter = document.getElementById('selectionCounter');
