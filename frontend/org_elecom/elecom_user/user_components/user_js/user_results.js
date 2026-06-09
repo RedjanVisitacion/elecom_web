@@ -350,6 +350,37 @@
         return 999;
     };
 
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    })[ch]);
+
+    const normalizeOrg = (org) => {
+        const up = String(org || 'USG').trim().toUpperCase();
+        if (up === 'AFPRO' || up === 'AFPROTECHS' || up.includes('AFPRO')) return 'AFPRO';
+        if (up.includes('SITE')) return 'SITE';
+        if (up.includes('PAFE')) return 'PAFE';
+        if (up.includes('USG')) return 'USG';
+        return up || 'USG';
+    };
+
+    const orgDisplayName = (org) => ({
+        USG: 'University Student Government (USG)',
+        SITE: 'Society of Information Technology Enthusiasts (SITE)',
+        PAFE: 'Prime Association of Future Educators (PAFE)',
+        AFPRO: 'Association of Food Processing Technology Students (AFPROTECHS)',
+    })[normalizeOrg(org)] || String(org || 'Organization');
+
+    const orgLogoUrl = (org) => ({
+        USG: '/static/assets/org_logos/USG_LOGO.png',
+        SITE: '/static/assets/org_logos/SITE_LOGO.png',
+        PAFE: '/static/assets/org_logos/PAFE_LOGO.png',
+        AFPRO: '/static/assets/org_logos/AFPROTECHS_LOGO.png',
+    })[normalizeOrg(org)] || '/static/assets/elecom.png';
+
     const renderResults = (grouped) => {
         if (!elements.resultsContainer) return;
 
@@ -417,8 +448,14 @@
 
             if (positions.length === 0) return;
 
+            const orgKey = normalizeOrg(org.name);
             html += `<div class="org-section" style="animation-delay: ${orgIndex * 0.1}s">`;
-            html += `<div class="org-header">${org.name}</div>`;
+            html += `
+                <div class="org-header org-header--${escapeHtml(orgKey.toLowerCase())}">
+                    <img class="org-logo" src="${escapeHtml(orgLogoUrl(org.name))}" alt="${escapeHtml(orgDisplayName(org.name))} logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                    <span>${escapeHtml(orgDisplayName(org.name))}</span>
+                </div>
+            `;
 
             positions.forEach((pos, posIndex) => {
                 if (pos.candidates.length === 0) return;

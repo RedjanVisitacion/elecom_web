@@ -116,21 +116,45 @@
 }
 
 .org-header {
-    background: linear-gradient(90deg, #1e3a8a 0%, #2563eb 100%);
-    color: white;
+    background: linear-gradient(135deg, var(--org-color, #111827), color-mix(in srgb, var(--org-color, #111827) 82%, #000000));
+    color: var(--org-text, #ffffff);
     padding: 1.25rem 1.5rem;
     font-weight: 700;
-    font-size: 1.25rem;
+    font-size: 1.05rem;
     display: flex;
     align-items: center;
     gap: 0.75rem;
 }
 
-.org-header::before {
-    content: '\F4D4';
-    font-family: 'bootstrap-icons';
-    font-size: 1.1rem;
-    opacity: 0.9;
+.org-header--usg {
+    --org-color: #f8d34a;
+    --org-text: #111827;
+}
+
+.org-header--site {
+    --org-color: #8b1e2d;
+    --org-text: #ffffff;
+}
+
+.org-header--pafe {
+    --org-color: #2563eb;
+    --org-text: #ffffff;
+}
+
+.org-header--afpro {
+    --org-color: #ec4899;
+    --org-text: #ffffff;
+}
+
+.org-logo {
+    width: 42px;
+    height: 42px;
+    flex: 0 0 auto;
+    object-fit: contain;
+    border-radius: 10px;
+    padding: 5px;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
 }
 
 /* Position Section within Organization */
