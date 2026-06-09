@@ -423,7 +423,7 @@
         updateStraightVoteActive();
     };
 
-    const expandOrgSection = (orgName) => {
+    const expandOrgSection = (orgName, focusCandidateId = null) => {
         const org = normalizeOrg(orgName);
         state.collapsedOrgs.delete(org);
         const section = elements.ballotRoot?.querySelector(`.org-section[data-org="${org}"]`);
@@ -437,7 +437,10 @@
             icon.classList.add('bi-chevron-up');
         }
         window.setTimeout(() => {
-            header?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const target = focusCandidateId
+                ? section?.querySelector(`input[value="${CSS.escape(String(focusCandidateId))}"]`)?.closest('.candidate-option')
+                : null;
+            (target || header)?.scrollIntoView({ behavior: 'smooth', block: target ? 'center' : 'start' });
         }, 80);
     };
 
@@ -451,6 +454,7 @@
         Object.keys(nextSelections).forEach((key) => {
             if (key.split('::')[0] === targetOrg) delete nextSelections[key];
         });
+        let firstMatchedCandidateId = null;
         state.ballotData.ballot.forEach((orgBlock) => {
             const org = normalizeOrg(orgBlock.organization);
             if (org !== targetOrg) return;
@@ -464,6 +468,7 @@
                     .filter(Number.isFinite);
 
                 if (!matches.length) return;
+                if (firstMatchedCandidateId === null) firstMatchedCandidateId = matches[0];
                 nextSelections[positionKey] = isMultiSelectPosition(positionKey) ? matches.slice(0, 2) : matches[0];
             });
         });
@@ -472,7 +477,7 @@
         state.straightParties[targetOrg] = targetParty;
         syncInputsFromSelections();
         updateStraightVoteActive();
-        expandOrgSection(targetOrg);
+        expandOrgSection(targetOrg, firstMatchedCandidateId);
     };
 
     const renderStraightVote = (ballot) => {
