@@ -859,6 +859,12 @@
                 return;
             }
 
+            const phase = String(data?.election?.vote_phase || '').toLowerCase();
+            if (data?.code === 'election_not_active' || (phase && phase !== 'active')) {
+                showVotingLockedUI(data.election, data.error);
+                return;
+            }
+
             if (!res.ok || !data || data.ok !== true) {
                 throw new Error('Failed');
             }
@@ -913,6 +919,79 @@
             });
         } catch (e) {
             return String(iso);
+        }
+    };
+
+    const formatScheduleTimestamp = (iso) => {
+        if (!iso) return '';
+        try {
+            const d = new Date(iso);
+            if (Number.isNaN(d.getTime())) return '';
+            return d.toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'long',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+            });
+        } catch (e) {
+            return '';
+        }
+    };
+
+    const showVotingLockedUI = (election, fallbackMessage) => {
+        const phase = String(election?.vote_phase || '').toLowerCase();
+        const startsAt = formatScheduleTimestamp(election?.start_at);
+        const endsAt = formatScheduleTimestamp(election?.end_at);
+        const title = phase === 'upcoming' ? 'Voting Has Not Started' : phase === 'closed' ? 'Voting Is Closed' : 'Voting Unavailable';
+        const message = fallbackMessage || (
+            phase === 'upcoming'
+                ? 'Please wait until the official voting time starts.'
+                : phase === 'closed'
+                    ? 'The voting window for this election has ended.'
+                    : 'Voting is not available yet.'
+        );
+        const scheduleLine = phase === 'upcoming' && startsAt
+            ? `Voting starts on ${startsAt}.`
+            : phase === 'closed' && endsAt
+                ? `Voting ended on ${endsAt}.`
+                : '';
+
+        if (elements.straightVoteRoot) elements.straightVoteRoot.style.display = 'none';
+        if (elements.ballotRoot) elements.ballotRoot.style.display = 'none';
+        if (elements.ballotLoading) elements.ballotLoading.style.display = 'none';
+        if (elements.ballotHint) elements.ballotHint.style.display = 'none';
+
+        const selectionCounter = document.getElementById('selectionCounter');
+        if (selectionCounter) selectionCounter.style.display = 'none';
+        if (elements.reviewBallotBtn) elements.reviewBallotBtn.style.display = 'none';
+
+        if (elements.ballotSubtitle) {
+            elements.ballotSubtitle.innerHTML = `<span class="text-warning"><i class="bi bi-clock-fill me-2"></i>${escapeHtml(message)}</span>`;
+        }
+
+        const lockedMessage = document.createElement('div');
+        lockedMessage.className = 'already-voted-message text-center py-5';
+        lockedMessage.innerHTML = `
+            <div class="mb-4">
+                <div class="voted-icon bg-warning text-dark">
+                    <i class="bi bi-clock-history"></i>
+                </div>
+            </div>
+            <h4 class="mb-2">${escapeHtml(title)}</h4>
+            <p class="text-muted mb-2">${escapeHtml(message)}</p>
+            ${scheduleLine ? `<p class="text-muted small">${escapeHtml(scheduleLine)}</p>` : ''}
+            <div class="mt-4">
+                <a href="/static/org_elecom/elecom_user/user_dashboard.html" class="btn btn-outline-secondary">
+                    <i class="bi bi-house-door me-2"></i>Back to Dashboard
+                </a>
+            </div>
+        `;
+
+        const ballotCard = elements.ballotRoot?.closest('.card');
+        if (ballotCard) {
+            ballotCard.innerHTML = '';
+            ballotCard.appendChild(lockedMessage);
         }
     };
 
@@ -984,6 +1063,12 @@
 
             if (data.voted) {
                 showAlreadyVotedUI(data.voted_at);
+                return true;
+            }
+
+            const phase = String(data.election?.vote_phase || '').toLowerCase();
+            if (phase && phase !== 'active') {
+                showVotingLockedUI(data.election);
                 return true;
             }
             

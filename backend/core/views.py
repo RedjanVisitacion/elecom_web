@@ -1984,6 +1984,7 @@ def vote_status_api(request):
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
 
     _ensure_votes_tables()
+    election_state = _current_election_window_state()
 
     voted_at = None
     try:
@@ -2011,6 +2012,7 @@ def vote_status_api(request):
             "ok": True,
             "voted": voted_at is not None,
             "voted_at": voted_at.isoformat() if voted_at else None,
+            "election": election_state,
         }
     )
 
@@ -2169,6 +2171,18 @@ def eligible_ballot_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    election_state = _current_election_window_state()
+    if election_state.get("vote_phase") != "active":
+        return JsonResponse(
+            {
+                "ok": False,
+                "code": "election_not_active",
+                "error": _vote_window_locked_message(election_state),
+                "election": election_state,
+            },
+            status=403,
+        )
 
     program_code = _get_student_program_code(student_id)
     eligible_orgs = _eligible_orgs_for_program(program_code)
@@ -2623,25 +2637,57 @@ def _current_election_id() -> int:
 
 
 def _is_election_active_now() -> bool:
+    state = _current_election_window_state()
+    return state.get("vote_phase") == "active"
+
+
+def _current_election_window_state() -> dict:
+    state = {
+        "window_id": None,
+        "vote_phase": "none",
+        "results_status": "none",
+        "start_at": None,
+        "end_at": None,
+        "results_at": None,
+    }
     try:
         with connection.cursor() as cur:
             cur.execute(
-                "SELECT start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
+                "SELECT id, start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1"
             )
             row = cur.fetchone()
         if not row:
-            return False
+            return state
+        window_id, start_at, end_at, results_at = row
         now = timezone.now()
-        vote_phase, _results_state = _compute_election_phases(
+        vote_phase, results_state = _compute_election_phases(
             now=now,
-            start_at=row[0],
-            end_at=row[1],
-            results_at=row[2],
+            start_at=start_at,
+            end_at=end_at,
+            results_at=results_at,
         )
-        return vote_phase == "active"
+        state.update(
+            {
+                "window_id": int(window_id) if window_id is not None else None,
+                "vote_phase": vote_phase,
+                "results_status": results_state,
+                "start_at": _iso_or_none(start_at),
+                "end_at": _iso_or_none(end_at),
+                "results_at": _iso_or_none(results_at),
+            }
+        )
     except Exception as e:
         logger.exception("Failed to evaluate election active window: %s", e)
-        return False
+    return state
+
+
+def _vote_window_locked_message(window_state: dict) -> str:
+    phase = (window_state or {}).get("vote_phase")
+    if phase == "upcoming":
+        return "Voting has not started yet."
+    if phase == "closed":
+        return "Voting time has ended."
+    return "Voting is not available yet."
 
 
 def _evaluate_block_checks(
@@ -2730,8 +2776,17 @@ def vote_submit_api(request):
             status=403,
         )
 
-    if not _is_election_active_now():
-        return JsonResponse({"ok": False, "error": "Election is not active."}, status=403)
+    election_state = _current_election_window_state()
+    if election_state.get("vote_phase") != "active":
+        return JsonResponse(
+            {
+                "ok": False,
+                "code": "election_not_active",
+                "error": _vote_window_locked_message(election_state),
+                "election": election_state,
+            },
+            status=403,
+        )
 
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
@@ -8074,8 +8129,13 @@ def user_results_api(request):
                 }
             )
     except Exception:
-        selected_election_id = requested_election_id
-        pass  # If we can't check, proceed to return results anyway
+        return JsonResponse(
+            {
+                "ok": True,
+                "published": False,
+                "message": "Results are not available yet.",
+            }
+        )
 
     _ensure_votes_tables()
     election_where, election_params = _current_election_filter("c", selected_election_id)
