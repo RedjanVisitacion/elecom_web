@@ -13,6 +13,7 @@
         ballotData: null,
         candidatesMap: new Map(),
         straightParty: '',
+        collapsedOrgs: new Set(),
         isSubmitting: false,
         hasVoted: false
     };
@@ -490,11 +491,43 @@
 
             const orgHeader = document.createElement('div');
             orgHeader.className = `org-header org-header--${org.toLowerCase()}`;
+            orgHeader.setAttribute('role', 'button');
+            orgHeader.setAttribute('tabindex', '0');
+            orgHeader.setAttribute('aria-expanded', state.collapsedOrgs.has(org) ? 'false' : 'true');
             orgHeader.innerHTML = `
-                <img class="org-logo" src="${escapeHtml(orgLogoUrl(org))}" alt="${escapeHtml(orgDisplayName(org))} logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
-                <span class="org-name">${escapeHtml(orgDisplayName(org))}</span>
+                <span class="org-title-wrap">
+                    <img class="org-logo" src="${escapeHtml(orgLogoUrl(org))}" alt="${escapeHtml(orgDisplayName(org))} logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                    <span class="org-name">${escapeHtml(orgDisplayName(org))}</span>
+                </span>
+                <i class="bi ${state.collapsedOrgs.has(org) ? 'bi-chevron-down' : 'bi-chevron-up'} org-chevron" aria-hidden="true"></i>
             `;
             orgSection.appendChild(orgHeader);
+
+            const orgBody = document.createElement('div');
+            orgBody.className = 'org-body';
+            orgBody.hidden = state.collapsedOrgs.has(org);
+
+            const toggleOrg = () => {
+                if (state.collapsedOrgs.has(org)) {
+                    state.collapsedOrgs.delete(org);
+                } else {
+                    state.collapsedOrgs.add(org);
+                }
+                orgBody.hidden = state.collapsedOrgs.has(org);
+                orgHeader.setAttribute('aria-expanded', state.collapsedOrgs.has(org) ? 'false' : 'true');
+                const icon = orgHeader.querySelector('.org-chevron');
+                if (icon) {
+                    icon.classList.toggle('bi-chevron-down', state.collapsedOrgs.has(org));
+                    icon.classList.toggle('bi-chevron-up', !state.collapsedOrgs.has(org));
+                }
+            };
+
+            orgHeader.addEventListener('click', toggleOrg);
+            orgHeader.addEventListener('keydown', (event) => {
+                if (event.key !== 'Enter' && event.key !== ' ') return;
+                event.preventDefault();
+                toggleOrg();
+            });
 
             (orgBlock.positions || []).forEach((posBlock) => {
                 const pos = String(posBlock.position || '');
@@ -524,9 +557,10 @@
                 cardBody.appendChild(posHeader);
                 cardBody.appendChild(candidatesList);
                 positionCard.appendChild(cardBody);
-                orgSection.appendChild(positionCard);
+                orgBody.appendChild(positionCard);
             });
 
+            orgSection.appendChild(orgBody);
             elements.ballotRoot.appendChild(orgSection);
         });
     };
