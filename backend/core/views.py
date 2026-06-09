@@ -509,6 +509,27 @@ def _current_election_filter(alias: str = "", election_id: int | None = None) ->
     ), [int(election_id)]
 
 
+def _candidate_election_period_filter(alias: str = "c", election_id: int | None = None) -> tuple[str, list[int]]:
+    election_id = _active_election_id() if election_id is None else election_id
+    if election_id is None:
+        return "1=1", []
+    prefix = f"{alias}." if alias else ""
+    return (
+        "("
+        "NOT EXISTS (SELECT 1 FROM vote_windows w WHERE w.id = %s) "
+        f"OR {prefix}created_at >= COALESCE((SELECT w.created_at FROM vote_windows w WHERE w.id = %s), {prefix}created_at) "
+        "OR EXISTS ("
+        "SELECT 1 FROM candidate_applications ca "
+        "WHERE COALESCE(ca.election_id, 0) = COALESCE(%s, 0) "
+        f"AND ca.student_id::text = {prefix}student_id::text "
+        f"AND ca.position = {prefix}position "
+        f"AND UPPER(ca.organization) = UPPER({prefix}organization) "
+        "AND LOWER(COALESCE(ca.status, '')) = 'approved'"
+        ")"
+        ")"
+    ), [int(election_id), int(election_id), int(election_id)]
+
+
 def _current_vote_filter(alias: str = "", election_id: int | None = None) -> tuple[str, list[int]]:
     election_id = _active_election_id() if election_id is None else election_id
     if election_id is None:
@@ -1869,7 +1890,9 @@ def candidates_metrics_api(request):
     total_candidates = 0
     try:
         _ensure_election_scoped_tables()
+        _ensure_candidate_applications_table()
         election_where, election_params = _current_election_filter()
+        period_where, period_params = _candidate_election_period_filter()
         with connection.cursor() as cur:
             cur.execute(
                 f"SELECT COUNT(*) FROM candidates_registration WHERE {election_where}",
@@ -1897,7 +1920,9 @@ def candidates_search_api(request):
     like = f"%{q}%"
     try:
         _ensure_election_scoped_tables()
+        _ensure_candidate_applications_table()
         election_where, election_params = _current_election_filter()
+        period_where, period_params = _candidate_election_period_filter()
         with connection.cursor() as cur:
             cur.execute(
                 f"""
@@ -1907,6 +1932,7 @@ def candidates_search_api(request):
                        platform
                 FROM candidates_registration
                 WHERE {election_where}
+                  AND {period_where}
                   AND (
                     COALESCE(first_name,'') ILIKE %s
                     OR COALESCE(middle_name,'') ILIKE %s
@@ -1920,7 +1946,7 @@ def candidates_search_api(request):
                 ORDER BY organization, position, last_name, first_name
                 LIMIT 80
                 """,
-                election_params + [like, like, like, like, like, like, like, like],
+                election_params + period_params + [like, like, like, like, like, like, like, like],
             )
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -1944,7 +1970,9 @@ def candidates_list_api(request):
 
     try:
         _ensure_election_scoped_tables()
+        _ensure_candidate_applications_table()
         election_where, election_params = _current_election_filter()
+        period_where, period_params = _candidate_election_period_filter()
         with connection.cursor() as cur:
             cur.execute(
                 f"""
@@ -1955,10 +1983,11 @@ def candidates_list_api(request):
                 FROM candidates_registration
                 WHERE UPPER(organization) = ANY(%s)
                   AND {election_where}
+                  AND {period_where}
                 ORDER BY organization, position, last_name, first_name
                 LIMIT 500
                 """,
-                [eligible_orgs] + election_params,
+                [eligible_orgs] + election_params + period_params,
             )
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -2189,7 +2218,9 @@ def eligible_ballot_api(request):
 
     try:
         _ensure_election_scoped_tables()
+        _ensure_candidate_applications_table()
         election_where, election_params = _current_election_filter()
+        period_where, period_params = _candidate_election_period_filter()
         with connection.cursor() as cur:
             cur.execute(
                 f"""
@@ -2199,9 +2230,10 @@ def eligible_ballot_api(request):
                 FROM candidates_registration
                 WHERE UPPER(organization) = ANY(%s)
                   AND {election_where}
+                  AND {period_where}
                 ORDER BY organization, position, last_name, first_name
                 """,
-                [eligible_orgs] + election_params,
+                [eligible_orgs] + election_params + period_params,
             )
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -7866,8 +7898,10 @@ def admin_results_api(request):
         return forbidden
 
     _ensure_votes_tables()
+    _ensure_candidate_applications_table()
     requested_election_id = _parse_election_id_from_request(request, {"election_id": request.GET.get("election_id")})
     election_where, election_params = _current_election_filter("c", requested_election_id)
+    period_where, period_params = _candidate_election_period_filter("c", requested_election_id)
     vote_filter, vote_params = _current_vote_filter("v", requested_election_id)
     vote_where = f"WHERE {vote_filter}"
 
@@ -7898,10 +7932,11 @@ def admin_results_api(request):
                     GROUP BY vi.candidate_id
                 ) vv ON vv.cid = c.id
                 WHERE {election_where}
+                  AND {period_where}
                 ORDER BY c.party_name, c.organization, c.position, c.last_name, c.first_name
                 """
                 ,
-                vote_params + election_params,
+                vote_params + election_params + period_params,
             )
             cols = [c[0] for c in cur.description]
             candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
@@ -8138,7 +8173,9 @@ def user_results_api(request):
         )
 
     _ensure_votes_tables()
+    _ensure_candidate_applications_table()
     election_where, election_params = _current_election_filter("c", selected_election_id)
+    period_where, period_params = _candidate_election_period_filter("c", selected_election_id)
     vote_filter, vote_params = _current_vote_filter("v", selected_election_id)
     vote_where = f"WHERE {vote_filter}"
     student_id = (request.session.get("student_id") or "").strip()
@@ -8226,11 +8263,12 @@ def user_results_api(request):
                     GROUP BY vi.candidate_id
                 ) vv ON vv.cid = c.id
                 WHERE {election_where}
+                  AND {period_where}
                   {candidate_visibility_sql}
                 ORDER BY c.party_name, c.organization, c.position, c.last_name, c.first_name
                 """
                 ,
-                vote_params + election_params + candidate_visibility_params,
+                vote_params + election_params + period_params + candidate_visibility_params,
             )
             cols = [c[0] for c in cur.description]
             candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
