@@ -1608,3 +1608,166 @@ body {
 .modal-header .app-logo { width: 36px; height: 36px; }
 .modal-title { font-weight: 600; }
 .btn-close-white { filter: invert(1) grayscale(100%) brightness(200%); }
+.student-web-disclaimer-open {
+  overflow: hidden;
+}
+
+.student-web-disclaimer {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(8, 15, 31, 0.58);
+  backdrop-filter: blur(4px);
+}
+
+.student-web-disclaimer__panel {
+  position: relative;
+  width: min(620px, 100%);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 18px;
+  padding: 24px;
+  border: 1px solid rgba(245, 158, 11, 0.38);
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.student-web-disclaimer__close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 34px;
+  height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.student-web-disclaimer__close:hover {
+  background: #e2e8f0;
+}
+
+.student-web-disclaimer__icon {
+  width: 54px;
+  height: 54px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #fef3c7;
+  color: #b45309;
+  font-size: 1.45rem;
+}
+
+.student-web-disclaimer__content {
+  padding-right: 18px;
+}
+
+.student-web-disclaimer__eyebrow {
+  margin-bottom: 6px;
+  color: #b45309;
+  font-size: 0.8rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.student-web-disclaimer__content h2 {
+  margin: 0 0 10px;
+  color: #111827;
+  font-size: 1.5rem;
+  line-height: 1.2;
+}
+
+.student-web-disclaimer__content p {
+  margin: 0;
+  color: #475569;
+  line-height: 1.55;
+}
+
+.student-web-disclaimer__note {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-size: 0.94rem;
+}
+
+.student-web-disclaimer__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.student-web-disclaimer__download,
+.student-web-disclaimer__continue {
+  min-height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.student-web-disclaimer__download {
+  border: 1px solid #1d4ed8;
+  background: #ffffff;
+  color: #1d4ed8;
+}
+
+.student-web-disclaimer__download:hover {
+  background: #eff6ff;
+  color: #1d4ed8;
+}
+
+.student-web-disclaimer__continue {
+  border: 1px solid #111827;
+  background: #111827;
+  color: #ffffff;
+}
+
+.student-web-disclaimer__continue:hover {
+  background: #020617;
+}
+
+@media (max-width: 575.98px) {
+  .student-web-disclaimer {
+    align-items: flex-end;
+    padding: 14px;
+  }
+
+  .student-web-disclaimer__panel {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    padding: 20px;
+  }
+
+  .student-web-disclaimer__content {
+    padding-right: 0;
+  }
+
+  .student-web-disclaimer__content h2 {
+    font-size: 1.25rem;
+  }
+
+  .student-web-disclaimer__download,
+  .student-web-disclaimer__continue {
+    width: 100%;
+  }
+}

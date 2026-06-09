@@ -60,6 +60,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_NOTIFICATIONS_READ = '/api/mobile/notifications/read/';
     const API_NOTIFICATIONS_READ_ALL = '/api/mobile/notifications/read-all/';
     const API_FACE_ENROLLMENT_STATUS = '/api/mobile/face/enrollment/status/';
+    const API_APP_UPDATE = '/api/mobile/app/update/';
+    const WEB_DISCLAIMER_KEY = 'elecom_student_web_disclaimer_seen_v1';
 
     const NET_LEVELS = {
         HIGH: 'high',
@@ -181,6 +183,96 @@ document.addEventListener('DOMContentLoaded', function() {
         setIndex(0);
         restart();
         omnibusSlideshow.classList.add('is-idle');
+    };
+
+    const showStudentWebDisclaimer = () => {
+        try {
+            if (sessionStorage.getItem(WEB_DISCLAIMER_KEY) === '1') return;
+        } catch (e) { /* ignore */ }
+
+        if (document.getElementById('studentWebDisclaimer')) return;
+
+        const overlay = document.createElement('div');
+        overlay.className = 'student-web-disclaimer';
+        overlay.id = 'studentWebDisclaimer';
+        overlay.setAttribute('role', 'dialog');
+        overlay.setAttribute('aria-modal', 'true');
+        overlay.setAttribute('aria-labelledby', 'studentWebDisclaimerTitle');
+        overlay.innerHTML = `
+            <div class="student-web-disclaimer__panel">
+                <button type="button" class="student-web-disclaimer__close" aria-label="Close notice">
+                    <i class="bi bi-x-lg" aria-hidden="true"></i>
+                </button>
+                <div class="student-web-disclaimer__icon">
+                    <i class="bi bi-exclamation-triangle-fill" aria-hidden="true"></i>
+                </div>
+                <div class="student-web-disclaimer__content">
+                    <div class="student-web-disclaimer__eyebrow">Student web portal preview</div>
+                    <h2 id="studentWebDisclaimerTitle">ELECOM Web Is Still Under Development</h2>
+                    <p>
+                        Some web features may still have minor bugs or incomplete behavior while the system is being improved.
+                        You can continue using the website, but for the best and more reliable voting experience, please use
+                        the ELECOM mobile app when it is available.
+                    </p>
+                    <div class="student-web-disclaimer__note">
+                        <i class="bi bi-info-circle" aria-hidden="true"></i>
+                        <span>If something looks incorrect, refresh the page or report it to ELECOM support.</span>
+                    </div>
+                    <div class="student-web-disclaimer__actions">
+                        <a class="student-web-disclaimer__download" href="#" target="_blank" rel="noopener" style="display:none;">
+                            <i class="bi bi-download" aria-hidden="true"></i>
+                            <span>Download Mobile App</span>
+                        </a>
+                        <button type="button" class="student-web-disclaimer__continue">Continue to Web Portal</button>
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        document.body.classList.add('student-web-disclaimer-open');
+
+        const closeNotice = () => {
+            try {
+                sessionStorage.setItem(WEB_DISCLAIMER_KEY, '1');
+            } catch (e) { /* ignore */ }
+            document.body.classList.remove('student-web-disclaimer-open');
+            overlay.remove();
+        };
+
+        const closeBtn = overlay.querySelector('.student-web-disclaimer__close');
+        const continueBtn = overlay.querySelector('.student-web-disclaimer__continue');
+        if (closeBtn) closeBtn.addEventListener('click', closeNotice);
+        if (continueBtn) continueBtn.addEventListener('click', closeNotice);
+
+        overlay.addEventListener('click', (e) => {
+            if (e.target === overlay) closeNotice();
+        });
+
+        document.addEventListener('keydown', function onDisclaimerKeydown(e) {
+            if (!document.getElementById('studentWebDisclaimer')) {
+                document.removeEventListener('keydown', onDisclaimerKeydown);
+                return;
+            }
+            if (e.key === 'Escape') closeNotice();
+        });
+
+        const loadDownloadLink = async () => {
+            try {
+                const res = await fetch(API_APP_UPDATE, {
+                    method: 'GET',
+                    cache: 'no-store',
+                    headers: { Accept: 'application/json' },
+                });
+                const data = await res.json().catch(() => ({}));
+                const apkUrl = data && data.ok ? String(data.apk_url || '').trim() : '';
+                const download = overlay.querySelector('.student-web-disclaimer__download');
+                if (!download || !apkUrl) return;
+                download.href = apkUrl;
+                download.style.display = 'inline-flex';
+            } catch (e) { /* ignore */ }
+        };
+
+        void loadDownloadLink();
     };
 
     const formatVoteTimestamp = (iso) => {
@@ -324,6 +416,7 @@ document.addEventListener('DOMContentLoaded', function() {
             sessionStorage.removeItem('elecom_role');
             sessionStorage.removeItem('elecom_user_id');
             sessionStorage.removeItem('elecom_user_photo_url');
+            sessionStorage.removeItem(WEB_DISCLAIMER_KEY);
         } catch (e) { /* ignore */ }
         const base = window.location.origin;
         window.location.href = `${base}/login/`;
@@ -1180,6 +1273,7 @@ document.addEventListener('DOMContentLoaded', function() {
         startNetworkWatch();
         initOmnibusSlideshow();
         void loadAccountProfileName();
+        showStudentWebDisclaimer();
     })();
 
     if (menuToggle) {
