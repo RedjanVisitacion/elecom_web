@@ -12,6 +12,7 @@
         selections: {},
         ballotData: null,
         candidatesMap: new Map(),
+        straightParty: '',
         isSubmitting: false,
         hasVoted: false
     };
@@ -19,6 +20,7 @@
     // DOM Elements
     const elements = {
         ballotRoot: document.getElementById('ballotRoot'),
+        straightVoteRoot: document.getElementById('straightVoteRoot'),
         ballotLoading: document.getElementById('ballotLoading'),
         ballotSubtitle: document.getElementById('ballotSubtitle'),
         ballotProgramLine: document.getElementById('ballotProgramLine'),
@@ -75,6 +77,38 @@
         }
     };
 
+    const refreshCandidateUi = () => {
+        document.querySelectorAll('.candidate-option').forEach((wrap) => {
+            const input = wrap.querySelector('input');
+            wrap.classList.toggle('selected', !!input?.checked);
+            wrap.classList.remove('disabled');
+            if (input) input.disabled = false;
+        });
+
+        Object.keys(state.selections).forEach((positionKey) => {
+            if (!isMultiSelectPosition(positionKey)) return;
+            const selected = Array.isArray(state.selections[positionKey]) ? state.selections[positionKey] : [];
+            const hasTwo = selected.length >= 2;
+            document.querySelectorAll(`input[name="pos_${positionKey}"]`).forEach((input) => {
+                if (!input.checked) {
+                    input.disabled = hasTwo;
+                    input.closest('.candidate-option')?.classList.toggle('disabled', hasTwo);
+                }
+            });
+        });
+    };
+
+    const syncInputsFromSelections = () => {
+        document.querySelectorAll('#ballotRoot input[type="radio"], #ballotRoot input[type="checkbox"]').forEach((input) => {
+            const positionKey = String(input.name || '').replace(/^pos_/, '');
+            const selected = state.selections[positionKey];
+            const cid = Number(input.value);
+            input.checked = Array.isArray(selected) ? selected.includes(cid) : Number(selected) === cid;
+        });
+        refreshCandidateUi();
+        updateSelectedCount();
+    };
+
     const updateProgressStep = (step) => {
         document.querySelectorAll('.progress-step').forEach(el => {
             el.classList.remove('active', 'completed');
@@ -109,6 +143,14 @@
     const getCandidateInfo = (id) => {
         return state.candidatesMap.get(String(id)) || { id, name: 'Unknown Candidate', party_name: '', photo_url: null };
     };
+
+    const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (ch) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    })[ch]);
 
     const buildCandidateOption = ({ positionKey, candidate }) => {
         storeCandidateInfo(candidate);
@@ -217,6 +259,8 @@
             }
 
             updateSelectedCount();
+            state.straightParty = '';
+            updateStraightVoteActive();
         });
 
         // Click handler on input itself to enable unselecting radio buttons
@@ -300,6 +344,8 @@
                 }
 
                 updateSelectedCount();
+                state.straightParty = '';
+                updateStraightVoteActive();
             } else {
                 // Select this candidate
                 e.preventDefault();
@@ -311,9 +357,106 @@
         return wrap;
     };
 
+    const getPartyKey = (value) => String(value || '').trim();
+
+    const getStraightVoteParties = (ballot) => {
+        const parties = new Map();
+        (ballot || []).forEach((orgBlock) => {
+            (orgBlock.positions || []).forEach((posBlock) => {
+                (posBlock.candidates || []).forEach((candidate) => {
+                    const party = getPartyKey(candidate.party_name);
+                    if (!party) return;
+                    const cur = parties.get(party) || { name: party, count: 0 };
+                    cur.count += 1;
+                    parties.set(party, cur);
+                });
+            });
+        });
+        return Array.from(parties.values()).sort((a, b) => b.count - a.count || a.name.localeCompare(b.name));
+    };
+
+    const updateStraightVoteActive = () => {
+        if (!elements.straightVoteRoot) return;
+        elements.straightVoteRoot.querySelectorAll('[data-party]').forEach((btn) => {
+            btn.classList.toggle('active', btn.dataset.party === state.straightParty);
+        });
+    };
+
+    const clearSelections = () => {
+        state.selections = {};
+        state.straightParty = '';
+        syncInputsFromSelections();
+        updateStraightVoteActive();
+    };
+
+    const applyStraightVote = (partyName) => {
+        if (!state.ballotData || !Array.isArray(state.ballotData.ballot)) return;
+        const targetParty = getPartyKey(partyName);
+        if (!targetParty) return;
+
+        const nextSelections = {};
+        state.ballotData.ballot.forEach((orgBlock) => {
+            const org = String(orgBlock.organization || '').toUpperCase();
+            if (!org) return;
+
+            (orgBlock.positions || []).forEach((posBlock) => {
+                const pos = String(posBlock.position || '');
+                const positionKey = `${org}::${pos}`;
+                const matches = (posBlock.candidates || [])
+                    .filter((candidate) => getPartyKey(candidate.party_name) === targetParty)
+                    .map((candidate) => Number(candidate.id))
+                    .filter(Number.isFinite);
+
+                if (!matches.length) return;
+                nextSelections[positionKey] = isMultiSelectPosition(positionKey) ? matches.slice(0, 2) : matches[0];
+            });
+        });
+
+        state.selections = nextSelections;
+        state.straightParty = targetParty;
+        syncInputsFromSelections();
+        updateStraightVoteActive();
+        elements.reviewBallotBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    };
+
+    const renderStraightVote = (ballot) => {
+        if (!elements.straightVoteRoot) return;
+        const parties = getStraightVoteParties(ballot);
+        if (!parties.length) {
+            elements.straightVoteRoot.innerHTML = '';
+            return;
+        }
+
+        const buttons = parties.map((party) => `
+            <button type="button" class="straight-party-btn" data-party="${escapeHtml(party.name)}">
+                <span>${escapeHtml(party.name)}</span>
+                <small>${party.count} candidate${party.count !== 1 ? 's' : ''}</small>
+            </button>
+        `).join('');
+
+        elements.straightVoteRoot.innerHTML = `
+            <section class="straight-vote-panel" aria-label="Vote straight by party">
+                <div class="straight-vote-head">
+                    <div>
+                        <div class="straight-vote-title"><i class="bi bi-lightning-charge"></i> Vote Straight</div>
+                        <p>Select one party to auto-fill matching candidates. You can still edit any choice.</p>
+                    </div>
+                    <button type="button" class="straight-clear-btn" id="clearStraightVote">Clear</button>
+                </div>
+                <div class="straight-party-list">${buttons}</div>
+            </section>
+        `;
+
+        elements.straightVoteRoot.querySelectorAll('[data-party]').forEach((button) => {
+            button.addEventListener('click', () => applyStraightVote(button.dataset.party || ''));
+        });
+        elements.straightVoteRoot.querySelector('#clearStraightVote')?.addEventListener('click', clearSelections);
+    };
+
     const renderBallot = (ballot) => {
         if (!elements.ballotRoot) return;
         elements.ballotRoot.innerHTML = '';
+        renderStraightVote(ballot);
 
         (ballot || []).forEach((orgBlock) => {
             const org = String(orgBlock.organization || '').toUpperCase();
