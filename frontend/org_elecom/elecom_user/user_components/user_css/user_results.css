@@ -600,11 +600,6 @@
     white-space: nowrap;
 }
 
-.results-dashboard-link {
-    justify-self: end;
-    white-space: nowrap;
-}
-
 @keyframes float {
     0%, 100% {
         transform: translateY(0);
@@ -691,14 +686,9 @@
         grid-template-columns: 1fr;
     }
 
-    .results-locked-meta,
-    .results-dashboard-link {
+    .results-locked-meta {
         justify-self: stretch;
         justify-content: flex-start;
-    }
-
-    .results-dashboard-link {
-        width: fit-content;
     }
 
     .results-summary-grid {
