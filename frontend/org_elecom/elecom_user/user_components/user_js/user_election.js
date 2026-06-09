@@ -57,6 +57,36 @@
         }
     };
 
+    const hideProcessingModal = () => new Promise((resolve) => {
+        if (!elements.processingModal || !modals.processing) {
+            resolve();
+            return;
+        }
+
+        const isShown = elements.processingModal.classList.contains('show');
+        if (!isShown) {
+            resolve();
+            return;
+        }
+
+        let done = false;
+        const finish = () => {
+            if (done) return;
+            done = true;
+            elements.processingModal.removeEventListener('hidden.bs.modal', finish);
+            resolve();
+        };
+
+        elements.processingModal.addEventListener('hidden.bs.modal', finish, { once: true });
+        modals.processing.hide();
+        setTimeout(finish, 350);
+    });
+
+    const showSubmitError = async (message) => {
+        await hideProcessingModal();
+        alert(message);
+    };
+
     const isMultiSelectPosition = (positionKey) => {
         const k = String(positionKey || '').toUpperCase();
         return k.startsWith('USG::') && k.includes('REPRESENTATIVE');
@@ -763,8 +793,7 @@
             const networkData = await networkRes.json().catch(() => ({ ok: true, allowed: true }));
 
             if (!networkData.ok || !networkData.allowed) {
-                modals.processing?.hide();
-                alert(networkData.message || 'You must be connected to the authorized network to vote. Please connect to the same network as the admin and try again.');
+                await showSubmitError(networkData.message || 'You must be connected to the authorized network to vote. Please connect to the same network as the admin and try again.');
                 state.isSubmitting = false;
                 return;
             }
@@ -798,8 +827,7 @@
 
             if (!res.ok || !data || data.ok !== true) {
                 const msg = (data && data.error) ? data.error : 'Failed to submit vote.';
-                modals.processing?.hide();
-                alert(msg);
+                await showSubmitError(msg);
                 state.isSubmitting = false;
                 updateProgressStep('select');
                 return;
@@ -824,8 +852,7 @@
             window.location.href = '/static/org_elecom/elecom_user/user_receipt.html';
 
         } catch (e) {
-            modals.processing?.hide();
-            alert('Failed to submit vote. Please try again.');
+            await showSubmitError('Failed to submit vote. Please try again.');
             state.isSubmitting = false;
             updateProgressStep('select');
         }
