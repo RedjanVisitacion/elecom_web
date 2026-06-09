@@ -682,13 +682,47 @@
 
 /* Responsive */
 @media (max-width: 768px) {
+    .results-summary-dashboard,
+    .result-year-picker,
+    .results-locked-panel,
+    .org-section {
+        border-radius: 8px;
+    }
+
     .results-locked-panel {
         grid-template-columns: 1fr;
+        align-items: stretch;
+        padding: 1rem;
+    }
+
+    .results-locked-main {
+        align-items: flex-start;
     }
 
     .results-locked-meta {
         justify-self: stretch;
         justify-content: flex-start;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 0.65rem;
+    }
+
+    .result-date-pill {
+        width: 100%;
+        white-space: normal;
+        justify-content: center;
+        text-align: center;
+    }
+
+    .countdown-timer {
+        display: grid !important;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .countdown-item {
+        min-width: 0;
+        padding: 0.55rem 0.35rem;
     }
 
     .results-summary-grid {
@@ -746,6 +780,66 @@
 }
 
 @media (max-width: 480px) {
+    .results-summary-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .summary-card {
+        min-height: 64px;
+    }
+
+    .org-header {
+        gap: 0.65rem;
+        padding: 0.8rem;
+    }
+
+    .org-logo {
+        width: 34px;
+        height: 34px;
+    }
+
+    .org-title {
+        font-size: 0.9rem;
+        line-height: 1.2;
+    }
+
+    .position-header {
+        padding: 0.75rem 0.85rem;
+    }
+
+    .candidate-row {
+        display: grid;
+        grid-template-columns: auto auto minmax(0, 1fr) auto;
+        gap: 0.6rem;
+        padding: 0.8rem;
+        align-items: center;
+    }
+
+    .candidate-name {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .candidate-meta {
+        font-size: 0.72rem;
+    }
+
+    .vote-info {
+        min-width: 42px;
+    }
+
+    .vote-count {
+        font-size: 0.95rem;
+    }
+
+    .vote-percent {
+        font-size: 0.72rem;
+    }
+
+    .countdown-timer {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .progress-wrapper {
         display: none;
     }

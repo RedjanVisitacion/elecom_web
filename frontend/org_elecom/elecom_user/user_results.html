@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260610-transparency-menu-layer">
     <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_receipt.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_results.css?v=20260610-results-no-dashboard-button">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_results.css?v=20260610-results-mobile-responsive">
     <style>
         .results-org-section {
             margin-bottom: 2rem;
@@ -207,10 +207,74 @@
         @media (max-width: 992px) {
             .results-locked-panel {
                 grid-template-columns: 1fr;
+                align-items: stretch;
             }
             .results-locked-meta {
                 justify-self: stretch;
                 justify-content: flex-start;
+            }
+        }
+        @media (max-width: 768px) {
+            .content-area {
+                padding: 20px 15px;
+            }
+            .result-year-picker,
+            .results-locked-panel {
+                border-radius: 8px;
+            }
+            .results-locked-panel {
+                padding: 1rem;
+            }
+            .results-locked-main {
+                align-items: flex-start;
+            }
+            .results-locked-meta {
+                flex-direction: column;
+                align-items: stretch;
+                gap: .65rem;
+            }
+            .result-date-pill {
+                width: 100%;
+                white-space: normal;
+                justify-content: center;
+                text-align: center;
+            }
+            .countdown-timer {
+                display: grid !important;
+                grid-template-columns: repeat(4, minmax(0, 1fr));
+                width: 100%;
+            }
+            .countdown-item {
+                min-width: 0;
+                padding: .55rem .35rem;
+            }
+        }
+        @media (max-width: 480px) {
+            .content-area {
+                padding: 16px 12px;
+            }
+            .content-area h4 {
+                font-size: 1.35rem;
+            }
+            .content-area > .mb-4 p {
+                font-size: .9rem;
+            }
+            .results-locked-main {
+                gap: .65rem;
+            }
+            .results-locked-icon {
+                width: 38px;
+                height: 38px;
+                font-size: 1.25rem;
+            }
+            .results-locked-copy h4 {
+                font-size: 1rem;
+            }
+            .results-locked-copy p {
+                font-size: .88rem;
+            }
+            .countdown-timer {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
             }
         }
         .result-year-picker {
