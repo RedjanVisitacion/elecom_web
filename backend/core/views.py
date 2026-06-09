@@ -8141,6 +8141,54 @@ def user_results_api(request):
     election_where, election_params = _current_election_filter("c", selected_election_id)
     vote_filter, vote_params = _current_vote_filter("v", selected_election_id)
     vote_where = f"WHERE {vote_filter}"
+    total_voters = 0
+    votes_cast = 0
+
+    try:
+        with connection.cursor() as cur:
+            try:
+                cur.execute(
+                    """
+                    SELECT COUNT(DISTINCT id_number)
+                    FROM student
+                    WHERE COALESCE(role, 'student') = 'student'
+                    """
+                )
+                row = cur.fetchone()
+                total_voters = int(row[0] or 0) if row else 0
+            except Exception:
+                total_voters = 0
+
+            if total_voters <= 0:
+                try:
+                    cur.execute(
+                        """
+                        SELECT COUNT(DISTINCT COALESCE(NULLIF(student_id::text, ''), id::text))
+                        FROM users
+                        WHERE LOWER(COALESCE(role, '')) IN ('student', 'user')
+                        """
+                    )
+                    row = cur.fetchone()
+                    total_voters = int(row[0] or 0) if row else 0
+                except Exception:
+                    total_voters = 0
+
+            try:
+                cur.execute(
+                    f"""
+                    SELECT COUNT(DISTINCT v.student_id)
+                    FROM votes v
+                    {vote_where}
+                    """,
+                    vote_params,
+                )
+                row = cur.fetchone()
+                votes_cast = int(row[0] or 0) if row else 0
+            except Exception:
+                votes_cast = 0
+    except Exception:
+        total_voters = 0
+        votes_cast = 0
 
     # Return the same data structure as admin_results_api
     try:
@@ -8186,6 +8234,8 @@ def user_results_api(request):
                 "ok": True,
                 "published": True,
                 "election_id": selected_election_id or _active_election_id(),
+                "total_voters": total_voters,
+                "votes_cast": votes_cast,
                 "org_totals": {},
                 "position_totals": {},
                 "grouped": [],
@@ -8303,6 +8353,8 @@ def user_results_api(request):
             "ok": True,
             "published": True,
             "election_id": selected_election_id or _active_election_id(),
+            "total_voters": total_voters,
+            "votes_cast": votes_cast,
             "org_totals": org_totals,
             "position_totals": position_totals,
             "grouped": grouped_out,

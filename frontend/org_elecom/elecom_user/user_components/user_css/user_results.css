@@ -124,6 +124,10 @@
     display: flex;
     align-items: center;
     gap: 0.75rem;
+    width: 100%;
+    border: 0;
+    text-align: left;
+    cursor: pointer;
 }
 
 .org-header--usg {
@@ -155,6 +159,39 @@
     padding: 5px;
     background: rgba(255, 255, 255, 0.92);
     box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16);
+}
+
+.org-title {
+    min-width: 0;
+    flex: 1;
+}
+
+.org-result-summary {
+    flex: 0 0 auto;
+    border-radius: 999px;
+    padding: 0.28rem 0.65rem;
+    background: rgba(255, 255, 255, 0.22);
+    color: currentColor;
+    font-size: 0.72rem;
+    font-weight: 800;
+    white-space: nowrap;
+}
+
+.org-header--usg .org-result-summary {
+    background: rgba(17, 24, 39, 0.12);
+}
+
+.org-chevron {
+    flex: 0 0 auto;
+    transition: transform 0.2s ease;
+}
+
+.org-section.is-open .org-chevron {
+    transform: rotate(180deg);
+}
+
+.org-results-body[hidden] {
+    display: none;
 }
 
 /* Position Section within Organization */
@@ -612,6 +649,18 @@
     .candidate-meta {
         flex-wrap: wrap;
         gap: 0.35rem;
+    }
+
+    .org-header {
+        padding: 1rem;
+    }
+
+    .org-title {
+        font-size: 0.95rem;
+    }
+
+    .org-result-summary {
+        display: none;
     }
     
     .vote-info {

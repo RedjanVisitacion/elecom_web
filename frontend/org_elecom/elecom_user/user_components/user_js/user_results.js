@@ -29,6 +29,7 @@
     };
 
     let countdownInterval = null;
+    const expandedResultOrgs = new Set();
 
     const formatDateTime = (iso) => {
         if (!iso) return null;
@@ -230,9 +231,9 @@
         if (!elements.summaryDashboard) return;
 
         // Calculate statistics
-        let totalVotes = 0;
+        let totalSelections = 0;
         let totalCandidates = 0;
-        let positionCount = 0;
+        const uniquePositions = new Set();
 
         if (data.grouped) {
             data.grouped.forEach(party => {
@@ -240,10 +241,10 @@
                     party.organizations.forEach(org => {
                         if (org.positions) {
                             org.positions.forEach(pos => {
-                                positionCount++;
+                                uniquePositions.add(`${normalizeOrg(org.organization)}::${pos.position || 'Unspecified'}`);
                                 if (pos.candidates) {
                                     pos.candidates.forEach(c => {
-                                        totalVotes += c.votes || 0;
+                                        totalSelections += c.votes || 0;
                                         totalCandidates++;
                                     });
                                 }
@@ -254,19 +255,23 @@
             });
         }
 
-        // Get total voters from org_totals
-        let totalVoters = 0;
-        if (data.org_totals) {
-            totalVoters = Object.values(data.org_totals).reduce((sum, v) => sum + v, 0);
-        }
+        const numberValue = (value) => {
+            const n = Number(value);
+            return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+        };
+        const totalVoters = numberValue(data.total_voters || data.eligible_voters);
+        const hasVoteCastCount = data.votes_cast !== undefined || data.distinct_voters !== undefined;
+        const votesCast = hasVoteCastCount
+            ? numberValue(data.votes_cast ?? data.distinct_voters)
+            : totalSelections;
 
         // Calculate turnout rate
-        const turnoutRate = totalVoters > 0 ? Math.round((totalVotes / totalVoters) * 100) : 0;
+        const turnoutRate = totalVoters > 0 ? Math.round((votesCast / totalVoters) * 100) : 0;
 
         // Animate numbers
-        animateNumber(elements.totalVoters, totalVoters || totalVotes);
-        animateNumber(elements.totalVotes, totalVotes);
-        animateNumber(elements.totalPositions, positionCount);
+        animateNumber(elements.totalVoters, totalVoters);
+        animateNumber(elements.totalVotes, votesCast);
+        animateNumber(elements.totalPositions, uniquePositions.size);
         
         if (elements.turnoutRate) {
             elements.turnoutRate.textContent = turnoutRate + '%';
@@ -367,6 +372,11 @@
         return up || 'USG';
     };
 
+    const resultSectionId = (org, index) => {
+        const key = normalizeOrg(org).toLowerCase().replace(/[^a-z0-9]+/g, '-');
+        return `results-org-${index}-${key}`;
+    };
+
     const orgDisplayName = (org) => ({
         USG: 'University Student Government (USG)',
         SITE: 'Society of Information Technology Enthusiasts (SITE)',
@@ -449,12 +459,17 @@
             if (positions.length === 0) return;
 
             const orgKey = normalizeOrg(org.name);
-            html += `<div class="org-section" style="animation-delay: ${orgIndex * 0.1}s">`;
+            const sectionId = resultSectionId(org.name, orgIndex);
+            const isExpanded = expandedResultOrgs.has(orgKey);
+            html += `<div class="org-section ${isExpanded ? 'is-open' : 'is-collapsed'}" data-org="${escapeHtml(orgKey)}" style="animation-delay: ${orgIndex * 0.1}s">`;
             html += `
-                <div class="org-header org-header--${escapeHtml(orgKey.toLowerCase())}">
+                <button type="button" class="org-header org-header--${escapeHtml(orgKey.toLowerCase())} result-org-toggle" aria-expanded="${isExpanded ? 'true' : 'false'}" aria-controls="${escapeHtml(sectionId)}">
                     <img class="org-logo" src="${escapeHtml(orgLogoUrl(org.name))}" alt="${escapeHtml(orgDisplayName(org.name))} logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
-                    <span>${escapeHtml(orgDisplayName(org.name))}</span>
-                </div>
+                    <span class="org-title">${escapeHtml(orgDisplayName(org.name))}</span>
+                    <span class="org-result-summary">${positions.length} position${positions.length === 1 ? '' : 's'}</span>
+                    <i class="bi bi-chevron-down org-chevron" aria-hidden="true"></i>
+                </button>
+                <div class="org-results-body" id="${escapeHtml(sectionId)}" ${isExpanded ? '' : 'hidden'}>
             `;
 
             positions.forEach((pos, posIndex) => {
@@ -553,11 +568,28 @@
                 html += `</div></div>`;
             });
 
-            html += `</div>`;
+            html += `</div></div>`;
             orgIndex++;
         });
 
         elements.resultsContainer.innerHTML = html;
+
+        elements.resultsContainer.querySelectorAll('.result-org-toggle').forEach((button) => {
+            button.addEventListener('click', () => {
+                const section = button.closest('.org-section');
+                const body = section?.querySelector('.org-results-body');
+                const org = section?.dataset.org || '';
+                const nextExpanded = button.getAttribute('aria-expanded') !== 'true';
+
+                button.setAttribute('aria-expanded', nextExpanded ? 'true' : 'false');
+                if (body) body.hidden = !nextExpanded;
+                section?.classList.toggle('is-open', nextExpanded);
+                section?.classList.toggle('is-collapsed', !nextExpanded);
+
+                if (nextExpanded) expandedResultOrgs.add(org);
+                else expandedResultOrgs.delete(org);
+            });
+        });
 
         // Animate progress bars after rendering
         setTimeout(() => {
