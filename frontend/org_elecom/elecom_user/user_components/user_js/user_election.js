@@ -1145,11 +1145,6 @@
             <h4 class="mb-2">${escapeHtml(title)}</h4>
             <p class="text-muted mb-2">${escapeHtml(message)}</p>
             ${scheduleLine ? `<p class="text-muted small">${escapeHtml(scheduleLine)}</p>` : ''}
-            <div class="mt-4">
-                <a href="/static/org_elecom/elecom_user/user_dashboard.html" class="btn btn-outline-secondary">
-                    <i class="bi bi-house-door me-2"></i>Back to Dashboard
-                </a>
-            </div>
         `;
 
         const ballotCard = elements.ballotRoot?.closest('.card');
@@ -1200,11 +1195,8 @@
             <p class="text-muted mb-3">You have already cast your vote for this election.</p>
             ${votedAt ? `<p class="text-muted small">Voted on: ${formatVoteTimestamp(votedAt)}</p>` : ''}
             <div class="mt-4">
-                <a href="/static/org_elecom/elecom_user/user_receipt.html" class="btn btn-primary me-2">
+                <a href="/static/org_elecom/elecom_user/user_receipt.html" class="btn btn-primary">
                     <i class="bi bi-file-text me-2"></i>View Receipt
-                </a>
-                <a href="/static/org_elecom/elecom_user/user_dashboard.html" class="btn btn-outline-secondary">
-                    <i class="bi bi-house-door me-2"></i>Back to Dashboard
                 </a>
             </div>
         `;
