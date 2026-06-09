@@ -1463,9 +1463,10 @@ body {
   width: 280px;
   border-radius: 12px;
   overflow: hidden;
+  background: #ffffff;
   border: 1px solid #eef2f3;
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
-  z-index: 1100;
+  z-index: 1600;
   opacity: 0;
   transform: translateY(-6px);
   pointer-events: none;
