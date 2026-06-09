@@ -3845,38 +3845,6 @@ def _face_detail_flags(detail: dict) -> dict:
     }
 
 
-def _server_face_image_quality(raw: bytes) -> tuple[bool, str]:
-    try:
-        from PIL import Image, ImageFilter, ImageOps, ImageStat  # type: ignore
-    except Exception:
-        return True, ""
-
-    try:
-        img = Image.open(io.BytesIO(raw))
-        img = ImageOps.exif_transpose(img).convert("L")
-    except Exception:
-        return False, "Invalid enrollment image."
-
-    w, h = img.size
-    if w < 360 or h < 360:
-        return False, "Face image resolution is too low. Move closer and try again."
-
-    stat = ImageStat.Stat(img)
-    brightness = float(stat.mean[0] if stat.mean else 0.0)
-    if brightness < 45:
-        return False, "Environment too dark. Improve room lighting."
-    if brightness > 220:
-        return False, "Face image is overexposed. Reduce direct light."
-
-    thumb = img.resize((160, max(1, int(160 * h / w))))
-    edges = thumb.filter(ImageFilter.FIND_EDGES)
-    edge_stat = ImageStat.Stat(edges)
-    sharpness = float(edge_stat.var[0] if edge_stat.var else 0.0)
-    if sharpness < 85:
-        return False, "Enrollment image is blurry. Hold still and try again."
-    return True, ""
-
-
 def _lower_face_covered_heuristic(image_bytes: bytes, rect: dict) -> bool:
     try:
         from PIL import Image, ImageOps  # type: ignore
@@ -4050,9 +4018,6 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
     thr = getattr(settings, "FACEPP_DUPLICATE_THRESHOLD", 80.0)
     try:
         facepp_service.create_faceset_if_missing()
-        quality_ok, quality_error = _server_face_image_quality(raw)
-        if not quality_ok:
-            return JsonResponse({"ok": False, "error": quality_error, "code": "face_image_quality_failed"}, status=400)
         face_detail = facepp_service.detect_face_detail_bytes(raw)
         rect = face_detail.get("rectangle") or {}
         flags = _face_detail_flags(face_detail)

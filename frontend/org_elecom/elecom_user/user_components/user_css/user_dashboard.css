@@ -1081,13 +1081,13 @@ body {
 }
 
 .face-guide-frame[data-state="searching"] {
-  border-color: #facc15;
-  box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.08), 0 0 0 4px rgba(250, 204, 21, 0.18);
+  border-color: #ef4444;
+  box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.08), 0 0 0 4px rgba(239, 68, 68, 0.22);
 }
 
 .face-guide-frame[data-state="ready"] {
-  border-color: #38bdf8;
-  box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.08), 0 0 0 4px rgba(56, 189, 248, 0.18);
+  border-color: #facc15;
+  box-shadow: 0 0 0 999px rgba(2, 6, 23, 0.08), 0 0 0 4px rgba(250, 204, 21, 0.18);
 }
 
 .face-guide-frame[data-state="done"] {
@@ -1104,11 +1104,11 @@ body {
 }
 
 .face-guide-frame[data-state="searching"] .face-guide-corner {
-  color: #facc15;
+  color: #ef4444;
 }
 
 .face-guide-frame[data-state="ready"] .face-guide-corner {
-  color: #38bdf8;
+  color: #facc15;
 }
 
 .face-guide-frame[data-state="done"] .face-guide-corner {
