@@ -1857,7 +1857,7 @@ def election_window_api(request):
         pass
 
     _maybe_emit_election_broadcast_notifications()
-    return JsonResponse({"ok": True, "election": election})
+    return JsonResponse({"ok": True, "election": election, "server_now": timezone.now().isoformat()})
 
 
 @require_http_methods(["GET"])
@@ -8115,7 +8115,12 @@ def user_results_api(request):
         
         if not row or not row[1]:
             return JsonResponse(
-                {"ok": True, "published": False, "message": "Results not yet scheduled."}
+                {
+                    "ok": True,
+                    "published": False,
+                    "server_now": timezone.now().isoformat(),
+                    "message": "Results not yet scheduled.",
+                }
             )
         
         selected_election_id = int(row[0] or 0) or requested_election_id
@@ -8128,6 +8133,7 @@ def user_results_api(request):
                     "ok": True, 
                     "published": False, 
                     "results_at": results_at.isoformat(),
+                    "server_now": now.isoformat(),
                     "message": "Results will be available after the scheduled time."
                 }
             )
@@ -8136,6 +8142,7 @@ def user_results_api(request):
             {
                 "ok": True,
                 "published": False,
+                "server_now": timezone.now().isoformat(),
                 "message": "Results are not available yet.",
             }
         )

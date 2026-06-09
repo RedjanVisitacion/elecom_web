@@ -48,6 +48,19 @@
         }
     };
 
+    const parseDate = (value) => {
+        if (!value) return null;
+        const date = value instanceof Date ? value : new Date(value);
+        return Number.isNaN(date.getTime()) ? null : date;
+    };
+
+    const resetCountdownValues = () => {
+        if (elements.cdDays) elements.cdDays.textContent = '00';
+        if (elements.cdHours) elements.cdHours.textContent = '00';
+        if (elements.cdMins) elements.cdMins.textContent = '00';
+        if (elements.cdSecs) elements.cdSecs.textContent = '00';
+    };
+
     const checkResultsAvailability = async () => {
         if (selectedElectionId) {
             await loadResults();
@@ -64,8 +77,9 @@
             }
 
             const election = data.election;
-            const resultsAt = election.results_at ? new Date(election.results_at) : null;
-            const now = new Date();
+            const resultsAt = parseDate(election.results_at);
+            const serverNow = parseDate(data.server_now);
+            const now = serverNow || new Date();
 
             // Check if results should be available
             if (!resultsAt) {
@@ -79,8 +93,7 @@
                 await loadResults();
             } else {
                 // Results not yet available, show countdown
-                showLockedState(resultsAt);
-                startCountdown(resultsAt);
+                showLockedState(resultsAt, serverNow);
             }
         } catch (e) {
             console.error('Failed to check results availability:', e);
@@ -88,7 +101,10 @@
         }
     };
 
-    const showLockedState = (resultsAt) => {
+    const showLockedState = (resultsAt, serverNow = null) => {
+        const targetDate = parseDate(resultsAt);
+        const serverDate = parseDate(serverNow);
+
         if (elements.lockedContent) {
             elements.lockedContent.style.display = '';
         }
@@ -96,17 +112,23 @@
             elements.resultsContent.style.display = 'none';
         }
 
-        if (resultsAt && elements.resultDateInfo && elements.resultDateText) {
+        if (targetDate && elements.resultDateInfo && elements.resultDateText) {
             elements.resultDateInfo.style.display = '';
-            elements.resultDateText.textContent = `Results will be available on: ${formatDateTime(resultsAt.toISOString())}`;
+            elements.resultDateText.textContent = `Results will be available on: ${formatDateTime(targetDate.toISOString())}`;
         } else if (elements.resultDateInfo) {
             elements.resultDateInfo.style.display = 'none';
         }
 
-        if (resultsAt && elements.countdownContainer) {
+        if (targetDate && elements.countdownContainer) {
             elements.countdownContainer.style.display = 'flex';
+            startCountdown(targetDate, serverDate);
         } else if (elements.countdownContainer) {
             elements.countdownContainer.style.display = 'none';
+            if (countdownInterval) {
+                clearInterval(countdownInterval);
+                countdownInterval = null;
+            }
+            resetCountdownValues();
         }
     };
 
@@ -125,13 +147,29 @@
         }
     };
 
-    const startCountdown = (targetDate) => {
+    const startCountdown = (targetDate, serverNow = null) => {
+        const targetMs = targetDate.getTime();
+        const serverStartMs = serverNow ? serverNow.getTime() : null;
+        const clientStartMs = Date.now();
+
+        if (countdownInterval) {
+            clearInterval(countdownInterval);
+            countdownInterval = null;
+        }
+
         const updateCountdown = () => {
-            const now = new Date();
-            const diff = targetDate - now;
+            const currentMs = serverStartMs !== null
+                ? serverStartMs + (Date.now() - clientStartMs)
+                : Date.now();
+            const diff = targetMs - currentMs;
 
             if (diff <= 0) {
                 // Time's up, reload to show results
+                if (countdownInterval) {
+                    clearInterval(countdownInterval);
+                    countdownInterval = null;
+                }
+                resetCountdownValues();
                 showResultsState();
                 loadResults();
                 return;
@@ -152,10 +190,9 @@
         updateCountdown();
 
         // Start interval
-        if (countdownInterval) {
-            clearInterval(countdownInterval);
+        if (!countdownInterval) {
+            countdownInterval = setInterval(updateCountdown, 1000);
         }
-        countdownInterval = setInterval(updateCountdown, 1000);
     };
 
     const loadResults = async () => {
@@ -172,7 +209,7 @@
 
             // Check if results are published
             if (!data.published) {
-                showLockedState(data.results_at ? new Date(data.results_at) : null);
+                showLockedState(data.results_at, data.server_now);
                 return;
             }
 
