@@ -507,8 +507,15 @@
 }
 
 .receipt-actions .btn-primary {
-    background: linear-gradient(135deg, #1d4ed8 0%, #3b82f6 100%);
-    border: none;
+    background: #111827;
+    border-color: #111827;
+    color: #ffffff;
+}
+
+.receipt-actions .btn-primary:hover {
+    background: #020617;
+    border-color: #020617;
+    color: #ffffff;
 }
 
 .receipt-actions .btn-outline-primary {
@@ -518,6 +525,19 @@
 
 .receipt-actions .btn-outline-primary:hover {
     background: #1d4ed8;
+    color: #ffffff;
+}
+
+#goVoteCard .btn-primary {
+    background: #111827;
+    border-color: #111827;
+    color: #ffffff;
+}
+
+#goVoteCard .btn-primary:hover,
+#goVoteCard .btn-primary:focus {
+    background: #020617;
+    border-color: #020617;
     color: #ffffff;
 }
 
