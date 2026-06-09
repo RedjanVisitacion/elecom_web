@@ -4,6 +4,58 @@
     padding-top: 2rem;
 }
 
+.btn-primary,
+.btn-success {
+    background: #111827 !important;
+    border-color: #111827 !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active,
+.btn-success:hover,
+.btn-success:focus,
+.btn-success:active {
+    background: #020617 !important;
+    border-color: #020617 !important;
+    color: #ffffff !important;
+}
+
+.btn-primary:disabled,
+.btn-success:disabled {
+    background: #111827 !important;
+    border-color: #111827 !important;
+    color: #ffffff !important;
+    opacity: 0.45;
+}
+
+.btn-outline-primary {
+    border-color: #111827 !important;
+    color: #111827 !important;
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    background: #111827 !important;
+    border-color: #111827 !important;
+    color: #ffffff !important;
+}
+
+.modal-header.bg-primary,
+.modal-header.bg-success {
+    background: #111827 !important;
+}
+
+.step-badge.text-success {
+    color: #111827 !important;
+}
+
+.processing-spinner .text-primary {
+    color: #111827 !important;
+}
+
 /* Voting Progress Steps */
 .voting-progress {
     display: flex;
