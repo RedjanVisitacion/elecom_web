@@ -18,7 +18,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
-    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260609-mobile-centered-v3" />
+    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260609-no-remember-v4" />
   </head>
   <body>
     <main class="login-shell" aria-label="USTP Oroquieta ELECOM login">
@@ -78,14 +78,6 @@
               <p class="error" id="passwordError" role="alert" aria-live="polite"></p>
             </div>
 
-            <div class="form-options">
-              <label class="check">
-                <input type="checkbox" id="rememberMe" name="rememberMe" />
-                <span>Remember Me</span>
-              </label>
-              <a class="forgot-inline" href="#" id="forgotPassword">Forgot Password?</a>
-            </div>
-
             <label class="check check--terms">
               <input type="checkbox" id="agreeTerms" name="agreeTerms" required />
               <span>I have read and agree to the <a class="inline-link" href="/terms-and-conditions/?from=login" id="termsLink">Terms and Conditions</a></span>
@@ -95,6 +87,7 @@
               <i class="bi bi-shield-check" aria-hidden="true"></i>
               <span>Sign In</span>
             </button>
+            <a class="forgot-inline forgot-inline--below" href="#" id="forgotPassword">Forgot Password?</a>
             <p class="status" id="formStatus" role="status" aria-live="polite"></p>
           </form>
 
@@ -146,6 +139,6 @@
       </section>
     </div>
 
-    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260607-face-enrollment-redirect"></script>
+    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260609-no-remember"></script>
   </body>
 </html>

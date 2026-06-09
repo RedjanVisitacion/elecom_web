@@ -12,7 +12,6 @@
   const passwordError = $("passwordError");
   const formStatus = $("formStatus");
   const year = $("year");
-  const rememberMe = $("rememberMe");
   const agreeTerms = $("agreeTerms");
   const termsLink = $("termsLink");
   const forgotPassword = $("forgotPassword");
@@ -41,7 +40,6 @@
         JSON.stringify({
           studentId: studentId ? studentId.value : "",
           password: password ? password.value : "",
-          rememberMe: rememberMe ? rememberMe.checked : false,
         }),
       );
     } catch {}
@@ -54,21 +52,12 @@
       const draft = JSON.parse(raw);
       if (studentId) studentId.value = draft.studentId || "";
       if (password) password.value = draft.password || "";
-      if (rememberMe) rememberMe.checked = !!draft.rememberMe;
       sessionStorage.removeItem(TERMS_DRAFT_KEY);
     } catch {}
   };
 
   if (studentId) studentId.value = "";
   if (password) password.value = "";
-
-  try {
-    const remembered = localStorage.getItem("elecom_remember_student_id");
-    if (rememberMe && studentId && remembered) {
-      rememberMe.checked = true;
-      studentId.value = remembered;
-    }
-  } catch {}
 
   try {
     const params = new URLSearchParams(window.location.search || "");
@@ -454,14 +443,6 @@
 
       const inputUser = (studentId?.value || "").trim();
       const inputPass = password?.value || "";
-
-      try {
-        if (rememberMe && rememberMe.checked) {
-          localStorage.setItem("elecom_remember_student_id", inputUser);
-        } else {
-          localStorage.removeItem("elecom_remember_student_id");
-        }
-      } catch {}
 
       setBusy(true);
       if (formStatus) formStatus.textContent = "Signing in…";

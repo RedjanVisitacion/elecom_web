@@ -493,6 +493,13 @@ input {
   font-size: 12.5px;
 }
 
+.forgot-inline--below {
+  display: inline-block;
+  justify-self: center;
+  margin-top: 2px;
+  text-align: center;
+}
+
 .btn {
   width: 100%;
   min-height: 48px;
