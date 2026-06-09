@@ -152,6 +152,29 @@
         "'": '&#39;',
     })[ch]);
 
+    const normalizeOrg = (org) => {
+        const up = String(org || 'USG').trim().toUpperCase();
+        if (up === 'AFPRO' || up === 'AFPROTECHS' || up.includes('AFPRO')) return 'AFPRO';
+        if (up.includes('SITE')) return 'SITE';
+        if (up.includes('PAFE')) return 'PAFE';
+        if (up.includes('USG')) return 'USG';
+        return up || 'USG';
+    };
+
+    const orgDisplayName = (org) => ({
+        USG: 'University Student Government (USG)',
+        SITE: 'Society of Information Technology Enthusiasts (SITE)',
+        PAFE: 'Prime Association of Future Educators (PAFE)',
+        AFPRO: 'Association of Food Processing Technology Students (AFPROTECHS)',
+    })[normalizeOrg(org)] || String(org || 'Organization');
+
+    const orgLogoUrl = (org) => ({
+        USG: '/static/assets/org_logos/USG_LOGO.png',
+        SITE: '/static/assets/org_logos/SITE_LOGO.png',
+        PAFE: '/static/assets/org_logos/PAFE_LOGO.png',
+        AFPRO: '/static/assets/org_logos/AFPROTECHS_LOGO.png',
+    })[normalizeOrg(org)] || '/static/assets/elecom.png';
+
     const buildCandidateOption = ({ positionKey, candidate }) => {
         storeCandidateInfo(candidate);
 
@@ -396,7 +419,7 @@
 
         const nextSelections = {};
         state.ballotData.ballot.forEach((orgBlock) => {
-            const org = String(orgBlock.organization || '').toUpperCase();
+            const org = normalizeOrg(orgBlock.organization);
             if (!org) return;
 
             (orgBlock.positions || []).forEach((posBlock) => {
@@ -466,10 +489,10 @@
             orgSection.className = 'org-section';
 
             const orgHeader = document.createElement('div');
-            orgHeader.className = 'org-header';
+            orgHeader.className = `org-header org-header--${org.toLowerCase()}`;
             orgHeader.innerHTML = `
-                <i class="bi bi-building org-icon"></i>
-                <span class="org-name">${org}</span>
+                <img class="org-logo" src="${escapeHtml(orgLogoUrl(org))}" alt="${escapeHtml(orgDisplayName(org))} logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                <span class="org-name">${escapeHtml(orgDisplayName(org))}</span>
             `;
             orgSection.appendChild(orgHeader);
 
