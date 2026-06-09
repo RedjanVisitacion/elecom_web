@@ -120,6 +120,7 @@
 }
 
 .candidate-option {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 1rem;
@@ -144,9 +145,11 @@
 
 .candidate-option input[type="checkbox"],
 .candidate-option input[type="radio"] {
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+    pointer-events: none;
 }
 
 .candidate-avatar {
