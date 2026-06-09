@@ -10,7 +10,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_dashboard.css?v=20260610-transparency-menu-layer">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_election.css?v=20260610-election-actions-black">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_user/user_components/user_css/user_election.css?v=20260610-face-before-submit">
 </head>
 <body class="theme-elecom">
 
@@ -269,6 +269,37 @@
         </div>
     </div>
 
+    <!-- Face Verification Modal -->
+    <div class="modal fade" id="faceVoteModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content border-0 shadow">
+                <div class="modal-header bg-dark text-white border-0">
+                    <div>
+                        <h5 class="modal-title mb-0">Verify Your Face</h5>
+                        <small>Camera verification is required before submitting your vote.</small>
+                    </div>
+                </div>
+                <div class="modal-body p-4">
+                    <div class="vote-face-camera">
+                        <video id="voteFaceVideo" autoplay playsinline muted></video>
+                        <canvas id="voteFaceCanvas" hidden></canvas>
+                        <div class="vote-face-placeholder" id="voteFacePlaceholder">
+                            <i class="bi bi-camera-video"></i>
+                            <span>Allow camera access to continue.</span>
+                        </div>
+                    </div>
+                    <div class="vote-face-status" id="voteFaceStatus">Opening camera...</div>
+                </div>
+                <div class="modal-footer border-0">
+                    <button type="button" class="btn btn-outline-secondary" id="cancelFaceVoteBtn">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="captureFaceVoteBtn" disabled>
+                        <i class="bi bi-camera me-2"></i>Verify Face
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Processing Modal -->
     <div class="modal fade" id="processingModal" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
         <div class="modal-dialog modal-dialog-centered">
@@ -287,6 +318,6 @@
     <!-- Bootstrap JS and dependencies -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_user/user_components/user_js/user_dashboard.js?v=20260609-student-web-disclaimer"></script>
-    <script src="/static/org_elecom/elecom_user/user_components/user_js/user_election.js?v=20260610-processing-modal-error-fix"></script>
+    <script src="/static/org_elecom/elecom_user/user_components/user_js/user_election.js?v=20260610-face-before-submit"></script>
 </body>
 </html>

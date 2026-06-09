@@ -6,6 +6,7 @@
     const API_VOTE_SUBMIT = '/api/vote/submit/';
     const API_VOTE_STATUS = '/api/vote/status/';
     const API_NETWORK_CHECK = '/api/network/check/';
+    const API_FACE_VERIFY = '/api/mobile/face/verify/';
 
     // State
     const state = {
@@ -39,7 +40,14 @@
         confirmModal: document.getElementById('confirmModal'),
         backToReviewBtn: document.getElementById('backToReviewBtn'),
         finalSubmitBtn: document.getElementById('finalSubmitBtn'),
-        processingModal: document.getElementById('processingModal')
+        processingModal: document.getElementById('processingModal'),
+        faceVoteModal: document.getElementById('faceVoteModal'),
+        voteFaceVideo: document.getElementById('voteFaceVideo'),
+        voteFaceCanvas: document.getElementById('voteFaceCanvas'),
+        voteFacePlaceholder: document.getElementById('voteFacePlaceholder'),
+        voteFaceStatus: document.getElementById('voteFaceStatus'),
+        captureFaceVoteBtn: document.getElementById('captureFaceVoteBtn'),
+        cancelFaceVoteBtn: document.getElementById('cancelFaceVoteBtn')
     };
 
     // Bootstrap Modal Instances
@@ -54,6 +62,9 @@
         }
         if (elements.processingModal) {
             modals.processing = new bootstrap.Modal(elements.processingModal);
+        }
+        if (elements.faceVoteModal) {
+            modals.faceVote = new bootstrap.Modal(elements.faceVoteModal);
         }
     };
 
@@ -776,11 +787,135 @@
         modals.review?.show();
     };
 
+    let voteFaceStream = null;
+
+    const setVoteFaceStatus = (message, type = '') => {
+        if (!elements.voteFaceStatus) return;
+        elements.voteFaceStatus.textContent = message;
+        elements.voteFaceStatus.classList.toggle('is-error', type === 'error');
+        elements.voteFaceStatus.classList.toggle('is-success', type === 'success');
+    };
+
+    const stopVoteFaceCamera = () => {
+        if (voteFaceStream) {
+            voteFaceStream.getTracks().forEach((track) => track.stop());
+            voteFaceStream = null;
+        }
+        if (elements.voteFaceVideo) {
+            elements.voteFaceVideo.srcObject = null;
+        }
+    };
+
+    const startVoteFaceCamera = async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('This browser does not support camera verification. Please use a modern browser.');
+        }
+
+        stopVoteFaceCamera();
+        setVoteFaceStatus('Opening camera...');
+        if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = true;
+        if (elements.voteFacePlaceholder) elements.voteFacePlaceholder.hidden = false;
+
+        voteFaceStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 540 } },
+            audio: false,
+        });
+
+        if (elements.voteFaceVideo) {
+            elements.voteFaceVideo.srcObject = voteFaceStream;
+            await elements.voteFaceVideo.play().catch(() => {});
+        }
+        if (elements.voteFacePlaceholder) elements.voteFacePlaceholder.hidden = true;
+        if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = false;
+        setVoteFaceStatus('Center your face, then click Verify Face.');
+    };
+
+    const captureVoteFaceBlob = () => new Promise((resolve, reject) => {
+        const video = elements.voteFaceVideo;
+        const canvas = elements.voteFaceCanvas;
+        if (!video || !canvas || !voteFaceStream || video.readyState < 2) {
+            reject(new Error('Camera is not ready yet.'));
+            return;
+        }
+
+        const width = video.videoWidth || 720;
+        const height = video.videoHeight || 540;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                reject(new Error('Could not capture your face. Please try again.'));
+                return;
+            }
+            resolve(blob);
+        }, 'image/jpeg', 0.92);
+    });
+
+    const verifyVoteFace = async () => {
+        if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = true;
+        setVoteFaceStatus('Verifying your face...');
+
+        try {
+            const blob = await captureVoteFaceBlob();
+            const formData = new FormData();
+            formData.append('face_image', blob, 'vote-face.jpg');
+            formData.append('liveness_passed', 'true');
+
+            const res = await fetch(API_FACE_VERIFY, {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData,
+            });
+            const data = await res.json().catch(() => ({}));
+
+            if (res.status === 401) {
+                toLogin();
+                return false;
+            }
+            if (!res.ok || !data || data.ok !== true || data.verified !== true) {
+                throw new Error(data.failure_reason || data.error || 'Face verification failed. Please try again.');
+            }
+
+            setVoteFaceStatus('Face verified. Submitting your vote...', 'success');
+            stopVoteFaceCamera();
+            modals.faceVote?.hide();
+            return true;
+        } catch (error) {
+            setVoteFaceStatus(error.message || 'Face verification failed. Please try again.', 'error');
+            if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = false;
+            return false;
+        }
+    };
+
+    const openVoteFaceVerification = async () => {
+        modals.confirm?.hide();
+        modals.faceVote?.show();
+        try {
+            await startVoteFaceCamera();
+        } catch (error) {
+            setVoteFaceStatus(error.message || 'Camera access is required before voting.', 'error');
+            if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = true;
+        }
+    };
+
+    const cancelVoteFaceVerification = () => {
+        stopVoteFaceCamera();
+        modals.faceVote?.hide();
+        state.isSubmitting = false;
+        updateProgressStep('confirm');
+        modals.confirm?.show();
+    };
+
     const submitVote = async () => {
         if (state.isSubmitting) return;
         state.isSubmitting = true;
 
-        modals.confirm?.hide();
+        await openVoteFaceVerification();
+    };
+
+    const submitVerifiedVote = async () => {
         modals.processing?.show();
 
         try {
@@ -1133,6 +1268,25 @@
 
         if (elements.finalSubmitBtn) {
             elements.finalSubmitBtn.addEventListener('click', submitVote);
+        }
+
+        if (elements.captureFaceVoteBtn) {
+            elements.captureFaceVoteBtn.addEventListener('click', async () => {
+                const verified = await verifyVoteFace();
+                if (verified) {
+                    await submitVerifiedVote();
+                }
+            });
+        }
+
+        if (elements.cancelFaceVoteBtn) {
+            elements.cancelFaceVoteBtn.addEventListener('click', cancelVoteFaceVerification);
+        }
+
+        if (elements.faceVoteModal) {
+            elements.faceVoteModal.addEventListener('hidden.bs.modal', () => {
+                stopVoteFaceCamera();
+            });
         }
 
         // Close modal handlers to reset progress

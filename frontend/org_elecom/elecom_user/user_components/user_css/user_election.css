@@ -56,6 +56,64 @@
     color: #111827 !important;
 }
 
+.vote-face-camera {
+    position: relative;
+    overflow: hidden;
+    aspect-ratio: 4 / 3;
+    border-radius: 12px;
+    background: #0f172a;
+    border: 1px solid #e5e7eb;
+}
+
+.vote-face-camera video,
+.vote-face-camera canvas {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.vote-face-placeholder {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.65rem;
+    color: #e5e7eb;
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.vote-face-placeholder i {
+    font-size: 2.25rem;
+}
+
+.vote-face-placeholder[hidden] {
+    display: none;
+}
+
+.vote-face-status {
+    margin-top: 0.85rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 8px;
+    background: #f8fafc;
+    color: #334155;
+    font-weight: 700;
+    text-align: center;
+}
+
+.vote-face-status.is-error {
+    background: #fef2f2;
+    color: #991b1b;
+}
+
+.vote-face-status.is-success {
+    background: #f0fdf4;
+    color: #166534;
+}
+
 /* Voting Progress Steps */
 .voting-progress {
     display: flex;
