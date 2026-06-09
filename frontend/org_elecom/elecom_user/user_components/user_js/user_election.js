@@ -481,9 +481,14 @@
         if (!elements.ballotRoot) return;
         elements.ballotRoot.innerHTML = '';
         renderStraightVote(ballot);
+        state.collapsedOrgs = new Set(
+            (ballot || [])
+                .map((orgBlock) => normalizeOrg(orgBlock.organization))
+                .filter(Boolean)
+        );
 
         (ballot || []).forEach((orgBlock) => {
-            const org = String(orgBlock.organization || '').toUpperCase();
+            const org = normalizeOrg(orgBlock.organization);
             if (!org) return;
 
             const orgSection = document.createElement('div');
@@ -588,7 +593,7 @@
 
         if (state.ballotData && state.ballotData.ballot) {
             state.ballotData.ballot.forEach((orgBlock) => {
-                const org = String(orgBlock.organization || '').toUpperCase();
+                const org = normalizeOrg(orgBlock.organization);
                 if (!org) return;
 
                 let hasSelections = false;
