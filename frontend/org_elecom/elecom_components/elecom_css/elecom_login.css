@@ -1201,7 +1201,7 @@ body {
 
 .btn {
   min-height: 50px;
-  border-radius: 6px;
+  border-radius: 16px;
   background: #ffc43d;
   color: #17114f;
   box-shadow: 0 12px 24px rgba(245, 179, 1, 0.22);
