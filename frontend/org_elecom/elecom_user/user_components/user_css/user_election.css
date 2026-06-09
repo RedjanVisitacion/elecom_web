@@ -317,12 +317,27 @@
     background: #ffffff;
 }
 
+.straight-vote-panel.is-collapsed {
+    padding-bottom: 1rem;
+}
+
 .straight-vote-head {
     display: flex;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
     gap: 1rem;
     margin-bottom: 0.9rem;
+    cursor: pointer;
+    user-select: none;
+}
+
+.straight-vote-panel.is-collapsed .straight-vote-head {
+    margin-bottom: 0;
+}
+
+.straight-vote-head:focus-visible {
+    outline: 3px solid rgba(245, 179, 1, 0.35);
+    outline-offset: 3px;
 }
 
 .straight-vote-title {
@@ -344,9 +359,25 @@
     font-size: 0.86rem;
 }
 
+.straight-vote-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.65rem;
+    flex: 0 0 auto;
+}
+
+.straight-chevron {
+    color: #334155;
+    font-size: 1rem;
+}
+
 .straight-group-list {
     display: grid;
     gap: 0.85rem;
+}
+
+.straight-group-list[hidden] {
+    display: none;
 }
 
 .straight-group-title {
@@ -650,11 +681,11 @@
     }
 
     .straight-vote-head {
-        display: block;
+        align-items: flex-start;
     }
 
-    .straight-clear-btn {
-        margin-top: 0.7rem;
+    .straight-vote-actions {
+        gap: 0.5rem;
     }
 
     .straight-party-list {

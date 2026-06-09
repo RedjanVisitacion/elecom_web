@@ -13,6 +13,7 @@
         ballotData: null,
         candidatesMap: new Map(),
         straightParties: {},
+        straightVoteCollapsed: true,
         collapsedOrgs: new Set(),
         isSubmitting: false,
         hasVoted: false
@@ -414,6 +415,20 @@
         elements.straightVoteRoot.querySelectorAll('[data-party]').forEach((btn) => {
             btn.classList.toggle('active', state.straightParties[btn.dataset.org] === btn.dataset.party);
         });
+        updateStraightVoteSummary();
+    };
+
+    const getStraightVoteSummary = () => {
+        const entries = Object.entries(state.straightParties);
+        if (!entries.length) return 'Select one USG party and one organization party.';
+        return entries
+            .map(([org, party]) => `${org}: ${party}`)
+            .join(' • ');
+    };
+
+    const updateStraightVoteSummary = () => {
+        const summary = elements.straightVoteRoot?.querySelector('#straightVoteSummary');
+        if (summary) summary.textContent = getStraightVoteSummary();
     };
 
     const clearSelections = () => {
@@ -503,18 +518,35 @@
         `).join('');
 
         elements.straightVoteRoot.innerHTML = `
-            <section class="straight-vote-panel" aria-label="Vote straight by party">
-                <div class="straight-vote-head">
+            <section class="straight-vote-panel ${state.straightVoteCollapsed ? 'is-collapsed' : ''}" aria-label="Vote straight by party">
+                <div class="straight-vote-head" id="straightVoteToggle" role="button" tabindex="0" aria-expanded="${state.straightVoteCollapsed ? 'false' : 'true'}">
                     <div>
                         <div class="straight-vote-title"><i class="bi bi-lightning-charge"></i> Vote Straight</div>
-                        <p>Select one USG party and one organization party. You can still edit any choice.</p>
+                        <p id="straightVoteSummary">${escapeHtml(getStraightVoteSummary())}</p>
                     </div>
-                    <button type="button" class="straight-clear-btn" id="clearStraightVote">Clear</button>
+                    <div class="straight-vote-actions">
+                        <button type="button" class="straight-clear-btn" id="clearStraightVote">Clear</button>
+                        <i class="bi ${state.straightVoteCollapsed ? 'bi-chevron-down' : 'bi-chevron-up'} straight-chevron" aria-hidden="true"></i>
+                    </div>
                 </div>
-                <div class="straight-group-list">${groupHtml}</div>
+                <div class="straight-group-list" ${state.straightVoteCollapsed ? 'hidden' : ''}>${groupHtml}</div>
             </section>
         `;
 
+        const toggleStraightVote = () => {
+            state.straightVoteCollapsed = !state.straightVoteCollapsed;
+            renderStraightVote(ballot);
+        };
+        const toggle = elements.straightVoteRoot.querySelector('#straightVoteToggle');
+        toggle?.addEventListener('click', (event) => {
+            if (event.target.closest('button')) return;
+            toggleStraightVote();
+        });
+        toggle?.addEventListener('keydown', (event) => {
+            if (event.key !== 'Enter' && event.key !== ' ') return;
+            event.preventDefault();
+            toggleStraightVote();
+        });
         elements.straightVoteRoot.querySelectorAll('[data-party]').forEach((button) => {
             button.addEventListener('click', () => applyStraightVote(button.dataset.org || '', button.dataset.party || ''));
         });
