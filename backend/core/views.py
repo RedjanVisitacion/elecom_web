@@ -8054,6 +8054,9 @@ def admin_results_api(request):
 def user_results_api(request):
     """Public results API for students - only returns data if results are published."""
     _ensure_election_scoped_tables()
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
 
     def published_dt(value):
         if not value:
@@ -8141,14 +8144,10 @@ def user_results_api(request):
     election_where, election_params = _current_election_filter("c", selected_election_id)
     vote_filter, vote_params = _current_vote_filter("v", selected_election_id)
     vote_where = f"WHERE {vote_filter}"
-    student_id = (request.session.get("student_id") or "").strip()
-    program_code = _get_student_program_code(student_id) if student_id else ""
-    eligible_orgs = _eligible_orgs_for_program(program_code) if student_id else []
-    candidate_visibility_sql = ""
-    candidate_visibility_params: list = []
-    if eligible_orgs:
-        candidate_visibility_sql = "AND UPPER(c.organization) = ANY(%s)"
-        candidate_visibility_params.append(eligible_orgs)
+    program_code = _get_student_program_code(student_id)
+    eligible_orgs = _eligible_orgs_for_program(program_code)
+    candidate_visibility_sql = "AND UPPER(c.organization) = ANY(%s)"
+    candidate_visibility_params: list = [eligible_orgs]
     total_voters = 0
     votes_cast = 0
 
