@@ -100,7 +100,7 @@ input {
 }
 
 .poster__bg {
-  background: url("/static/assets/img_text/elecom_cover_bg.jpg") center / cover no-repeat;
+  background: url("/static/assets/img_text/elecom_cover_bg_new.jpg") center / cover no-repeat;
   opacity: 0.94;
   filter: saturate(1.04) contrast(1.15) brightness(0.96);
 }
