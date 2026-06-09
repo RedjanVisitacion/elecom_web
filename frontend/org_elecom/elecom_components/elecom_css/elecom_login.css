@@ -1022,8 +1022,9 @@ body {
 
 .poster__overlay {
   background:
-    linear-gradient(90deg, rgba(6, 19, 36, 0.08), rgba(6, 19, 36, 0.32)),
-    rgba(13, 60, 94, 0.08);
+    linear-gradient(180deg, transparent 44%, rgba(6, 19, 36, 0.5) 100%),
+    linear-gradient(90deg, rgba(6, 19, 36, 0.08), rgba(6, 19, 36, 0.28)),
+    rgba(13, 60, 94, 0.06);
 }
 
 .poster__content {
