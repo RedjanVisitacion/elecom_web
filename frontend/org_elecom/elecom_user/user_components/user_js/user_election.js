@@ -423,6 +423,24 @@
         updateStraightVoteActive();
     };
 
+    const expandOrgSection = (orgName) => {
+        const org = normalizeOrg(orgName);
+        state.collapsedOrgs.delete(org);
+        const section = elements.ballotRoot?.querySelector(`.org-section[data-org="${org}"]`);
+        const header = section?.querySelector('.org-header');
+        const body = section?.querySelector('.org-body');
+        const icon = section?.querySelector('.org-chevron');
+        if (body) body.hidden = false;
+        if (header) header.setAttribute('aria-expanded', 'true');
+        if (icon) {
+            icon.classList.remove('bi-chevron-down');
+            icon.classList.add('bi-chevron-up');
+        }
+        window.setTimeout(() => {
+            header?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+    };
+
     const applyStraightVote = (orgName, partyName) => {
         if (!state.ballotData || !Array.isArray(state.ballotData.ballot)) return;
         const targetOrg = normalizeOrg(orgName);
@@ -454,7 +472,7 @@
         state.straightParties[targetOrg] = targetParty;
         syncInputsFromSelections();
         updateStraightVoteActive();
-        elements.reviewBallotBtn?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        expandOrgSection(targetOrg);
     };
 
     const renderStraightVote = (ballot) => {
@@ -514,6 +532,7 @@
 
             const orgSection = document.createElement('div');
             orgSection.className = 'org-section';
+            orgSection.dataset.org = org;
 
             const orgHeader = document.createElement('div');
             orgHeader.className = `org-header org-header--${org.toLowerCase()}`;
