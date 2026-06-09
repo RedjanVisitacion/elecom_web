@@ -355,21 +355,22 @@ input {
 }
 
 .input-frame {
-  min-height: 52px;
-  height: 52px;
+  min-height: 50px;
+  height: 50px;
   display: flex;
   align-items: center;
   gap: 11px;
   padding: 0 14px;
-  border: 1.4px solid #D6DCE5;
-  border-radius: 14px;
+  border: 0;
+  border-bottom: 1.2px solid #D6DCE5;
+  border-radius: 0 0 16px 16px;
   background: var(--white);
   transition: border-color 160ms ease, box-shadow 160ms ease;
 }
 
 .input-frame:focus-within {
   border-color: #F4C430;
-  box-shadow: 0 0 0 3px rgba(244, 196, 48, 0.12);
+  box-shadow: 0 2px 0 -1px rgba(244, 196, 48, 0.28);
 }
 
 .input-frame > i {
@@ -396,11 +397,12 @@ input {
 
 .input {
   width: 100%;
-  min-height: 52px;
-  height: 52px;
+  min-height: 50px;
+  height: 50px;
   padding: 12px 14px;
-  border: 1.4px solid #D6DCE5;
-  border-radius: 14px;
+  border: 0;
+  border-bottom: 1.2px solid #D6DCE5;
+  border-radius: 0 0 16px 16px;
   outline: 0;
   background: var(--white);
   color: var(--text);
@@ -410,7 +412,7 @@ input {
 
 .input:focus {
   border-color: #F4C430;
-  box-shadow: 0 0 0 3px rgba(244, 196, 48, 0.12);
+  box-shadow: 0 2px 0 -1px rgba(244, 196, 48, 0.28);
 }
 
 .input-wrap {
@@ -1143,10 +1145,11 @@ body {
 
 .input-frame,
 .input {
-  min-height: 52px;
-  height: 52px;
-  border: 1.4px solid #D6DCE5;
-  border-radius: 14px;
+  min-height: 50px;
+  height: 50px;
+  border: 0;
+  border-bottom: 1.2px solid #D6DCE5;
+  border-radius: 0 0 16px 16px;
   background: #ffffff;
   box-shadow: none;
 }
@@ -1158,7 +1161,7 @@ body {
 .input-frame:focus-within,
 .input:focus {
   border-color: #F4C430;
-  box-shadow: 0 0 0 3px rgba(244, 196, 48, 0.12);
+  box-shadow: 0 2px 0 -1px rgba(244, 196, 48, 0.28);
 }
 
 .input-frame > i {
