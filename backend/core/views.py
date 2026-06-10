@@ -193,6 +193,25 @@ def _mark_student_account_seen(student_id: str | int | None = None, user_id: int
     except Exception:
         logger.exception("Failed to mark student account as seen.")
 
+
+def _mark_student_account_offline(student_id: str | int | None = None) -> None:
+    sid = str(student_id or "").strip()
+    if not sid:
+        return
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET last_seen_at = NULL
+                WHERE (student_id::text = %s OR id::text = %s)
+                  AND COALESCE(role, '') ILIKE 'student'
+                """,
+                [sid, sid],
+            )
+    except Exception:
+        logger.exception("Failed to mark student account offline.")
+
 _DUP_FACE_ENROLL_MSG = (
     "This face is already registered to another account. Please contact ELECOM."
 )
@@ -881,6 +900,31 @@ def account_profile_api(request):
             "student": student_row,
         }
     )
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def account_presence_api(request):
+    _ensure_auth_identity_tables()
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    _mark_student_account_seen(student_id=student_id)
+    return JsonResponse({"ok": True})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def account_logout_api(request):
+    _ensure_auth_identity_tables()
+    student_id = (request.session.get("student_id") or "").strip()
+    if student_id:
+        _mark_student_account_offline(student_id)
+    try:
+        request.session.flush()
+    except Exception:
+        request.session.clear()
+    return JsonResponse({"ok": True})
 
 
 @csrf_exempt
@@ -7825,7 +7869,7 @@ def admin_voters_list_api(request):
                     u.terms_accepted_at,
                     COALESCE(u.account_opened_at, u.terms_accepted_at) AS account_opened_at,
                     u.last_seen_at,
-                    (u.last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '5 minutes') AS is_online,
+                    (u.last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '45 seconds') AS is_online,
                     u.created_at
                 FROM users u
                 LEFT JOIN student s

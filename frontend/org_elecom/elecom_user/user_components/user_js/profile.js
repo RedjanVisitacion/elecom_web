@@ -90,6 +90,22 @@ document.addEventListener("DOMContentLoaded", function () {
 
   const toLogin = () => {
     try {
+      const url = "/api/account/logout/";
+      if (navigator.sendBeacon) {
+        navigator.sendBeacon(url, new Blob(["{}"], { type: "application/json" }));
+      } else {
+        fetch(url, {
+          method: "POST",
+          credentials: "same-origin",
+          keepalive: true,
+          headers: { "Content-Type": "application/json" },
+          body: "{}",
+        }).catch(() => {});
+      }
+    } catch (e) {
+      // ignore
+    }
+    try {
       sessionStorage.removeItem("elecom_role");
       sessionStorage.removeItem("elecom_user");
       sessionStorage.removeItem("elecom_user_id");

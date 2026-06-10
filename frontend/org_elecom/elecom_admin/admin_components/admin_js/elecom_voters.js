@@ -767,7 +767,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   loadVoters();
-  votersRefreshTimer = setInterval(loadVoters, 8000);
+  votersRefreshTimer = setInterval(loadVoters, 5000);
   window.addEventListener('beforeunload', () => {
     if (votersRefreshTimer) clearInterval(votersRefreshTimer);
   });

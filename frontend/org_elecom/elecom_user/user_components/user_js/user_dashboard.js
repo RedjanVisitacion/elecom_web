@@ -64,6 +64,8 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_APP_UPDATE = '/api/mobile/app/update/';
     const API_STUDENT_PAGE_TOKEN = '/api/user/page-token/';
     const API_NETWORK_CHECK = '/api/network/check/';
+    const API_ACCOUNT_PRESENCE = '/api/account/presence/';
+    const API_ACCOUNT_LOGOUT = '/api/account/logout/';
     const STUDENT_HASH_KEY = 'elecom_student_page_hash';
     const STUDENT_ROUTE_PREFIX = '/u/';
     const ELECTION_ENTRY_FACE_KEY = 'elecom_election_entry_face_verified';
@@ -77,6 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
         OFFLINE: 'offline',
         UNAUTHORIZED: 'unauthorized',
     };
+    let presenceTimer = null;
 
     const isStudentStaticPage = (href) => {
         try {
@@ -565,6 +568,19 @@ document.addEventListener('DOMContentLoaded', function() {
 
     const toLogin = () => {
         try {
+            if (navigator.sendBeacon) {
+                navigator.sendBeacon(API_ACCOUNT_LOGOUT, new Blob(['{}'], { type: 'application/json' }));
+            } else {
+                fetch(API_ACCOUNT_LOGOUT, {
+                    method: 'POST',
+                    credentials: 'same-origin',
+                    keepalive: true,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: '{}',
+                }).catch(() => {});
+            }
+        } catch (e) { /* ignore */ }
+        try {
             sessionStorage.removeItem('elecom_user');
             sessionStorage.removeItem('elecom_role');
             sessionStorage.removeItem('elecom_user_id');
@@ -574,6 +590,23 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (e) { /* ignore */ }
         const base = window.location.origin;
         window.location.href = `${base}/login/`;
+    };
+
+    const pingPresence = () => {
+        fetch(API_ACCOUNT_PRESENCE, {
+            method: 'POST',
+            credentials: 'same-origin',
+            cache: 'no-store',
+        }).catch(() => {});
+    };
+
+    const startPresenceHeartbeat = () => {
+        if (presenceTimer) clearInterval(presenceTimer);
+        pingPresence();
+        presenceTimer = setInterval(pingPresence, 20000);
+        window.addEventListener('beforeunload', () => {
+            if (presenceTimer) clearInterval(presenceTimer);
+        }, { once: true });
     };
 
     let electionEntryStream = null;
@@ -1987,6 +2020,7 @@ document.addEventListener('DOMContentLoaded', function() {
         initTotalCandidatesCard();
         initNotifications();
         startNetworkWatch();
+        startPresenceHeartbeat();
         initOmnibusSlideshow();
         void loadAccountProfileName();
         showStudentWebDisclaimer();

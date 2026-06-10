@@ -390,6 +390,19 @@
 
             const logout = () => {
                 try {
+                    if (navigator.sendBeacon) {
+                        navigator.sendBeacon('/api/account/logout/', new Blob(['{}'], { type: 'application/json' }));
+                    } else {
+                        fetch('/api/account/logout/', {
+                            method: 'POST',
+                            credentials: 'same-origin',
+                            keepalive: true,
+                            headers: { 'Content-Type': 'application/json' },
+                            body: '{}',
+                        }).catch(() => {});
+                    }
+                } catch (e) { /* ignore */ }
+                try {
                     sessionStorage.removeItem('elecom_role');
                     sessionStorage.removeItem('elecom_user');
                     sessionStorage.removeItem('elecom_user_photo_url');
