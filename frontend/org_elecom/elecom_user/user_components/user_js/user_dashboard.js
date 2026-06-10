@@ -63,6 +63,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_FACE_VERIFY = '/api/mobile/face/verify/';
     const API_APP_UPDATE = '/api/mobile/app/update/';
     const API_STUDENT_PAGE_TOKEN = '/api/user/page-token/';
+    const API_NETWORK_CHECK = '/api/network/check/';
     const STUDENT_HASH_KEY = 'elecom_student_page_hash';
     const STUDENT_ROUTE_PREFIX = '/u/';
     const ELECTION_ENTRY_FACE_KEY = 'elecom_election_entry_face_verified';
@@ -74,6 +75,7 @@ document.addEventListener('DOMContentLoaded', function() {
         HIGH: 'high',
         LOW: 'low',
         OFFLINE: 'offline',
+        UNAUTHORIZED: 'unauthorized',
     };
 
     const isStudentStaticPage = (href) => {
@@ -696,6 +698,113 @@ document.addEventListener('DOMContentLoaded', function() {
         setEntryFaceGuide('searching', 'Center your face', 'error');
     };
 
+    const ensureElectionNetworkModal = () => {
+        let modal = document.getElementById('electionNetworkModal');
+        if (modal) return modal;
+
+        const style = document.createElement('style');
+        style.textContent = `
+            .entry-network-modal{position:fixed;inset:0;z-index:3100;display:grid;place-items:center;padding:18px;opacity:0;pointer-events:none;transition:opacity .18s ease}
+            .entry-network-modal.is-open{opacity:1;pointer-events:auto}
+            .entry-network-backdrop{position:absolute;inset:0;background:rgba(7,12,24,.58);backdrop-filter:blur(5px)}
+            .entry-network-panel{position:relative;z-index:1;width:min(430px,100%);overflow:hidden;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(7,12,24,.28);transform:translateY(10px) scale(.97);transition:transform .18s ease}
+            .entry-network-modal.is-open .entry-network-panel{transform:translateY(0) scale(1)}
+            .entry-network-body{padding:24px 22px 18px;text-align:center}
+            .entry-network-icon{width:56px;height:56px;margin:0 auto 14px;border-radius:999px;display:grid;place-items:center;background:#fef2f2;color:#dc2626;font-size:28px}
+            .entry-network-body h2{margin:0;color:#0b1f5b;font-size:21px;font-weight:900}
+            .entry-network-body p{margin:10px 0 0;color:#64748b;font-size:14px;font-weight:700;line-height:1.5}
+            .entry-network-actions{display:flex;justify-content:flex-end;padding:14px 20px 18px;border-top:1px solid #e5eaf1}
+            .entry-network-close{min-height:42px;padding:0 18px;border-radius:13px;border:1px solid #111827;background:#111827;color:#fff;font-weight:900;cursor:pointer}
+        `;
+        document.head.appendChild(style);
+
+        modal = document.createElement('div');
+        modal.className = 'entry-network-modal';
+        modal.id = 'electionNetworkModal';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="entry-network-backdrop" data-entry-network-close></div>
+            <section class="entry-network-panel" role="dialog" aria-modal="true" aria-labelledby="entryNetworkTitle">
+                <div class="entry-network-body">
+                    <div class="entry-network-icon"><i class="bi bi-wifi-off" aria-hidden="true"></i></div>
+                    <h2 id="entryNetworkTitle">Network Not Authorized</h2>
+                    <p id="entryNetworkMessage">You must connect to a network registered by the admin before opening the election ballot.</p>
+                </div>
+                <footer class="entry-network-actions">
+                    <button class="entry-network-close" type="button" id="entryNetworkClose">OK</button>
+                </footer>
+            </section>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    };
+
+    const showElectionNetworkBlocked = (message, redirectToDashboard = false) => {
+        const modal = ensureElectionNetworkModal();
+        const messageEl = document.getElementById('entryNetworkMessage');
+        const close = () => {
+            modal.classList.remove('is-open');
+            modal.setAttribute('aria-hidden', 'true');
+            document.body.style.overflow = '';
+            if (modal.dataset.redirectToDashboard === 'true') {
+                window.location.href = '/static/org_elecom/elecom_user/user_dashboard.html';
+            }
+        };
+
+        if (messageEl) {
+            messageEl.textContent = message || 'You must connect to a network registered by the admin before opening the election ballot.';
+        }
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        modal.dataset.redirectToDashboard = redirectToDashboard ? 'true' : 'false';
+        document.body.style.overflow = 'hidden';
+
+        modal.querySelectorAll('[data-entry-network-close], #entryNetworkClose').forEach((el) => {
+            if (el.dataset.bound) return;
+            el.dataset.bound = 'true';
+            el.addEventListener('click', close);
+        });
+    };
+
+    const checkElectionNetworkAccess = async () => {
+        try {
+            const res = await fetch(API_NETWORK_CHECK, {
+                method: 'GET',
+                credentials: 'same-origin',
+                cache: 'no-store',
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                toLogin();
+                return { allowed: false, message: 'Please sign in again.' };
+            }
+            if (!res.ok || data.ok !== true || data.allowed !== true) {
+                return {
+                    allowed: false,
+                    message: data.message || data.error || 'You must connect to a network registered by the admin before opening the election ballot.',
+                };
+            }
+            return { allowed: true, message: data.message || '' };
+        } catch (e) {
+            return {
+                allowed: false,
+                message: 'Unable to verify your network. Please connect to an authorized network and try again.',
+            };
+        }
+    };
+
+    const requireElectionNetworkAccess = async (redirectToDashboard = false) => {
+        const result = await checkElectionNetworkAccess();
+        if (result.allowed) {
+            refreshNetworkUi();
+            return true;
+        }
+
+        setNetworkUi({ level: NET_LEVELS.UNAUTHORIZED });
+        showElectionNetworkBlocked(result.message, redirectToDashboard);
+        return false;
+    };
+
     const loadFaceVisionModule = async () => {
         if (!faceVisionModulePromise) {
             faceVisionModulePromise = import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
@@ -929,7 +1038,12 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     };
 
-    const openElectionEntryVerification = async (targetUrl = '') => {
+    const openElectionEntryVerification = async (targetUrl = '', options = {}) => {
+        if (!options.skipNetworkCheck) {
+            const networkAllowed = await requireElectionNetworkAccess(Boolean(ballotRoot));
+            if (!networkAllowed) return;
+        }
+
         ensureElectionEntryModal();
         electionEntryTargetUrl = targetUrl || '';
         const modal = document.getElementById('electionEntryFaceModal');
@@ -978,12 +1092,17 @@ document.addEventListener('DOMContentLoaded', function() {
             || text === 'vote now';
     };
 
-    document.addEventListener('click', (event) => {
+    document.addEventListener('click', async (event) => {
         const link = event.target && event.target.closest ? event.target.closest('a[href]') : null;
         if (!isElectionLink(link)) return;
-        if (sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY) === 'true') return;
         event.preventDefault();
-        openElectionEntryVerification(link.href);
+        const networkAllowed = await requireElectionNetworkAccess(false);
+        if (!networkAllowed) return;
+        if (sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY) === 'true') {
+            window.location.href = link.href;
+            return;
+        }
+        openElectionEntryVerification(link.href, { skipNetworkCheck: true });
     });
 
     document.addEventListener('keydown', (event) => {
@@ -995,8 +1114,14 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    if (ballotRoot && sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY) !== 'true') {
-        setTimeout(() => openElectionEntryVerification(''), 350);
+    if (ballotRoot) {
+        setTimeout(async () => {
+            const networkAllowed = await requireElectionNetworkAccess(true);
+            if (!networkAllowed) return;
+            if (sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY) !== 'true') {
+                openElectionEntryVerification('', { skipNetworkCheck: true });
+            }
+        }, 350);
     }
 
     const initElectionBallot = async () => {
@@ -1505,6 +1630,13 @@ document.addEventListener('DOMContentLoaded', function() {
             systemStatusBadge.classList.add('is-offline');
             systemStatusText.textContent = 'Network Offline';
             systemStatusBadge.setAttribute('title', 'No network connection');
+            return;
+        }
+
+        if (level === NET_LEVELS.UNAUTHORIZED) {
+            systemStatusBadge.classList.add('is-offline');
+            systemStatusText.textContent = 'Network Unauthorized';
+            systemStatusBadge.setAttribute('title', 'This network is not registered by the admin');
             return;
         }
 
