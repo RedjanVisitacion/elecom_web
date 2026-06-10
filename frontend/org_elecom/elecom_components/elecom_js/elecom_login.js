@@ -564,6 +564,29 @@
             // Fall back to the dashboard; it will bootstrap the secure route.
           }
         }
+
+        if (data.role !== "admin" && isHttp) {
+          try {
+            const currentRedirect = new URL(redirectUrl, API_BASE);
+            const page = currentRedirect.pathname.split("/").pop() || "user_dashboard.html";
+            const tokenUrl = new URL(`${API_BASE}/api/user/page-token/`);
+            tokenUrl.searchParams.set("page", page);
+            currentRedirect.searchParams.forEach((value, key) => {
+              if (key === "next" || key === "election_id") tokenUrl.searchParams.set(key, value);
+            });
+            const tokenRes = await fetch(tokenUrl.toString(), {
+              method: "GET",
+              credentials: "include",
+              cache: "no-store",
+            });
+            const tokenData = await tokenRes.json().catch(() => ({}));
+            if (tokenRes.ok && tokenData.ok && tokenData.secure_url) {
+              redirectUrl = `${API_BASE}${tokenData.secure_url}`;
+            }
+          } catch {
+            // Fall back to the dashboard; it will bootstrap the secure route.
+          }
+        }
         window.location.href = redirectUrl;
       } catch {
         if (formStatus) formStatus.textContent = "Cannot connect to server. Make sure Django is running.";

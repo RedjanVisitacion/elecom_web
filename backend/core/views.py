@@ -170,6 +170,8 @@ _SESSION_FACE_VOTE_STD = "_elecom_fv_std"
 _SESSION_FACE_VOTE_EXP = "_elecom_fv_exp"
 _ADMIN_PAGE_TOKEN_SALT = "elecom.admin.page.hash"
 _ADMIN_PAGE_ROUTE_SALT = "elecom.admin.page.route"
+_STUDENT_PAGE_TOKEN_SALT = "elecom.student.page.hash"
+_STUDENT_PAGE_ROUTE_SALT = "elecom.student.page.route"
 _ADMIN_PAGE_ALLOWLIST = {
     "admin_dashboard.html",
     "elecom_register_candidate.html",
@@ -186,6 +188,15 @@ _ADMIN_PAGE_ALLOWLIST = {
     "profile.html",
     "search_results.html",
 }
+_STUDENT_PAGE_ALLOWLIST = {
+    "user_dashboard.html",
+    "user_election.html",
+    "user_results.html",
+    "user_receipt.html",
+    "user_transparency.html",
+    "user_face_enrollment.html",
+    "profile.html",
+}
 
 
 def _normalize_admin_page_name(page: str) -> str:
@@ -194,6 +205,13 @@ def _normalize_admin_page_name(page: str) -> str:
         return "elecom_elections.html"
     if page not in _ADMIN_PAGE_ALLOWLIST:
         return "admin_dashboard.html"
+    return page
+
+
+def _normalize_student_page_name(page: str) -> str:
+    page = str(page or "user_dashboard.html").strip()
+    if page not in _STUDENT_PAGE_ALLOWLIST:
+        return "user_dashboard.html"
     return page
 
 
@@ -4333,6 +4351,13 @@ def _require_admin(request):
     return None
 
 
+def _require_student(request):
+    role = (request.session.get("role") or "").lower()
+    if role not in {"student", "user"}:
+        return JsonResponse({"ok": False, "error": "Forbidden."}, status=403)
+    return None
+
+
 def _require_voters_access(request):
     forbidden = _require_admin(request)
     if forbidden:
@@ -4478,6 +4503,130 @@ def admin_secure_page_view(request, token):
         return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
 
     html = _normalize_admin_html(page_path.read_text(encoding="utf-8"))
+    return HttpResponse(html, content_type="text/html")
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def student_page_token_api(request):
+    forbidden = _require_student(request)
+    if forbidden:
+        return forbidden
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    if not request.session.session_key:
+        request.session.save()
+
+    if request.method == "POST":
+        try:
+            payload = json.loads((request.body or b"{}").decode("utf-8"))
+        except Exception:
+            payload = {}
+
+        token = str(payload.get("token") or "").strip()
+        if not token:
+            return JsonResponse({"ok": False, "error": "Missing page token."}, status=400)
+
+        try:
+            data = signing.loads(
+                token,
+                salt=_STUDENT_PAGE_TOKEN_SALT,
+                max_age=int(getattr(settings, "ADMIN_PAGE_TOKEN_SECONDS", 3600) or 3600),
+            )
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Invalid or expired page token."}, status=403)
+
+        if (
+            str(data.get("sid") or "") != student_id
+            or str(data.get("role") or "").lower() not in {"student", "user"}
+            or str(data.get("session") or "") != str(request.session.session_key)
+        ):
+            return JsonResponse({"ok": False, "error": "Invalid page token."}, status=403)
+
+        return JsonResponse({"ok": True})
+
+    token = signing.dumps(
+        {
+            "sid": student_id,
+            "role": "student",
+            "session": request.session.session_key,
+        },
+        salt=_STUDENT_PAGE_TOKEN_SALT,
+        compress=True,
+    )
+    page = _normalize_student_page_name(request.GET.get("page") or "user_dashboard.html")
+    route_query = {}
+    for key in ("election_id",):
+        value = str(request.GET.get(key) or "").strip()
+        if value.isdigit():
+            route_query[key] = value
+    next_value = str(request.GET.get("next") or "").strip()
+    if next_value.startswith("/static/org_elecom/elecom_user/"):
+        route_query["next"] = next_value
+
+    route_token = signing.dumps(
+        {
+            "sid": student_id,
+            "role": "student",
+            "session": request.session.session_key,
+            "page": page,
+            "query": route_query,
+        },
+        salt=_STUDENT_PAGE_ROUTE_SALT,
+        compress=True,
+    )
+    query_string = ""
+    if route_query:
+        from urllib.parse import urlencode
+        query_string = f"?{urlencode(route_query)}"
+    return JsonResponse({"ok": True, "token": token, "route_token": route_token, "secure_url": f"/u/{route_token}/{query_string}"})
+
+
+@require_http_methods(["GET"])
+def student_secure_page_view(request, token):
+    forbidden = _require_student(request)
+    if forbidden:
+        return forbidden
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        data = signing.loads(
+            str(token or ""),
+            salt=_STUDENT_PAGE_ROUTE_SALT,
+            max_age=int(getattr(settings, "ADMIN_PAGE_TOKEN_SECONDS", 3600) or 3600),
+        )
+    except Exception:
+        return HttpResponse(
+            '<script>window.location.href="/static/org_elecom/elecom_user/user_dashboard.html";</script>',
+            content_type="text/html",
+            status=403,
+        )
+
+    if (
+        str(data.get("sid") or "") != student_id
+        or str(data.get("role") or "").lower() not in {"student", "user"}
+        or str(data.get("session") or "") != str(request.session.session_key)
+    ):
+        return HttpResponse(
+            '<script>window.location.href="/static/org_elecom/elecom_user/user_dashboard.html";</script>',
+            content_type="text/html",
+            status=403,
+        )
+
+    page = _normalize_student_page_name(data.get("page") or "user_dashboard.html")
+
+    root = Path(settings.BASE_DIR).parent / "frontend" / "org_elecom" / "elecom_user"
+    page_path = (root / page).resolve()
+    if root.resolve() not in page_path.parents or not page_path.exists():
+        return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
+
+    html = page_path.read_text(encoding="utf-8")
     return HttpResponse(html, content_type="text/html")
 
 

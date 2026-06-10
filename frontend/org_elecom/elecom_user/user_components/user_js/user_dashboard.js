@@ -61,13 +61,160 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_NOTIFICATIONS_READ_ALL = '/api/mobile/notifications/read-all/';
     const API_FACE_ENROLLMENT_STATUS = '/api/mobile/face/enrollment/status/';
     const API_APP_UPDATE = '/api/mobile/app/update/';
+    const API_STUDENT_PAGE_TOKEN = '/api/user/page-token/';
+    const STUDENT_HASH_KEY = 'elecom_student_page_hash';
+    const STUDENT_ROUTE_PREFIX = '/u/';
     const WEB_DISCLAIMER_KEY = 'elecom_student_web_disclaimer_seen_v1';
+    const studentSecureRouteCache = new Map();
 
     const NET_LEVELS = {
         HIGH: 'high',
         LOW: 'low',
         OFFLINE: 'offline',
     };
+
+    const isStudentStaticPage = (href) => {
+        try {
+            const url = new URL(href, window.location.origin);
+            return url.origin === window.location.origin
+                && url.pathname.startsWith('/static/org_elecom/elecom_user/')
+                && url.pathname.endsWith('.html');
+        } catch (e) {
+            return false;
+        }
+    };
+
+    const isStudentSecureRoute = () => window.location.pathname.startsWith(STUDENT_ROUTE_PREFIX);
+
+    const getStudentPageNameFromHref = (href) => {
+        try {
+            const url = new URL(href, window.location.origin);
+            if (!url.pathname.startsWith('/static/org_elecom/elecom_user/')) return '';
+            return url.pathname.split('/').pop() || '';
+        } catch (e) {
+            return '';
+        }
+    };
+
+    const getStudentSecureRouteForPage = async (page, queryString = '') => {
+        const safePage = String(page || '').trim();
+        if (!safePage) return '';
+        const cacheKey = `${safePage}${queryString || ''}`;
+        if (studentSecureRouteCache.has(cacheKey)) return studentSecureRouteCache.get(cacheKey);
+
+        const url = new URL(API_STUDENT_PAGE_TOKEN, window.location.origin);
+        url.searchParams.set('page', safePage);
+        const extraParams = new URLSearchParams(String(queryString || '').replace(/^\?/, ''));
+        extraParams.forEach((value, key) => {
+            if (key === 'election_id' || key === 'next') {
+                url.searchParams.set(key, value);
+            }
+        });
+
+        const resp = await fetch(url.toString(), {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+        });
+        const data = await resp.json().catch(() => ({}));
+        if (!resp.ok || !data.ok || !data.secure_url) return '';
+
+        const secureUrl = new URL(String(data.secure_url), window.location.origin).toString();
+        studentSecureRouteCache.set(cacheKey, secureUrl);
+        try {
+            sessionStorage.setItem(`elecom_student_secure_route_${cacheKey}`, secureUrl);
+        } catch (e) {
+            // ignore
+        }
+        return secureUrl;
+    };
+
+    const rewriteStudentLinks = async () => {
+        const links = Array.from(document.querySelectorAll('a[href]'));
+        for (const link of links) {
+            const href = link.getAttribute('href') || '';
+            if (!isStudentStaticPage(href)) continue;
+            const page = getStudentPageNameFromHref(href);
+            const parsed = new URL(href, window.location.origin);
+            const secureUrl = await getStudentSecureRouteForPage(page, parsed.search);
+            if (secureUrl) link.setAttribute('href', secureUrl);
+        }
+    };
+
+    const getStudentHashToken = () => {
+        const raw = String(window.location.hash || '').replace(/^#/, '');
+        const params = new URLSearchParams(raw);
+        return String(params.get('secure') || '').trim();
+    };
+
+    const isStudentDashboardPage = () => /\/static\/org_elecom\/elecom_user\/user_dashboard\.html$/i.test(window.location.pathname);
+
+    const goToStudentDashboard = () => {
+        const dashboard = '/static/org_elecom/elecom_user/user_dashboard.html';
+        if (isStudentDashboardPage()) return;
+        window.location.href = dashboard;
+    };
+
+    const validateStudentHashToken = async (token) => {
+        const resp = await fetch(API_STUDENT_PAGE_TOKEN, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'same-origin',
+            cache: 'no-store',
+            body: JSON.stringify({ token }),
+        });
+        const data = await resp.json().catch(() => ({}));
+        return !!(resp.ok && data && data.ok);
+    };
+
+    const ensureStudentPageHash = async () => {
+        if (!isStudentStaticPage(window.location.href) && !isStudentSecureRoute()) return;
+
+        try {
+            if (isStudentSecureRoute()) {
+                rewriteStudentLinks();
+                return;
+            }
+
+            const existingToken = getStudentHashToken();
+            if (existingToken) {
+                const valid = await validateStudentHashToken(existingToken);
+                if (!valid) {
+                    goToStudentDashboard();
+                    return;
+                }
+                try {
+                    sessionStorage.setItem(STUDENT_HASH_KEY, existingToken);
+                } catch (e) {
+                    // ignore
+                }
+                rewriteStudentLinks();
+                return;
+            }
+
+            if (!isStudentDashboardPage()) {
+                goToStudentDashboard();
+                return;
+            }
+
+            const page = getStudentPageNameFromHref(window.location.href) || 'user_dashboard.html';
+            const secureUrl = await getStudentSecureRouteForPage(page, window.location.search);
+            if (!secureUrl) return;
+
+            const token = new URL(secureUrl, window.location.origin).pathname.split('/').filter(Boolean)[1] || '';
+            try {
+                sessionStorage.setItem(STUDENT_HASH_KEY, token);
+            } catch (e) {
+                // ignore
+            }
+            window.history.replaceState(null, '', secureUrl);
+            rewriteStudentLinks();
+        } catch (e) {
+            // Keep the page usable if secure URL bootstrapping is temporarily unavailable.
+        }
+    };
+
+    ensureStudentPageHash();
 
     const initTotalCandidatesCard = async () => {
         if (!totalCandidatesValue) return;
