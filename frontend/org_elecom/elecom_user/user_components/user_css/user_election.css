@@ -73,6 +73,10 @@
     display: block;
 }
 
+.vote-face-camera video {
+    transform: scaleX(-1);
+}
+
 .vote-face-placeholder {
     position: absolute;
     inset: 0;
