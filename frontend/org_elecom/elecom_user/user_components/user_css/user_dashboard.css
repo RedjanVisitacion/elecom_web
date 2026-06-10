@@ -1177,10 +1177,10 @@ body {
 .face-guide-label {
   position: absolute;
   left: 50%;
-  bottom: -46px;
+  bottom: 8px;
   transform: translateX(-50%);
   width: max-content;
-  max-width: min(360px, 92vw);
+  max-width: min(190px, 80vw);
   padding: 7px 10px;
   border-radius: 8px;
   background: rgba(15, 23, 42, 0.82);
@@ -1191,6 +1191,7 @@ body {
   line-height: 1.25;
   white-space: normal;
   box-shadow: 0 10px 24px rgba(15, 23, 42, 0.22);
+  z-index: 2;
 }
 
 .face-guide-label[data-tone="success"] {
