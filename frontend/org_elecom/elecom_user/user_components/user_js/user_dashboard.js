@@ -60,10 +60,12 @@ document.addEventListener('DOMContentLoaded', function() {
     const API_NOTIFICATIONS_READ = '/api/mobile/notifications/read/';
     const API_NOTIFICATIONS_READ_ALL = '/api/mobile/notifications/read-all/';
     const API_FACE_ENROLLMENT_STATUS = '/api/mobile/face/enrollment/status/';
+    const API_FACE_VERIFY = '/api/mobile/face/verify/';
     const API_APP_UPDATE = '/api/mobile/app/update/';
     const API_STUDENT_PAGE_TOKEN = '/api/user/page-token/';
     const STUDENT_HASH_KEY = 'elecom_student_page_hash';
     const STUDENT_ROUTE_PREFIX = '/u/';
+    const ELECTION_ENTRY_FACE_KEY = 'elecom_election_entry_face_verified';
     const WEB_DISCLAIMER_KEY = 'elecom_student_web_disclaimer_seen_v1';
     const studentSecureRouteCache = new Map();
 
@@ -137,6 +139,7 @@ document.addEventListener('DOMContentLoaded', function() {
             const page = getStudentPageNameFromHref(href);
             const parsed = new URL(href, window.location.origin);
             const secureUrl = await getStudentSecureRouteForPage(page, parsed.search);
+            if (page) link.dataset.studentPage = page;
             if (secureUrl) link.setAttribute('href', secureUrl);
         }
     };
@@ -563,11 +566,262 @@ document.addEventListener('DOMContentLoaded', function() {
             sessionStorage.removeItem('elecom_role');
             sessionStorage.removeItem('elecom_user_id');
             sessionStorage.removeItem('elecom_user_photo_url');
+            sessionStorage.removeItem(ELECTION_ENTRY_FACE_KEY);
             sessionStorage.removeItem(WEB_DISCLAIMER_KEY);
         } catch (e) { /* ignore */ }
         const base = window.location.origin;
         window.location.href = `${base}/login/`;
     };
+
+    let electionEntryStream = null;
+    let electionEntryTargetUrl = '';
+
+    const ensureElectionEntryModal = () => {
+        let modal = document.getElementById('electionEntryFaceModal');
+        if (modal) return modal;
+
+        const style = document.createElement('style');
+        style.textContent = `
+            .entry-face-modal{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:18px;opacity:0;pointer-events:none;transition:opacity .18s ease}
+            .entry-face-modal.is-open{opacity:1;pointer-events:auto}
+            .entry-face-backdrop{position:absolute;inset:0;background:rgba(7,12,24,.58);backdrop-filter:blur(5px)}
+            .entry-face-panel{position:relative;z-index:1;width:min(460px,100%);overflow:hidden;border-radius:18px;background:#fff;box-shadow:0 24px 70px rgba(7,12,24,.28);transform:translateY(10px) scale(.97);transition:transform .18s ease}
+            .entry-face-modal.is-open .entry-face-panel{transform:translateY(0) scale(1)}
+            .entry-face-head{padding:18px 20px 12px;border-bottom:1px solid #e5eaf1}
+            .entry-face-head h2{margin:0;color:#0b1f5b;font-size:20px;font-weight:900}
+            .entry-face-head p{margin:5px 0 0;color:#64748b;font-size:13px;font-weight:700}
+            .entry-face-camera{position:relative;margin:18px 20px 12px;aspect-ratio:4/3;border-radius:16px;overflow:hidden;background:#0b1220}
+            .entry-face-camera video{width:100%;height:100%;object-fit:cover;transform:scaleX(-1)}
+            .entry-face-placeholder{position:absolute;inset:0;display:grid;place-items:center;color:#cbd5e1;font-weight:800;text-align:center;padding:20px;background:linear-gradient(135deg,#0b1220,#1e293b)}
+            .entry-face-status{min-height:22px;margin:0 20px 14px;color:#64748b;font-size:13px;font-weight:800}
+            .entry-face-status.is-error{color:#dc2626}.entry-face-status.is-success{color:#15803d}
+            .entry-face-actions{display:flex;gap:10px;justify-content:flex-end;padding:14px 20px 18px;border-top:1px solid #e5eaf1}
+            .entry-face-actions button{min-height:42px;padding:0 16px;border-radius:13px;font-weight:900;cursor:pointer}
+            .entry-face-cancel{border:1px solid #d6dce5;background:#fff;color:#0b1f5b}
+            .entry-face-verify{border:1px solid #111827;background:#111827;color:#fff}
+            .entry-face-verify:disabled,.entry-face-cancel:disabled{opacity:.62;cursor:not-allowed}
+            @media (max-width:560px){.entry-face-actions{flex-direction:column-reverse}.entry-face-actions button{width:100%}}
+        `;
+        document.head.appendChild(style);
+
+        modal = document.createElement('div');
+        modal.className = 'entry-face-modal';
+        modal.id = 'electionEntryFaceModal';
+        modal.setAttribute('aria-hidden', 'true');
+        modal.innerHTML = `
+            <div class="entry-face-backdrop" data-entry-face-cancel></div>
+            <section class="entry-face-panel" role="dialog" aria-modal="true" aria-labelledby="entryFaceTitle">
+                <header class="entry-face-head">
+                    <h2 id="entryFaceTitle">Face Verification Required</h2>
+                    <p>Verify your face before opening the election ballot.</p>
+                </header>
+                <div class="entry-face-camera">
+                    <video id="entryFaceVideo" autoplay playsinline muted></video>
+                    <canvas id="entryFaceCanvas" width="720" height="540" hidden></canvas>
+                    <div class="entry-face-placeholder" id="entryFacePlaceholder">Allow camera access to continue.</div>
+                </div>
+                <p class="entry-face-status" id="entryFaceStatus" role="status">Opening camera...</p>
+                <footer class="entry-face-actions">
+                    <button class="entry-face-cancel" type="button" id="entryFaceCancel">Cancel</button>
+                    <button class="entry-face-verify" type="button" id="entryFaceVerify" disabled>Verify Face</button>
+                </footer>
+            </section>
+        `;
+        document.body.appendChild(modal);
+        return modal;
+    };
+
+    const setElectionEntryStatus = (message, type = '') => {
+        const status = document.getElementById('entryFaceStatus');
+        if (!status) return;
+        status.textContent = message || '';
+        status.classList.toggle('is-error', type === 'error');
+        status.classList.toggle('is-success', type === 'success');
+    };
+
+    const stopElectionEntryCamera = () => {
+        if (electionEntryStream) {
+            electionEntryStream.getTracks().forEach((track) => track.stop());
+            electionEntryStream = null;
+        }
+        const video = document.getElementById('entryFaceVideo');
+        if (video) video.srcObject = null;
+    };
+
+    const closeElectionEntryModal = () => {
+        const modal = document.getElementById('electionEntryFaceModal');
+        if (!modal) return;
+        stopElectionEntryCamera();
+        modal.classList.remove('is-open');
+        modal.setAttribute('aria-hidden', 'true');
+        document.body.style.overflow = '';
+        electionEntryTargetUrl = '';
+    };
+
+    const startElectionEntryCamera = async () => {
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+            throw new Error('This browser does not support camera verification. Please use a modern browser.');
+        }
+        stopElectionEntryCamera();
+        const verifyBtn = document.getElementById('entryFaceVerify');
+        const placeholder = document.getElementById('entryFacePlaceholder');
+        if (verifyBtn) verifyBtn.disabled = true;
+        if (placeholder) placeholder.hidden = false;
+        setElectionEntryStatus('Opening camera...');
+
+        electionEntryStream = await navigator.mediaDevices.getUserMedia({
+            video: { facingMode: 'user', width: { ideal: 720 }, height: { ideal: 540 } },
+            audio: false,
+        });
+
+        const video = document.getElementById('entryFaceVideo');
+        if (video) {
+            video.srcObject = electionEntryStream;
+            await video.play().catch(() => {});
+        }
+        if (placeholder) placeholder.hidden = true;
+        if (verifyBtn) verifyBtn.disabled = false;
+        setElectionEntryStatus('Center your face, then click Verify Face.');
+    };
+
+    const captureElectionEntryFaceBlob = () => new Promise((resolve, reject) => {
+        const video = document.getElementById('entryFaceVideo');
+        const canvas = document.getElementById('entryFaceCanvas');
+        if (!video || !canvas || !electionEntryStream || video.readyState < 2) {
+            reject(new Error('Camera is not ready yet.'));
+            return;
+        }
+        const width = video.videoWidth || 720;
+        const height = video.videoHeight || 540;
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(video, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+            if (!blob) {
+                reject(new Error('Could not capture your face. Please try again.'));
+                return;
+            }
+            resolve(blob);
+        }, 'image/jpeg', 0.92);
+    });
+
+    const verifyElectionEntryFace = async () => {
+        const verifyBtn = document.getElementById('entryFaceVerify');
+        const cancelBtn = document.getElementById('entryFaceCancel');
+        if (verifyBtn) verifyBtn.disabled = true;
+        if (cancelBtn) cancelBtn.disabled = true;
+        setElectionEntryStatus('Verifying your face...');
+
+        try {
+            const blob = await captureElectionEntryFaceBlob();
+            const formData = new FormData();
+            formData.append('face_image', blob, 'election-entry-face.jpg');
+            formData.append('liveness_passed', 'true');
+
+            const res = await fetch(API_FACE_VERIFY, {
+                method: 'POST',
+                credentials: 'same-origin',
+                body: formData,
+            });
+            const data = await res.json().catch(() => ({}));
+            if (res.status === 401) {
+                toLogin();
+                return;
+            }
+            if (!res.ok || !data || data.ok !== true || data.verified !== true) {
+                throw new Error(data.failure_reason || data.error || 'Face verification failed. Please try again.');
+            }
+
+            sessionStorage.setItem(ELECTION_ENTRY_FACE_KEY, 'true');
+            setElectionEntryStatus('Face verified. Opening election...', 'success');
+            const target = electionEntryTargetUrl || window.location.href;
+            stopElectionEntryCamera();
+            setTimeout(() => {
+                closeElectionEntryModal();
+                if (target && target !== window.location.href) window.location.href = target;
+            }, 450);
+        } catch (error) {
+            setElectionEntryStatus(error.message || 'Face verification failed. Please try again.', 'error');
+            if (verifyBtn) verifyBtn.disabled = false;
+            if (cancelBtn) cancelBtn.disabled = false;
+        }
+    };
+
+    const openElectionEntryVerification = async (targetUrl = '') => {
+        ensureElectionEntryModal();
+        electionEntryTargetUrl = targetUrl || '';
+        const modal = document.getElementById('electionEntryFaceModal');
+        modal.classList.add('is-open');
+        modal.setAttribute('aria-hidden', 'false');
+        document.body.style.overflow = 'hidden';
+
+        const cancelBtn = document.getElementById('entryFaceCancel');
+        const verifyBtn = document.getElementById('entryFaceVerify');
+        const backdrop = modal.querySelector('[data-entry-face-cancel]');
+        if (cancelBtn && !cancelBtn.dataset.bound) {
+            cancelBtn.dataset.bound = 'true';
+            cancelBtn.addEventListener('click', () => {
+                closeElectionEntryModal();
+                if (ballotRoot && !sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY)) {
+                    window.location.href = '/static/org_elecom/elecom_user/user_dashboard.html';
+                }
+            });
+        }
+        if (backdrop && !backdrop.dataset.bound) {
+            backdrop.dataset.bound = 'true';
+            backdrop.addEventListener('click', () => {
+                closeElectionEntryModal();
+                if (ballotRoot && !sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY)) {
+                    window.location.href = '/static/org_elecom/elecom_user/user_dashboard.html';
+                }
+            });
+        }
+        if (verifyBtn && !verifyBtn.dataset.bound) {
+            verifyBtn.dataset.bound = 'true';
+            verifyBtn.addEventListener('click', verifyElectionEntryFace);
+        }
+
+        try {
+            await startElectionEntryCamera();
+        } catch (error) {
+            setElectionEntryStatus(error.message || 'Camera access is required before opening the election.', 'error');
+            if (verifyBtn) verifyBtn.disabled = true;
+        }
+    };
+
+    const isElectionLink = (link) => {
+        if (!link) return false;
+        const page = String(link.dataset.studentPage || '').toLowerCase();
+        const href = String(link.getAttribute('href') || '').toLowerCase();
+        const text = String(link.textContent || '').trim().toLowerCase();
+        return page === 'user_election.html'
+            || href.includes('/user_election.html')
+            || link.id === 'greetingCta'
+            || text === 'election'
+            || text === 'vote now';
+    };
+
+    document.addEventListener('click', (event) => {
+        const link = event.target && event.target.closest ? event.target.closest('a[href]') : null;
+        if (!isElectionLink(link)) return;
+        if (sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY) === 'true') return;
+        event.preventDefault();
+        openElectionEntryVerification(link.href);
+    });
+
+    document.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape' && document.getElementById('electionEntryFaceModal')?.classList.contains('is-open')) {
+            closeElectionEntryModal();
+            if (ballotRoot && !sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY)) {
+                window.location.href = '/static/org_elecom/elecom_user/user_dashboard.html';
+            }
+        }
+    });
+
+    if (ballotRoot && sessionStorage.getItem(ELECTION_ENTRY_FACE_KEY) !== 'true') {
+        setTimeout(() => openElectionEntryVerification(''), 350);
+    }
 
     const initElectionBallot = async () => {
         if (!ballotRoot) return;
