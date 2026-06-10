@@ -18,7 +18,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
-    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260610-login-fields-button-curve" />
+    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260610-terms-modal" />
   </head>
   <body>
     <main class="login-shell" aria-label="USTP Oroquieta ELECOM login">
@@ -78,12 +78,12 @@
               <p class="error" id="passwordError" role="alert" aria-live="polite"></p>
             </div>
 
-            <label class="check check--terms">
+            <div class="check check--terms">
               <input type="checkbox" id="agreeTerms" name="agreeTerms" required />
-              <span>I have read and agree to the <a class="inline-link" href="/terms-and-conditions/?from=login" id="termsLink">Terms and Conditions</a></span>
-            </label>
+              <label for="agreeTerms">I have read and agree to the <a class="inline-link" href="#terms-and-conditions" id="termsLink">Terms and Conditions</a></label>
+            </div>
 
-            <button class="btn" id="submitBtn" type="submit">
+            <button class="btn" id="submitBtn" type="submit" disabled>
               <i class="bi bi-shield-check" aria-hidden="true"></i>
               <span>Sign In</span>
             </button>
@@ -95,6 +95,142 @@
         </div>
       </section>
     </main>
+
+    <div class="terms-modal" id="termsModal" aria-hidden="true">
+      <div class="terms-modal__overlay" data-terms-close></div>
+      <section class="terms-modal__panel" role="dialog" aria-modal="true" aria-labelledby="termsModalTitle" aria-describedby="termsModalSubtitle">
+        <header class="terms-modal__header">
+          <div>
+            <h2 id="termsModalTitle">Terms and Conditions</h2>
+            <p id="termsModalSubtitle">ELECOM Voting System</p>
+          </div>
+          <button class="terms-modal__close" type="button" id="termsClose" aria-label="Close Terms and Conditions">
+            <i class="bi bi-x-lg" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="terms-modal__body" tabindex="0">
+          <p class="terms-modal__effective">Effective Date: April 25, 2026</p>
+
+          <section>
+            <h3>1. Legal Agreement</h3>
+            <p>These Terms and Conditions ("Terms") constitute a binding agreement between the user ("Student", "Voter", or "User") and the Electoral Commission (ELECOM) of the University of Science and Technology of Southern Philippines - Oroquieta Campus.</p>
+            <p>By accessing and using the ECVS mobile application or web system, you confirm that you have read, understood, and agreed to comply with these Terms and all applicable laws and university policies.</p>
+            <p>If you do not agree, you must discontinue use of the application.</p>
+          </section>
+
+          <section>
+            <h3>2. Purpose of the Platform</h3>
+            <p>The Electoral Commission Voting System (ECVS) is designed to:</p>
+            <ul>
+              <li>Facilitate secure student elections</li>
+              <li>Provide access to candidate information</li>
+              <li>Enable authorized users to cast votes</li>
+              <li>Ensure accurate and automated vote counting</li>
+              <li>Display official election results</li>
+            </ul>
+            <p>The system is intended strictly for official campus election purposes.</p>
+          </section>
+
+          <section>
+            <h3>3. Eligibility</h3>
+            <p>To use the system, you must:</p>
+            <ul>
+              <li>Be an officially enrolled student of USTP Oroquieta Campus</li>
+              <li>Possess a valid Student ID and registered account</li>
+              <li>Be authorized by ELECOM to participate in the election</li>
+            </ul>
+            <p>Each user is allowed one (1) vote per election.</p>
+          </section>
+
+          <section>
+            <h3>4. User Responsibilities</h3>
+            <p>Users agree to:</p>
+            <ul>
+              <li>Provide accurate and valid information</li>
+              <li>Keep login credentials confidential</li>
+              <li>Use the system only for legitimate voting purposes</li>
+              <li>Follow election rules and guidelines set by ELECOM</li>
+            </ul>
+            <p>Users must not:</p>
+            <ul>
+              <li>Attempt multiple voting</li>
+              <li>Share or transfer account access</li>
+              <li>Manipulate or interfere with the system</li>
+              <li>Engage in fraudulent or malicious activities</li>
+            </ul>
+            <p>Violation may result in account suspension and disciplinary action.</p>
+          </section>
+
+          <section>
+            <h3>5. Voting Rules and System Use</h3>
+            <ul>
+              <li>Votes cast are final and cannot be changed</li>
+              <li>Voting access is limited to authorized users only</li>
+              <li>The system may restrict access based on network or security policies</li>
+              <li>Election schedules are strictly enforced by ELECOM</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3>6. Data Privacy and Security</h3>
+            <p>User data is collected and processed in accordance with the Data Privacy Act of 2012.</p>
+            <p>The system implements:</p>
+            <ul>
+              <li>Secure authentication mechanisms</li>
+              <li>Encrypted data transmission</li>
+              <li>Blockchain-based vote recording for integrity</li>
+            </ul>
+            <p>Users agree that their data will be used solely for election-related purposes.</p>
+          </section>
+
+          <section>
+            <h3>7. Intellectual Property</h3>
+            <p>All components of the system, including software design, source code, database structures, and interface design, are the property of the developers and the institution.</p>
+            <p>Unauthorized reproduction, modification, or distribution is strictly prohibited.</p>
+          </section>
+
+          <section>
+            <h3>8. Limitation of Liability</h3>
+            <p>The system is provided "as is" and "as available."</p>
+            <p>ELECOM and the developers shall not be liable for:</p>
+            <ul>
+              <li>System interruptions due to technical issues</li>
+              <li>Delays caused by network or device limitations</li>
+              <li>User errors during voting</li>
+              <li>Unauthorized access beyond reasonable security controls</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3>9. Data Breach and Incident Response</h3>
+            <p>In the event of a security incident:</p>
+            <ul>
+              <li>Affected users will be notified promptly</li>
+              <li>Necessary actions will be taken to secure the system</li>
+              <li>Relevant authorities will be informed when required</li>
+            </ul>
+          </section>
+
+          <section>
+            <h3>10. Governing Law</h3>
+            <p>These Terms shall be governed by the laws of the Republic of the Philippines.</p>
+            <p>Any disputes shall be subject to the jurisdiction of appropriate courts within the Philippines.</p>
+          </section>
+
+          <section>
+            <h3>11. Amendments</h3>
+            <p>ELECOM reserves the right to update these Terms at any time.</p>
+            <p>Continued use of the application constitutes acceptance of any changes.</p>
+          </section>
+        </div>
+
+        <footer class="terms-modal__footer">
+          <button class="terms-modal__btn terms-modal__btn--secondary" type="button" id="termsCancel">Cancel</button>
+          <button class="terms-modal__btn terms-modal__btn--primary" type="button" id="termsAgree">I Agree</button>
+        </footer>
+      </section>
+    </div>
 
     <div class="auth-modal" id="forgotModal" aria-hidden="true">
       <div class="auth-modal__overlay" data-forgot-close></div>
@@ -139,6 +275,6 @@
       </section>
     </div>
 
-    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260609-no-remember"></script>
+    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260610-terms-modal"></script>
   </body>
 </html>

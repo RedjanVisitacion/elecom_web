@@ -14,6 +14,10 @@
   const year = $("year");
   const agreeTerms = $("agreeTerms");
   const termsLink = $("termsLink");
+  const termsModal = $("termsModal");
+  const termsClose = $("termsClose");
+  const termsCancel = $("termsCancel");
+  const termsAgree = $("termsAgree");
   const forgotPassword = $("forgotPassword");
   const forgotModal = $("forgotModal");
   const forgotClose = $("forgotClose");
@@ -28,7 +32,8 @@
   const forgotResetPassword = $("forgotResetPassword");
   const forgotResendOtp = $("forgotResendOtp");
   const forgotStatus = $("forgotStatus");
-  const TERMS_URL = "/terms-and-conditions/?from=login";
+  const TERMS_VERSION = "2026-04-25";
+  const TERMS_ACCEPTANCE_KEY = `elecom_terms_accepted_${TERMS_VERSION}`;
   const TERMS_DRAFT_KEY = "elecom_login_terms_draft";
 
   if (year) year.textContent = String(new Date().getFullYear());
@@ -65,9 +70,16 @@
     if (agreeTerms && (termsDecision === "accepted" || termsDecision === "declined")) {
       restoreTermsDraft();
       agreeTerms.checked = termsDecision === "accepted";
+      if (agreeTerms.checked) localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
       if (window.history && window.history.replaceState) {
         window.history.replaceState({}, document.title, window.location.pathname);
       }
+    }
+  } catch {}
+
+  try {
+    if (agreeTerms && localStorage.getItem(TERMS_ACCEPTANCE_KEY) === "true") {
+      agreeTerms.checked = true;
     }
   } catch {}
 
@@ -79,6 +91,12 @@
 
   let forgotResetToken = "";
   let forgotActiveIdentifier = "";
+  let loginBusy = false;
+
+  const updateSubmitAvailability = () => {
+    if (!submitBtn) return;
+    submitBtn.disabled = loginBusy || (agreeTerms ? !agreeTerms.checked : false);
+  };
 
   const setForgotStatus = (message, type = "") => {
     if (!forgotStatus) return;
@@ -258,7 +276,8 @@
   };
 
   const setBusy = (busy) => {
-    if (submitBtn) submitBtn.disabled = busy;
+    loginBusy = !!busy;
+    updateSubmitAvailability();
     if (studentId) studentId.disabled = busy;
     if (password) password.disabled = busy;
     if (togglePassword) togglePassword.disabled = busy;
@@ -358,7 +377,51 @@
       if (event.target && event.target.closest("[data-forgot-close]")) closeForgotModal();
     });
   }
+
+  const openTermsModal = () => {
+    if (!termsModal) return;
+    termsModal.classList.add("is-open");
+    termsModal.setAttribute("aria-hidden", "false");
+    setTimeout(() => termsClose?.focus(), 40);
+  };
+
+  const closeTermsModal = () => {
+    if (!termsModal) return;
+    termsModal.classList.remove("is-open");
+    termsModal.setAttribute("aria-hidden", "true");
+  };
+
+  const acceptTerms = () => {
+    if (agreeTerms) agreeTerms.checked = true;
+    try {
+      localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
+    } catch {}
+    updateSubmitAvailability();
+    closeTermsModal();
+  };
+
+  if (termsLink) {
+    termsLink.addEventListener("click", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      openTermsModal();
+    });
+  }
+
+  if (termsClose) termsClose.addEventListener("click", closeTermsModal);
+  if (termsCancel) termsCancel.addEventListener("click", closeTermsModal);
+  if (termsAgree) termsAgree.addEventListener("click", acceptTerms);
+  if (termsModal) {
+    termsModal.addEventListener("click", (event) => {
+      if (event.target && event.target.closest("[data-terms-close]")) closeTermsModal();
+    });
+  }
+
   document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && termsModal?.classList.contains("is-open")) {
+      closeTermsModal();
+      return;
+    }
     if (event.key === "Escape" && forgotModal?.classList.contains("is-open")) {
       closeForgotModal();
     }
@@ -397,25 +460,18 @@
   if (fillAdmin) fillAdmin.addEventListener("click", () => fill(SAMPLE_USERS.admin));
   if (fillStudent) fillStudent.addEventListener("click", () => fill(SAMPLE_USERS.student));
 
-  if (termsLink) {
-    termsLink.addEventListener("click", () => {
-      try {
-        saveTermsDraft();
-      } catch {}
+  if (agreeTerms) {
+    agreeTerms.addEventListener("change", () => {
+      if (agreeTerms.checked) {
+        try {
+          localStorage.setItem(TERMS_ACCEPTANCE_KEY, "true");
+        } catch {}
+      }
+      updateSubmitAvailability();
     });
   }
 
-  if (agreeTerms) {
-    agreeTerms.addEventListener("click", (event) => {
-      if (agreeTerms.checked) {
-        event.preventDefault();
-        try {
-          saveTermsDraft();
-        } catch {}
-        window.location.href = TERMS_URL;
-      }
-    });
-  }
+  updateSubmitAvailability();
 
   if (form) {
     form.addEventListener("submit", async (e) => {
