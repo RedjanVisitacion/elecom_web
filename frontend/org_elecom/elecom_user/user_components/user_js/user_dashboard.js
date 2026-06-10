@@ -586,6 +586,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let electionEntryBlinkClosedSeen = false;
     let electionEntryBlinkDetected = false;
     let electionEntrySubmitting = false;
+    let electionEntryFaceReadySince = 0;
 
     const ensureElectionEntryModal = () => {
         let modal = document.getElementById('electionEntryFaceModal');
@@ -688,6 +689,7 @@ document.addEventListener('DOMContentLoaded', function() {
         electionEntryEyesWereOpen = false;
         electionEntryBlinkClosedSeen = false;
         electionEntryBlinkDetected = false;
+        electionEntryFaceReadySince = 0;
         if (electionEntryCaptureTimer) {
             clearTimeout(electionEntryCaptureTimer);
             electionEntryCaptureTimer = null;
@@ -837,16 +839,16 @@ document.addEventListener('DOMContentLoaded', function() {
         const isInside = (p, margin = 0.02) => p && p.x > margin && p.x < 1 - margin && p.y > margin && p.y < 1 - margin;
         const centerX = box.x + box.width / 2;
         const centerY = box.y + box.height / 2;
-        const faceCentered = Math.abs(centerX - 0.5) <= 0.24 && Math.abs(centerY - 0.50) <= 0.28;
-        const keyLandmarksVisible = isInside(nose, 0.04) && mouth.every((p) => isInside(p, 0.035));
-        const faceLargeEnough = box.height >= 0.24;
+        const faceCentered = Math.abs(centerX - 0.5) <= 0.34 && Math.abs(centerY - 0.50) <= 0.36;
+        const keyLandmarksVisible = isInside(nose, 0.015) && mouth.every((p) => isInside(p, 0.005));
+        const faceLargeEnough = box.height >= 0.18;
         const faceNotTooLarge = box.height <= 1.05;
-        const eyesVisible = leftEar > 0.07 && rightEar > 0.07;
+        const eyesVisible = leftEar > 0.035 && rightEar > 0.035;
         return {
             valid: faceCentered && faceLargeEnough && faceNotTooLarge && eyesVisible && keyLandmarksVisible,
-            tooFar: box.height < 0.24,
-            eyesOpen: avgEar > 0.21,
-            eyesClosed: avgEar < 0.16,
+            tooFar: box.height < 0.18,
+            eyesOpen: avgEar > 0.17,
+            eyesClosed: avgEar < 0.13,
         };
     };
 
@@ -859,18 +861,22 @@ document.addEventListener('DOMContentLoaded', function() {
 
         setEntryFaceGuide('ready', 'Blink once');
         setEntryFaceStep('entryFaceStepPosition', 'done');
+        if (!electionEntryFaceReadySince) electionEntryFaceReadySince = Date.now();
         if (face.eyesOpen) {
             electionEntryEyesWereOpen = true;
             if (electionEntryBlinkClosedSeen) electionEntryBlinkDetected = true;
         } else if (electionEntryEyesWereOpen && face.eyesClosed) {
             electionEntryBlinkClosedSeen = true;
         }
+        if (!electionEntryBlinkDetected && Date.now() - electionEntryFaceReadySince >= 1700) {
+            electionEntryBlinkDetected = true;
+        }
 
         if (electionEntryBlinkDetected) {
             setEntryFaceStep('entryFaceStepBlink', 'done');
             setEntryFaceStep('entryFaceStepCapture', 'active');
             setEntryFaceGuide('done', 'Capturing...', 'success');
-            setElectionEntryStatus('Blink detected. Verifying automatically...', 'success');
+            setElectionEntryStatus('Face confirmed. Verifying automatically...', 'success');
             if (!electionEntryCaptureTimer && !electionEntrySubmitting) {
                 electionEntryCaptureTimer = window.setTimeout(() => {
                     electionEntryCaptureTimer = null;
@@ -882,7 +888,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         setEntryFaceStep('entryFaceStepBlink', 'active');
         setEntryFaceStep('entryFaceStepCapture', '');
-        setElectionEntryStatus('Good. Blink once to verify.');
+        setElectionEntryStatus('Good. Blink once or hold still to verify.');
     };
 
     const analyzeEntryFace = () => {

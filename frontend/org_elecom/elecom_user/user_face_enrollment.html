@@ -101,6 +101,7 @@
             let eyesWereOpen = false;
             let blinkClosedSeen = false;
             let blinkDetected = false;
+            let faceReadySince = 0;
             let captureTimer = null;
 
             const setStatus = (message, tone) => {
@@ -196,18 +197,18 @@
                 const isInside = (p, margin = 0.02) => p && p.x > margin && p.x < 1 - margin && p.y > margin && p.y < 1 - margin;
                 const centerX = box.x + box.width / 2;
                 const centerY = box.y + box.height / 2;
-                const faceCentered = Math.abs(centerX - 0.5) <= 0.24 && Math.abs(centerY - 0.50) <= 0.28;
-                const keyLandmarksVisible = isInside(nose, 0.04) && [mouthTop, mouthBottom, mouthLeft, mouthRight].every((p) => isInside(p, 0.035));
-                const faceLargeEnough = box.height >= 0.24;
+                const faceCentered = Math.abs(centerX - 0.5) <= 0.34 && Math.abs(centerY - 0.50) <= 0.36;
+                const keyLandmarksVisible = isInside(nose, 0.015) && [mouthTop, mouthBottom, mouthLeft, mouthRight].every((p) => isInside(p, 0.005));
+                const faceLargeEnough = box.height >= 0.18;
                 const faceNotTooLarge = box.height <= 1.05;
-                const eyesVisible = leftEar > 0.07 && rightEar > 0.07;
+                const eyesVisible = leftEar > 0.035 && rightEar > 0.035;
                 return {
                     box,
                     avgEar,
-                    eyesOpen: avgEar > 0.21,
-                    eyesClosed: avgEar < 0.16,
+                    eyesOpen: avgEar > 0.17,
+                    eyesClosed: avgEar < 0.13,
                     valid: faceCentered && faceLargeEnough && faceNotTooLarge && eyesVisible && keyLandmarksVisible,
-                    tooFar: box.height < 0.24,
+                    tooFar: box.height < 0.18,
                     warning: frameWarning(box),
                 };
             };
@@ -217,6 +218,7 @@
                 eyesWereOpen = false;
                 blinkClosedSeen = false;
                 blinkDetected = false;
+                faceReadySince = 0;
                 if (captureTimer) {
                     clearTimeout(captureTimer);
                     captureTimer = null;
@@ -246,12 +248,16 @@
 
                 currentFaceValid = true;
                 setStep(stepPosition, 'done');
+                if (!faceReadySince) faceReadySince = Date.now();
 
                 if (face.eyesOpen) {
                     eyesWereOpen = true;
                     if (blinkClosedSeen) blinkDetected = true;
                 } else if (eyesWereOpen && face.eyesClosed) {
                     blinkClosedSeen = true;
+                }
+                if (!blinkDetected && Date.now() - faceReadySince >= 1700) {
+                    blinkDetected = true;
                 }
 
                 if (blinkDetected) {
@@ -266,7 +272,7 @@
                 }
 
                 setFrameState('ready');
-                setStatus(face.warning || 'Blink once');
+                setStatus(face.warning || 'Blink once or hold still');
                 setStep(stepBlink, 'active');
                 setStep(stepCapture, '');
             };

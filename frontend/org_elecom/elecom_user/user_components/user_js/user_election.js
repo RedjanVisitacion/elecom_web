@@ -796,6 +796,7 @@
     let voteFaceBlinkClosedSeen = false;
     let voteFaceBlinkDetected = false;
     let voteFaceVerifying = false;
+    let voteFaceReadySince = 0;
     let faceVisionModulePromise = null;
 
     const setVoteFaceStatus = (message, type = '') => {
@@ -847,16 +848,16 @@
         const isInside = (p, margin = 0.02) => p && p.x > margin && p.x < 1 - margin && p.y > margin && p.y < 1 - margin;
         const centerX = box.x + box.width / 2;
         const centerY = box.y + box.height / 2;
-        const faceCentered = Math.abs(centerX - 0.5) <= 0.24 && Math.abs(centerY - 0.50) <= 0.28;
-        const keyLandmarksVisible = isInside(nose, 0.04) && mouth.every((p) => isInside(p, 0.035));
-        const faceLargeEnough = box.height >= 0.24;
+        const faceCentered = Math.abs(centerX - 0.5) <= 0.34 && Math.abs(centerY - 0.50) <= 0.36;
+        const keyLandmarksVisible = isInside(nose, 0.015) && mouth.every((p) => isInside(p, 0.005));
+        const faceLargeEnough = box.height >= 0.18;
         const faceNotTooLarge = box.height <= 1.05;
-        const eyesVisible = leftEar > 0.07 && rightEar > 0.07;
+        const eyesVisible = leftEar > 0.035 && rightEar > 0.035;
         return {
             valid: faceCentered && faceLargeEnough && faceNotTooLarge && eyesVisible && keyLandmarksVisible,
-            tooFar: box.height < 0.24,
-            eyesOpen: avgEar > 0.21,
-            eyesClosed: avgEar < 0.16,
+            tooFar: box.height < 0.18,
+            eyesOpen: avgEar > 0.17,
+            eyesClosed: avgEar < 0.13,
         };
     };
 
@@ -864,6 +865,7 @@
         voteFaceEyesWereOpen = false;
         voteFaceBlinkClosedSeen = false;
         voteFaceBlinkDetected = false;
+        voteFaceReadySince = 0;
         if (voteFaceCaptureTimer) {
             clearTimeout(voteFaceCaptureTimer);
             voteFaceCaptureTimer = null;
@@ -879,16 +881,20 @@
         }
 
         setVoteFaceGuide('ready', 'Blink once');
+        if (!voteFaceReadySince) voteFaceReadySince = Date.now();
         if (face.eyesOpen) {
             voteFaceEyesWereOpen = true;
             if (voteFaceBlinkClosedSeen) voteFaceBlinkDetected = true;
         } else if (voteFaceEyesWereOpen && face.eyesClosed) {
             voteFaceBlinkClosedSeen = true;
         }
+        if (!voteFaceBlinkDetected && Date.now() - voteFaceReadySince >= 1700) {
+            voteFaceBlinkDetected = true;
+        }
 
         if (voteFaceBlinkDetected) {
             setVoteFaceGuide('done', 'Capturing...', 'success');
-            setVoteFaceStatus('Blink detected. Verifying automatically...', 'success');
+            setVoteFaceStatus('Face confirmed. Verifying automatically...', 'success');
             if (!voteFaceCaptureTimer && !voteFaceVerifying) {
                 voteFaceCaptureTimer = window.setTimeout(() => {
                     voteFaceCaptureTimer = null;
@@ -900,7 +906,7 @@
             return;
         }
 
-        setVoteFaceStatus('Good. Blink once to verify.');
+        setVoteFaceStatus('Good. Blink once or hold still to verify.');
     };
 
     const analyzeVoteFace = () => {
