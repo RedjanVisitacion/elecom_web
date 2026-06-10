@@ -843,15 +843,18 @@
         const rightEar = eyeAspectRatio(lm, [362, 385, 387, 263, 373, 380]);
         const avgEar = (leftEar + rightEar) / 2;
         const nose = lm[1];
-        const mouthOpenRatio = dist(lm[13], lm[14]) / Math.max(0.001, dist(lm[61], lm[291]));
-        const mostlyInsideFrame = box.x > 0.02 && box.y > 0.01 && box.x + box.width < 0.98 && box.y + box.height < 0.99;
-        const faceLargeEnough = box.height >= 0.30;
-        const faceNotTooLarge = box.height <= 0.90;
+        const mouth = [lm[13], lm[14], lm[61], lm[291]];
+        const isInside = (p, margin = 0.02) => p && p.x > margin && p.x < 1 - margin && p.y > margin && p.y < 1 - margin;
+        const centerX = box.x + box.width / 2;
+        const centerY = box.y + box.height / 2;
+        const faceCentered = Math.abs(centerX - 0.5) <= 0.24 && Math.abs(centerY - 0.50) <= 0.28;
+        const keyLandmarksVisible = isInside(nose, 0.04) && mouth.every((p) => isInside(p, 0.035));
+        const faceLargeEnough = box.height >= 0.24;
+        const faceNotTooLarge = box.height <= 1.05;
         const eyesVisible = leftEar > 0.07 && rightEar > 0.07;
-        const noseVisible = nose.x > box.x && nose.x < box.x + box.width && nose.y > box.y && nose.y < box.y + box.height;
         return {
-            valid: mostlyInsideFrame && faceLargeEnough && faceNotTooLarge && eyesVisible && noseVisible && mouthOpenRatio > 0.006,
-            tooFar: box.height < 0.30,
+            valid: faceCentered && faceLargeEnough && faceNotTooLarge && eyesVisible && keyLandmarksVisible,
+            tooFar: box.height < 0.24,
             eyesOpen: avgEar > 0.21,
             eyesClosed: avgEar < 0.16,
         };
