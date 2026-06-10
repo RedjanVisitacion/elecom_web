@@ -742,6 +742,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const showElectionNetworkBlocked = (message, redirectToDashboard = false) => {
         const modal = ensureElectionNetworkModal();
         const messageEl = document.getElementById('entryNetworkMessage');
+        const safeMessage = 'You must connect to a network registered by the admin before opening the election ballot.';
         const close = () => {
             modal.classList.remove('is-open');
             modal.setAttribute('aria-hidden', 'true');
@@ -752,7 +753,7 @@ document.addEventListener('DOMContentLoaded', function() {
         };
 
         if (messageEl) {
-            messageEl.textContent = message || 'You must connect to a network registered by the admin before opening the election ballot.';
+            messageEl.textContent = safeMessage;
         }
         modal.classList.add('is-open');
         modal.setAttribute('aria-hidden', 'false');

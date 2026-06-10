@@ -9981,14 +9981,19 @@ def check_network_access_api(request):
             ip_source = auth_result["source"]
             checked_ips = auth_result["checked"]
             message = (
+                "Network access authorized."
+                if allowed
+                else "You must be connected to a network registered by the admin before voting."
+            )
+            log_message = (
                 f"Network access authorized using {ip_source} IP {user_ip}"
                 if allowed
-                else f"You must be connected to the authorized network to vote. Checked {_network_checked_ips_message(checked_ips)}."
+                else f"Network access blocked. Checked {_network_checked_ips_message(checked_ips)}."
             )
             if ip_source == "request":
-                message += " Web clients are checked by the public IP seen by the server; add that IP in Network Authorize. Mobile clients should send device_ip/local_ip for LAN Wi-Fi checks."
+                log_message += " Web clients are checked by the public IP seen by the server; add that IP in Network Authorize. Mobile clients should send device_ip/local_ip for LAN Wi-Fi checks."
             elif ip_source == "server_public":
-                message += " Mobile hotspot/LAN request matched the server public IP."
+                log_message += " Mobile hotspot/LAN request matched the server public IP."
 
             # Log the attempt
             cur.execute(
@@ -9996,7 +10001,7 @@ def check_network_access_api(request):
                 INSERT INTO network_access_attempts (user_id, student_id, ip_address, ssid, status, message, created_at)
                 VALUES (%s, %s, %s::inet, %s, %s, %s, CURRENT_TIMESTAMP)
                 """,
-                [None, student_id, user_ip, ssid, "Allowed" if allowed else "Blocked", message],
+                [None, student_id, user_ip, ssid, "Allowed" if allowed else "Blocked", log_message],
             )
 
             if allowed:
