@@ -135,6 +135,7 @@ def _ensure_auth_identity_tables() -> None:
                 otp_code varchar(255) DEFAULT NULL,
                 otp_expires_at timestamp DEFAULT NULL,
                 terms_accepted_at timestamp DEFAULT NULL,
+                account_opened_at timestamp DEFAULT NULL,
                 first_name varchar(128) DEFAULT NULL,
                 middle_name varchar(128) DEFAULT NULL,
                 last_name varchar(128) DEFAULT NULL,
@@ -161,6 +162,7 @@ def _ensure_auth_identity_tables() -> None:
                 """
             )
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url text DEFAULT NULL")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_opened_at timestamp DEFAULT NULL")
 
 _DUP_FACE_ENROLL_MSG = (
     "This face is already registered to another account. Please contact ELECOM."
@@ -750,6 +752,19 @@ def login_view(request):
 
     request.session["student_id"] = session_student_id
     request.session["role"] = user.role
+    if str(user.role or "").strip().lower() == "student":
+        try:
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET account_opened_at = COALESCE(account_opened_at, CURRENT_TIMESTAMP)
+                    WHERE id = %s
+                    """,
+                    [user.id],
+                )
+        except Exception:
+            logger.exception("Failed to mark student account as opened.")
 
     return JsonResponse({"ok": True, "student_id": session_student_id, "role": user.role})
 
@@ -7774,6 +7789,7 @@ def admin_voters_list_api(request):
                     COALESCE(u.position, '') AS position,
                     COALESCE(u.photo_url, '') AS photo_url,
                     u.terms_accepted_at,
+                    COALESCE(u.account_opened_at, u.terms_accepted_at) AS account_opened_at,
                     u.created_at
                 FROM users u
                 LEFT JOIN student s
@@ -7791,6 +7807,7 @@ def admin_voters_list_api(request):
             row["id_number"] = str(row.get("id_number") or "")
             row["year"] = row.get("year") if row.get("year") is not None else ""
             row["terms_accepted_at"] = _iso_or_none(row.get("terms_accepted_at"))
+            row["account_opened_at"] = _iso_or_none(row.get("account_opened_at"))
             row["created_at"] = _iso_or_none(row.get("created_at"))
 
         return JsonResponse({"ok": True, "voters": rows})

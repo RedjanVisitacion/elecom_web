@@ -33,6 +33,7 @@ class ElecomUser(models.Model):
     otp_code = models.CharField(max_length=255, null=True, blank=True)
     otp_expires_at = models.DateTimeField(null=True, blank=True)
     terms_accepted_at = models.DateTimeField(null=True, blank=True)
+    account_opened_at = models.DateTimeField(null=True, blank=True)
     first_name = models.CharField(max_length=128, null=True, blank=True)
     middle_name = models.CharField(max_length=128, null=True, blank=True)
     last_name = models.CharField(max_length=128, null=True, blank=True)

@@ -347,8 +347,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
     tableBody.innerHTML = list.map(voter => {
       const name = fullName(voter) || voter.id_number;
-      const accepted = voter.terms_accepted_at ? 'Accepted terms' : 'Not opened';
-      const acceptedClass = voter.terms_accepted_at ? ' is-opened' : '';
+      const openedAt = voter.account_opened_at || voter.terms_accepted_at;
+      const accepted = openedAt ? 'Opened' : 'Not opened';
+      const acceptedClass = openedAt ? ' is-opened' : '';
       const idNumber = String(voter.id_number || '');
       const checked = selectedVoterIds.has(idNumber) ? 'checked' : '';
       return `
