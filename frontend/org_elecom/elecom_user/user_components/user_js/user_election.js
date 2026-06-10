@@ -788,6 +788,15 @@
     };
 
     let voteFaceStream = null;
+    let voteFaceDetector = null;
+    let voteFaceDetectionTimer = null;
+    let voteFaceCaptureTimer = null;
+    let voteFaceLastVideoTime = -1;
+    let voteFaceEyesWereOpen = false;
+    let voteFaceBlinkClosedSeen = false;
+    let voteFaceBlinkDetected = false;
+    let voteFaceVerifying = false;
+    let faceVisionModulePromise = null;
 
     const setVoteFaceStatus = (message, type = '') => {
         if (!elements.voteFaceStatus) return;
@@ -796,7 +805,109 @@
         elements.voteFaceStatus.classList.toggle('is-success', type === 'success');
     };
 
+    const loadFaceVisionModule = async () => {
+        if (!faceVisionModulePromise) {
+            faceVisionModulePromise = import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
+        }
+        return faceVisionModulePromise;
+    };
+
+    const dist = (a, b) => Math.hypot((a.x || 0) - (b.x || 0), (a.y || 0) - (b.y || 0));
+    const eyeAspectRatio = (lm, idx) => {
+        const [outer, upper1, upper2, inner, lower1, lower2] = idx.map((i) => lm[i]);
+        return (dist(upper1, lower2) + dist(upper2, lower1)) / Math.max(0.001, 2 * dist(outer, inner));
+    };
+    const landmarkBox = (lm) => {
+        const xs = lm.map((p) => p.x);
+        const ys = lm.map((p) => p.y);
+        const minX = Math.min(...xs);
+        const maxX = Math.max(...xs);
+        const minY = Math.min(...ys);
+        const maxY = Math.max(...ys);
+        return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
+    };
+    const analyzeVoteFaceLandmarks = (lm) => {
+        const box = landmarkBox(lm);
+        const leftEar = eyeAspectRatio(lm, [33, 160, 158, 133, 153, 144]);
+        const rightEar = eyeAspectRatio(lm, [362, 385, 387, 263, 373, 380]);
+        const avgEar = (leftEar + rightEar) / 2;
+        const nose = lm[1];
+        const mouthOpenRatio = dist(lm[13], lm[14]) / Math.max(0.001, dist(lm[61], lm[291]));
+        const mostlyInsideFrame = box.x > 0.02 && box.y > 0.01 && box.x + box.width < 0.98 && box.y + box.height < 0.99;
+        const faceLargeEnough = box.height >= 0.30;
+        const faceNotTooLarge = box.height <= 0.90;
+        const eyesVisible = leftEar > 0.07 && rightEar > 0.07;
+        const noseVisible = nose.x > box.x && nose.x < box.x + box.width && nose.y > box.y && nose.y < box.y + box.height;
+        return {
+            valid: mostlyInsideFrame && faceLargeEnough && faceNotTooLarge && eyesVisible && noseVisible && mouthOpenRatio > 0.006,
+            tooFar: box.height < 0.30,
+            eyesOpen: avgEar > 0.21,
+            eyesClosed: avgEar < 0.16,
+        };
+    };
+
+    const resetVoteFaceSmartState = () => {
+        voteFaceEyesWereOpen = false;
+        voteFaceBlinkClosedSeen = false;
+        voteFaceBlinkDetected = false;
+        if (voteFaceCaptureTimer) {
+            clearTimeout(voteFaceCaptureTimer);
+            voteFaceCaptureTimer = null;
+        }
+    };
+
+    const updateVoteFaceSmartUi = (face) => {
+        if (!face || !face.valid) {
+            resetVoteFaceSmartState();
+            setVoteFaceStatus(face && face.tooFar ? 'Move closer and center your face.' : 'Center your face in the camera.', 'error');
+            return;
+        }
+
+        if (face.eyesOpen) {
+            voteFaceEyesWereOpen = true;
+            if (voteFaceBlinkClosedSeen) voteFaceBlinkDetected = true;
+        } else if (voteFaceEyesWereOpen && face.eyesClosed) {
+            voteFaceBlinkClosedSeen = true;
+        }
+
+        if (voteFaceBlinkDetected) {
+            setVoteFaceStatus('Blink detected. Verifying automatically...', 'success');
+            if (!voteFaceCaptureTimer && !voteFaceVerifying) {
+                voteFaceCaptureTimer = window.setTimeout(() => {
+                    voteFaceCaptureTimer = null;
+                    verifyVoteFace().then((verified) => {
+                        if (verified) submitVerifiedVote();
+                    });
+                }, 700);
+            }
+            return;
+        }
+
+        setVoteFaceStatus('Good. Blink once to verify.');
+    };
+
+    const analyzeVoteFace = () => {
+        if (!voteFaceStream || !voteFaceDetector || !elements.voteFaceVideo || elements.voteFaceVideo.readyState < 2 || voteFaceVerifying) return;
+        if (elements.voteFaceVideo.currentTime === voteFaceLastVideoTime) return;
+        voteFaceLastVideoTime = elements.voteFaceVideo.currentTime;
+        const result = voteFaceDetector.detectForVideo(elements.voteFaceVideo, performance.now());
+        const landmarks = result.faceLandmarks && result.faceLandmarks[0];
+        updateVoteFaceSmartUi(landmarks ? analyzeVoteFaceLandmarks(landmarks) : null);
+    };
+
     const stopVoteFaceCamera = () => {
+        if (voteFaceDetectionTimer) {
+            clearInterval(voteFaceDetectionTimer);
+            voteFaceDetectionTimer = null;
+        }
+        if (voteFaceCaptureTimer) {
+            clearTimeout(voteFaceCaptureTimer);
+            voteFaceCaptureTimer = null;
+        }
+        if (voteFaceDetector && typeof voteFaceDetector.close === 'function') {
+            try { voteFaceDetector.close(); } catch (e) { /* ignore */ }
+        }
+        voteFaceDetector = null;
         if (voteFaceStream) {
             voteFaceStream.getTracks().forEach((track) => track.stop());
             voteFaceStream = null;
@@ -812,6 +923,8 @@
         }
 
         stopVoteFaceCamera();
+        voteFaceVerifying = false;
+        resetVoteFaceSmartState();
         setVoteFaceStatus('Opening camera...');
         if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = true;
         if (elements.voteFacePlaceholder) elements.voteFacePlaceholder.hidden = false;
@@ -826,8 +939,26 @@
             await elements.voteFaceVideo.play().catch(() => {});
         }
         if (elements.voteFacePlaceholder) elements.voteFacePlaceholder.hidden = true;
-        if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = false;
-        setVoteFaceStatus('Center your face, then click Verify Face.');
+        if (elements.captureFaceVoteBtn) {
+            elements.captureFaceVoteBtn.disabled = true;
+            elements.captureFaceVoteBtn.textContent = 'Scanning...';
+        }
+        setVoteFaceStatus('Loading smart face check...');
+        const { FaceLandmarker, FilesetResolver } = await loadFaceVisionModule();
+        const vision = await FilesetResolver.forVisionTasks('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14/wasm');
+        voteFaceDetector = await FaceLandmarker.createFromOptions(vision, {
+            baseOptions: {
+                modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',
+                delegate: 'GPU',
+            },
+            runningMode: 'VIDEO',
+            numFaces: 1,
+            minFaceDetectionConfidence: 0.55,
+            minFacePresenceConfidence: 0.55,
+            minTrackingConfidence: 0.55,
+        });
+        setVoteFaceStatus('Center your face in the camera.');
+        voteFaceDetectionTimer = setInterval(analyzeVoteFace, 120);
     };
 
     const captureVoteFaceBlob = () => new Promise((resolve, reject) => {
@@ -854,6 +985,8 @@
     });
 
     const verifyVoteFace = async () => {
+        if (voteFaceVerifying) return false;
+        voteFaceVerifying = true;
         if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = true;
         setVoteFaceStatus('Verifying your face...');
 
@@ -883,8 +1016,9 @@
             modals.faceVote?.hide();
             return true;
         } catch (error) {
+            voteFaceVerifying = false;
+            resetVoteFaceSmartState();
             setVoteFaceStatus(error.message || 'Face verification failed. Please try again.', 'error');
-            if (elements.captureFaceVoteBtn) elements.captureFaceVoteBtn.disabled = false;
             return false;
         }
     };
