@@ -335,6 +335,16 @@ body.theme-elecom *::after{
   color:#166534;
 }
 
+.voter-status.is-online{
+  background:#dcfce7;
+  color:#166534;
+}
+
+.voter-status.is-offline{
+  background:#f1f5f9;
+  color:#64748b;
+}
+
 .voter-edit-btn{
   opacity:0;
   pointer-events:none;

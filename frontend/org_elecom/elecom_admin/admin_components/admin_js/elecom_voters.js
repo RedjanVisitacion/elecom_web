@@ -41,6 +41,8 @@ document.addEventListener('DOMContentLoaded', function(){
   let activeCourse = 'ALL';
   let selectedVoterIds = new Set();
   let editingVoterId = '';
+  let votersLoading = false;
+  let votersRefreshTimer = null;
 
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
@@ -336,7 +338,8 @@ document.addEventListener('DOMContentLoaded', function(){
   function renderVoters(rows) {
     if (!tableBody || !votersCount) return;
     const list = Array.isArray(rows) ? rows : [];
-    votersCount.textContent = `${list.length} voter(s)`;
+    const onlineCount = list.filter(voter => voter && voter.is_online === true).length;
+    votersCount.textContent = `${list.length} voter(s) | ${onlineCount} online`;
     selectedVoterIds = new Set(Array.from(selectedVoterIds).filter(id => list.some(row => String(row.id_number || '') === id)));
     updateSelectionControls();
 
@@ -347,9 +350,9 @@ document.addEventListener('DOMContentLoaded', function(){
 
     tableBody.innerHTML = list.map(voter => {
       const name = fullName(voter) || voter.id_number;
-      const openedAt = voter.account_opened_at || voter.terms_accepted_at;
-      const accepted = openedAt ? 'Opened' : 'Not opened';
-      const acceptedClass = openedAt ? ' is-opened' : '';
+      const online = voter.is_online === true;
+      const accepted = online ? 'Online' : 'Offline';
+      const acceptedClass = online ? ' is-online' : ' is-offline';
       const idNumber = String(voter.id_number || '');
       const checked = selectedVoterIds.has(idNumber) ? 'checked' : '';
       return `
@@ -378,37 +381,42 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   async function loadVoters() {
+    if (votersLoading) return;
+    votersLoading = true;
     const q = voterSearch ? voterSearch.value.trim() : '';
     const url = new URL(API_BASE + 'list/', window.location.origin);
     if (q) url.searchParams.set('q', q);
-    const res = await fetch(url.toString(), { credentials: 'same-origin' });
-    const data = await res.json().catch(() => ({}));
+    try {
+      const res = await fetch(url.toString(), { credentials: 'same-origin', cache: 'no-store' });
+      const data = await res.json().catch(() => ({}));
 
-    if (res.status === 403) {
-      await showVotersAlert({
-        title: 'Access Required',
-        message: data.error || 'Admin password is required to open voters management.',
-      });
-      const dashboardUrl = '/static/org_elecom/elecom_admin/admin_dashboard.html';
-      window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(dashboardUrl) : dashboardUrl;
-      return;
-    }
+      if (res.status === 403) {
+        await showVotersAlert({
+          title: 'Access Required',
+          message: data.error || 'Admin password is required to open voters management.',
+        });
+        const dashboardUrl = '/static/org_elecom/elecom_admin/admin_dashboard.html';
+        window.location.href = window.ElecomAdminSecureUrl ? window.ElecomAdminSecureUrl(dashboardUrl) : dashboardUrl;
+        return;
+      }
 
-    if (!res.ok || !data.ok) {
-      currentRows = [];
+      if (!res.ok || !data.ok) {
+        currentRows = [];
+        refreshFilterOptions();
+        applyVoterFilters();
+        await showVotersAlert({
+          title: 'Load Failed',
+          message: data.error || 'Failed to load voters.',
+        });
+        return;
+      }
+
+      currentRows = data.voters || [];
       refreshFilterOptions();
       applyVoterFilters();
-      await showVotersAlert({
-        title: 'Load Failed',
-        message: data.error || 'Failed to load voters.',
-      });
-      return;
+    } finally {
+      votersLoading = false;
     }
-
-    selectedVoterIds.clear();
-    currentRows = data.voters || [];
-    refreshFilterOptions();
-    applyVoterFilters();
   }
 
   function updateSelectionControls() {
@@ -759,4 +767,8 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   loadVoters();
+  votersRefreshTimer = setInterval(loadVoters, 8000);
+  window.addEventListener('beforeunload', () => {
+    if (votersRefreshTimer) clearInterval(votersRefreshTimer);
+  });
 });

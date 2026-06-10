@@ -136,6 +136,7 @@ def _ensure_auth_identity_tables() -> None:
                 otp_expires_at timestamp DEFAULT NULL,
                 terms_accepted_at timestamp DEFAULT NULL,
                 account_opened_at timestamp DEFAULT NULL,
+                last_seen_at timestamp DEFAULT NULL,
                 first_name varchar(128) DEFAULT NULL,
                 middle_name varchar(128) DEFAULT NULL,
                 last_name varchar(128) DEFAULT NULL,
@@ -163,6 +164,34 @@ def _ensure_auth_identity_tables() -> None:
             )
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url text DEFAULT NULL")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_opened_at timestamp DEFAULT NULL")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at timestamp DEFAULT NULL")
+
+
+def _mark_student_account_seen(student_id: str | int | None = None, user_id: int | None = None) -> None:
+    sid = str(student_id or "").strip()
+    try:
+        with connection.cursor() as cur:
+            if user_id is not None:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET last_seen_at = CURRENT_TIMESTAMP
+                    WHERE id = %s AND COALESCE(role, '') ILIKE 'student'
+                    """,
+                    [user_id],
+                )
+            elif sid:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET last_seen_at = CURRENT_TIMESTAMP
+                    WHERE (student_id::text = %s OR id::text = %s)
+                      AND COALESCE(role, '') ILIKE 'student'
+                    """,
+                    [sid, sid],
+                )
+    except Exception:
+        logger.exception("Failed to mark student account as seen.")
 
 _DUP_FACE_ENROLL_MSG = (
     "This face is already registered to another account. Please contact ELECOM."
@@ -758,7 +787,8 @@ def login_view(request):
                 cur.execute(
                     """
                     UPDATE users
-                    SET account_opened_at = COALESCE(account_opened_at, CURRENT_TIMESTAMP)
+                    SET account_opened_at = COALESCE(account_opened_at, CURRENT_TIMESTAMP),
+                        last_seen_at = CURRENT_TIMESTAMP
                     WHERE id = %s
                     """,
                     [user.id],
@@ -1844,6 +1874,7 @@ def election_window_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    _mark_student_account_seen(student_id=student_id)
 
     # Ensure notification storage exists before phase emit (fresh DB / no migrations).
     _ensure_user_notifications_table()
@@ -2015,6 +2046,7 @@ def vote_status_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    _mark_student_account_seen(student_id=student_id)
 
     _ensure_votes_tables()
     election_state = _current_election_window_state()
@@ -2204,6 +2236,7 @@ def eligible_ballot_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    _mark_student_account_seen(student_id=student_id)
 
     election_state = _current_election_window_state()
     if election_state.get("vote_phase") != "active":
@@ -3236,6 +3269,7 @@ def vote_ledger_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    _mark_student_account_seen(student_id=student_id)
 
     try:
         _ensure_vote_blocks_table()
@@ -7790,6 +7824,8 @@ def admin_voters_list_api(request):
                     COALESCE(u.photo_url, '') AS photo_url,
                     u.terms_accepted_at,
                     COALESCE(u.account_opened_at, u.terms_accepted_at) AS account_opened_at,
+                    u.last_seen_at,
+                    (u.last_seen_at >= CURRENT_TIMESTAMP - INTERVAL '5 minutes') AS is_online,
                     u.created_at
                 FROM users u
                 LEFT JOIN student s
@@ -7808,6 +7844,8 @@ def admin_voters_list_api(request):
             row["year"] = row.get("year") if row.get("year") is not None else ""
             row["terms_accepted_at"] = _iso_or_none(row.get("terms_accepted_at"))
             row["account_opened_at"] = _iso_or_none(row.get("account_opened_at"))
+            row["last_seen_at"] = _iso_or_none(row.get("last_seen_at"))
+            row["is_online"] = bool(row.get("is_online"))
             row["created_at"] = _iso_or_none(row.get("created_at"))
 
         return JsonResponse({"ok": True, "voters": rows})
@@ -9971,6 +10009,8 @@ def check_network_access_api(request):
         or request.GET.get("student_id")
         or "unknown"
     )
+    if student_id and student_id != "unknown":
+        _mark_student_account_seen(student_id=student_id)
 
     try:
         with connection.cursor() as cur:
