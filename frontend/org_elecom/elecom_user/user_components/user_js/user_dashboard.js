@@ -630,6 +630,15 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="entry-face-camera">
                     <video id="entryFaceVideo" autoplay playsinline muted></video>
                     <canvas id="entryFaceCanvas" width="720" height="540" hidden></canvas>
+                    <div class="face-guide-overlay" aria-hidden="true">
+                        <div class="face-guide-frame" id="entryFaceGuideFrame" data-state="searching">
+                            <span class="face-guide-corner face-guide-corner--tl"></span>
+                            <span class="face-guide-corner face-guide-corner--tr"></span>
+                            <span class="face-guide-corner face-guide-corner--bl"></span>
+                            <span class="face-guide-corner face-guide-corner--br"></span>
+                            <span class="face-guide-label" id="entryFaceGuideLabel">Center your face</span>
+                        </div>
+                    </div>
                     <div class="entry-face-placeholder" id="entryFacePlaceholder">Allow camera access to continue.</div>
                 </div>
                 <p class="entry-face-status" id="entryFaceStatus" role="status">Opening camera...</p>
@@ -662,6 +671,17 @@ document.addEventListener('DOMContentLoaded', function() {
         el.classList.toggle('is-done', state === 'done');
     };
 
+    const setEntryFaceGuide = (state, label, tone = '') => {
+        const frame = document.getElementById('entryFaceGuideFrame');
+        const labelEl = document.getElementById('entryFaceGuideLabel');
+        if (frame) frame.dataset.state = state || 'searching';
+        if (labelEl) {
+            labelEl.textContent = label || 'Center your face';
+            if (tone) labelEl.dataset.tone = tone;
+            else labelEl.removeAttribute('data-tone');
+        }
+    };
+
     const resetEntryFaceSmartState = () => {
         electionEntryEyesWereOpen = false;
         electionEntryBlinkClosedSeen = false;
@@ -673,6 +693,7 @@ document.addEventListener('DOMContentLoaded', function() {
         setEntryFaceStep('entryFaceStepPosition', 'active');
         setEntryFaceStep('entryFaceStepBlink', '');
         setEntryFaceStep('entryFaceStepCapture', '');
+        setEntryFaceGuide('searching', 'Center your face', 'error');
     };
 
     const loadFaceVisionModule = async () => {
@@ -723,6 +744,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
 
+        setEntryFaceGuide('ready', 'Blink once');
         setEntryFaceStep('entryFaceStepPosition', 'done');
         if (face.eyesOpen) {
             electionEntryEyesWereOpen = true;
@@ -734,6 +756,7 @@ document.addEventListener('DOMContentLoaded', function() {
         if (electionEntryBlinkDetected) {
             setEntryFaceStep('entryFaceStepBlink', 'done');
             setEntryFaceStep('entryFaceStepCapture', 'active');
+            setEntryFaceGuide('done', 'Capturing...', 'success');
             setElectionEntryStatus('Blink detected. Verifying automatically...', 'success');
             if (!electionEntryCaptureTimer && !electionEntrySubmitting) {
                 electionEntryCaptureTimer = window.setTimeout(() => {
@@ -824,7 +847,7 @@ document.addEventListener('DOMContentLoaded', function() {
         electionEntryDetector = await FaceLandmarker.createFromOptions(vision, {
             baseOptions: {
                 modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',
-                delegate: 'GPU',
+                delegate: 'CPU',
             },
             runningMode: 'VIDEO',
             numFaces: 1,

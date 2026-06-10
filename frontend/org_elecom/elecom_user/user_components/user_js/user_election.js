@@ -805,6 +805,17 @@
         elements.voteFaceStatus.classList.toggle('is-success', type === 'success');
     };
 
+    const setVoteFaceGuide = (state, label, tone = '') => {
+        const frame = document.getElementById('voteFaceGuideFrame');
+        const labelEl = document.getElementById('voteFaceGuideLabel');
+        if (frame) frame.dataset.state = state || 'searching';
+        if (labelEl) {
+            labelEl.textContent = label || 'Center your face';
+            if (tone) labelEl.dataset.tone = tone;
+            else labelEl.removeAttribute('data-tone');
+        }
+    };
+
     const loadFaceVisionModule = async () => {
         if (!faceVisionModulePromise) {
             faceVisionModulePromise = import('https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14');
@@ -854,6 +865,7 @@
             clearTimeout(voteFaceCaptureTimer);
             voteFaceCaptureTimer = null;
         }
+        setVoteFaceGuide('searching', 'Center your face', 'error');
     };
 
     const updateVoteFaceSmartUi = (face) => {
@@ -863,6 +875,7 @@
             return;
         }
 
+        setVoteFaceGuide('ready', 'Blink once');
         if (face.eyesOpen) {
             voteFaceEyesWereOpen = true;
             if (voteFaceBlinkClosedSeen) voteFaceBlinkDetected = true;
@@ -871,6 +884,7 @@
         }
 
         if (voteFaceBlinkDetected) {
+            setVoteFaceGuide('done', 'Capturing...', 'success');
             setVoteFaceStatus('Blink detected. Verifying automatically...', 'success');
             if (!voteFaceCaptureTimer && !voteFaceVerifying) {
                 voteFaceCaptureTimer = window.setTimeout(() => {
@@ -949,7 +963,7 @@
         voteFaceDetector = await FaceLandmarker.createFromOptions(vision, {
             baseOptions: {
                 modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/latest/face_landmarker.task',
-                delegate: 'GPU',
+                delegate: 'CPU',
             },
             runningMode: 'VIDEO',
             numFaces: 1,
