@@ -124,6 +124,23 @@ The Django server reads `backend/.env` (loaded in `core/settings.py`). Relevant 
 
 Restart `runserver` or the production service after changing `.env`, URL routes, or backend behavior.
 
+### Local/offline PostgreSQL startup lessons
+
+When switching from the online Kamatera/Gunicorn deployment back to offline Windows development, confirm the local PostgreSQL credentials before changing code.
+
+- Start local PostgreSQL first, then run Django from `F:\elecom_web\backend`:
+  - `python manage.py runserver 0.0.0.0:8000`
+- If Django fails with `password authentication failed for user "elecom_user"`, the backend is running but PostgreSQL rejected the credentials in `backend/.env`.
+- In the current local Windows setup, pgAdmin was connected to database `elecom_db` as user `postgres`, so local `.env` needed:
+  - `DB_NAME=elecom_db`
+  - `DB_USER=postgres`
+  - `DB_PASSWORD=123` or the actual local postgres password
+  - `DB_HOST=localhost`
+  - `DB_PORT=5432`
+- The old failing traceback may remain in the terminal scrollback. The successful signal is `System check identified no issues` and `Starting development server at http://0.0.0.0:8000/`.
+- `python manage.py migrate` saying `No migrations to apply` means the local schema matches the local migration files. If online has newer records, candidates, elections, votes, or settings, that is a data/backup restore issue, not a migration issue.
+- Do not assume Kamatera `.env` credentials and local Windows `.env` credentials are the same. Before going back online, ensure the server `.env` uses the production database credentials again.
+
 ## Production Deploy Notes
 
 On the Linux server, the Django/Gunicorn service is named:
@@ -147,6 +164,10 @@ Do **not** assume the service is named `gunicorn`; `sudo systemctl restart gunic
 - Install deps: `flutter pub get`
 - Run: `flutter run`
 - Optional: `flutter run --dart-define=API_BASE_URL=http://<host>:8000`
+- For a real phone/local device, do not use `127.0.0.1`; that points to the phone itself. Run Django with `0.0.0.0:8000`, find the PC Wi-Fi/LAN IPv4 with `ipconfig`, then run Flutter with `--dart-define=API_BASE_URL=http://<PC_LAN_IP>:8000`.
+- The phone and PC must be on the same Wi-Fi/LAN, and Windows Firewall must allow Python/Django on port `8000`.
+- For Android emulator, `http://10.0.2.2:8000` may work; for a physical device, use the PC LAN IP.
+- If Django returns `DisallowedHost` from a phone, add the PC LAN IP through `DJANGO_ALLOWED_HOSTS` in `backend/.env` or the `ALLOWED_HOSTS` list in `backend/core/settings.py`.
 
 ## Quality Gates
 
