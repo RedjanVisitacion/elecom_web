@@ -31,6 +31,25 @@ document.addEventListener('DOMContentLoaded', function(){
   const formHint = document.getElementById('electionFormHint');
   let loadedElections = [];
 
+  // Populate School Year dropdown: past 2 years up to next 5 years, always relative to today
+  (function populateSchoolYears() {
+    const sel = document.getElementById('schoolYear');
+    if (!sel) return;
+    const now = new Date();
+    // School year starts in June; if before June, current school year started last year
+    const baseYear = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
+    // Default to next school year (upcoming)
+    const defaultYear = baseYear + 1;
+    for (let y = baseYear - 2; y <= baseYear + 5; y++) {
+      const label = `${y}-${y + 1}`;
+      const opt = document.createElement('option');
+      opt.value = label;
+      opt.textContent = label;
+      if (y === defaultYear) opt.selected = true;
+      sel.appendChild(opt);
+    }
+  })();
+
   function electionIdFromRoute() {
     const match = window.location.pathname.match(/\/elections\/(\d+)\/edit-dates\/?$/);
     if (match) return match[1];
@@ -102,12 +121,25 @@ document.addEventListener('DOMContentLoaded', function(){
         : '<i class="bi bi-plus-circle"></i> Create New Active Election';
     }
     document.getElementById('electionName')?.toggleAttribute('readonly', isEditing);
-    document.getElementById('schoolYear')?.toggleAttribute('readonly', isEditing);
+    // schoolYear is a <select> — use disabled when editing (school year shouldn't change)
+    const syEl = document.getElementById('schoolYear');
+    if (syEl) syEl.disabled = isEditing;
   }
 
   function fillElectionForm(election) {
     document.getElementById('electionName').value = election.name || '';
-    document.getElementById('schoolYear').value = election.school_year || '';
+    // Set school year select; add option if the stored value isn't in the list
+    const syEl = document.getElementById('schoolYear');
+    if (syEl) {
+      const syVal = election.school_year || '';
+      if (syVal && !Array.from(syEl.options).some(o => o.value === syVal)) {
+        const opt = document.createElement('option');
+        opt.value = syVal;
+        opt.textContent = syVal;
+        syEl.insertBefore(opt, syEl.firstChild);
+      }
+      syEl.value = syVal;
+    }
     document.getElementById('electionStart').value = election.start_at_local || '';
     document.getElementById('electionEnd').value = election.end_at_local || '';
     document.getElementById('electionResults').value = election.results_at_local || '';
