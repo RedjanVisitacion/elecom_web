@@ -7716,8 +7716,7 @@ def _upsert_voter_row(cur, payload: dict) -> str:
     position = str(payload.get("position") or "").strip() or None
     photo_url = str(payload.get("photo_url") or "").strip() or None
 
-    password_hash = _hash_default_voter_password(id_number)
-
+    # Update student table
     cur.execute(
         """
         UPDATE student
@@ -7750,7 +7749,6 @@ def _upsert_voter_row(cur, payload: dict) -> str:
         """
         UPDATE users
         SET student_id = %s,
-            password_hash = %s,
             role = %s,
             department = %s,
             year_level = %s,
@@ -7766,7 +7764,6 @@ def _upsert_voter_row(cur, payload: dict) -> str:
         """,
         [
             id_number,
-            password_hash,
             role,
             course,
             year,
@@ -7782,6 +7779,8 @@ def _upsert_voter_row(cur, payload: dict) -> str:
         ],
     )
     if cur.rowcount == 0:
+        # New user — compute bcrypt hash only for INSERT
+        password_hash = _hash_default_voter_password(id_number)
         cur.execute(
             """
             INSERT INTO users (
