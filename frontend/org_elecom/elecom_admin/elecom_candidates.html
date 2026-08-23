@@ -163,13 +163,35 @@
                 <label class="form-label">Platform</label>
                 <textarea class="form-control" rows="3" name="platform" id="ed_platform"></textarea>
               </div>
+              <!-- Photo upload -->
               <div class="col-md-6">
-                <label class="form-label">Photo URL</label>
-                <input type="url" class="form-control" name="photo_url" id="ed_photo_url">
+                <label class="form-label">Candidate Photo</label>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <img id="ed_photo_preview" src="" alt="Photo preview"
+                       class="rounded border"
+                       style="width:56px;height:56px;object-fit:cover;display:none;">
+                  <span id="ed_photo_preview_placeholder"
+                        class="rounded border d-flex align-items-center justify-content-center bg-light text-secondary"
+                        style="width:56px;height:56px;font-size:1.5rem;"><i class="bi bi-person"></i></span>
+                </div>
+                <input type="file" class="form-control" id="ed_photo_file" accept="image/*">
+                <div class="form-text text-muted" id="ed_photo_status"></div>
+                <input type="hidden" id="ed_photo_url">
               </div>
+              <!-- Party Logo upload -->
               <div class="col-md-6">
-                <label class="form-label">Party Logo URL</label>
-                <input type="url" class="form-control" name="party_logo_url" id="ed_party_logo_url">
+                <label class="form-label">Party Logo</label>
+                <div class="d-flex align-items-center gap-2 mb-1">
+                  <img id="ed_party_logo_preview" src="" alt="Party logo preview"
+                       class="rounded border"
+                       style="width:56px;height:56px;object-fit:cover;display:none;">
+                  <span id="ed_party_logo_preview_placeholder"
+                        class="rounded border d-flex align-items-center justify-content-center bg-light text-secondary"
+                        style="width:56px;height:56px;font-size:1.5rem;"><i class="bi bi-image"></i></span>
+                </div>
+                <input type="file" class="form-control" id="ed_party_logo_file" accept="image/*">
+                <div class="form-text text-muted" id="ed_party_logo_status"></div>
+                <input type="hidden" id="ed_party_logo_url">
               </div>
             </form>
           </div>
@@ -239,6 +261,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260606-notif-alerts-fix"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_candidates.js?v=20260606-collapsed-orgs"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_candidates.js?v=20260823-upload-photos"></script>
 </body>
 </html>

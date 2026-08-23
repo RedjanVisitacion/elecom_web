@@ -806,6 +806,86 @@ document.addEventListener('DOMContentLoaded', function(){
     } catch(_) {}
   });
 
+  // ── Edit modal image upload helpers ─────────────────────────────────────────
+
+  /** Show or hide a preview <img> for the edit modal photo/logo field.
+   *  @param {'photo'|'party_logo'} field
+   *  @param {string} url   Existing Cloudinary URL (may be empty)
+   */
+  function _setEditPreview(field, url) {
+    const img = document.getElementById(`ed_${field}_preview`);
+    const placeholder = document.getElementById(`ed_${field}_preview_placeholder`);
+    if (!img || !placeholder) return;
+    if (url && url.startsWith('http')) {
+      img.src = url;
+      img.style.display = 'block';
+      placeholder.style.display = 'none';
+    } else {
+      img.src = '';
+      img.style.display = 'none';
+      placeholder.style.display = 'flex';
+    }
+  }
+
+  /** Upload a File to Cloudinary via the admin signature endpoint.
+   *  Returns the secure_url string on success, throws on failure.
+   *  @param {File} file
+   *  @param {'candidate_photo'|'party_logo'} uploadType
+   */
+  async function _uploadToCloudinary(file, uploadType) {
+    // 1. Get a signed upload parameters from Django
+    const sigRes = await fetch(
+      `/api/admin/cloudinary/signature/?type=${encodeURIComponent(uploadType)}`,
+      { credentials: 'same-origin' }
+    );
+    const sigData = await sigRes.json();
+    if (!sigData.ok) throw new Error(sigData.error || 'Could not get upload signature');
+
+    // 2. POST directly to Cloudinary
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('api_key', sigData.api_key);
+    formData.append('timestamp', sigData.timestamp);
+    formData.append('folder', sigData.folder);
+    formData.append('signature', sigData.signature);
+
+    const upRes = await fetch(
+      `https://api.cloudinary.com/v1_1/${encodeURIComponent(sigData.cloud_name)}/image/upload`,
+      { method: 'POST', body: formData }
+    );
+    if (!upRes.ok) {
+      const errText = await upRes.text().catch(() => '');
+      throw new Error(`Cloudinary upload failed (${upRes.status}): ${errText.slice(0, 120)}`);
+    }
+    const upData = await upRes.json();
+    const url = upData.secure_url || upData.url || '';
+    if (!url) throw new Error('Cloudinary did not return a URL');
+    return url;
+  }
+
+  // Wire up file-input change handlers to show local previews immediately
+  ['photo', 'party_logo'].forEach(function(field) {
+    const fileInput = document.getElementById(`ed_${field}_file`);
+    if (!fileInput) return;
+    fileInput.addEventListener('change', function() {
+      const f = fileInput.files[0];
+      if (!f) return;
+      const reader = new FileReader();
+      reader.onload = function(ev) {
+        const img = document.getElementById(`ed_${field}_preview`);
+        const placeholder = document.getElementById(`ed_${field}_preview_placeholder`);
+        if (img && placeholder) {
+          img.src = ev.target.result;
+          img.style.display = 'block';
+          placeholder.style.display = 'none';
+        }
+      };
+      reader.readAsDataURL(f);
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────────
+
   const editModalEl = document.getElementById('editModal');
   const editModal = editModalEl ? bootstrap.Modal.getOrCreateInstance(editModalEl) : null;
   if (editModalEl) {
@@ -839,6 +919,14 @@ document.addEventListener('DOMContentLoaded', function(){
         document.getElementById('ed_platform').value = c.platform || '';
         document.getElementById('ed_photo_url').value = c.photo_url || '';
         document.getElementById('ed_party_logo_url').value = c.party_logo_url || '';
+        // Reset file inputs
+        document.getElementById('ed_photo_file').value = '';
+        document.getElementById('ed_party_logo_file').value = '';
+        document.getElementById('ed_photo_status').textContent = '';
+        document.getElementById('ed_party_logo_status').textContent = '';
+        // Show existing previews
+        _setEditPreview('photo', c.photo_url || '');
+        _setEditPreview('party_logo', c.party_logo_url || '');
         if (editModal) editModal.show();
       }
     }
@@ -854,6 +942,40 @@ document.addEventListener('DOMContentLoaded', function(){
   if (saveEditBtn) {
     saveEditBtn.addEventListener('click', async function(){
       if (!edForm) return;
+
+      // Upload new images to Cloudinary if files were selected
+      const photoFile = document.getElementById('ed_photo_file').files[0];
+      const partyLogoFile = document.getElementById('ed_party_logo_file').files[0];
+
+      let photoUrl = document.getElementById('ed_photo_url').value;
+      let partyLogoUrl = document.getElementById('ed_party_logo_url').value;
+
+      if (photoFile) {
+        const statusEl = document.getElementById('ed_photo_status');
+        statusEl.textContent = 'Uploading photo…';
+        try {
+          photoUrl = await _uploadToCloudinary(photoFile, 'candidate_photo');
+          document.getElementById('ed_photo_url').value = photoUrl;
+          statusEl.textContent = '';
+        } catch(err) {
+          statusEl.textContent = 'Photo upload failed: ' + err.message;
+          return;
+        }
+      }
+
+      if (partyLogoFile) {
+        const statusEl = document.getElementById('ed_party_logo_status');
+        statusEl.textContent = 'Uploading logo…';
+        try {
+          partyLogoUrl = await _uploadToCloudinary(partyLogoFile, 'party_logo');
+          document.getElementById('ed_party_logo_url').value = partyLogoUrl;
+          statusEl.textContent = '';
+        } catch(err) {
+          statusEl.textContent = 'Logo upload failed: ' + err.message;
+          return;
+        }
+      }
+
       const payload = {
         id: document.getElementById('ed_id').value,
         first_name: document.getElementById('ed_first_name').value,
@@ -864,8 +986,8 @@ document.addEventListener('DOMContentLoaded', function(){
         program: document.getElementById('ed_program').value,
         year_section: document.getElementById('ed_year').value,
         platform: document.getElementById('ed_platform').value,
-        photo_url: document.getElementById('ed_photo_url').value,
-        party_logo_url: document.getElementById('ed_party_logo_url').value,
+        photo_url: photoUrl,
+        party_logo_url: partyLogoUrl,
       };
 
       const res = await fetch(API_BASE + 'update/', {
