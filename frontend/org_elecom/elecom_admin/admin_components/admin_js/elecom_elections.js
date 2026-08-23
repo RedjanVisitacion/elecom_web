@@ -4,6 +4,19 @@ document.addEventListener('DOMContentLoaded', function(){
   const sidebarOverlay = document.getElementById('sidebarOverlay');
   const closeSidebar = document.getElementById('closeSidebar');
 
+  // Password show/hide toggle
+  const togglePwBtn = document.getElementById('toggleElectionPassword');
+  const togglePwIcon = document.getElementById('toggleElectionPasswordIcon');
+  const pwInput = document.getElementById('electionPassword');
+  if (togglePwBtn && pwInput && togglePwIcon) {
+    togglePwBtn.addEventListener('click', function () {
+      const isHidden = pwInput.type === 'password';
+      pwInput.type = isHidden ? 'text' : 'password';
+      togglePwIcon.classList.toggle('bi-eye', !isHidden);
+      togglePwIcon.classList.toggle('bi-eye-slash', isHidden);
+    });
+  }
+
   if (menuToggle && sidebar && sidebarOverlay) {
     menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
   }

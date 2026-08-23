@@ -95,7 +95,12 @@
             </div>
             <div class="field">
               <label class="form-label">Admin Password</label>
-              <input type="password" class="form-control" id="electionPassword" required>
+              <div class="input-group">
+                <input type="password" class="form-control" id="electionPassword" required>
+                <button type="button" class="btn btn-outline-secondary" id="toggleElectionPassword" tabindex="-1" aria-label="Toggle password visibility">
+                  <i class="bi bi-eye" id="toggleElectionPasswordIcon"></i>
+                </button>
+              </div>
             </div>
 
           </div>
@@ -126,6 +131,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260606-notif-alerts-fix"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_elections.js?v=20260823-school-year-wider-range"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_elections.js?v=20260823-pw-toggle"></script>
 </body>
 </html>
