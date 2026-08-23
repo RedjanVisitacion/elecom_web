@@ -10,6 +10,10 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20260606-notif-alerts-fix">
+    <style>
+        .reg-collapse-chevron { transition: transform .2s ease; }
+        [aria-expanded="false"] .reg-collapse-chevron { transform: rotate(-180deg); }
+    </style>
 </head>
 <body class="theme-elecom reg-candidate-page">
 
@@ -187,7 +191,20 @@
                 <div class="alert alert-success" id="successAlert" role="alert" style="display:none;"></div>
                 <div class="alert alert-danger" id="errorAlert" role="alert" style="display:none;"></div>
 
-                <form id="registerCandidateForm" method="post" enctype="multipart/form-data" class="card p-3 shadow-sm border-0 reg-form-card">
+                <!-- Register Candidate collapsible card -->
+                <div class="card shadow-sm border-0 reg-form-card mb-3">
+                    <button type="button"
+                            class="d-flex align-items-center justify-content-between w-100 px-3 py-3 border-0 bg-transparent fw-semibold fs-6"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#registerCandidateCollapse"
+                            aria-expanded="false"
+                            aria-controls="registerCandidateCollapse">
+                        <span><i class="bi bi-person-plus me-2"></i>Register Candidate</span>
+                        <i class="bi bi-chevron-up reg-collapse-chevron"></i>
+                    </button>
+                    <div class="collapse" id="registerCandidateCollapse">
+                        <div class="px-3 pb-3">
+                <form id="registerCandidateForm" method="post" enctype="multipart/form-data">
                     <div class="row g-3">
                     <div class="col-12">
                         <label class="form-label">Candidate Type</label>
@@ -222,8 +239,8 @@
                         <input type="text" name="first_name" class="form-control" required>
                     </div>
                     <div class="col-md-4">
-                        <label class="form-label">Middle name (N/A if nothing)</label>
-                        <input type="text" name="middle_name" class="form-control">
+                        <label class="form-label">Middle name <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="text" name="middle_name" class="form-control" placeholder="Leave blank if none">
                     </div>
                     <div class="col-md-4">
                         <label class="form-label">Last name</label>
@@ -280,30 +297,43 @@
                     <div class="col-md-6 party-fields d-none">
                         <label class="form-label">Upload Party Logo (optional)</label>
                         <input type="file" name="party_logo_file" class="form-control" accept="image/*">
-                        <div class="form-text">Or provide a URL below</div>
-                        <input type="url" name="party_logo_url" class="form-control mt-2" placeholder="https://...">
                     </div>
 
                     <div class="col-12 d-flex justify-content-end">
-                        <button id="submitBtn" type="submit" class="btn btn-primary">Submit</button>
+                        <button id="submitBtn" type="submit" class="btn btn-dark">Submit</button>
                     </div>
                     </div>
                 </form>
-
-                <div class="card p-3 shadow-sm border-0 reg-form-card mt-3" id="candidateApplicationsPanel">
-                    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-                        <div>
-                            <h5 class="mb-1">Pending Candidate Filings</h5>
-                            <div class="text-muted small">Review mobile filing requests before they become official candidates.</div>
                         </div>
-                        <button type="button" class="btn btn-outline-primary btn-sm" id="refreshApplicationsBtn">
-                            <i class="bi bi-arrow-clockwise"></i> Refresh
-                        </button>
-                    </div>
-                    <div id="candidateApplicationsList" class="vstack gap-2">
-                        <div class="text-muted">Loading applications...</div>
                     </div>
                 </div>
+
+                <!-- Pending Candidate Filings collapsible card -->
+                <div class="card shadow-sm border-0 reg-form-card" id="candidateApplicationsPanel">
+                    <button type="button"
+                            class="d-flex align-items-center justify-content-between w-100 px-3 py-3 border-0 bg-transparent fw-semibold fs-6"
+                            data-bs-toggle="collapse"
+                            data-bs-target="#pendingFilingsCollapse"
+                            aria-expanded="true"
+                            aria-controls="pendingFilingsCollapse">
+                        <span><i class="bi bi-inbox me-2"></i>Pending Candidate Filings</span>
+                        <i class="bi bi-chevron-up reg-collapse-chevron"></i>
+                    </button>
+                    <div class="collapse show" id="pendingFilingsCollapse">
+                        <div class="px-3 pb-3">
+                            <div class="d-flex align-items-center justify-content-between mb-3">
+                                <div class="text-muted small">Review mobile filing requests before they become official candidates.</div>
+                                <button type="button" class="btn btn-outline-primary btn-sm" id="refreshApplicationsBtn">
+                                    <i class="bi bi-arrow-clockwise"></i> Refresh
+                                </button>
+                            </div>
+                            <div id="candidateApplicationsList" class="vstack gap-2">
+                                <div class="text-muted">Loading applications...</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
