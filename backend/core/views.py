@@ -7988,8 +7988,8 @@ def admin_voters_delete_api(request):
         section = str(filters.get("section") or "").strip()
 
         if course and course != "ALL":
-            where += " AND UPPER(COALESCE(s.course, u.department, '')) = %s"
-            params.append(course)
+            where += " AND UPPER(COALESCE(s.course, u.department, '')) LIKE %s"
+            params.append(course + "%")
         if year:
             year_value = _safe_int_or_none(year)
             if year_value is None:
@@ -8058,6 +8058,7 @@ def admin_voters_update_api(request):
     section = str(payload.get("section") or "").strip()
     email = str(payload.get("email") or "").strip()
     phone = str(payload.get("phone_number") or payload.get("phone") or "").strip()
+    course = str(payload.get("course") or "").strip()
 
     missing = []
     if year is None:
@@ -8080,10 +8081,11 @@ def admin_voters_update_api(request):
                     SET year = %s,
                         section = %s,
                         email = %s,
-                        phone_number = %s
+                        phone_number = %s,
+                        course = %s
                     WHERE id_number::text = %s
                     """,
-                    [year, section, email, phone, id_number],
+                    [year, section, email, phone, course or None, id_number],
                 )
 
                 cur.execute(
@@ -8092,11 +8094,12 @@ def admin_voters_update_api(request):
                     SET year_level = %s,
                         section = %s,
                         phone = %s,
-                        email = %s
+                        email = %s,
+                        department = %s
                     WHERE student_id::text = %s
                       AND COALESCE(role, '') ILIKE 'student'
                     """,
-                    [year, section, phone, email, id_number],
+                    [year, section, phone, email, course or None, id_number],
                 )
 
         return JsonResponse({"ok": True})

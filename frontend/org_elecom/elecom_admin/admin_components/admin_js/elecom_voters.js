@@ -291,7 +291,7 @@ document.addEventListener('DOMContentLoaded', function(){
       const year = String(row.year ?? '').trim();
       const section = String(row.section || '').trim();
 
-      if (activeCourse !== 'ALL' && course !== activeCourse) return false;
+      if (activeCourse !== 'ALL' && !course.startsWith(activeCourse)) return false;
       if (selectedYear && year !== selectedYear) return false;
       if (selectedSection && section !== selectedSection) return false;
       return true;
@@ -539,6 +539,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function editVoterPayload() {
     return {
       id_number: editingVoterId,
+      course: editCourse ? editCourse.value.trim() : '',
       year: editYear ? editYear.value.trim() : '',
       section: editSection ? editSection.value.trim() : '',
       email: editEmail ? editEmail.value.trim() : '',
