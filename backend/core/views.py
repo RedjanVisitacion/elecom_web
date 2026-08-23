@@ -4881,7 +4881,11 @@ def _postgres_literal(value) -> str:
     if value is None:
         return "NULL"
     with connection.cursor() as cur:
-        return cur.mogrify("%s", [value]).decode("utf-8")
+        result = cur.mogrify("%s", [value])
+        # psycopg2 returns bytes; psycopg3 returns str — handle both
+        if isinstance(result, bytes):
+            return result.decode("utf-8")
+        return str(result)
 
 
 def _backup_table_names(backup_type: str) -> list[str]:
