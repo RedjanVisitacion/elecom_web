@@ -5084,18 +5084,6 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
         "-- ELECOM data-only restore extracted from a schema dump",
         f"-- Extracted at: {timezone.now().isoformat()}",
         "",
-        # Ensure audit_logs exists so audit triggers don't fail during restore.
-        # This table is excluded from TRUNCATE/restore but must exist for triggers.
-        """CREATE TABLE IF NOT EXISTS audit_logs (
-    id BIGSERIAL PRIMARY KEY,
-    table_name VARCHAR(80) NOT NULL,
-    record_id BIGINT,
-    action VARCHAR(30) NOT NULL,
-    old_data JSONB,
-    new_data JSONB,
-    changed_by VARCHAR(80),
-    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);""",
         "BEGIN;",
     ]
     if tables:
@@ -5155,11 +5143,34 @@ def _sanitized_restore_file(input_path: Path, scope: str = "database") -> Path:
         tmp.close()
 
 
+def _ensure_audit_logs_table() -> None:
+    """Create audit_logs if it doesn't exist. Required before restore so triggers don't fail."""
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id BIGSERIAL PRIMARY KEY,
+                table_name VARCHAR(80) NOT NULL,
+                record_id BIGINT,
+                action VARCHAR(30) NOT NULL,
+                old_data JSONB,
+                new_data JSONB,
+                changed_by VARCHAR(80),
+                changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            )
+            """
+        )
+
+
 def _run_psql_restore(input_path: Path, scope: str = "database") -> None:
     db = _backup_db_config()
     db_name = str(db.get("NAME") or "").strip()
     if not db_name:
         raise RuntimeError("Database name is not configured.")
+
+    # Ensure audit_logs exists before psql runs, so the audit_row_change()
+    # trigger doesn't abort with "relation audit_logs does not exist".
+    _ensure_audit_logs_table()
 
     restore_path = _sanitized_restore_file(input_path, scope)
     psql = shutil.which("psql")
