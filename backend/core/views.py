@@ -5084,13 +5084,25 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
         "-- ELECOM data-only restore extracted from a schema dump",
         f"-- Extracted at: {timezone.now().isoformat()}",
         "",
-        # Disable row-level triggers BEFORE the transaction so audit/ledger triggers
-        # do not fire against tables that may not exist in the target schema.
-        # session_replication_role must be set outside a transaction block.
-        "SET session_replication_role = replica;",
+        # Ensure audit_logs exists so audit triggers don't fail during restore.
+        # This table is excluded from TRUNCATE/restore but must exist for triggers.
+        """CREATE TABLE IF NOT EXISTS audit_logs (
+    id BIGSERIAL PRIMARY KEY,
+    table_name VARCHAR(80) NOT NULL,
+    record_id BIGINT,
+    action VARCHAR(30) NOT NULL,
+    old_data JSONB,
+    new_data JSONB,
+    changed_by VARCHAR(80),
+    changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);""",
         "BEGIN;",
     ]
     if tables:
+        # Disable triggers on each restored table so audit/ledger triggers don't
+        # fire against audit_logs or other tables mid-restore.
+        for table in tables:
+            out.append(f"ALTER TABLE {_postgres_identifier(table)} DISABLE TRIGGER ALL;")
         joined = ", ".join(_postgres_identifier(table) for table in tables)
         out.append(f"TRUNCATE TABLE {joined} RESTART IDENTITY CASCADE;")
 
@@ -5123,7 +5135,9 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
             out.append(line)
 
     out.append("COMMIT;")
-    out.append("SET session_replication_role = DEFAULT;")
+    # Re-enable triggers after data is loaded.
+    for table in tables:
+        out.append(f"ALTER TABLE {_postgres_identifier(table)} ENABLE TRIGGER ALL;")
     return "\n".join(out)
 
 
