@@ -5085,6 +5085,9 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
         f"-- Extracted at: {timezone.now().isoformat()}",
         "",
         "BEGIN;",
+        # Disable row-level triggers so audit/ledger triggers don't fire against
+        # tables that may not exist yet in the target schema during data-only restore.
+        "SET session_replication_role = replica;",
     ]
     if tables:
         joined = ", ".join(_postgres_identifier(table) for table in tables)
@@ -5118,6 +5121,7 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
         if normalized.startswith("select pg_catalog.setval("):
             out.append(line)
 
+    out.append("SET session_replication_role = DEFAULT;")
     out.append("COMMIT;")
     return "\n".join(out)
 
