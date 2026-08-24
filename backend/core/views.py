@@ -5148,7 +5148,7 @@ def _ensure_audit_logs_table() -> None:
     with connection.cursor() as cur:
         cur.execute(
             """
-            CREATE TABLE IF NOT EXISTS audit_logs (
+            CREATE TABLE IF NOT EXISTS public.audit_logs (
                 id BIGSERIAL PRIMARY KEY,
                 table_name VARCHAR(80) NOT NULL,
                 record_id BIGINT,
@@ -5158,6 +5158,98 @@ def _ensure_audit_logs_table() -> None:
                 changed_by VARCHAR(80),
                 changed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
             )
+            """
+        )
+        # Re-create all trigger functions with schema-qualified public.audit_logs
+        # so they work regardless of the session search_path during restore.
+        cur.execute(
+            """
+            CREATE OR REPLACE FUNCTION public.audit_row_change() RETURNS trigger
+                LANGUAGE plpgsql AS $$
+                DECLARE
+                    rec_id BIGINT;
+                BEGIN
+                    rec_id := NULL;
+                    BEGIN
+                        rec_id := COALESCE(NEW.id, OLD.id);
+                    EXCEPTION WHEN others THEN
+                        rec_id := NULL;
+                    END;
+                    IF (TG_OP = 'UPDATE') THEN
+                        INSERT INTO public.audit_logs(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+                        VALUES (TG_TABLE_NAME, rec_id, 'updated', to_jsonb(OLD), to_jsonb(NEW), current_user, NOW());
+                        RETURN NEW;
+                    ELSIF (TG_OP = 'INSERT') THEN
+                        INSERT INTO public.audit_logs(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+                        VALUES (TG_TABLE_NAME, rec_id, 'inserted', NULL, to_jsonb(NEW), current_user, NOW());
+                        RETURN NEW;
+                    ELSIF (TG_OP = 'DELETE') THEN
+                        INSERT INTO public.audit_logs(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+                        VALUES (TG_TABLE_NAME, rec_id, 'deleted', to_jsonb(OLD), NULL, current_user, NOW());
+                        RETURN OLD;
+                    END IF;
+                    RETURN NULL;
+                END;
+                $$
+            """
+        )
+        cur.execute(
+            """
+            CREATE OR REPLACE FUNCTION public.deny_update_delete() RETURNS trigger
+                LANGUAGE plpgsql AS $$
+                DECLARE
+                    rec_id BIGINT;
+                BEGIN
+                    rec_id := NULL;
+                    BEGIN
+                        rec_id := COALESCE(NEW.id, OLD.id);
+                    EXCEPTION WHEN others THEN
+                        rec_id := NULL;
+                    END;
+                    INSERT INTO public.audit_logs(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+                    VALUES (
+                        TG_TABLE_NAME,
+                        rec_id,
+                        'unauthorized_update_delete_attempt',
+                        to_jsonb(OLD),
+                        CASE WHEN TG_OP = 'UPDATE' THEN to_jsonb(NEW) ELSE NULL END,
+                        current_user,
+                        NOW()
+                    );
+                    RAISE EXCEPTION 'Append-only ledger table: % operation not permitted on %', TG_OP, TG_TABLE_NAME
+                        USING ERRCODE = '42501';
+                END;
+                $$
+            """
+        )
+        cur.execute(
+            """
+            CREATE OR REPLACE FUNCTION public.vote_blocks_allow_status_update_only() RETURNS trigger
+                LANGUAGE plpgsql AS $$
+                BEGIN
+                    IF TG_OP = 'DELETE' THEN
+                        INSERT INTO public.audit_logs(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+                        VALUES (TG_TABLE_NAME, OLD.id, 'unauthorized_delete_attempt', to_jsonb(OLD), NULL, current_user, NOW());
+                        RAISE EXCEPTION 'Append-only ledger table: DELETE not permitted on %', TG_TABLE_NAME
+                            USING ERRCODE = '42501';
+                    END IF;
+                    IF (NEW.election_id IS DISTINCT FROM OLD.election_id)
+                       OR (NEW.vote_id IS DISTINCT FROM OLD.vote_id)
+                       OR (NEW.anonymous_voter_hash IS DISTINCT FROM OLD.anonymous_voter_hash)
+                       OR (NEW.vote_data_hash IS DISTINCT FROM OLD.vote_data_hash)
+                       OR (NEW.previous_hash IS DISTINCT FROM OLD.previous_hash)
+                       OR (NEW.current_hash IS DISTINCT FROM OLD.current_hash)
+                       OR (NEW.submitted_at IS DISTINCT FROM OLD.submitted_at) THEN
+                        INSERT INTO public.audit_logs(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+                        VALUES (TG_TABLE_NAME, OLD.id, 'unauthorized_update_attempt', to_jsonb(OLD), to_jsonb(NEW), current_user, NOW());
+                        RAISE EXCEPTION 'Append-only ledger table: UPDATE not permitted on % (except block_status)', TG_TABLE_NAME
+                            USING ERRCODE = '42501';
+                    END IF;
+                    INSERT INTO public.audit_logs(table_name, record_id, action, old_data, new_data, changed_by, changed_at)
+                    VALUES (TG_TABLE_NAME, OLD.id, 'block_status_updated', to_jsonb(OLD), to_jsonb(NEW), current_user, NOW());
+                    RETURN NEW;
+                END;
+                $$
             """
         )
 
