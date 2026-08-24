@@ -5084,10 +5084,11 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
         "-- ELECOM data-only restore extracted from a schema dump",
         f"-- Extracted at: {timezone.now().isoformat()}",
         "",
-        "BEGIN;",
-        # Disable row-level triggers so audit/ledger triggers don't fire against
-        # tables that may not exist yet in the target schema during data-only restore.
+        # Disable row-level triggers BEFORE the transaction so audit/ledger triggers
+        # do not fire against tables that may not exist in the target schema.
+        # session_replication_role must be set outside a transaction block.
         "SET session_replication_role = replica;",
+        "BEGIN;",
     ]
     if tables:
         joined = ", ".join(_postgres_identifier(table) for table in tables)
@@ -5121,8 +5122,8 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
         if normalized.startswith("select pg_catalog.setval("):
             out.append(line)
 
-    out.append("SET session_replication_role = DEFAULT;")
     out.append("COMMIT;")
+    out.append("SET session_replication_role = DEFAULT;")
     return "\n".join(out)
 
 
