@@ -2086,6 +2086,41 @@ def candidates_list_api(request):
 
 
 @require_http_methods(["GET"])
+def candidates_all_api(request):
+    """All approved candidates for the current election, regardless of the
+    viewer's eligibility.  Intended for the transparency Candidates screen only
+    – the ballot is still fully eligibility-gated on a separate endpoint."""
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    try:
+        _ensure_election_scoped_tables()
+        election_where, election_params = _current_election_filter()
+        with connection.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT id, student_id, first_name, middle_name, last_name,
+                       organization, position, program, year_section,
+                       photo_url, party_name, candidate_type, party_logo_url,
+                       platform
+                FROM candidates_registration
+                WHERE {election_where}
+                ORDER BY organization, position, last_name, first_name
+                LIMIT 1000
+                """,
+                election_params,
+            )
+            cols = [c[0] for c in cur.description]
+            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+        return JsonResponse({"ok": True, "candidates": rows})
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to load candidates."}, status=500)
+
+
+@require_http_methods(["GET"])
 def vote_status_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if not student_id:
