@@ -5181,7 +5181,7 @@ def _run_psql_restore(input_path: Path, scope: str = "database") -> None:
                 cur.execute(sql_text)
             return
 
-        command = [psql, *_pg_base_args(db), "--dbname", db_name, "--set", "ON_ERROR_STOP=on", "--file", str(restore_path)]
+        command = [psql, *_pg_base_args(db), "--dbname", db_name, "--set", "ON_ERROR_STOP=on", "--set", "search_path=public", "--file", str(restore_path)]
         result = subprocess.run(
             command,
             env=_pg_env(db),
