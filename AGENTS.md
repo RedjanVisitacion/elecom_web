@@ -145,19 +145,104 @@ When switching from the online Kamatera/Gunicorn deployment back to offline Wind
 
 On the Linux server, the Django/Gunicorn service is named:
 
-- `elecom.service`
+- **`gunicorn`** (not `elecom` — `sudo systemctl restart elecom` will fail)
 
-After backend or static frontend changes are deployed, run from `~/elecom_web/backend`:
+The live backend runs from **`/var/www/elecom/backend`**, served by gunicorn with venv at `/var/www/elecom/venv`.
+There is a separate clone at `~/elecom_web` used only for git pulls — it is **not** the live directory.
+
+### Correct deploy sequence after pushing to GitHub
 
 ```bash
-python3 manage.py migrate
-python3 manage.py collectstatic --noinput
-sudo systemctl restart elecom
-sudo systemctl restart nginx
-sudo systemctl status elecom --no-pager
+cd /var/www/elecom
+git pull origin main
+sudo systemctl restart gunicorn
+sudo systemctl status gunicorn --no-pager
 ```
 
-Do **not** assume the service is named `gunicorn`; `sudo systemctl restart gunicorn` fails on this server.
+Do **not** deploy from `~/elecom_web` — gunicorn does not serve from there.
+If `git pull` aborts with "local changes would be overwritten", run:
+
+```bash
+git checkout backend/core/views.py   # or whichever file is conflicted
+git pull origin main
+sudo systemctl restart gunicorn
+```
+
+### Production server Python packages (venv)
+
+Install missing packages into the production venv at `/var/www/elecom/venv`:
+
+```bash
+/var/www/elecom/venv/bin/pip install cloudinary
+/var/www/elecom/venv/bin/pip install -r /var/www/elecom/backend/requirements-face.txt
+```
+
+Key packages that must be present:
+- `cloudinary` — required for candidate photo and party logo uploads (Register Candidate, face enrollment)
+- `faceplusplus-sdk` or equivalent — required for face enrollment and verification
+- All packages in `backend/requirements-face.txt`
+
+If a 500 error says "pip install cloudinary" or similar, the package is missing from the venv.
+
+### Production .env
+
+The production `.env` lives at `/var/www/elecom/backend/.env`. It is **not** committed to git (gitignored).
+It must be created manually on the server. Do not copy the local Windows `.env` directly — DB credentials differ.
+
+**Do not include DB credentials** in the production `.env` unless you know the exact production PostgreSQL password.
+The production DB uses peer/socket authentication; Django's built-in defaults (`elecom_backend` user, `127.0.0.1` host) connect without a password when no `DB_*` env vars are set.
+
+Minimum required production `.env` contents:
+
+```env
+DEBUG=False
+SECRET_KEY=elecom_secret_key
+
+CLOUDINARY_CLOUD_NAME=<your_cloud_name>
+CLOUDINARY_API_KEY=<your_api_key>
+CLOUDINARY_API_SECRET=<your_api_secret>
+
+FACEPP_API_KEY=<your_facepp_key>
+FACEPP_API_SECRET=<your_facepp_secret>
+FACEPP_FACESET_OUTER_ID=elecom_voters
+FACEPP_DUPLICATE_THRESHOLD=80
+FACEPP_VERIFY_THRESHOLD=80
+FACE_VOTE_VERIFY_SESSION_MINUTES=20
+
+EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
+EMAIL_HOST=smtp.gmail.com
+EMAIL_PORT=587
+EMAIL_USE_TLS=true
+EMAIL_HOST_USER=<gmail_address>
+EMAIL_HOST_PASSWORD=<gmail_app_password>
+DEFAULT_FROM_EMAIL=ELECOM <<gmail_address>>
+
+GROQ_API_KEY=<your_groq_key>
+GROQ_MODEL=llama-3.1-8b-instant
+
+APP_UPDATE_LATEST_VERSION=1.0.0
+APP_UPDATE_LATEST_BUILD=2
+APP_UPDATE_APK_URL=<apk_download_url>
+APP_UPDATE_FORCE=false
+APP_UPDATE_MESSAGE=New ELECOM update is available. Please download the latest version.
+```
+
+After creating or editing `.env`, always restart gunicorn:
+
+```bash
+sudo systemctl restart gunicorn
+```
+
+### Backup and restore notes
+
+- Backup files are stored in `/var/www/elecom/backend/backup/admin_backups/` on the production server.
+- The restore function (`_run_psql_restore` in `core/views.py`) calls `_ensure_audit_logs_table()` before running psql. This creates `public.audit_logs` if missing and patches all three audit trigger functions (`audit_row_change`, `deny_update_delete`, `vote_blocks_allow_status_update_only`) to use schema-qualified `public.audit_logs` so they work regardless of psql session `search_path`.
+- If restore fails with `relation "audit_logs" does not exist`, it means the trigger functions in the live DB are still using the old unqualified reference. The fix is to ensure the new `views.py` is deployed and run the restore once — `_ensure_audit_logs_table()` will patch them permanently.
+- The `ALTER TABLE ... DISABLE TRIGGER ALL` statements in the sanitized restore SQL require the DB user to own the tables. The production DB user (`elecom_backend` or `postgres`) must have ownership.
+
+### Face++ rate limits
+
+Face++ free plan allows ~1 request/second. `CONCURRENCY_LIMIT_EXCEEDED` errors from the mobile app mean the rate limit was hit. Retry after a second. For production load, upgrade the Face++ plan at console.faceplusplus.com.
 
 ## Running The Flutter App Locally
 
