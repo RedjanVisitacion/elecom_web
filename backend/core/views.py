@@ -4806,15 +4806,17 @@ def admin_verify_password_api(request):
 
 
 BACKUP_ALLOWED_TYPES = {
-    "postgres": {"label": "PostgreSQL Database", "tables": []},
+    "postgres": {"label": "Full Database", "tables": []},
     "election_records": {"label": "Election Records", "tables": ["vote_windows", "votes", "vote_items"]},
     "candidates": {"label": "Candidates", "tables": ["candidates_registration"]},
-    "full_system": {"label": "Full System Backup", "tables": []},
+    "voters": {"label": "Voters Data", "tables": ["student", "users"]},
+    "reports": {"label": "Report Data", "tables": ["votes", "vote_items"]},
 }
 BACKUP_RESTORE_SCOPES = {
     "database": "Restore database",
     "election_year": "Restore election year only",
     "candidates": "Restore candidates only",
+    "voters": "Restore voters only",
     "reports": "Restore reports only",
 }
 BACKUP_SKIP_TABLES = {"admin_backups", "admin_backup_settings", "audit_logs"}
@@ -5088,7 +5090,8 @@ def _backup_type_for_restore_scope(scope: str) -> str:
     return {
         "candidates": "candidates",
         "election_year": "election_records",
-        "reports": "election_records",
+        "reports": "reports",
+        "voters": "voters",
     }.get(str(scope or "database").lower(), "postgres")
 
 
@@ -5754,6 +5757,7 @@ def admin_backup_restore_api(request):
                 allowed_tables = {
                     "election_year": {"vote_windows", "votes", "vote_items"},
                     "candidates": {"candidates_registration"},
+                    "voters": {"student", "users"},
                     "reports": {"votes", "vote_items"},
                 }.get(scope, set())
                 known_tables = {

@@ -155,6 +155,7 @@ There is a separate clone at `~/elecom_web` used only for git pulls — it is **
 ```bash
 cd /var/www/elecom
 git pull origin main
+/var/www/elecom/venv/bin/python backend/manage.py collectstatic --noinput
 sudo systemctl restart gunicorn
 sudo systemctl status gunicorn --no-pager
 ```
