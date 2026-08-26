@@ -316,7 +316,10 @@
         body: pendingRestoreForm,
       });
       const data = await resp.json().catch(() => ({}));
-      if (!resp.ok || !data.ok) throw new Error(data.error || "Restore failed.");
+      if (!resp.ok || !data.ok) {
+        const msg = data.error || (resp.ok ? "Restore failed." : `Server error (${resp.status}): Restore failed. Check server logs.`);
+        throw new Error(msg);
+      }
       const modalEl = $("restoreConfirmModal");
       if (modalEl && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(modalEl).hide();
       pendingRestoreForm = null;

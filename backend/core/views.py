@@ -5321,7 +5321,9 @@ def _run_psql_restore(input_path: Path, scope: str = "database") -> None:
             timeout=int(getattr(settings, "ELECOM_RESTORE_TIMEOUT_SECONDS", 300) or 300),
         )
         if result.returncode != 0:
-            raise RuntimeError((result.stderr or result.stdout or "Restore failed.").strip()[:500])
+            err_msg = (result.stderr or result.stdout or "psql restore failed with no output.").strip()
+            # Show first 800 chars of psql error for diagnostics
+            raise RuntimeError(f"psql error: {err_msg[:800]}")
     finally:
         if restore_path != input_path:
             try:
@@ -5358,7 +5360,7 @@ def _create_backup_artifact(backup_type: str, created_by: str, audit_action: str
         raise ValueError("Invalid backup path.")
 
     try:
-        if backup_type == "full_system":
+        if backup_type in ("postgres", "full_system"):
             sql_name = _backup_filename("database", "sql")
             with tempfile.TemporaryDirectory() as tmp:
                 sql_path = Path(tmp) / sql_name
