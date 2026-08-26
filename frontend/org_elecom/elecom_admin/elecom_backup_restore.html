@@ -241,6 +241,16 @@
                 <label><input type="radio" name="backupFrequency" value="weekly" checked><span>Weekly backup</span></label>
                 <label><input type="radio" name="backupFrequency" value="monthly"><span>Monthly backup</span></label>
               </div>
+              <div class="mt-3">
+                <div class="form-label fw-semibold small mb-1">Backup type</div>
+                <select class="form-select form-select-sm" id="autoBackupType">
+                  <option value="postgres">Full Database (All Tables)</option>
+                  <option value="election_records">Election Records</option>
+                  <option value="candidates">Candidates Only</option>
+                  <option value="voters">Voters Data</option>
+                  <option value="reports">Report Data</option>
+                </select>
+              </div>
               <div class="storage-meter">
                 <div class="storage-meter-head"><span>Storage Usage</span><strong id="storageMeterText">0 B</strong></div>
                 <div class="storage-meter-track"><div id="storageMeterFill"></div></div>
@@ -276,6 +286,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260606-notif-alerts-fix"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_backup_restore.js?v=20260826-aligned-backup-restore"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_backup_restore.js?v=20260826-auto-backup-type"></script>
 </body>
 </html>

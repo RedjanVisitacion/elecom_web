@@ -4868,6 +4868,7 @@ def _ensure_backup_tables() -> None:
         )
         cur.execute("ALTER TABLE admin_backup_settings ADD COLUMN IF NOT EXISTS last_attempt_at TIMESTAMPTZ NULL")
         cur.execute("ALTER TABLE admin_backup_settings ADD COLUMN IF NOT EXISTS last_attempt_error TEXT NULL")
+        cur.execute("ALTER TABLE admin_backup_settings ADD COLUMN IF NOT EXISTS backup_type VARCHAR(60) NOT NULL DEFAULT 'postgres'")
         cur.execute(
             """
             INSERT INTO admin_backup_settings (id)
@@ -5408,7 +5409,7 @@ def _maybe_run_due_auto_backup() -> dict:
     with connection.cursor() as cur:
         cur.execute(
             """
-            SELECT enabled, frequency, updated_at, last_attempt_at
+            SELECT enabled, frequency, backup_type, updated_at, last_attempt_at
             FROM admin_backup_settings
             WHERE id = 1
             """
@@ -5425,7 +5426,13 @@ def _maybe_run_due_auto_backup() -> dict:
         )
         latest_row = cur.fetchone()
 
-    enabled, frequency, updated_at, last_attempt_at = settings_row if settings_row else (False, "weekly", now, None)
+    if settings_row:
+        enabled, frequency, auto_backup_type, updated_at, last_attempt_at = settings_row
+    else:
+        enabled, frequency, auto_backup_type, updated_at, last_attempt_at = False, "weekly", "postgres", now, None
+    auto_backup_type = str(auto_backup_type or "postgres").strip().lower()
+    if auto_backup_type not in BACKUP_ALLOWED_TYPES:
+        auto_backup_type = "postgres"
     latest_at = latest_row[0] if latest_row else None
     base = latest_at or updated_at or now
     next_due_at = base + _backup_frequency_delta(frequency)
@@ -5451,7 +5458,7 @@ def _maybe_run_due_auto_backup() -> dict:
                 WHERE id = 1
                 """
             )
-        backup = _create_backup_artifact("postgres", "auto", audit_action="auto_create")
+        backup = _create_backup_artifact(auto_backup_type, "auto", audit_action="auto_create")
         return {"ran": True, "next_due_at": (now + _backup_frequency_delta(frequency)).isoformat(), "error": None, "backup": backup}
     except Exception as e:
         message = str(e)[:500]
@@ -5569,15 +5576,18 @@ def admin_backup_settings_api(request):
         frequency = str(payload.get("frequency") or "weekly").strip().lower()
         if frequency not in {"hourly", "daily", "weekly", "monthly"}:
             return JsonResponse({"ok": False, "error": "Invalid backup frequency."}, status=400)
+        backup_type = str(payload.get("backup_type") or "postgres").strip().lower()
+        if backup_type not in BACKUP_ALLOWED_TYPES:
+            backup_type = "postgres"
         changed_by = str(request.session.get("student_id") or "admin")
         with connection.cursor() as cur:
             cur.execute(
                 """
                 UPDATE admin_backup_settings
-                SET enabled = %s, frequency = %s, updated_by = %s, updated_at = NOW()
+                SET enabled = %s, frequency = %s, backup_type = %s, updated_by = %s, updated_at = NOW()
                 WHERE id = 1
                 """,
-                [enabled, frequency, changed_by],
+                [enabled, frequency, backup_type, changed_by],
             )
         _audit_log(table_name="admin_backups", record_id=None, action="settings", new_data=payload, changed_by=changed_by)
 
@@ -5585,7 +5595,7 @@ def admin_backup_settings_api(request):
     with connection.cursor() as cur:
         cur.execute(
             """
-            SELECT enabled, frequency, updated_at, last_attempt_at, last_attempt_error
+            SELECT enabled, frequency, backup_type, updated_at, last_attempt_at, last_attempt_error
             FROM admin_backup_settings
             WHERE id = 1
             """
@@ -5602,7 +5612,10 @@ def admin_backup_settings_api(request):
         )
         latest = cur.fetchone()
 
-    enabled, frequency, updated_at, last_attempt_at, last_attempt_error = row if row else (False, "weekly", timezone.now(), None, None)
+    if row:
+        enabled, frequency, backup_type, updated_at, last_attempt_at, last_attempt_error = row
+    else:
+        enabled, frequency, backup_type, updated_at, last_attempt_at, last_attempt_error = False, "weekly", "postgres", timezone.now(), None, None
     latest_at = latest[0] if latest else None
     base = latest_at or updated_at or timezone.now()
     next_delta = _backup_frequency_delta(frequency)
@@ -5612,6 +5625,7 @@ def admin_backup_settings_api(request):
             "settings": {
                 "enabled": bool(enabled),
                 "frequency": frequency,
+                "backup_type": backup_type or "postgres",
                 "next_scheduled_backup": (base + next_delta).isoformat() if enabled else None,
                 "latest_successful_backup": latest_at.isoformat() if latest_at else None,
                 "last_attempt_at": last_attempt_at.isoformat() if last_attempt_at else None,

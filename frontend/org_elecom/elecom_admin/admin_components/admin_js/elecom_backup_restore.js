@@ -217,6 +217,8 @@
     document.querySelectorAll('input[name="backupFrequency"]').forEach((input) => {
       input.checked = input.value === (settings.frequency || "weekly");
     });
+    const autoBackupTypeEl = $("autoBackupType");
+    if (autoBackupTypeEl) autoBackupTypeEl.value = settings.backup_type || "postgres";
     const autoText = $("autoBackupText");
     if (autoText) autoText.textContent = settings.enabled ? `${settings.frequency} enabled` : "Automatic backup disabled";
     const next = $("nextScheduleText");
@@ -336,6 +338,8 @@
     const enabled = !!($("autoBackupEnabled") && $("autoBackupEnabled").checked);
     const frequencyInput = document.querySelector('input[name="backupFrequency"]:checked');
     const frequency = frequencyInput ? frequencyInput.value : "weekly";
+    const backupTypeEl = $("autoBackupType");
+    const backup_type = backupTypeEl ? backupTypeEl.value : "postgres";
     const saveBtn = $("saveAutoSettingsBtn");
     setButtonLoading(saveBtn, true);
     if (saveBtn) saveBtn.disabled = true;
@@ -345,7 +349,7 @@
         headers: { "Content-Type": "application/json" },
         credentials: "same-origin",
         cache: "no-store",
-        body: JSON.stringify({ enabled, frequency }),
+        body: JSON.stringify({ enabled, frequency, backup_type }),
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) {
