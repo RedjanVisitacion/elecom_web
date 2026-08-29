@@ -291,3 +291,7 @@ SEMAPHORE_SENDER_NAME = os.getenv("SEMAPHORE_SENDER_NAME", "ELECOM")
 TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
 TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
+
+# -- SMS (Infobip) -------------------------------------------------------------
+INFOBIP_API_KEY = os.getenv("INFOBIP_API_KEY", "")
+INFOBIP_BASE_URL = os.getenv("INFOBIP_BASE_URL", "")

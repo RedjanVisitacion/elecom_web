@@ -10344,16 +10344,15 @@ def _mask_phone(phone: str) -> str:
 
 
 def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
-    """Send OTP via Twilio SMS API. Raises on failure."""
+    """Send OTP via Infobip SMS API. Raises on failure."""
     import urllib.request as _urllib_request
     import urllib.parse as _urllib_parse
-    import base64 as _base64
+    import json as _json
 
-    account_sid = str(getattr(django_settings, "TWILIO_ACCOUNT_SID", "") or "").strip()
-    auth_token = str(getattr(django_settings, "TWILIO_AUTH_TOKEN", "") or "").strip()
-    from_number = str(getattr(django_settings, "TWILIO_FROM_NUMBER", "") or "").strip()
-    if not account_sid or not auth_token or not from_number:
-        raise RuntimeError("SMS is not configured. TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, TWILIO_FROM_NUMBER are required.")
+    api_key = str(getattr(django_settings, "INFOBIP_API_KEY", "") or "").strip()
+    base_url = str(getattr(django_settings, "INFOBIP_BASE_URL", "") or "").strip()
+    if not api_key or not base_url:
+        raise RuntimeError("SMS is not configured. INFOBIP_API_KEY and INFOBIP_BASE_URL are required.")
 
     # Normalize phone to E.164 format
     p = str(phone or "").strip().replace(" ", "").replace("-", "")
@@ -10363,24 +10362,26 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
         p = "+" + p
 
     message = (
-        f"Your ELECOM OTP is: {otp}\n"
+        f"Your ELECOM OTP is: {otp} "
         f"Valid for {expiry_minutes} minutes. Do not share this code."
     )
-    url = f"https://api.twilio.com/2010-04-01/Accounts/{account_sid}/Messages.json"
-    data = _urllib_parse.urlencode({
-        "To": p,
-        "From": from_number,
-        "Body": message,
+    url = f"https://{base_url}/sms/2/text/advanced"
+    payload = _json.dumps({
+        "messages": [{
+            "destinations": [{"to": p}],
+            "from": "ELECOM",
+            "text": message,
+        }]
     }).encode("utf-8")
-    credentials = _base64.b64encode(f"{account_sid}:{auth_token}".encode()).decode()
-    req = _urllib_request.Request(url, data=data, method="POST")
-    req.add_header("Authorization", f"Basic {credentials}")
-    req.add_header("Content-Type", "application/x-www-form-urlencoded")
+    req = _urllib_request.Request(url, data=payload, method="POST")
+    req.add_header("Authorization", f"App {api_key}")
+    req.add_header("Content-Type", "application/json")
+    req.add_header("Accept", "application/json")
     try:
         with _urllib_request.urlopen(req, timeout=15) as resp:
             body = resp.read(2048).decode("utf-8", errors="ignore")
             if resp.status not in (200, 201):
-                raise RuntimeError(f"Twilio API returned {resp.status}: {body[:200]}")
+                raise RuntimeError(f"Infobip API returned {resp.status}: {body[:200]}")
     except Exception as e:
         raise RuntimeError(f"SMS send failed: {e}") from e
 
