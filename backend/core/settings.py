@@ -286,3 +286,8 @@ RESET_TOKEN_EXPIRY_MINUTES = int(os.getenv("RESET_TOKEN_EXPIRY_MINUTES", "15"))
 # Set SEMAPHORE_API_KEY in .env to enable SMS option.
 SEMAPHORE_API_KEY = os.getenv("SEMAPHORE_API_KEY", "")
 SEMAPHORE_SENDER_NAME = os.getenv("SEMAPHORE_SENDER_NAME", "ELECOM")
+
+# -- SMS (Twilio) --------------------------------------------------------------
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID", "")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN", "")
+TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
