@@ -10368,7 +10368,6 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
         "apikey": api_key,
         "number": p,
         "message": message,
-        "sendername": sender,
     }).encode("utf-8")
     req = _urllib_request.Request(
         "https://api.semaphore.co/api/v4/messages",
