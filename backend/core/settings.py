@@ -280,3 +280,9 @@ IMPORT_DEFAULT_PASSWORD_BCRYPT_ROUNDS = int(os.getenv("IMPORT_DEFAULT_PASSWORD_B
 OTP_EXPIRY_MINUTES = int(os.getenv("OTP_EXPIRY_MINUTES", "10"))
 # Reset token validity window in minutes (after OTP verified).
 RESET_TOKEN_EXPIRY_MINUTES = int(os.getenv("RESET_TOKEN_EXPIRY_MINUTES", "15"))
+
+# -- SMS (Semaphore) -----------------------------------------------------------
+# Used for SMS OTP delivery on forgot-password flow.
+# Set SEMAPHORE_API_KEY in .env to enable SMS option.
+SEMAPHORE_API_KEY = os.getenv("SEMAPHORE_API_KEY", "")
+SEMAPHORE_SENDER_NAME = os.getenv("SEMAPHORE_SENDER_NAME", "ELECOM")
