@@ -165,6 +165,8 @@ def _ensure_auth_identity_tables() -> None:
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS photo_url text DEFAULT NULL")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS account_opened_at timestamp DEFAULT NULL")
         cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS last_seen_at timestamp DEFAULT NULL")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_hash varchar(64) DEFAULT NULL")
+        cur.execute("ALTER TABLE users ADD COLUMN IF NOT EXISTS reset_token_expires_at timestamp DEFAULT NULL")
 
 
 def _mark_student_account_seen(student_id: str | int | None = None, user_id: int | None = None) -> None:
@@ -10410,26 +10412,62 @@ def _generate_otp(length: int = 6) -> str:
 
 
 def _make_reset_token(student_id: str) -> str:
-    """Create a one-time reset token, store its hash, return the raw token."""
+    """Create a one-time reset token, store its hash in the DB, return the raw token."""
     raw = secrets.token_urlsafe(32)
     token_hash = hashlib.sha256(raw.encode()).hexdigest()
     expiry_minutes = int(getattr(django_settings, "RESET_TOKEN_EXPIRY_MINUTES", 15))
-    _RESET_TOKENS[token_hash] = {
-        "student_id": student_id,
-        "expires_at": dj_timezone.now() + timedelta(minutes=expiry_minutes),
-    }
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                UPDATE users
+                SET reset_token_hash = %s,
+                    reset_token_expires_at = NOW() + (interval '1 minute' * %s)
+                WHERE student_id = %s OR id::text = %s
+                """,
+                [token_hash, int(expiry_minutes), student_id, student_id],
+            )
+    except Exception:
+        # Fallback: in-memory (single-worker dev only)
+        _RESET_TOKENS[token_hash] = {
+            "student_id": student_id,
+            "expires_at": dj_timezone.now() + timedelta(minutes=expiry_minutes),
+        }
     return raw
 
 
 def _consume_reset_token(raw: str):
-    """Validate and consume a reset token. Returns student_id or None."""
+    """Validate and consume a reset token from DB. Returns student_id or None."""
     token_hash = hashlib.sha256(raw.encode()).hexdigest()
-    entry = _RESET_TOKENS.pop(token_hash, None)
-    if entry is None:
-        return None
-    if dj_timezone.now() > entry["expires_at"]:
-        return None
-    return entry["student_id"]
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT student_id
+                FROM users
+                WHERE reset_token_hash = %s
+                  AND reset_token_expires_at > NOW()
+                """,
+                [token_hash],
+            )
+            row = cur.fetchone()
+            if not row:
+                return None
+            student_id = str(row[0])
+            # Consume — clear so it can't be reused
+            cur.execute(
+                "UPDATE users SET reset_token_hash = NULL, reset_token_expires_at = NULL WHERE reset_token_hash = %s",
+                [token_hash],
+            )
+            return student_id
+    except Exception:
+        # Fallback: in-memory
+        entry = _RESET_TOKENS.pop(token_hash, None)
+        if entry is None:
+            return None
+        if dj_timezone.now() > entry["expires_at"]:
+            return None
+        return entry["student_id"]
 
 
 @csrf_exempt
