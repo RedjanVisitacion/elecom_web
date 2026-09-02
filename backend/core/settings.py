@@ -299,7 +299,7 @@ INFOBIP_BASE_URL = os.getenv("INFOBIP_BASE_URL", "")
 # -- SMS (SMS Chef) ------------------------------------------------------------
 # Uses own Android phone as SMS gateway. Free.
 SMSCHEF_API_KEY = os.getenv("SMSCHEF_API_KEY", "")
-# SIM slot is 0-indexed: 0 = SIM 1, 1 = SIM 2. Defaults to 0 (first/only SIM).
-SMSCHEF_SIM_SLOT = int(os.getenv("SMSCHEF_SIM_SLOT", "0"))
+# SIM slot is 1-indexed on SMS Chef: 1 = SIM 1, 2 = SIM 2. Defaults to 1 (first/only SIM).
+SMSCHEF_SIM_SLOT = int(os.getenv("SMSCHEF_SIM_SLOT", "1"))
 # Device ID from the SMS Chef app (Settings → Device Information → Device ID).
 SMSCHEF_DEVICE_ID = os.getenv("SMSCHEF_DEVICE_ID", "")
