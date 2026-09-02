@@ -299,3 +299,5 @@ INFOBIP_BASE_URL = os.getenv("INFOBIP_BASE_URL", "")
 # -- SMS (SMS Chef) ------------------------------------------------------------
 # Uses own Android phone as SMS gateway. Free.
 SMSCHEF_API_KEY = os.getenv("SMSCHEF_API_KEY", "")
+# SIM slot is 0-indexed: 0 = SIM 1, 1 = SIM 2. Defaults to 0 (first/only SIM).
+SMSCHEF_SIM_SLOT = int(os.getenv("SMSCHEF_SIM_SLOT", "0"))
