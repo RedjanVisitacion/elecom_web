@@ -10372,9 +10372,15 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
     # sim_slot is 0-indexed on SMS Chef: 0 = SIM 1, 1 = SIM 2.
     # Default to 0 (first/only SIM). Override via SMSCHEF_SIM_SLOT in .env.
     sim_slot = int(getattr(django_settings, "SMSCHEF_SIM_SLOT", 0))
+    # device_id is required by SMS Chef when mode=devices.
+    # Get it from SMSCHEF_DEVICE_ID in .env.
+    device_id = str(getattr(django_settings, "SMSCHEF_DEVICE_ID", "") or "").strip()
+    if not device_id:
+        raise RuntimeError("SMS is not configured. SMSCHEF_DEVICE_ID is required.")
     params = _urllib_parse.urlencode({
         "secret": api_key,
         "mode": "devices",
+        "device_id": device_id,
         "phone": p,
         "message": message,
         "sim_slot": sim_slot,
