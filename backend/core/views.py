@@ -10344,43 +10344,47 @@ def _mask_phone(phone: str) -> str:
 
 
 def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
-    """Send OTP via Infobip SMS API. Raises on failure."""
+    """Send OTP via SMS Chef API (uses own Android phone as gateway). Raises on failure."""
     import urllib.request as _urllib_request
     import urllib.parse as _urllib_parse
-    import json as _json
 
-    api_key = str(getattr(django_settings, "INFOBIP_API_KEY", "") or "").strip()
-    base_url = str(getattr(django_settings, "INFOBIP_BASE_URL", "") or "").strip()
-    if not api_key or not base_url:
-        raise RuntimeError("SMS is not configured. INFOBIP_API_KEY and INFOBIP_BASE_URL are required.")
+    api_key = str(getattr(django_settings, "SMSCHEF_API_KEY", "") or "").strip()
+    if not api_key:
+        raise RuntimeError("SMS is not configured. SMSCHEF_API_KEY is required.")
 
-    # Normalize phone to E.164 format
+    # Normalize phone to local PH format (SMS Chef uses local numbers)
     p = str(phone or "").strip().replace(" ", "").replace("-", "")
-    if p.startswith("0"):
-        p = "+63" + p[1:]
-    elif not p.startswith("+"):
-        p = "+" + p
+    if p.startswith("+63"):
+        p = "0" + p[3:]
+    elif p.startswith("63") and len(p) == 12:
+        p = "0" + p[2:]
 
     message = (
-        f"Your ELECOM OTP is: {otp} "
+        f"Your ELECOM OTP is: {otp}. "
         f"Valid for {expiry_minutes} minutes. Do not share this code."
     )
-    url = f"https://{base_url}/sms/2/text/advanced"
-    payload = _json.dumps({
-        "messages": [{
-            "destinations": [{"to": p}],
-            "text": message,
-        }]
-    }).encode("utf-8")
-    req = _urllib_request.Request(url, data=payload, method="POST")
-    req.add_header("Authorization", f"App {api_key}")
-    req.add_header("Content-Type", "application/json")
-    req.add_header("Accept", "application/json")
+    params = _urllib_parse.urlencode({
+        "secret": api_key,
+        "mode": "devices",
+        "phone": p,
+        "message": message,
+        "sim_slot": 1,
+    })
+    url = f"https://www.cloud.smschef.com/api/send/sms?{params}"
+    req = _urllib_request.Request(url, method="GET")
     try:
         with _urllib_request.urlopen(req, timeout=15) as resp:
             body = resp.read(2048).decode("utf-8", errors="ignore")
             if resp.status not in (200, 201):
-                raise RuntimeError(f"Infobip API returned {resp.status}: {body[:200]}")
+                raise RuntimeError(f"SMS Chef API returned {resp.status}: {body[:200]}")
+            # SMS Chef returns status in JSON body even on 200
+            import json as _json
+            try:
+                result = _json.loads(body)
+                if str(result.get("status", "")).lower() not in ("1", "ok", "success", "true"):
+                    raise RuntimeError(f"SMS Chef rejected: {body[:200]}")
+            except _json.JSONDecodeError:
+                pass  # Non-JSON response, treat as success if status 200
     except Exception as e:
         raise RuntimeError(f"SMS send failed: {e}") from e
 

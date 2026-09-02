@@ -295,3 +295,7 @@ TWILIO_FROM_NUMBER = os.getenv("TWILIO_FROM_NUMBER", "")
 # -- SMS (Infobip) -------------------------------------------------------------
 INFOBIP_API_KEY = os.getenv("INFOBIP_API_KEY", "")
 INFOBIP_BASE_URL = os.getenv("INFOBIP_BASE_URL", "")
+
+# -- SMS (SMS Chef) ------------------------------------------------------------
+# Uses own Android phone as SMS gateway. Free.
+SMSCHEF_API_KEY = os.getenv("SMSCHEF_API_KEY", "")
