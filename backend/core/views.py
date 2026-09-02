@@ -10369,7 +10369,6 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
     payload = _json.dumps({
         "messages": [{
             "destinations": [{"to": p}],
-            "from": "ELECOM",
             "text": message,
         }]
     }).encode("utf-8")
