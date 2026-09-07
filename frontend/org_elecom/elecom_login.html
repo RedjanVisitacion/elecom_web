@@ -18,7 +18,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
-    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260610-terms-modal" />
+    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260907-sms-method" />
   </head>
   <body>
     <main class="login-shell" aria-label="USTP Oroquieta ELECOM login">
@@ -241,10 +241,19 @@
 
         <div class="forgot-step is-active" data-step="request">
           <h3 id="forgotTitle">Reset password</h3>
-          <p class="auth-modal__copy">Enter your Student ID or registered email. ELECOM will send a 6-digit OTP to your email.</p>
+          <p class="auth-modal__copy">Enter your Student ID or registered email, then choose how to receive your verification code.</p>
           <label class="forgot-label" for="forgotIdentifier">Student ID or email</label>
           <input class="input" id="forgotIdentifier" type="text" autocomplete="username" placeholder="2023304637 or email@domain.com" />
-          <button class="btn forgot-action" type="button" id="forgotSendOtp">Send OTP</button>
+          <label class="forgot-label" style="margin-top:14px;">Send OTP via</label>
+          <div class="forgot-method-toggle" id="forgotMethodToggle" role="group" aria-label="OTP delivery method">
+            <button type="button" class="forgot-method-btn is-active" data-method="email" id="forgotMethodEmail">
+              <i class="bi bi-envelope" aria-hidden="true"></i> Email
+            </button>
+            <button type="button" class="forgot-method-btn" data-method="sms" id="forgotMethodSms">
+              <i class="bi bi-chat-text" aria-hidden="true"></i> SMS
+            </button>
+          </div>
+          <button class="btn forgot-action" type="button" id="forgotSendOtp">Continue</button>
         </div>
 
         <div class="forgot-step" data-step="verify">
@@ -275,6 +284,6 @@
       </section>
     </div>
 
-    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260610-student-secure-route"></script>
+    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260907-sms-method"></script>
   </body>
 </html>

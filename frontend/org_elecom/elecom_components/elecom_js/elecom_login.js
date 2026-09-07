@@ -32,6 +32,7 @@
   const forgotResetPassword = $("forgotResetPassword");
   const forgotResendOtp = $("forgotResendOtp");
   const forgotStatus = $("forgotStatus");
+  const forgotMethodToggle = $("forgotMethodToggle");
   const TERMS_VERSION = "2026-04-25";
   const TERMS_ACCEPTANCE_KEY = `elecom_terms_accepted_${TERMS_VERSION}`;
   const TERMS_DRAFT_KEY = "elecom_login_terms_draft";
@@ -91,6 +92,18 @@
 
   let forgotResetToken = "";
   let forgotActiveIdentifier = "";
+  let forgotActiveMethod = "email"; // "email" or "sms"
+
+  // Wire up Email/SMS toggle buttons
+  if (forgotMethodToggle) {
+    forgotMethodToggle.querySelectorAll(".forgot-method-btn").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        forgotMethodToggle.querySelectorAll(".forgot-method-btn").forEach((b) => b.classList.remove("is-active"));
+        btn.classList.add("is-active");
+        forgotActiveMethod = btn.dataset.method || "email";
+      });
+    });
+  }
   let loginBusy = false;
 
   const updateSubmitAvailability = () => {
@@ -131,6 +144,13 @@
     if (!forgotModal) return;
     forgotResetToken = "";
     forgotActiveIdentifier = (studentId?.value || "").trim();
+    forgotActiveMethod = "email";
+    // Reset toggle to Email
+    if (forgotMethodToggle) {
+      forgotMethodToggle.querySelectorAll(".forgot-method-btn").forEach((b) => {
+        b.classList.toggle("is-active", b.dataset.method === "email");
+      });
+    }
     if (forgotIdentifier) forgotIdentifier.value = forgotActiveIdentifier;
     if (forgotOtp) forgotOtp.value = "";
     if (forgotNewPassword) forgotNewPassword.value = "";
@@ -176,10 +196,17 @@
     setForgotBusy(true);
     setForgotStatus("Sending OTP...");
     try {
-      const data = await forgotPost("forgot-password", { identifier });
+      const data = await forgotPost("forgot-password", { identifier, method: forgotActiveMethod });
       forgotActiveIdentifier = identifier;
-      const masked = data.masked_email ? ` sent to ${data.masked_email}` : " sent to your registered email";
-      if (forgotOtpHint) forgotOtpHint.textContent = `Enter the 6-digit code${masked}.`;
+      let masked, hint;
+      if (data.method === "sms" && data.masked_phone) {
+        masked = ` sent to ${data.masked_phone}`;
+        hint = `Enter the 6-digit code sent to your phone ${data.masked_phone}.`;
+      } else {
+        masked = data.masked_email ? ` sent to ${data.masked_email}` : " sent to your registered email";
+        hint = `Enter the 6-digit code${masked}.`;
+      }
+      if (forgotOtpHint) forgotOtpHint.textContent = hint;
       showForgotStep("verify");
       setForgotStatus(`OTP${masked}.`, "success");
       setTimeout(() => forgotOtp?.focus(), 40);

@@ -894,6 +894,41 @@ input {
   margin-top: 4px;
 }
 
+/* Email / SMS method toggle */
+.forgot-method-toggle {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.forgot-method-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  background: #fff;
+  color: #666;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color 0.2s, color 0.2s, background 0.2s;
+}
+
+.forgot-method-btn.is-active {
+  border-color: #f5a623;
+  background: #fff8ee;
+  color: #c87f00;
+}
+
+.forgot-method-btn:hover:not(.is-active) {
+  border-color: #bbb;
+  color: #333;
+}
+
 .forgot-text-btn {
   border: 0;
   background: transparent;
