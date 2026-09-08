@@ -10372,26 +10372,27 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
         f"Valid for {expiry_minutes} minutes. Do not share this code."
     )
     # sim is 1-indexed on SMS Chef: 1 = SIM 1, 2 = SIM 2.
-    # Default to 1 (first/only SIM). Override via SMSCHEF_SIM_SLOT in .env.
-    sim_slot = int(getattr(django_settings, "SMSCHEF_SIM_SLOT", 1))
-    # device_id is required by SMS Chef when mode=devices.
-    # Get it from SMSCHEF_DEVICE_ID in .env.
+    sim_slot = str(int(getattr(django_settings, "SMSCHEF_SIM_SLOT", 1)))
     device_id = str(getattr(django_settings, "SMSCHEF_DEVICE_ID", "") or "").strip()
     if not device_id:
         raise RuntimeError("SMS is not configured. SMSCHEF_DEVICE_ID is required.")
-    params = _urllib_parse.urlencode({
+
+    # Use POST with form-encoded body (same as working PHP implementation)
+    post_data = _urllib_parse.urlencode({
         "secret": api_key,
         "mode": "devices",
         "device": device_id,
         "sim": sim_slot,
+        "priority": "1",
         "phone": p,
         "message": message,
-        "priority": 1,
-    })
-    url = f"https://www.cloud.smschef.com/api/send/sms?{params}"
-    req = _urllib_request.Request(url, method="GET")
+    }).encode("utf-8")
+
+    url = "https://www.cloud.smschef.com/api/send/sms"
+    req = _urllib_request.Request(url, data=post_data, method="POST")
+    req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
-        with _urllib_request.urlopen(req, timeout=15) as resp:
+        with _urllib_request.urlopen(req, timeout=30) as resp:
             body = resp.read(2048).decode("utf-8", errors="ignore")
             if resp.status not in (200, 201):
                 raise RuntimeError(f"SMS Chef API returned {resp.status}: {body[:200]}")
