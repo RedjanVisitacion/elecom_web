@@ -10346,7 +10346,7 @@ def _mask_phone(phone: str) -> str:
 
 
 def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
-    """Send OTP via SMS Chef dedicated OTP API. Raises on failure."""
+    """Send OTP via SMS Chef API (uses own Android phone as gateway). Raises on failure."""
     import urllib.request as _urllib_request
     import urllib.parse as _urllib_parse
     import json as _json
@@ -10377,7 +10377,7 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
     if not device_id:
         raise RuntimeError("SMS is not configured. SMSCHEF_DEVICE_ID is required.")
 
-    # Use dedicated OTP endpoint with POST form-encoded body
+    # Use POST with form-encoded body
     post_data = _urllib_parse.urlencode({
         "secret": api_key,
         "mode": "devices",
@@ -10386,10 +10386,9 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
         "priority": "1",
         "phone": p,
         "message": message,
-        "otp": otp,
     }).encode("utf-8")
 
-    url = "https://www.cloud.smschef.com/api/send/otp"
+    url = "https://www.cloud.smschef.com/api/send/sms"
     req = _urllib_request.Request(url, data=post_data, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
