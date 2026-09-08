@@ -10377,8 +10377,7 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
     if not device_id:
         raise RuntimeError("SMS is not configured. SMSCHEF_DEVICE_ID is required.")
 
-    # Use POST with form-encoded body
-    post_data = _urllib_parse.urlencode({
+    payload = {
         "secret": api_key,
         "mode": "devices",
         "device": device_id,
@@ -10386,25 +10385,40 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
         "priority": "1",
         "phone": p,
         "message": message,
-    }).encode("utf-8")
+    }
 
+    # Log full request details (no secret exposed)
+    logger.info(
+        "SMS Chef OTP send | recipient=%s | device=%s | sim=%s | message_len=%d",
+        p, device_id, sim_slot, len(message)
+    )
+
+    post_data = _urllib_parse.urlencode(payload).encode("utf-8")
     url = "https://www.cloud.smschef.com/api/send/sms"
     req = _urllib_request.Request(url, data=post_data, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
         with _urllib_request.urlopen(req, timeout=30) as resp:
-            body = resp.read(2048).decode("utf-8", errors="ignore")
+            body = resp.read(4096).decode("utf-8", errors="ignore")
+            logger.info(
+                "SMS Chef OTP response | recipient=%s | http_status=%d | body=%s",
+                p, resp.status, body[:500]
+            )
             if resp.status not in (200, 201):
-                raise RuntimeError(f"SMS Chef OTP API returned {resp.status}: {body[:200]}")
+                raise RuntimeError(f"SMS Chef API returned {resp.status}: {body[:200]}")
             try:
                 result = _json.loads(body)
+                # Log full parsed response for debugging
+                logger.info("SMS Chef parsed response | recipient=%s | result=%s", p, result)
                 status = result.get("status")
+                msg_id = result.get("id") or result.get("message_id") or result.get("data", {})
+                logger.info("SMS Chef message ID | recipient=%s | id=%s | status=%s", p, msg_id, status)
                 if str(status) not in ("1", "200", "ok", "success", "true"):
                     raise RuntimeError(f"SMS Chef rejected: {body[:200]}")
             except _json.JSONDecodeError:
-                pass
+                logger.warning("SMS Chef response not JSON | recipient=%s | raw=%s", p, body[:200])
     except Exception as e:
-        raise RuntimeError(f"SMS send failed: {e}") from e
+        logger.error("SMS Chef OTP failed | recipient=%s | error=%s", p, e)
         raise RuntimeError(f"SMS send failed: {e}") from e
 
 
