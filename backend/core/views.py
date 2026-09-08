@@ -10346,9 +10346,10 @@ def _mask_phone(phone: str) -> str:
 
 
 def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
-    """Send OTP via SMS Chef API (uses own Android phone as gateway). Raises on failure."""
+    """Send OTP via SMS Chef dedicated OTP API. Raises on failure."""
     import urllib.request as _urllib_request
     import urllib.parse as _urllib_parse
+    import json as _json
     import re as _re
 
     api_key = str(getattr(django_settings, "SMSCHEF_API_KEY", "") or "").strip()
@@ -10359,25 +10360,24 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
     raw = str(phone or "").strip()
     digits_only = _re.sub(r'[^\d]', '', raw)
     if digits_only.startswith("63") and len(digits_only) == 12:
-        p = "+" + digits_only          # 639XXXXXXXXX -> +639XXXXXXXXX
+        p = "+" + digits_only
     elif digits_only.startswith("0") and len(digits_only) == 11:
-        p = "+63" + digits_only[1:]    # 09XXXXXXXXX -> +639XXXXXXXXX
+        p = "+63" + digits_only[1:]
     elif digits_only.startswith("9") and len(digits_only) == 10:
-        p = "+63" + digits_only        # 9XXXXXXXXX -> +639XXXXXXXXX
+        p = "+63" + digits_only
     else:
-        p = "+" + digits_only          # fallback: prepend +
+        p = "+" + digits_only
 
     message = (
         f"Your ELECOM OTP is: {otp}. "
         f"Valid for {expiry_minutes} minutes. Do not share this code."
     )
-    # sim is 1-indexed on SMS Chef: 1 = SIM 1, 2 = SIM 2.
     sim_slot = str(int(getattr(django_settings, "SMSCHEF_SIM_SLOT", 1)))
     device_id = str(getattr(django_settings, "SMSCHEF_DEVICE_ID", "") or "").strip()
     if not device_id:
         raise RuntimeError("SMS is not configured. SMSCHEF_DEVICE_ID is required.")
 
-    # Use POST with form-encoded body (same as working PHP implementation)
+    # Use dedicated OTP endpoint with POST form-encoded body
     post_data = _urllib_parse.urlencode({
         "secret": api_key,
         "mode": "devices",
@@ -10386,17 +10386,17 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
         "priority": "1",
         "phone": p,
         "message": message,
+        "otp": otp,
     }).encode("utf-8")
 
-    url = "https://www.cloud.smschef.com/api/send/sms"
+    url = "https://www.cloud.smschef.com/api/send/otp"
     req = _urllib_request.Request(url, data=post_data, method="POST")
     req.add_header("Content-Type", "application/x-www-form-urlencoded")
     try:
         with _urllib_request.urlopen(req, timeout=30) as resp:
             body = resp.read(2048).decode("utf-8", errors="ignore")
             if resp.status not in (200, 201):
-                raise RuntimeError(f"SMS Chef API returned {resp.status}: {body[:200]}")
-            import json as _json
+                raise RuntimeError(f"SMS Chef OTP API returned {resp.status}: {body[:200]}")
             try:
                 result = _json.loads(body)
                 status = result.get("status")
@@ -10405,6 +10405,7 @@ def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
             except _json.JSONDecodeError:
                 pass
     except Exception as e:
+        raise RuntimeError(f"SMS send failed: {e}") from e
         raise RuntimeError(f"SMS send failed: {e}") from e
 
 
