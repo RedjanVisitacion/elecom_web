@@ -156,7 +156,8 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('electionStart').value = election.start_at_local || '';
     document.getElementById('electionEnd').value = election.end_at_local || '';
     document.getElementById('electionResults').value = election.results_at_local || '';
-    document.getElementById('electionNote').value = election.note || '';
+    const noteEl = document.getElementById('electionNote');
+    if (noteEl) noteEl.value = election.note || '';
     document.getElementById('electionPassword').value = '';
     setFormMode(election);
     form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
