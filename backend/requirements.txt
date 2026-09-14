@@ -1,9 +1,28 @@
-# Server-side uploads for face enrollment archives (pip install -r requirements-face.txt)
-cloudinary>=1.36.0
+# ELECOM backend dependencies
+# Install with: pip install -r requirements.txt
+
+# Core
 django>=6.0
 djangorestframework>=3.18
+gunicorn>=20.1.0
+
+# Database
 psycopg2-binary>=2.9
+
+# Static files
+whitenoise>=6.0.0
+
+# Cloudinary (candidate photos, party logos, face enrollment archives)
 cloudinary>=1.36.0
+
+# HTTP / utilities
+requests>=2.31.0
 six>=1.17.0
 urllib3>=1.26.5
 certifi>=2026.7.22
+
+# Face++ (Megvii) face enrollment and verification
+# No official PyPI package — calls REST API directly via requests
+
+# Groq AI (EleVote chat)
+groq>=0.9.0

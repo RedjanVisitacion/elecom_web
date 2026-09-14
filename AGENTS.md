@@ -150,6 +150,29 @@ On the Linux server, the Django/Gunicorn service is named:
 The live backend runs from **`/var/www/elecom/backend`**, served by gunicorn with venv at `/var/www/elecom/venv`.
 There is a separate clone at `~/elecom_web` used only for git pulls — it is **not** the live directory.
 
+**Public URL**: `https://el3com.duckdns.org` (HTTPS via Nginx + Let's Encrypt).
+The raw IP (`79.108.225.33:8000`) still works but is HTTP-only — do not use it in the Flutter app or share it with users.
+Gunicorn binds to `127.0.0.1:8000`; Nginx handles the public-facing ports 80/443 and proxies to gunicorn.
+
+### Nginx + HTTPS setup (already configured)
+
+Nginx config lives at `/etc/nginx/sites-available/elecom` (symlinked to `sites-enabled`).
+SSL certificate issued by Let's Encrypt via Certbot, stored at `/etc/letsencrypt/live/el3com.duckdns.org/`.
+Certificate expires **2026-12-13** — Certbot auto-renews it via a scheduled task.
+
+To renew manually if needed:
+```bash
+sudo certbot renew --dry-run   # test
+sudo certbot renew             # actual renewal
+sudo systemctl restart nginx
+```
+
+If Nginx is down after a server reboot:
+```bash
+sudo systemctl enable nginx
+sudo systemctl start nginx
+```
+
 ### Correct deploy sequence after pushing to GitHub
 
 ```bash
@@ -175,13 +198,13 @@ Install missing packages into the production venv at `/var/www/elecom/venv`:
 
 ```bash
 /var/www/elecom/venv/bin/pip install cloudinary
-/var/www/elecom/venv/bin/pip install -r /var/www/elecom/backend/requirements-face.txt
+/var/www/elecom/venv/bin/pip install -r /var/www/elecom/backend/requirements.txt
 ```
 
 Key packages that must be present:
 - `cloudinary` — required for candidate photo and party logo uploads (Register Candidate, face enrollment)
 - `faceplusplus-sdk` or equivalent — required for face enrollment and verification
-- All packages in `backend/requirements-face.txt`
+- All packages in `backend/requirements.txt`
 
 If a 500 error says "pip install cloudinary" or similar, the package is missing from the venv.
 
@@ -293,6 +316,40 @@ WantedBy=multi-user.target
 ```
 
 After editing: `sudo systemctl daemon-reload && sudo systemctl restart gunicorn`
+
+### Static files unstyled (no Nginx, gunicorn-only setup)
+
+Gunicorn does not serve static files by default. Without Nginx in front, the browser gets a Django 404 HTML page instead of CSS/JS, making every page look completely unstyled.
+
+**Fix: use whitenoise** — it plugs into Django's middleware and lets gunicorn serve static files directly.
+
+1. Install on the server:
+   ```bash
+   /var/www/elecom/venv/bin/pip install whitenoise
+   ```
+
+2. In `backend/core/settings.py`, add whitenoise middleware **immediately after** `SecurityMiddleware`:
+   ```python
+   MIDDLEWARE = [
+       'django.middleware.security.SecurityMiddleware',
+       'whitenoise.middleware.WhiteNoiseMiddleware',  # ← add this
+       ...
+   ]
+   ```
+   Also add compressed static storage:
+   ```python
+   STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+   ```
+
+3. Commit, push, then on the server:
+   ```bash
+   cd /var/www/elecom
+   git pull origin main
+   /var/www/elecom/venv/bin/python backend/manage.py collectstatic --noinput
+   sudo systemctl restart gunicorn
+   ```
+
+`STATIC_ROOT` is `/var/www/elecom_static` and `STATICFILES_DIRS` includes `frontend/` — collectstatic copies everything there, whitenoise serves it.
 
 ## Running The Flutter App Locally
 
