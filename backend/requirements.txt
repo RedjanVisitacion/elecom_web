@@ -21,6 +21,9 @@ six>=1.17.0
 urllib3>=1.26.5
 certifi>=2026.7.22
 
+# Password hashing
+bcrypt>=4.0.0
+
 # Face++ (Megvii) face enrollment and verification
 # No official PyPI package — calls REST API directly via requests
 
