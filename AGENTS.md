@@ -245,6 +245,55 @@ sudo systemctl restart gunicorn
 
 Face++ free plan allows ~1 request/second. `CONCURRENCY_LIMIT_EXCEEDED` errors from the mobile app mean the rate limit was hit. Retry after a second. For production load, upgrade the Face++ plan at console.faceplusplus.com.
 
+### Gunicorn port conflict recovery
+
+If gunicorn fails to start with `[Errno 98] Address already in use` on port 8000, stale gunicorn processes from a previous failed service cycle are holding the port. Systemd's `restart` does not kill them automatically.
+
+**Diagnosis:**
+```bash
+sudo lsof -i :8000
+```
+This lists every PID holding port 8000.
+
+**Fix — kill the stale PIDs, then restart:**
+```bash
+sudo kill -9 <PID1> <PID2>   # use the PIDs shown by lsof
+sudo systemctl restart gunicorn
+sudo systemctl status gunicorn --no-pager
+```
+
+**Root cause:** When the service was deleted/recreated while old worker processes were still alive, those orphaned processes kept the socket open. Systemd starts the new service unit but gunicorn cannot bind.
+
+**After restart is confirmed `active (running)`**, verify the app responds:
+```bash
+curl -s http://localhost:8000/api/mobile/auth/ | head -c 200
+```
+
+### Gunicorn `No module named 'core'` on startup
+
+This means gunicorn is not running from the correct working directory. The service file must have:
+- `WorkingDirectory=/var/www/elecom/backend`
+- **No** `Environment="PYTHONPATH=..."` line — that line conflicts with `WorkingDirectory` and breaks the import
+
+Correct minimal service file (`/etc/systemd/system/gunicorn.service`):
+```ini
+[Unit]
+Description=Gunicorn daemon for Django project
+After=network.target
+
+[Service]
+User=root
+WorkingDirectory=/var/www/elecom/backend
+ExecStart=/var/www/elecom/venv/bin/gunicorn --access-logfile - --workers 3 --bind 0.0.0.0:8000 core.wsgi:application
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+WantedBy=multi-user.target
+```
+
+After editing: `sudo systemctl daemon-reload && sudo systemctl restart gunicorn`
+
 ## Running The Flutter App Locally
 
 - Install deps: `flutter pub get`
