@@ -76,6 +76,7 @@ ALLOWED_HOSTS = [
     '10.205.83.129',
     '10.93.87.129',
     '45.126.126.226',
+    '79.108.225.33',
 ]
 ALLOWED_HOSTS.extend(
     host.strip()
