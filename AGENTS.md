@@ -213,8 +213,23 @@ If a 500 error says "pip install cloudinary" or similar, the package is missing 
 The production `.env` lives at `/var/www/elecom/backend/.env`. It is **not** committed to git (gitignored).
 It must be created manually on the server. Do not copy the local Windows `.env` directly — DB credentials differ.
 
+**After a fresh server setup or redeploy, the `.env` file will not exist.** Django will run with defaults — no Cloudinary, no email, no Face++, and the DB section in `settings.py` hardcodes local credentials that won't match production. Always create `.env` before testing anything.
+
 **Do not include DB credentials** in the production `.env` unless you know the exact production PostgreSQL password.
 The production DB uses peer/socket authentication; Django's built-in defaults (`elecom_backend` user, `127.0.0.1` host) connect without a password when no `DB_*` env vars are set.
+
+To verify Django is reading `.env` correctly without exposing secrets:
+```bash
+/var/www/elecom/venv/bin/python -c "
+import os, sys
+sys.path.insert(0, '/var/www/elecom/backend')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
+import django; django.setup()
+from django.conf import settings
+print('Cloud name:', settings.CLOUDINARY_CLOUD_NAME)
+print('API key:', settings.CLOUDINARY_API_KEY[:6] + '...' if settings.CLOUDINARY_API_KEY else 'MISSING')
+"
+```
 
 Minimum required production `.env` contents:
 
@@ -307,13 +322,15 @@ After=network.target
 [Service]
 User=root
 WorkingDirectory=/var/www/elecom/backend
-ExecStart=/var/www/elecom/venv/bin/gunicorn --access-logfile - --workers 3 --bind 0.0.0.0:8000 core.wsgi:application
+ExecStart=/var/www/elecom/venv/bin/gunicorn --access-logfile - --workers 3 --bind 127.0.0.1:8000 core.wsgi:application
 Restart=on-failure
 RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target
 ```
+
+Note: bind is `127.0.0.1:8000` (localhost only) because Nginx handles public traffic on ports 80/443 and proxies to gunicorn. Do **not** use `0.0.0.0:8000` in production — that exposes gunicorn directly without HTTPS.
 
 After editing: `sudo systemctl daemon-reload && sudo systemctl restart gunicorn`
 
@@ -350,6 +367,64 @@ Gunicorn does not serve static files by default. Without Nginx in front, the bro
    ```
 
 `STATIC_ROOT` is `/var/www/elecom_static` and `STATICFILES_DIRS` includes `frontend/` — collectstatic copies everything there, whitenoise serves it.
+
+### Fresh server / clean deploy checklist
+
+When standing up the server from scratch (or after the DB was wiped), do these in order:
+
+1. **Pull the repo** into `/var/www/elecom` and install venv packages:
+   ```bash
+   cd /var/www/elecom
+   git pull origin main
+   /var/www/elecom/venv/bin/pip install -r /var/www/elecom/backend/requirements.txt
+   ```
+
+2. **Create `/var/www/elecom/backend/.env`** with all production credentials (Cloudinary, Face++, email, Groq). See the Production .env section above.
+
+3. **Run migrations** to create all tables:
+   ```bash
+   /var/www/elecom/venv/bin/python /var/www/elecom/backend/manage.py migrate
+   ```
+
+4. **Insert the admin user** (plain-text password works on first login — change it after):
+   ```sql
+   sudo -u postgres psql -d elecom_db -c "
+   INSERT INTO users (id, student_id, password_hash, created_at, role, department, position, phone, email, terms_accepted_at)
+   VALUES (1, '2023304637', '2023304637', NOW(), 'admin', 'BSIT', '', '09308288544', 'rpsvcodes@gmail.com', NOW())
+   ON CONFLICT (id) DO NOTHING;"
+   ```
+
+5. **Collect static files**:
+   ```bash
+   /var/www/elecom/venv/bin/python /var/www/elecom/backend/manage.py collectstatic --noinput
+   ```
+
+6. **Start services**:
+   ```bash
+   sudo systemctl restart gunicorn
+   sudo systemctl restart nginx
+   ```
+
+7. **Import voters** via the admin panel (Voters Management → Import). If import fails with `No module named 'bcrypt'`, run `/var/www/elecom/venv/bin/pip install bcrypt` and restart gunicorn.
+
+8. **Verify Cloudinary** by uploading a candidate photo. If it fails, check the `.env` credentials.
+
+### Database is empty / "Invalid credentials" on login
+
+If the login page shows "Invalid credentials" for known-good accounts, the `users` table is likely empty. Check:
+```bash
+sudo -u postgres psql -d elecom_db -c "SELECT COUNT(*) FROM users;"
+```
+If count is 0, either restore from backup (Backup & Restore page in admin) or insert the admin user manually (see Fresh deploy checklist above), then import voters via the admin panel.
+
+### Voter import fails with `No module named 'bcrypt'`
+
+`bcrypt` is required for hashing default voter passwords during import. Install it:
+```bash
+/var/www/elecom/venv/bin/pip install bcrypt
+sudo systemctl restart gunicorn
+```
+It is listed in `backend/requirements.txt` — if it's missing after a fresh `pip install -r`, check that `requirements.txt` includes `bcrypt>=4.0.0`.
 
 ## Running The Flutter App Locally
 
