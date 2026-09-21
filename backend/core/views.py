@@ -2086,8 +2086,8 @@ def candidates_list_api(request): ÃƒÆ’Ã†â€™Ãƒâ€ Ã¢â‚¬â
 
 @require_http_methods(["GET"])
 def candidates_all_api(request):
-    """Alias for candidates_list_api — returns all candidates for the current election
-    scoped to the voter's eligible organizations. Used by the mobile /api/mobile/candidates/all/ endpoint."""
+    """All candidates for the current election scoped to the voter's eligible organizations.
+    Used by the mobile /api/mobile/candidates/all/ endpoint."""
     return candidates_list_api(request)
 
 
