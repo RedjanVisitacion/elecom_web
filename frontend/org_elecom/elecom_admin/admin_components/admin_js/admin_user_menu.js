@@ -115,14 +115,44 @@
   const rewriteAdminLinks = async () => {
     normalizeAdminSidebar();
     const links = Array.from(document.querySelectorAll('a[href]'));
-    for (const link of links) {
+    // Fetch all secure URLs in parallel instead of sequentially to avoid race conditions
+    // where a user clicks a link before it has been rewritten.
+    await Promise.all(links.map(async (link) => {
       const href = link.getAttribute("href") || "";
-      if (!isAdminStaticPage(href)) continue;
+      if (!isAdminStaticPage(href)) return;
       const page = getAdminPageNameFromHref(href);
       const parsed = new URL(href, window.location.origin);
       const secureUrl = await getSecureRouteForPage(page, parsed.search);
       if (secureUrl) link.setAttribute("href", secureUrl);
-    }
+    }));
+  };
+
+  // Click-time interceptor: if a sidebar link still holds the raw /static/ href
+  // (race between user click and rewriteAdminLinks not yet finished), fetch the
+  // secure URL on the fly and navigate to it instead of the raw path.
+  const installSidebarClickInterceptor = () => {
+    document.addEventListener("click", async (e) => {
+      const link = e.target.closest("a[href]");
+      if (!link) return;
+      const href = link.getAttribute("href") || "";
+      if (!isAdminStaticPage(href)) return;
+      // Raw static href still present — intercept and navigate via secure route
+      e.preventDefault();
+      const page = getAdminPageNameFromHref(href);
+      const parsed = new URL(href, window.location.origin);
+      try {
+        const secureUrl = await getSecureRouteForPage(page, parsed.search);
+        if (secureUrl) {
+          link.setAttribute("href", secureUrl);
+          window.location.href = secureUrl;
+        } else {
+          // Fallback: navigate to dashboard if token fetch fails
+          window.location.href = "/static/org_elecom/elecom_admin/admin_dashboard.html";
+        }
+      } catch (err) {
+        window.location.href = "/static/org_elecom/elecom_admin/admin_dashboard.html";
+      }
+    }, true); // capture phase so we intercept before the browser follows href
   };
 
   const getAdminHashToken = () => {
@@ -236,7 +266,12 @@
         <div class="admin-notif-title">Notifications</div>
         <div class="admin-notif-subtitle" id="adminNotifSummary">Election operations and security alerts</div>
       </div>
-      <i class="bi bi-shield-exclamation"></i>
+      <div class="d-flex align-items-center gap-2">
+        <button type="button" class="admin-notif-markall-btn" id="adminNotifMarkAll" title="Mark all as read" style="display:none;">
+          <i class="bi bi-check2-all"></i> Mark all read
+        </button>
+        <i class="bi bi-shield-exclamation"></i>
+      </div>
     </div>
     <div class="admin-notif-list" id="adminNotifList">
       <div class="admin-notif-empty">No admin alerts right now.</div>
@@ -404,6 +439,10 @@
 
     setNotifCount(countEl, unread);
 
+    // Show/hide the mark-all-read button
+    const markAllBtn = document.getElementById("adminNotifMarkAll");
+    if (markAllBtn) markAllBtn.style.display = unread > 0 ? "inline-flex" : "none";
+
     if (summaryEl) {
       const critical = Number(data && data.critical_count) || 0;
       const warning = Number(data && data.warning_count) || 0;
@@ -428,7 +467,7 @@
       const tag = href ? "a" : "div";
       const hrefAttr = href ? ` href="${escapeHtml(href)}"` : "";
       return `
-        <${tag} class="admin-notif-item is-${escapeHtml(severity)} ${isUnread ? "is-unread" : ""}"${hrefAttr}>
+        <${tag} class="admin-notif-item is-${escapeHtml(severity)} ${isUnread ? "is-unread" : ""}"${hrefAttr} data-notif-id="${escapeHtml(id)}" role="${tag === "a" ? "link" : "article"}">
           <div class="admin-notif-icon"><i class="bi ${escapeHtml(icon)}"></i></div>
           <div class="admin-notif-copy">
             <div class="admin-notif-row">
@@ -438,11 +477,32 @@
             <div class="admin-notif-severity">${escapeHtml(severityLabel(severity))}</div>
             <div class="admin-notif-body">${escapeHtml(item.body || "")}</div>
           </div>
+          ${isUnread ? '<span class="admin-notif-unread-dot" aria-label="Unread"></span>' : '<span class="admin-notif-read-check" aria-label="Read"><i class="bi bi-check2"></i></span>'}
         </${tag}>
       `;
     }).join("");
 
     listEl.dataset.alertIds = JSON.stringify(items.map((item) => String(item.id || "")).filter(Boolean));
+
+    // Per-item click: mark that single item as read
+    listEl.querySelectorAll(".admin-notif-item[data-notif-id]").forEach((el) => {
+      el.addEventListener("click", () => {
+        const id = el.dataset.notifId;
+        if (!id) return;
+        const current = getSeenAlertIds();
+        current.add(id);
+        setSeenAlertIds(Array.from(current));
+        el.classList.remove("is-unread");
+        const dot = el.querySelector(".admin-notif-unread-dot");
+        if (dot) {
+          dot.outerHTML = '<span class="admin-notif-read-check" aria-label="Read"><i class="bi bi-check2"></i></span>';
+        }
+        // Recount unread
+        const remaining = listEl.querySelectorAll(".admin-notif-item.is-unread").length;
+        setNotifCount(countEl, remaining);
+        if (markAllBtn) markAllBtn.style.display = remaining > 0 ? "inline-flex" : "none";
+      }, { once: true });
+    });
   };
 
   const loadAdminAlerts = async (els) => {
@@ -599,6 +659,7 @@
 
     ensureAdminPageHash();
     normalizeAdminSidebar();
+    installSidebarClickInterceptor();
 
     mount.innerHTML = buildMarkup();
 
@@ -706,17 +767,30 @@
         const isOpen = adminNotifDropdown.getAttribute("data-open") === "1";
         setNotifOpen(adminNotifDropdown, adminNotifBell, !isOpen);
         if (!isOpen) {
-          let alertIds = [];
-          try {
-            alertIds = JSON.parse((adminNotifList && adminNotifList.dataset.alertIds) || "[]");
-          } catch (err) {
-            alertIds = [];
-          }
-          setSeenAlertIds(alertIds);
-          setNotifCount(adminNotifCount, 0);
+          // Opening the dropdown — do NOT bulk-mark-seen here anymore.
+          // Individual items are marked seen on click, and "Mark all read" button handles bulk.
         }
       });
     }
+
+    // Mark all read button
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("#adminNotifMarkAll");
+      if (!btn || !adminNotifList) return;
+      let alertIds = [];
+      try {
+        alertIds = JSON.parse(adminNotifList.dataset.alertIds || "[]");
+      } catch (err) { alertIds = []; }
+      setSeenAlertIds(alertIds);
+      setNotifCount(adminNotifCount, 0);
+      btn.style.display = "none";
+      // Update all items visually
+      adminNotifList.querySelectorAll(".admin-notif-item.is-unread").forEach((el) => {
+        el.classList.remove("is-unread");
+        const dot = el.querySelector(".admin-notif-unread-dot");
+        if (dot) dot.outerHTML = '<span class="admin-notif-read-check" aria-label="Read"><i class="bi bi-check2"></i></span>';
+      });
+    });
 
     if (adminHiddenNotifButton) {
       adminHiddenNotifButton.addEventListener("click", (e) => {

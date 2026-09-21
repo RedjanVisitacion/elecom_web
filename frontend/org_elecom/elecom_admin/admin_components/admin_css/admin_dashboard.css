@@ -755,7 +755,11 @@ textarea.form-control { min-height: 120px; resize: vertical; }
   transition: background .14s;
 }
 .admin-notif-item:last-child { border-bottom: none; }
-.admin-notif-item.is-unread { background: var(--blue-50); }
+.admin-notif-item.is-unread {
+  background: var(--blue-50);
+  border-left: 3px solid var(--blue-600);
+  padding-left: 11px; /* compensate for the 3px border */
+}
 .admin-notif-item[href]:hover { background: var(--gray-50); }
 
 .admin-notif-icon {
@@ -777,6 +781,52 @@ textarea.form-control { min-height: 120px; resize: vertical; }
 .admin-notif-item.is-action   .admin-notif-severity { color: #15803d; }
 .admin-notif-body, .admin-notif-empty { color: var(--gray-500); font-size: .8rem; }
 .admin-notif-empty { padding: 18px; text-align: center; }
+
+/* Unread dot — small yellow indicator on right of each unread item */
+.admin-notif-unread-dot {
+  flex-shrink: 0;
+  align-self: center;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--yellow);
+  box-shadow: 0 0 0 2px rgba(245,197,24,.28);
+  display: inline-block;
+  margin-left: 6px;
+}
+
+/* Read checkmark — shown after item is clicked/marked read */
+.admin-notif-read-check {
+  flex-shrink: 0;
+  align-self: center;
+  width: 18px; height: 18px;
+  border-radius: 50%;
+  background: var(--green-bg);
+  color: #15803d;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .68rem;
+  margin-left: 6px;
+}
+
+/* Mark all read button in notification header */
+.admin-notif-markall-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border: 1.5px solid var(--blue-100);
+  border-radius: 99px;
+  background: var(--blue-50);
+  color: var(--blue-700);
+  font-size: .72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background .15s, border-color .15s;
+  white-space: nowrap;
+}
+.admin-notif-markall-btn:hover { background: var(--blue-100); border-color: var(--blue-600); }
+.admin-notif-markall-btn i { font-size: .8rem; }
 
 /* =============================================
    USER DROPDOWN

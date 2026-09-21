@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import time
 
 import urllib.error
 import urllib.parse
@@ -59,6 +60,12 @@ def _verify_threshold() -> float:
         return 80.0
 
 
+# Face++ free plan allows ~1 request/second. CONCURRENCY_LIMIT_EXCEEDED means
+# the rate limit was hit. We retry up to this many times with a 1.2s delay.
+_CONCURRENCY_RETRIES = 3
+_CONCURRENCY_DELAY   = 1.2  # seconds between retries
+
+
 def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> dict:
     key, secret = _credentials()
     payload = {"api_key": key, "api_secret": secret, **fields}
@@ -73,31 +80,49 @@ def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> di
         method="POST",
         headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
-    try:
-        with urllib.request.urlopen(req, timeout=90) as resp:
-            raw = resp.read().decode("utf-8")
-    except urllib.error.HTTPError as e:
-        raw = e.read().decode("utf-8", errors="replace")
+
+    last_exc: FacePPError | None = None
+    for attempt in range(1 + _CONCURRENCY_RETRIES):
+        if attempt > 0:
+            logger.warning(
+                "Face++ CONCURRENCY_LIMIT_EXCEEDED on %s, retry %d/%d after %.1fs",
+                api_method, attempt, _CONCURRENCY_RETRIES, _CONCURRENCY_DELAY,
+            )
+            time.sleep(_CONCURRENCY_DELAY)
+
         try:
-            j = json.loads(raw)
-            msg = (j.get("error_message") or j.get("error") or raw or "Face++ HTTP error").strip()
-            raise FacePPError(msg, "facepp_http_error") from e
-        except FacePPError:
-            raise
-        except Exception:
-            raise FacePPError(raw or "Face++ HTTP error", "facepp_http_error") from e
-    except urllib.error.URLError as e:
-        raise FacePPError(f"Face++ network error: {e}", "facepp_network") from e
+            with urllib.request.urlopen(req, timeout=90) as resp:
+                raw = resp.read().decode("utf-8")
+        except urllib.error.HTTPError as e:
+            raw = e.read().decode("utf-8", errors="replace")
+            try:
+                j = json.loads(raw)
+                msg = (j.get("error_message") or j.get("error") or raw or "Face++ HTTP error").strip()
+                raise FacePPError(msg, "facepp_http_error") from e
+            except FacePPError:
+                raise
+            except Exception:
+                raise FacePPError(raw or "Face++ HTTP error", "facepp_http_error") from e
+        except urllib.error.URLError as e:
+            raise FacePPError(f"Face++ network error: {e}", "facepp_network") from e
 
-    try:
-        out = json.loads(raw)
-    except json.JSONDecodeError as e:
-        raise FacePPError("Face++ returned invalid JSON.", "facepp_bad_json") from e
+        try:
+            out = json.loads(raw)
+        except json.JSONDecodeError as e:
+            raise FacePPError("Face++ returned invalid JSON.", "facepp_bad_json") from e
 
-    err = (out.get("error_message") or "").strip()
-    if err:
-        raise FacePPError(err, "facepp_api_error")
-    return out
+        err = (out.get("error_message") or "").strip()
+        if err:
+            err_upper = err.upper()
+            if "CONCURRENCY_LIMIT_EXCEEDED" in err_upper:
+                last_exc = FacePPError(err, "CONCURRENCY_LIMIT_EXCEEDED")
+                continue  # retry after delay
+            raise FacePPError(err, "facepp_api_error")
+
+        return out
+
+    # All retries exhausted — raise the last concurrency error
+    raise last_exc or FacePPError("Face++ concurrency limit exceeded after retries.", "CONCURRENCY_LIMIT_EXCEEDED")
 
 
 def detect_face_bytes(image_bytes: bytes) -> str:
