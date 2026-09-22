@@ -480,6 +480,13 @@ document.addEventListener("DOMContentLoaded", function () {
       if (profileSuccess) profileSuccess.style.display = "none";
       if (profileError) profileError.style.display = "none";
 
+      // Show loading state on the button
+      if (btnChangeProfilePhoto) {
+        btnChangeProfilePhoto.disabled = true;
+        btnChangeProfilePhoto.innerHTML =
+          '<span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>Uploading…';
+      }
+
       try {
         const url = await uploadToCloudinary({ file, type: "profile_photo" });
         if (!url) throw new Error("Upload failed.");
@@ -496,6 +503,11 @@ document.addEventListener("DOMContentLoaded", function () {
       } catch (e) {
         showError(e && e.message ? e.message : "Failed to update profile photo.");
       } finally {
+        // Restore button regardless of outcome
+        if (btnChangeProfilePhoto) {
+          btnChangeProfilePhoto.disabled = false;
+          btnChangeProfilePhoto.innerHTML = '<i class="bi bi-camera me-2"></i>Change photo';
+        }
         try {
           profilePhotoFile.value = "";
         } catch (e) {
