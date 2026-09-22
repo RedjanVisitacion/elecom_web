@@ -65,6 +65,10 @@ def _verify_threshold() -> float:
 _CONCURRENCY_RETRIES = 5
 _CONCURRENCY_DELAY   = 2.0  # seconds between retries (doubled from 1.2 for new accounts)
 
+# Cache flag: once we confirm the faceset exists, skip the getdetail API call
+# on every enrollment — saves one Face++ request per enrollment on the free plan.
+_faceset_confirmed = False
+
 
 def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> dict:
     key, secret = _credentials()
@@ -150,7 +154,7 @@ def detect_face_detail_bytes(image_bytes: bytes) -> dict:
             "detect",
             {
                 "return_landmark": 0,
-                "return_attributes": "eyestatus,mask,mouthstatus,facequality",
+                "return_attributes": "mask",
             },
             image_bytes,
         )
@@ -201,15 +205,25 @@ def detect_face_file(image_file) -> str:
 
 
 def create_faceset_if_missing() -> None:
-    """Ensure the configured outer_id FaceSet exists."""
+    """Ensure the configured outer_id FaceSet exists.
+
+    Cached per-worker: after the first successful confirmation we skip the
+    Face++ getdetail call on every subsequent enrollment, saving one API
+    request per worker lifetime on the shared free-plan QPS pool.
+    """
+    global _faceset_confirmed
+    if _faceset_confirmed:
+        return
     outer_id = _faceset_outer_id()
     try:
         detail = _post("faceset/getdetail", {"outer_id": outer_id})
         if detail.get("faceset_token"):
+            _faceset_confirmed = True
             return
     except FacePPError:
         pass
     _post("faceset/create", {"outer_id": outer_id})
+    _faceset_confirmed = True
     logger.info("Face++ faceset created outer_id=%s", outer_id)
 
 
