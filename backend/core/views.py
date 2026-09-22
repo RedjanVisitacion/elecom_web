@@ -4224,8 +4224,12 @@ def _enrollment_json(rec: FaceEnrollment) -> dict:
 
 def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: bytes) -> JsonResponse:
     thr = getattr(settings, "FACEPP_DUPLICATE_THRESHOLD", 80.0)
+    # Face++ free plan: ~1 req/s. Sleep 1.2 s between sequential API calls to
+    # avoid CONCURRENCY_LIMIT_EXCEEDED across the detect → search → addface chain.
+    _FPP_INTER_CALL_DELAY = 1.2
     try:
         facepp_service.create_faceset_if_missing()
+        time.sleep(_FPP_INTER_CALL_DELAY)
         face_detail = facepp_service.detect_face_detail_bytes(raw)
         rect = face_detail.get("rectangle") or {}
         flags = _face_detail_flags(face_detail)
@@ -4237,6 +4241,7 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
         new_token = str(face_detail.get("face_token") or "").strip()
         if not new_token:
             raise facepp_service.FacePPError("No face token returned.", "no_face_token")
+        time.sleep(_FPP_INTER_CALL_DELAY)
         try:
             results = facepp_service.search_duplicate_face(new_token)
         except facepp_service.FacePPError as e:
@@ -4301,8 +4306,11 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
 
         for stale_token in stale_tokens_to_remove:
             facepp_service.remove_face_from_faceset(stale_token)
+            time.sleep(_FPP_INTER_CALL_DELAY)
 
+        time.sleep(_FPP_INTER_CALL_DELAY)
         facepp_service.add_face_to_faceset(new_token)
+        time.sleep(_FPP_INTER_CALL_DELAY)
         try:
             facepp_service.set_face_userid(new_token, student_id)
         except Exception:
