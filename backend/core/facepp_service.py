@@ -61,9 +61,9 @@ def _verify_threshold() -> float:
 
 
 # Face++ free plan allows ~1 request/second. CONCURRENCY_LIMIT_EXCEEDED means
-# the rate limit was hit. We retry up to this many times with a 1.2s delay.
-_CONCURRENCY_RETRIES = 3
-_CONCURRENCY_DELAY   = 1.2  # seconds between retries
+# the rate limit was hit. We retry up to this many times with an exponential delay.
+_CONCURRENCY_RETRIES = 5
+_CONCURRENCY_DELAY   = 2.0  # seconds between retries (doubled from 1.2 for new accounts)
 
 
 def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> dict:
@@ -84,11 +84,13 @@ def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> di
     last_exc: FacePPError | None = None
     for attempt in range(1 + _CONCURRENCY_RETRIES):
         if attempt > 0:
+            # Exponential backoff: 2s, 4s, 6s, 8s, 10s
+            delay = _CONCURRENCY_DELAY * attempt
             logger.warning(
                 "Face++ CONCURRENCY_LIMIT_EXCEEDED on %s, retry %d/%d after %.1fs",
-                api_method, attempt, _CONCURRENCY_RETRIES, _CONCURRENCY_DELAY,
+                api_method, attempt, _CONCURRENCY_RETRIES, delay,
             )
-            time.sleep(_CONCURRENCY_DELAY)
+            time.sleep(delay)
 
         try:
             with urllib.request.urlopen(req, timeout=90) as resp:

@@ -4224,9 +4224,9 @@ def _enrollment_json(rec: FaceEnrollment) -> dict:
 
 def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: bytes) -> JsonResponse:
     thr = getattr(settings, "FACEPP_DUPLICATE_THRESHOLD", 80.0)
-    # Face++ free plan: ~1 req/s. Sleep 1.2 s between sequential API calls to
+    # Face++ free plan: ~1 req/s. Sleep 2 s between sequential API calls to
     # avoid CONCURRENCY_LIMIT_EXCEEDED across the detect → search → addface chain.
-    _FPP_INTER_CALL_DELAY = 1.2
+    _FPP_INTER_CALL_DELAY = 2.0
     try:
         facepp_service.create_faceset_if_missing()
         time.sleep(_FPP_INTER_CALL_DELAY)
