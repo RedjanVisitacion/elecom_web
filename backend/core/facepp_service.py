@@ -123,6 +123,8 @@ def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> di
             if "CONCURRENCY_LIMIT_EXCEEDED" in err_upper:
                 last_exc = FacePPError(err, "CONCURRENCY_LIMIT_EXCEEDED")
                 continue  # retry after delay
+            # Log the real Face++ error so it appears in gunicorn logs
+            logger.error("Face++ API error on %s: %s | response=%s", api_method, err, out)
             raise FacePPError(err, "facepp_api_error")
 
         return out
