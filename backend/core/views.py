@@ -1980,8 +1980,11 @@ def election_window_api(request):
 
         total_voters = safe_scalar("SELECT COUNT(*) FROM users WHERE role = %s", ["student"])
         total_cast_votes = safe_scalar("SELECT COUNT(*) FROM votes")
-        if not total_cast_votes:
+        if not int(total_cast_votes):
             total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM vote_items")
+        if not int(total_cast_votes):
+            total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM votes")
+        total_candidates = safe_scalar("SELECT COUNT(*) FROM candidates_registration")
     except Exception:
         pass
 
@@ -1992,6 +1995,7 @@ def election_window_api(request):
         "metrics": {
             "total_voters": int(total_voters),
             "total_cast_votes": int(total_cast_votes),
+            "total_candidates": int(total_candidates),
         },
     })
 
