@@ -1971,6 +1971,7 @@ def election_window_api(request):
     # Voter stats for mobile home screen info card
     total_voters = 0
     total_cast_votes = 0
+    total_candidates = 0
     try:
         def safe_scalar(sql, params=None, default=0):
             with connection.cursor() as cur:
