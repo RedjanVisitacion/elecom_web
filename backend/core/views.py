@@ -1967,7 +1967,33 @@ def election_window_api(request):
         pass
 
     _maybe_emit_election_broadcast_notifications()
-    return JsonResponse({"ok": True, "election": election, "server_now": timezone.now().isoformat()})
+
+    # Voter stats for mobile home screen info card
+    total_voters = 0
+    total_cast_votes = 0
+    try:
+        def safe_scalar(sql, params=None, default=0):
+            with connection.cursor() as cur:
+                cur.execute(sql, params or [])
+                row = cur.fetchone()
+            return (row[0] or 0) if row else default
+
+        total_voters = safe_scalar("SELECT COUNT(*) FROM users WHERE role = %s", ["student"])
+        total_cast_votes = safe_scalar("SELECT COUNT(*) FROM votes")
+        if not total_cast_votes:
+            total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM vote_items")
+    except Exception:
+        pass
+
+    return JsonResponse({
+        "ok": True,
+        "election": election,
+        "server_now": timezone.now().isoformat(),
+        "metrics": {
+            "total_voters": int(total_voters),
+            "total_cast_votes": int(total_cast_votes),
+        },
+    })
 
 
 @require_http_methods(["GET"])
