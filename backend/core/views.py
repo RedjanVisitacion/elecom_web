@@ -4464,6 +4464,7 @@ def _face_verification_vote_handler(request) -> JsonResponse:
         else:
             try:
                 live_token = facepp_service.detect_face(live_bytes)
+                time.sleep(2.0)  # Face++ free plan: 1 req/s shared pool — gap between detect and compare
                 conf = facepp_service.compare_faces(enrolled_token, live_token)
                 match_score = Decimal(str(round(conf, 4)))
                 verified = conf >= thr
