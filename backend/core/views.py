@@ -1979,13 +1979,17 @@ def election_window_api(request):
                 row = cur.fetchone()
             return (row[0] or 0) if row else default
 
+        candidate_count_filter, candidate_count_params = _current_election_filter()
         total_voters = safe_scalar("SELECT COUNT(*) FROM users WHERE role = %s", ["student"])
+        total_candidates = safe_scalar(
+            f"SELECT COUNT(*) FROM candidates_registration WHERE {candidate_count_filter}",
+            candidate_count_params,
+        )
         total_cast_votes = safe_scalar("SELECT COUNT(*) FROM votes")
         if not int(total_cast_votes):
             total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM vote_items")
         if not int(total_cast_votes):
             total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM votes")
-        total_candidates = safe_scalar("SELECT COUNT(*) FROM candidates_registration")
     except Exception:
         pass
 
