@@ -368,8 +368,7 @@ document.addEventListener('DOMContentLoaded', function(){
   });
 
   async function loadList(){
-    if(!searchInput) return;
-    const q = searchInput.value.trim();
+    const q = searchInput ? searchInput.value.trim() : '';
     const url = new URL(API_BASE + 'list/', window.location.origin);
     if (q) url.searchParams.set('q', q);
     const res = await fetch(url.toString(), { credentials: 'same-origin' });
