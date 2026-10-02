@@ -414,9 +414,14 @@ document.addEventListener('DOMContentLoaded', function(){
     const searchParam = new URLSearchParams(window.location.search).get('org');
     const hashParam = window.location.hash ? window.location.hash.replace('#', '') : null;
     const orgParam = storedOrg || searchParam || hashParam;
-    if (!orgParam) return;
+    if (!orgParam) {
+      sessionStorage.removeItem('elecom_candidates_active_org');
+      return;
+    }
 
     const normalized = normalizeOrg(orgParam);
+    // Store the active org persistently for export/other actions on this page
+    sessionStorage.setItem('elecom_candidates_active_org', normalized);
 
     // Hide all org sections, then show + expand only the matching one
     const allSections = listEl?.querySelectorAll('.candidate-org-section');
@@ -444,12 +449,16 @@ document.addEventListener('DOMContentLoaded', function(){
     if (found) {
       setTimeout(() => { listEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
 
+      // Update count to reflect only the visible org's candidates
+      const visibleCount = listEl?.querySelectorAll(
+        `.candidate-org-section:not([style*="display: none"]) .candidate-card`
+      ).length || 0;
+      if (listCount) listCount.textContent = `${visibleCount} candidate(s)`;
+
       // Highlight the matching sidebar sub-item
       const sidebar = document.getElementById('sidebar');
       if (sidebar) {
-        // Remove active from all sub-items first
         sidebar.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
-        // Mark the matching one active (match by org name text)
         const orgLabel = orgParam.toUpperCase();
         sidebar.querySelectorAll('.dropdown-item').forEach(el => {
           const text = el.textContent.trim().toUpperCase();
@@ -483,7 +492,14 @@ document.addEventListener('DOMContentLoaded', function(){
       const url = new URL(API_BASE + 'list/', window.location.origin);
       const res = await fetch(url.toString(), { credentials: 'same-origin' });
       const data = await res.json();
-      const baseRows = (data && data.ok) ? (data.candidates || []) : [];
+      let baseRows = (data && data.ok) ? (data.candidates || []) : [];
+
+      // If an org filter is active, export only the visible org's candidates
+      const activeFilterOrg = sessionStorage.getItem('elecom_candidates_active_org');
+      if (activeFilterOrg) {
+        const norm = normalizeOrg(activeFilterOrg);
+        baseRows = baseRows.filter(r => normalizeOrg(r.organization) === norm);
+      }
 
       if (!baseRows.length) {
         await showElecomAlert({
@@ -780,7 +796,11 @@ document.addEventListener('DOMContentLoaded', function(){
   if (selectAll) {
     selectAll.addEventListener('change', (e)=>{
       const on = e.target.checked;
-      document.querySelectorAll('.row-check').forEach(cb=>{ cb.checked = on; });
+      // Only check/uncheck rows in visible (non-hidden) sections
+      document.querySelectorAll('.candidate-org-section').forEach(section => {
+        if (section.style.display === 'none') return;
+        section.querySelectorAll('.row-check').forEach(cb => { cb.checked = on; });
+      });
       updateBulkState();
     });
   }
