@@ -347,6 +347,8 @@ body {
   margin-left: auto;
   display: flex;
   align-items: center;
+  flex-shrink: 0;
+  position: relative;
 }
 
 #userMenuToggle {

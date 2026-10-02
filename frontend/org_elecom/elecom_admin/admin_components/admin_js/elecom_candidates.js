@@ -403,25 +403,31 @@ document.addEventListener('DOMContentLoaded', function(){
       loadList();
     });
   }
-  // Initial load; if ?org= or #org is present, show only that org section (hide others)
+  // Initial load; read org filter from sessionStorage (set by sidebar sub-item links)
+  // Also support ?org= and #hash as fallbacks
   (async function handleOrgParam() {
     await loadList();
-    // Support both ?org=USG and #USG
+
+    // Priority: sessionStorage > ?org= query param > #hash
+    const storedOrg = sessionStorage.getItem('elecom_candidates_org_filter');
+    sessionStorage.removeItem('elecom_candidates_org_filter'); // consume it once
     const searchParam = new URLSearchParams(window.location.search).get('org');
     const hashParam = window.location.hash ? window.location.hash.replace('#', '') : null;
-    const orgParam = searchParam || hashParam;
+    const orgParam = storedOrg || searchParam || hashParam;
     if (!orgParam) return;
+
     const normalized = normalizeOrg(orgParam);
 
     // Hide all org sections, then show + expand only the matching one
     const allSections = listEl?.querySelectorAll('.candidate-org-section');
     if (!allSections || !allSections.length) return;
 
+    let found = false;
     allSections.forEach(section => {
       const toggle = section.querySelector('[data-toggle-candidate-org]');
       const sectionOrg = toggle?.getAttribute('data-toggle-candidate-org');
       if (sectionOrg === normalized) {
-        // Show and expand this section
+        found = true;
         section.style.display = '';
         const body = section.querySelector('.candidate-org-body');
         if (body) body.hidden = false;
@@ -431,13 +437,13 @@ document.addEventListener('DOMContentLoaded', function(){
           if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
         }
       } else {
-        // Hide other org sections
         section.style.display = 'none';
       }
     });
 
-    // Scroll to top of the list
-    setTimeout(() => { listEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+    if (found) {
+      setTimeout(() => { listEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+    }
   })();
 
   async function fetchCandidateDetail(candidate) {
