@@ -87,6 +87,8 @@ from .views import (
     mobile_tutorial_state_api,
     login_view,
     terms_conditions_view,
+    admin_calendar_events_api,
+    admin_calendar_event_delete_api,
 )
 
 def home_redirect(request):
@@ -156,6 +158,8 @@ urlpatterns = [
     path('api/admin/reset/notifications/', admin_reset_notifications_api, name='admin_reset_notifications_api'),
     path('api/admin/network-settings/', admin_network_settings_api, name='admin_network_settings_api'),
     path('api/admin/network-logs/', admin_network_logs_api, name='admin_network_logs_api'),
+    path('api/admin/calendar-events/', admin_calendar_events_api, name='admin_calendar_events_api'),
+    path('api/admin/calendar-events/<int:event_id>/', admin_calendar_event_delete_api, name='admin_calendar_event_delete_api'),
     path('api/network/check/', check_network_access_api, name='check_network_access_api'),
 
     # Mobile namespace (same handlers; cleaner URL separation for Flutter clients)

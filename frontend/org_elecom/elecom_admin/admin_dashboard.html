@@ -288,54 +288,44 @@
                     </div>
                 </div>
 
-                <!-- Right Column: Calendar only -->
+                <!-- Right Column: COMELEC Activities Calendar -->
                 <div class="col-12 col-lg-6 d-flex flex-column">
                     <div class="card shadow-sm border-0 flex-grow-1">
-                        <div class="card-body">
+                        <div class="card-body d-flex flex-column" style="min-height:380px;">
+                            <!-- Header -->
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-calendar-event text-info" style="font-size: 1.5rem;"></i>
-                                    <div class="fw-semibold">Election Calendar</div>
+                                    <i class="bi bi-calendar3 text-info" style="font-size:1.4rem;"></i>
+                                    <div class="fw-semibold">Calendar of Activities</div>
                                 </div>
-                                <span class="badge bg-secondary" id="electionStatus">No schedule</span>
+                                <button type="button" class="btn btn-sm btn-warning fw-semibold px-3" id="btnNewCalEvent" style="font-size:0.8rem;">
+                                    <i class="bi bi-plus-lg me-1"></i>New event
+                                </button>
                             </div>
-                            <div class="mt-3" id="electionCalendar" style="display:none;"></div>
-                            <div class="mt-3" style="font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;font-size:11px;line-height:1.1;">
-                                <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px 12px;align-items:center;width:100%;">
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:#ffffff;border:2px solid #000000;display:inline-block;"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">Today</span>
-                                    </div>
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:#1D4ED8;display:inline-block;"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">Election</span>
-                                    </div>
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:#FACC15;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,0.28);"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">End</span>
-                                    </div>
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:#DC2626;display:inline-block;"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">Result</span>
-                                    </div>
 
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:#E0E0E0;display:inline-block;"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">Normal</span>
-                                    </div>
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#1D4ED8 0deg 180deg, #FACC15 180deg 360deg);display:inline-block;"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">Same E+End</span>
-                                    </div>
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#FACC15 0deg 180deg, #DC2626 180deg 360deg);display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,0.28);"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">Same End+R</span>
-                                    </div>
-                                    <div class="d-inline-flex align-items-center" style="gap:6px;min-width:0;">
-                                        <span style="width:9px;height:9px;border-radius:50%;background:conic-gradient(#1D4ED8 0deg 120deg, #FACC15 120deg 240deg, #DC2626 240deg 360deg);display:inline-block;"></span>
-                                        <span class="text-muted" style="white-space:nowrap;">Same E+End+R</span>
-                                    </div>
+                            <!-- Month navigation -->
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <button type="button" class="btn btn-sm btn-link text-warning p-0 fw-semibold" id="calPrevMonth" aria-label="Previous month">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <div class="fw-semibold small" id="calMonthLabel" style="min-width:140px;text-align:center;"></div>
+                                <button type="button" class="btn btn-sm btn-link text-warning p-0 fw-semibold" id="calNextMonth" aria-label="Next month">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
+
+                            <!-- Calendar grid -->
+                            <div id="activitiesCalendarGrid" style="flex:1;"></div>
+
+                            <!-- Event list for selected day -->
+                            <div id="calDayEvents" class="mt-2" style="display:none;">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <small class="fw-semibold text-muted" id="calDayEventsLabel"></small>
+                                    <button type="button" class="btn btn-sm btn-link p-0 text-muted" id="calDayEventsClose" aria-label="Close">
+                                        <i class="bi bi-x-lg" style="font-size:0.75rem;"></i>
+                                    </button>
                                 </div>
+                                <div id="calDayEventsList"></div>
                             </div>
                         </div>
                     </div>
@@ -343,6 +333,122 @@
             </div>
         </div>
     </div>
+
+    <!-- New Event Modal -->
+    <div class="modal fade" id="calEventModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-calendar-plus me-2 text-warning"></i>New event</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" id="calEventError"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="calEventTitle">
+                            Event title <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="calEventTitle" placeholder="e.g. Filing of Certificates of Candidacy" maxlength="255">
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="calEventDate">
+                                Start date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" class="form-control" id="calEventDate">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="calEventEndDate">End date <span class="text-muted fw-normal">(optional)</span></label>
+                            <input type="date" class="form-control" id="calEventEndDate">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="calEventLocation">Location <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="text" class="form-control" id="calEventLocation" placeholder="e.g. COMELEC Office, Main Campus" maxlength="255">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="calEventDescription">Description <span class="text-muted fw-normal">(optional)</span></label>
+                        <textarea class="form-control" id="calEventDescription" rows="3" placeholder="Additional details about this activity…"></textarea>
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label fw-semibold" for="calEventColor">Color</label>
+                        <div class="d-flex gap-2 flex-wrap" id="calColorPicker">
+                            <label class="cal-color-opt" style="--c:#1D4ED8;" title="Blue"><input type="radio" name="calColor" value="#1D4ED8" checked><span></span></label>
+                            <label class="cal-color-opt" style="--c:#16A34A;" title="Green"><input type="radio" name="calColor" value="#16A34A"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#DC2626;" title="Red"><input type="radio" name="calColor" value="#DC2626"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#D97706;" title="Amber"><input type="radio" name="calColor" value="#D97706"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#7C3AED;" title="Purple"><input type="radio" name="calColor" value="#7C3AED"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#0891B2;" title="Cyan"><input type="radio" name="calColor" value="#0891B2"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#475569;" title="Slate"><input type="radio" name="calColor" value="#475569"><span></span></label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning fw-semibold" id="btnSaveCalEvent">
+                        <i class="bi bi-check-lg me-1"></i>Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    /* Color picker swatches */
+    .cal-color-opt { cursor:pointer; margin:0; }
+    .cal-color-opt input[type=radio] { display:none; }
+    .cal-color-opt span {
+        display:block; width:22px; height:22px; border-radius:50%;
+        background:var(--c); border:2px solid transparent;
+        transition:border-color .15s, transform .15s;
+    }
+    .cal-color-opt input[type=radio]:checked + span {
+        border-color:#000; transform:scale(1.2);
+    }
+    /* Activity calendar grid */
+    #activitiesCalendarGrid table { width:100%; table-layout:fixed; }
+    #activitiesCalendarGrid th {
+        text-align:center; font-size:11px; color:#6b7280;
+        font-weight:600; border:0; padding:2px 0;
+    }
+    #activitiesCalendarGrid td { border:0; padding:2px; text-align:center; }
+    .acal-day {
+        width:30px; height:30px; line-height:30px; font-size:12px;
+        border-radius:6px; display:inline-block; cursor:pointer;
+        transition:background .12s;
+        position:relative;
+    }
+    .acal-day:hover { background:#f1f5f9 !important; }
+    .acal-day.is-today { box-shadow:0 0 0 2px #1D4ED8; font-weight:700; }
+    .acal-day.is-selected { background:#1D4ED8 !important; color:#fff !important; }
+    .acal-dot {
+        position:absolute; bottom:2px; left:50%; transform:translateX(-50%);
+        width:5px; height:5px; border-radius:50%;
+    }
+    /* Day events list */
+    .cal-event-chip {
+        display:flex; align-items:flex-start; gap:8px;
+        background:#f8fafc; border-radius:7px;
+        padding:6px 10px; margin-bottom:5px; font-size:12px;
+    }
+    .cal-event-chip-dot {
+        width:8px; height:8px; border-radius:50%;
+        flex-shrink:0; margin-top:3px;
+    }
+    .cal-event-chip-body { flex:1; min-width:0; }
+    .cal-event-chip-title { font-weight:600; line-height:1.3; }
+    .cal-event-chip-meta { color:#6b7280; font-size:11px; }
+    .cal-event-del {
+        background:none; border:none; color:#9ca3af; cursor:pointer;
+        padding:0 2px; line-height:1; font-size:13px;
+    }
+    .cal-event-del:hover { color:#DC2626; }
+    </style>
 
     <div class="modal fade" id="votersAccessModal" tabindex="-1" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
@@ -369,6 +475,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260920-sidebar-fix-notif-read"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20260518-election-management-only"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261002-activities-cal"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261002"></script>
 </body>
 </html>

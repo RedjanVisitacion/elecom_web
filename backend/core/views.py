@@ -10777,3 +10777,161 @@ def forgot_password_reset_password_api(request):
         )
 
     return JsonResponse({"ok": True})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# COMELEC Activities Calendar Events
+# ─────────────────────────────────────────────────────────────────────────────
+
+def _ensure_calendar_events_table():
+    """Create election_calendar_events if the migration hasn't run yet."""
+    with connection.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS election_calendar_events (
+                id          SERIAL PRIMARY KEY,
+                title       VARCHAR(255) NOT NULL,
+                event_date  DATE NOT NULL,
+                end_date    DATE,
+                description TEXT,
+                location    VARCHAR(255),
+                color       VARCHAR(32) DEFAULT '#1D4ED8',
+                created_at  TIMESTAMPTZ DEFAULT NOW(),
+                updated_at  TIMESTAMPTZ DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS idx_cal_events_date ON election_calendar_events(event_date);
+        """)
+
+
+@csrf_exempt
+@require_http_methods(["GET", "POST"])
+def admin_calendar_events_api(request):
+    """
+    GET  /api/admin/calendar-events/?year=YYYY&month=MM  → list events for month (or all if no params)
+    POST /api/admin/calendar-events/                     → create event
+         body: { title, event_date (YYYY-MM-DD), end_date?, description?, location?, color? }
+    """
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_calendar_events_table()
+
+    if request.method == "GET":
+        year  = request.GET.get("year")
+        month = request.GET.get("month")
+        try:
+            with connection.cursor() as cur:
+                if year and month:
+                    cur.execute("""
+                        SELECT id, title, event_date, end_date, description, location, color, created_at
+                        FROM election_calendar_events
+                        WHERE EXTRACT(YEAR  FROM event_date) = %s
+                          AND EXTRACT(MONTH FROM event_date) = %s
+                        ORDER BY event_date, id
+                    """, [int(year), int(month)])
+                else:
+                    cur.execute("""
+                        SELECT id, title, event_date, end_date, description, location, color, created_at
+                        FROM election_calendar_events
+                        ORDER BY event_date, id
+                    """)
+                rows = cur.fetchall()
+
+            events = []
+            for r in rows:
+                events.append({
+                    "id":          r[0],
+                    "title":       r[1],
+                    "event_date":  r[2].isoformat() if r[2] else None,
+                    "end_date":    r[3].isoformat() if r[3] else None,
+                    "description": r[4] or "",
+                    "location":    r[5] or "",
+                    "color":       r[6] or "#1D4ED8",
+                    "created_at":  r[7].isoformat() if r[7] else None,
+                })
+            return JsonResponse({"ok": True, "events": events})
+        except Exception as e:
+            logger.exception("admin_calendar_events_api GET failed")
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+    # POST — create
+    try:
+        payload = json.loads((request.body or b"{}").decode("utf-8"))
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON."}, status=400)
+
+    title      = str(payload.get("title") or "").strip()
+    event_date = str(payload.get("event_date") or "").strip()
+    end_date   = str(payload.get("end_date") or "").strip() or None
+    description = str(payload.get("description") or "").strip() or None
+    location   = str(payload.get("location") or "").strip() or None
+    color      = str(payload.get("color") or "#1D4ED8").strip() or "#1D4ED8"
+
+    if not title:
+        return JsonResponse({"ok": False, "error": "Title is required."}, status=400)
+    if not event_date:
+        return JsonResponse({"ok": False, "error": "Event date is required."}, status=400)
+
+    # Validate dates
+    from datetime import date as _date
+    try:
+        _date.fromisoformat(event_date)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Invalid event_date format (use YYYY-MM-DD)."}, status=400)
+    if end_date:
+        try:
+            _date.fromisoformat(end_date)
+        except ValueError:
+            return JsonResponse({"ok": False, "error": "Invalid end_date format (use YYYY-MM-DD)."}, status=400)
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute("""
+                INSERT INTO election_calendar_events
+                    (title, event_date, end_date, description, location, color)
+                VALUES (%s, %s, %s, %s, %s, %s)
+                RETURNING id, title, event_date, end_date, description, location, color, created_at
+            """, [title, event_date, end_date, description, location, color])
+            row = cur.fetchone()
+
+        return JsonResponse({
+            "ok": True,
+            "event": {
+                "id":          row[0],
+                "title":       row[1],
+                "event_date":  row[2].isoformat() if row[2] else None,
+                "end_date":    row[3].isoformat() if row[3] else None,
+                "description": row[4] or "",
+                "location":    row[5] or "",
+                "color":       row[6] or "#1D4ED8",
+                "created_at":  row[7].isoformat() if row[7] else None,
+            },
+        }, status=201)
+    except Exception as e:
+        logger.exception("admin_calendar_events_api POST failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["DELETE"])
+def admin_calendar_event_delete_api(request, event_id):
+    """DELETE /api/admin/calendar-events/<event_id>/"""
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_calendar_events_table()
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                "DELETE FROM election_calendar_events WHERE id = %s RETURNING id",
+                [int(event_id)],
+            )
+            deleted = cur.fetchone()
+        if not deleted:
+            return JsonResponse({"ok": False, "error": "Event not found."}, status=404)
+        return JsonResponse({"ok": True, "deleted_id": deleted[0]})
+    except Exception as e:
+        logger.exception("admin_calendar_event_delete_api failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
