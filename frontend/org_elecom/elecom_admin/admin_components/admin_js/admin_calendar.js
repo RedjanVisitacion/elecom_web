@@ -54,11 +54,13 @@
     events.forEach((ev) => {
       const start = ev.event_date; // "YYYY-MM-DD"
       const end   = ev.end_date || start;
-      // Walk from start to end inclusive
-      let cur = new Date(start + "T00:00:00");
-      const endDate = new Date(end + "T00:00:00");
+      // Parse as LOCAL date (avoid UTC timezone shift by using year/month/day directly)
+      const [sy, sm, sd] = start.split("-").map(Number);
+      const [ey, em, ed] = end.split("-").map(Number);
+      let cur = new Date(sy, sm - 1, sd);          // local midnight
+      const endDate = new Date(ey, em - 1, ed);    // local midnight
       while (cur <= endDate) {
-        const k = cur.toISOString().slice(0, 10);
+        const k = dateKey(cur.getFullYear(), cur.getMonth(), cur.getDate());
         if (!map[k]) map[k] = [];
         map[k].push(ev);
         cur.setDate(cur.getDate() + 1);
