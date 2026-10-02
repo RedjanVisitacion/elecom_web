@@ -323,6 +323,21 @@ body {
 }
 .top-navbar .notif-bell:hover { background: var(--gray-100); color: var(--blue-900); }
 .top-navbar .notif-bell i { font-size: 1.1rem; }
+
+/* Search icon button in appbar */
+.admin-search-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px; height: 36px;
+  border-radius: var(--radius-sm);
+  color: var(--gray-500);
+  text-decoration: none;
+  transition: background .15s, color .15s;
+  flex-shrink: 0;
+}
+.admin-search-btn:hover { background: var(--gray-100); color: var(--blue-900); }
+.admin-search-btn i { font-size: 1.1rem; }
 .top-navbar .notif-bell .notif-count {
   position: absolute;
   top: 5px; right: 5px;
