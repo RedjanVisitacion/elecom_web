@@ -382,6 +382,46 @@ document.addEventListener('DOMContentLoaded', function(){
     updateBulkState();
   }
 
+  // Reload the list and re-apply the active org filter if one is set
+  async function reloadWithFilter() {
+    await loadList();
+    const activeOrg = sessionStorage.getItem('elecom_candidates_active_org');
+    if (!activeOrg) return;
+    const normalized = normalizeOrg(activeOrg);
+    const allSections = listEl?.querySelectorAll('.candidate-org-section');
+    if (!allSections || !allSections.length) return;
+    let visibleCount = 0;
+    allSections.forEach(section => {
+      const toggle = section.querySelector('[data-toggle-candidate-org]');
+      const sectionOrg = toggle?.getAttribute('data-toggle-candidate-org');
+      if (sectionOrg === normalized) {
+        section.style.display = '';
+        const body = section.querySelector('.candidate-org-body');
+        if (body) body.hidden = false;
+        if (toggle) {
+          toggle.setAttribute('aria-expanded', 'true');
+          const icon = toggle.querySelector('.bi');
+          if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
+        }
+        visibleCount = section.querySelectorAll('.candidate-card').length;
+      } else {
+        section.style.display = 'none';
+      }
+    });
+    if (listCount) listCount.textContent = `${visibleCount} candidate(s)`;
+    // Re-apply sidebar highlight
+    const sidebar = document.getElementById('sidebar');
+    if (sidebar) {
+      sidebar.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+      sidebar.querySelectorAll('.dropdown-item').forEach(el => {
+        if (el.textContent.trim().toUpperCase() === activeOrg.toUpperCase() ||
+            el.textContent.trim().toUpperCase() === normalized) {
+          el.classList.add('active');
+        }
+      });
+    }
+  }
+
   let searchDebounce = null;
   if (searchInput) {
     searchInput.addEventListener('keydown', e=>{
@@ -824,7 +864,7 @@ document.addEventListener('DOMContentLoaded', function(){
         body: JSON.stringify({ ids }),
       });
       const d = await res.json();
-      if(d && d.ok){ loadList(); }
+      if(d && d.ok){ reloadWithFilter(); }
       else {
         await showElecomAlert({
           title: 'Unregister Failed',
@@ -1074,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
 
       const d = await res.json();
-      if(d && d.ok){ if (editModal) editModal.hide(); loadList(); }
+      if(d && d.ok){ if (editModal) editModal.hide(); reloadWithFilter(); }
       else {
         await showElecomAlert({
           title: 'Save Failed',
@@ -1095,7 +1135,7 @@ document.addEventListener('DOMContentLoaded', function(){
         body: JSON.stringify({ id }),
       });
       const d = await res.json();
-      if(d && d.ok){ bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide(); loadList(); }
+      if(d && d.ok){ bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide(); reloadWithFilter(); }
       else {
         await showElecomAlert({
           title: 'Unregister Failed',

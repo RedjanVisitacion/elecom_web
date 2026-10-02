@@ -247,7 +247,6 @@ body {
   box-shadow: var(--shadow-1);
   border-bottom: 1px solid var(--gray-200);
   display: flex;
-  justify-content: space-between;
   align-items: center;
   position: sticky;
   top: 0;
@@ -350,8 +349,9 @@ body {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+  flex-grow: 0;
   position: relative;
-  min-width: fit-content;
+  min-width: 0;
 }
 
 #userMenuToggle {
