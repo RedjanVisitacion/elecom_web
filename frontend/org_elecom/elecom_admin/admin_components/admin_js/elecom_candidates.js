@@ -403,7 +403,25 @@ document.addEventListener('DOMContentLoaded', function(){
       loadList();
     });
   }
-  loadList();
+  // Initial load; if ?org= is present, auto-expand and scroll to that org section after render
+  (async function handleOrgParam() {
+    await loadList();
+    const orgParam = new URLSearchParams(window.location.search).get('org');
+    if (!orgParam) return;
+    const normalized = normalizeOrg(orgParam);
+    const toggle = listEl?.querySelector(`[data-toggle-candidate-org="${normalized}"]`);
+    if (!toggle) return;
+    const section = toggle.closest('.candidate-org-section');
+    const body = section?.querySelector('.candidate-org-body');
+    if (!body) return;
+    // Expand the section
+    body.hidden = false;
+    toggle.setAttribute('aria-expanded', 'true');
+    const icon = toggle.querySelector('.bi');
+    if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
+    // Scroll to it smoothly
+    setTimeout(() => { toggle.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+  })();
 
   async function fetchCandidateDetail(candidate) {
     try {
