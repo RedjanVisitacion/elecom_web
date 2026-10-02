@@ -1040,6 +1040,16 @@ textarea.form-control { min-height: 120px; resize: vertical; }
   border-left-color: var(--yellow);
   font-weight: 600;
 }
+
+/* Org logo in sidebar sub-items */
+.sidebar-org-logo {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  border-radius: 50%;
+  vertical-align: middle;
+  flex-shrink: 0;
+}
 .nav-link .chevron { margin-left: auto; transition: transform .3s ease; }
 .nav-link[aria-expanded="true"] .chevron { transform: rotate(90deg); }
 
