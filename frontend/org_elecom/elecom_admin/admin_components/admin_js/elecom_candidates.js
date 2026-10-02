@@ -736,7 +736,7 @@ document.addEventListener('DOMContentLoaded', function(){
         }
       }
 
-      loadList();
+      reloadWithFilter();
       await showElecomAlert({
         title: 'Import Finished',
         message: `Imported: ${imported}\nSkipped existing: ${skipped}\nFailed: ${failed.length}${failed.length ? `\n\n${failed.slice(0, 8).join('\n')}${failed.length > 8 ? '\n...' : ''}` : ''}`,
