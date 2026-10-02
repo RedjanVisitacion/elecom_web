@@ -346,10 +346,46 @@
                     <div class="alert alert-danger d-none" id="calEventError"></div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="calEventTitle">
-                            Event title <span class="text-danger">*</span>
+                        <label class="form-label fw-semibold" for="calEventType">
+                            Activity type <span class="text-danger">*</span>
                         </label>
-                        <input type="text" class="form-control" id="calEventTitle" placeholder="e.g. Filing of Certificates of Candidacy" maxlength="255">
+                        <select class="form-select" id="calEventType">
+                            <option value="" disabled selected>— Select activity —</option>
+                            <optgroup label="Election Calendar (Article VII)">
+                                <option value="Dissemination of Election Information">Dissemination of Election Information</option>
+                                <option value="Filing of Certificates of Candidacy">Filing of Certificates of Candidacy</option>
+                                <option value="Submission of Requirements">Submission of Requirements</option>
+                                <option value="Submission of Individual Platform">Submission of Individual Platform</option>
+                                <option value="Submission of Affidavit of Undertaking">Submission of Affidavit of Undertaking</option>
+                                <option value="Deliberation on Protests / Official List of Candidates">Deliberation on Protests / Official List of Candidates</option>
+                                <option value="Start of Official Campaign Period">Start of Official Campaign Period</option>
+                                <option value="Miting de Avance">Miting de Avance</option>
+                                <option value="Election Day (Voting)">Election Day (Voting)</option>
+                                <option value="Announcement of Winners">Announcement of Winners</option>
+                                <option value="Proclamation of Winning Candidates">Proclamation of Winning Candidates</option>
+                                <option value="Induction of Newly Elected Officers">Induction of Newly Elected Officers</option>
+                            </optgroup>
+                            <optgroup label="COMELEC Activities">
+                                <option value="COMELEC Meeting">COMELEC Meeting</option>
+                                <option value="COMELEC Orientation">COMELEC Orientation</option>
+                                <option value="Poll Clerk / Marshal Training">Poll Clerk / Marshal Training</option>
+                                <option value="Voters Education Drive">Voters Education Drive</option>
+                                <option value="Candidacy Protest Hearing">Candidacy Protest Hearing</option>
+                                <option value="Post-Election Protest Hearing">Post-Election Protest Hearing</option>
+                                <option value="Canvassing of Votes">Canvassing of Votes</option>
+                                <option value="Release of Official Results">Release of Official Results</option>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <option value="__custom__">Other (type your own…)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <!-- Custom title — shown only when "Other" is selected -->
+                    <div class="mb-3 d-none" id="calCustomTitleWrap">
+                        <label class="form-label fw-semibold" for="calEventTitle">
+                            Custom title <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="calEventTitle" placeholder="Enter activity name" maxlength="255">
                     </div>
 
                     <div class="row g-2 mb-3">
@@ -476,6 +512,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20260920-sidebar-fix-notif-read"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261002-activities-cal"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261002"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261002-predefined-types"></script>
 </body>
 </html>

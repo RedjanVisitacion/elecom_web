@@ -20,6 +20,8 @@
 
   const modalEl       = document.getElementById("calEventModal");
   const modalErrEl    = document.getElementById("calEventError");
+  const typeSelect    = document.getElementById("calEventType");
+  const customWrap    = document.getElementById("calCustomTitleWrap");
   const titleInput    = document.getElementById("calEventTitle");
   const dateInput     = document.getElementById("calEventDate");
   const endDateInput  = document.getElementById("calEventEndDate");
@@ -244,7 +246,9 @@
     modal = modal || window.bootstrap.Modal.getOrCreateInstance(modalEl);
 
     // Reset form
-    titleInput.value    = "";
+    if (typeSelect) { typeSelect.value = ""; }
+    if (customWrap) { customWrap.classList.add("d-none"); }
+    if (titleInput) { titleInput.value = ""; }
     dateInput.value     = prefillDate || todayKey;
     endDateInput.value  = "";
     locationInput.value = "";
@@ -255,7 +259,7 @@
     showModalError("");
 
     modal.show();
-    setTimeout(() => titleInput.focus(), 400);
+    setTimeout(() => { if (typeSelect) typeSelect.focus(); }, 400);
   };
 
   const showModalError = (msg) => {
@@ -275,14 +279,31 @@
   };
 
   const saveNewEvent = async () => {
-    const title    = (titleInput.value || "").trim();
+    // Resolve title from dropdown or custom input
+    const typeVal  = (typeSelect && typeSelect.value) || "";
+    const customVal= (titleInput && titleInput.value || "").trim();
+    const title    = typeVal === "__custom__" ? customVal : typeVal;
+
     const evDate   = (dateInput.value || "").trim();
     const endDate  = (endDateInput.value || "").trim() || null;
     const location = (locationInput.value || "").trim() || null;
     const desc     = (descInput.value || "").trim() || null;
     const color    = getSelectedColor();
 
-    if (!title) { showModalError("Event title is required."); titleInput.focus(); return; }
+    if (!title) {
+      if (typeVal === "__custom__" || !typeVal) {
+        showModalError("Please select an activity type.");
+        if (typeSelect) typeSelect.focus();
+      } else {
+        showModalError("Activity title is required.");
+      }
+      return;
+    }
+    if (typeVal === "__custom__" && !customVal) {
+      showModalError("Please enter a custom activity title.");
+      if (titleInput) titleInput.focus();
+      return;
+    }
     if (!evDate) { showModalError("Start date is required."); dateInput.focus(); return; }
     if (endDate && endDate < evDate) { showModalError("End date cannot be before start date."); endDateInput.focus(); return; }
 
@@ -308,6 +329,20 @@
   };
 
   /* ── Event wiring ─────────────────────────────────────────────────────── */
+  // Show/hide custom title field based on dropdown selection
+  if (typeSelect) {
+    typeSelect.addEventListener("change", () => {
+      if (!customWrap) return;
+      if (typeSelect.value === "__custom__") {
+        customWrap.classList.remove("d-none");
+        if (titleInput) { titleInput.value = ""; titleInput.focus(); }
+      } else {
+        customWrap.classList.add("d-none");
+        if (titleInput) titleInput.value = "";
+      }
+    });
+  }
+
   if (prevBtn) {
     prevBtn.addEventListener("click", () => {
       curMonth--;
