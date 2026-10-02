@@ -443,6 +443,21 @@ document.addEventListener('DOMContentLoaded', function(){
 
     if (found) {
       setTimeout(() => { listEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+
+      // Highlight the matching sidebar sub-item
+      const sidebar = document.getElementById('sidebar');
+      if (sidebar) {
+        // Remove active from all sub-items first
+        sidebar.querySelectorAll('.dropdown-item').forEach(el => el.classList.remove('active'));
+        // Mark the matching one active (match by org name text)
+        const orgLabel = orgParam.toUpperCase();
+        sidebar.querySelectorAll('.dropdown-item').forEach(el => {
+          const text = el.textContent.trim().toUpperCase();
+          if (text === orgLabel || text === normalized) {
+            el.classList.add('active');
+          }
+        });
+      }
     }
   })();
 

@@ -1034,6 +1034,12 @@ textarea.form-control { min-height: 120px; resize: vertical; }
   color: var(--white); background: rgba(255,255,255,.1);
   border-left-color: var(--yellow);
 }
+.dropdown-item.active {
+  color: var(--yellow);
+  background: rgba(245,197,24,.13);
+  border-left-color: var(--yellow);
+  font-weight: 600;
+}
 .nav-link .chevron { margin-left: auto; transition: transform .3s ease; }
 .nav-link[aria-expanded="true"] .chevron { transform: rotate(90deg); }
 
