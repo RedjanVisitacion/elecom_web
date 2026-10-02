@@ -15,6 +15,8 @@ class Migration(migrations.Migration):
                 title       VARCHAR(255) NOT NULL,
                 event_date  DATE NOT NULL,
                 end_date    DATE,
+                start_time  TIME,
+                end_time    TIME,
                 description TEXT,
                 location    VARCHAR(255),
                 color       VARCHAR(32) DEFAULT '#1D4ED8',

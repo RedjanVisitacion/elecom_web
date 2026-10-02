@@ -25,6 +25,8 @@
   const titleInput    = document.getElementById("calEventTitle");
   const dateInput     = document.getElementById("calEventDate");
   const endDateInput  = document.getElementById("calEventEndDate");
+  const startTimeInput= document.getElementById("calEventStartTime");
+  const endTimeInput  = document.getElementById("calEventEndTime");
   const locationInput = document.getElementById("calEventLocation");
   const descInput     = document.getElementById("calEventDescription");
   const saveBtn       = document.getElementById("btnSaveCalEvent");
@@ -189,11 +191,21 @@
     if (evs.length === 0) {
       dayEventsList.innerHTML = `<p class="text-muted" style="font-size:12px;margin:0;">No events on this day.</p>`;
     } else {
+      const fmtTime = (t) => {
+        if (!t) return "";
+        const [h, m] = t.split(":").map(Number);
+        const ampm = h >= 12 ? "PM" : "AM";
+        const hour = h % 12 || 12;
+        return `${hour}:${String(m).padStart(2,"0")} ${ampm}`;
+      };
       dayEventsList.innerHTML = evs.map((ev) => {
+        const timeStr = ev.start_time
+          ? (ev.end_time ? `${fmtTime(ev.start_time)} – ${fmtTime(ev.end_time)}` : fmtTime(ev.start_time))
+          : "";
         const meta = [
+          timeStr ? `<i class="bi bi-clock me-1"></i>${timeStr}` : "",
           ev.location ? `<i class="bi bi-geo-alt-fill me-1"></i>${ev.location}` : "",
-          ev.end_date && ev.end_date !== ev.event_date
-            ? `Until ${ev.end_date}` : "",
+          ev.end_date && ev.end_date !== ev.event_date ? `Until ${ev.end_date}` : "",
         ].filter(Boolean).join(" &bull; ");
 
         return `
@@ -249,10 +261,12 @@
     if (typeSelect) { typeSelect.value = ""; }
     if (customWrap) { customWrap.classList.add("d-none"); }
     if (titleInput) { titleInput.value = ""; }
-    dateInput.value     = prefillDate || todayKey;
-    endDateInput.value  = "";
-    locationInput.value = "";
-    descInput.value     = "";
+    dateInput.value      = prefillDate || todayKey;
+    endDateInput.value   = "";
+    if (startTimeInput) startTimeInput.value = "";
+    if (endTimeInput)   endTimeInput.value   = "";
+    locationInput.value  = "";
+    descInput.value      = "";
     // Reset color to first option
     const firstColor = modalEl.querySelector('input[name="calColor"]');
     if (firstColor) firstColor.checked = true;
@@ -284,9 +298,11 @@
     const customVal= (titleInput && titleInput.value || "").trim();
     const title    = typeVal === "__custom__" ? customVal : typeVal;
 
-    const evDate   = (dateInput.value || "").trim();
-    const endDate  = (endDateInput.value || "").trim() || null;
-    const location = (locationInput.value || "").trim() || null;
+    const evDate    = (dateInput.value || "").trim();
+    const endDate   = (endDateInput.value || "").trim() || null;
+    const startTime = (startTimeInput && startTimeInput.value || "").trim() || null;
+    const endTime   = (endTimeInput   && endTimeInput.value   || "").trim() || null;
+    const location  = (locationInput.value || "").trim() || null;
     const desc     = (descInput.value || "").trim() || null;
     const color    = getSelectedColor();
 
@@ -311,7 +327,7 @@
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Saving…';
 
     try {
-      await createEvent({ title, event_date: evDate, end_date: endDate, description: desc, location, color });
+      await createEvent({ title, event_date: evDate, end_date: endDate, start_time: startTime, end_time: endTime, description: desc, location, color });
       modal.hide();
       // If we created an event for the currently displayed month, reload
       const evMonth = new Date(evDate + "T00:00:00").getMonth();

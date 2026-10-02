@@ -10792,6 +10792,8 @@ def _ensure_calendar_events_table():
                 title       VARCHAR(255) NOT NULL,
                 event_date  DATE NOT NULL,
                 end_date    DATE,
+                start_time  TIME,
+                end_time    TIME,
                 description TEXT,
                 location    VARCHAR(255),
                 color       VARCHAR(32) DEFAULT '#1D4ED8',
@@ -10799,6 +10801,9 @@ def _ensure_calendar_events_table():
                 updated_at  TIMESTAMPTZ DEFAULT NOW()
             );
             CREATE INDEX IF NOT EXISTS idx_cal_events_date ON election_calendar_events(event_date);
+            ALTER TABLE election_calendar_events
+                ADD COLUMN IF NOT EXISTS start_time TIME,
+                ADD COLUMN IF NOT EXISTS end_time   TIME;
         """)
 
 
@@ -10823,7 +10828,8 @@ def admin_calendar_events_api(request):
             with connection.cursor() as cur:
                 if year and month:
                     cur.execute("""
-                        SELECT id, title, event_date, end_date, description, location, color, created_at
+                        SELECT id, title, event_date, end_date, description, location, color, created_at,
+                               start_time, end_time
                         FROM election_calendar_events
                         WHERE EXTRACT(YEAR  FROM event_date) = %s
                           AND EXTRACT(MONTH FROM event_date) = %s
@@ -10831,7 +10837,8 @@ def admin_calendar_events_api(request):
                     """, [int(year), int(month)])
                 else:
                     cur.execute("""
-                        SELECT id, title, event_date, end_date, description, location, color, created_at
+                        SELECT id, title, event_date, end_date, description, location, color, created_at,
+                               start_time, end_time
                         FROM election_calendar_events
                         ORDER BY event_date, id
                     """)
@@ -10848,6 +10855,8 @@ def admin_calendar_events_api(request):
                     "location":    r[5] or "",
                     "color":       r[6] or "#1D4ED8",
                     "created_at":  r[7].isoformat() if r[7] else None,
+                    "start_time":  str(r[8]) if r[8] else None,
+                    "end_time":    str(r[9]) if r[9] else None,
                 })
             return JsonResponse({"ok": True, "events": events})
         except Exception as e:
@@ -10863,6 +10872,8 @@ def admin_calendar_events_api(request):
     title      = str(payload.get("title") or "").strip()
     event_date = str(payload.get("event_date") or "").strip()
     end_date   = str(payload.get("end_date") or "").strip() or None
+    start_time = str(payload.get("start_time") or "").strip() or None
+    end_time   = str(payload.get("end_time") or "").strip() or None
     description = str(payload.get("description") or "").strip() or None
     location   = str(payload.get("location") or "").strip() or None
     color      = str(payload.get("color") or "#1D4ED8").strip() or "#1D4ED8"
@@ -10888,10 +10899,11 @@ def admin_calendar_events_api(request):
         with connection.cursor() as cur:
             cur.execute("""
                 INSERT INTO election_calendar_events
-                    (title, event_date, end_date, description, location, color)
-                VALUES (%s, %s, %s, %s, %s, %s)
-                RETURNING id, title, event_date, end_date, description, location, color, created_at
-            """, [title, event_date, end_date, description, location, color])
+                    (title, event_date, end_date, start_time, end_time, description, location, color)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                RETURNING id, title, event_date, end_date, description, location, color, created_at,
+                          start_time, end_time
+            """, [title, event_date, end_date, start_time, end_time, description, location, color])
             row = cur.fetchone()
 
         return JsonResponse({
@@ -10905,6 +10917,8 @@ def admin_calendar_events_api(request):
                 "location":    row[5] or "",
                 "color":       row[6] or "#1D4ED8",
                 "created_at":  row[7].isoformat() if row[7] else None,
+                "start_time":  str(row[8]) if row[8] else None,
+                "end_time":    str(row[9]) if row[9] else None,
             },
         }, status=201)
     except Exception as e:
