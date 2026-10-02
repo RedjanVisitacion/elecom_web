@@ -482,3 +482,137 @@ If they show up as untracked changes, remove them from git tracking if accidenta
 - For API issues, confirm which host the device hits (`ApiConfig`) and which repo owns the route (Flutter vs Django backend).
 - For shared data issues, inspect the backend tables/views before changing Flutter UI logic.
 - Prefer deterministic reproduction steps and add/adjust tests where feasible.
+
+## USTP-Oroquieta Omnibus Election Code — Context
+
+ELECOM is the digital implementation of the **USTP-Oroquieta Omnibus Election Code** (prepared by COMELEC Chairperson Ginbert A. Fernandez, approved by SSC President Juvel Enayo Lavornina). Understanding this code is essential for implementing election rules correctly.
+
+### Governance Structure
+- **COMELEC** oversees all SSC, College Student Council, and Unit Organization (UO) elections at USTP-Oroquieta Campus.
+- COMELEC is composed of a Chairperson (Chief Commissioner), 5 Deputy Commissioners, and the Director of Student Affairs (ex-officio).
+- The admin panel is used by COMELEC officers.
+
+### Voter Qualifications (Article V)
+- Must be officially enrolled USTP-Oroquieta undergraduate students.
+- Must be SSC members.
+- Disqualified if: suspended on election day, or found guilty of violating SSC/USTP provisions within 1 year prior.
+- **System implication:** Voter import from student database; login by Student ID. Network authorization ensures voting only from campus.
+
+### Candidate Qualifications (Articles III–IV)
+- Bona fide USTP student, good moral character, not graduating, completed ≥2 consecutive semesters, not on probation.
+- Cannot hold another office/organization simultaneously.
+- Must submit: 2x2 ID photo, COR, grades, Certificate of Good Moral Character, PDS form, temporary resignation letter.
+- Political parties need minimum 5 candidates to be recognized; independent candidates are allowed.
+- **System implication:** Candidate registration screen collects and stores these requirements. Party/independent distinction is tracked.
+
+### Election Timeline (Article VII)
+- Elections held in **April or no later than first week of May**, second semester each academic year.
+- 5-week calendar: Week 1 = info dissemination → Week 2 = COC filing, submissions → Week 3 = protests/deliberations → Weeks 4–5 = campaign, convocation, election proper, winner announcement.
+- Election period lasts no more than **5 weeks** unless extended by COMELEC.
+- **System implication:** Election Management sets start/end dates for the vote window. Results and Reports pages correspond to the canvassing and proclamation stages.
+
+### Voting Process (Article XI)
+- Election time: **8:00 AM to 5:00 PM, two consecutive days** (no lunch break).
+- For automated elections: voters enter their **ID number** and cast votes on a computer.
+- Right hand finger marked with indelible ink after voting (physical; not enforced by ELECOM digitally).
+- **System implication:** The vote window enforces the time range. Face verification replaces the manual ID check + indelible ink conformity.
+
+### Canvassing & Results (Article XII)
+- Votes counted immediately after polls close.
+- Ties resolved by **drawing of lots** at a public meeting — 5 days notice to tied candidates.
+- **System implication:** Results page shows vote totals per candidate/position. Tie-breaking is a manual COMELEC decision; ELECOM shows the tie but does not auto-resolve it.
+
+### Proclamation (Article XIII)
+- COMELEC proclaims winners after complete tabulation.
+- Results forwarded to Office of Student Affairs and posted on COMELEC Bulletin and official social media.
+- **System implication:** Results and Reports pages serve as the official digital record. Transparency page shows blockchain/ledger hash for integrity.
+
+### Penal Clause (Article XIV)
+- Violations result in suspension or forfeiture of seat (if after proclamation).
+- **System implication:** Audit logs and the Transparency page provide the paper trail for any disputes.
+
+---
+
+## Face++ Integration Lessons
+
+### Free Plan Behavior
+- Face++ free plan uses **shared QPS** with other users — there is NO guaranteed requests-per-second.
+- `CONCURRENCY_LIMIT_EXCEEDED` errors mean the shared pool is saturated, not necessarily that the code is wrong.
+- The error can appear misleadingly when the actual underlying issue is something else (e.g., `IMAGE_ERROR_UNSUPPORTED_FORMAT`) — always check server logs (`journalctl -u gunicorn`) for the real error.
+
+### Enrollment Flow (views.py `_save_face_enrollment_facepp`)
+- Makes 4–5 sequential Face++ calls: `create_faceset_if_missing` → `detect` → `search` → `addface` → `set_face_userid`.
+- A `time.sleep(2.0)` delay is required **between each call** to avoid hitting the shared QPS limit.
+- `create_faceset_if_missing()` is cached per-worker (`_faceset_confirmed` flag in `facepp_service.py`) — after first confirmation it skips the `getdetail` API call.
+- Only `return_attributes=mask` is requested on detect (not the full eyestatus/mouthstatus/facequality set) to reduce API weight.
+
+### Verification Flow (views.py `_face_verification_vote_handler`)
+- Makes 2 sequential Face++ calls: `detect_face(live_bytes)` → `compare_faces(enrolled_token, live_token)`.
+- A `time.sleep(2.0)` is placed between detect and compare.
+
+### Retry Logic (facepp_service.py `_post`)
+- On `CONCURRENCY_LIMIT_EXCEEDED`, retries up to 5 times with **exponential backoff**: 2s, 4s, 6s, 8s, 10s.
+- All other Face++ errors are raised immediately and logged via `logger.error`.
+
+### INVALID_FACE_TOKEN
+- Occurs when a stored `facepp_face_token` no longer exists on Face++ (e.g., after creating a new Face++ account or if the faceset was deleted/reset).
+- Fix: the affected user must **re-enroll** their face. The old DB record's token is stale.
+- The error message is surfaced to the mobile app as-is; consider showing "Please re-enroll your face" instead of the raw token error.
+
+### Image Format
+- Flutter `camera.takePicture()` always produces **JPEG** regardless of `imageFormatGroup` (which only affects the preview stream for ML Kit).
+- The enrollment image is sent as `multipart/form-data` with field name `face_image`.
+- Face++ accepts JPEG via `image_base64` (base64-encoded bytes sent in the POST body).
+
+---
+
+## Nginx + Gunicorn Port Conflict Lessons
+
+### Symptom: `ERR_TOO_MANY_REDIRECTS` + gunicorn `Connection in use: ('127.0.0.1', 8000)`
+- Root cause: A stale or misconfigured Nginx config (`elecom-ip-redirect` or similar) was binding to port 8000, preventing gunicorn from starting.
+- Nginx then proxied requests to itself (port 8000 → nginx → port 8000 → ...) causing the infinite redirect loop.
+
+### Diagnosis
+```bash
+sudo lsof -i :8000          # see what process owns port 8000
+sudo grep -r "listen 8000" /etc/nginx/   # find rogue nginx configs
+```
+
+### Fix
+1. Remove the conflicting nginx site from `sites-enabled`:
+   ```bash
+   sudo rm /etc/nginx/sites-enabled/elecom-ip-redirect
+   ```
+2. Kill any stale PIDs holding port 8000 (use actual PID numbers, not placeholders):
+   ```bash
+   sudo kill -9 <PID>
+   ```
+3. Restart both services:
+   ```bash
+   sudo nginx -t
+   sudo systemctl restart nginx
+   sudo systemctl restart gunicorn
+   sudo systemctl status gunicorn --no-pager
+   ```
+
+### Correct architecture
+- Gunicorn binds to `127.0.0.1:8000` (localhost only).
+- Nginx listens on ports **80** (redirect to HTTPS) and **443** (SSL), and proxies to gunicorn via `proxy_pass http://127.0.0.1:8000`.
+- No other service should listen on port 8000.
+
+---
+
+## Admin CSS Consistency Rule
+
+All admin HTML pages must reference the **same version** of `admin_dashboard.css`. When the dashboard is redesigned (e.g., new dark navy sidebar), bump the version query string on **every** admin HTML file, not just `admin_dashboard.html`.
+
+Current correct version: `admin_dashboard.css?v=20260920-ustp-redesign`
+
+Files that need updating together (check all when bumping):
+- `admin_dashboard.html`, `elecom_backup_restore.html`, `elecom_candidates.html`, `elecom_dashboard.html`
+- `elecom_election_date.html`, `elecom_elections.html`, `elecom_network_authorize.html`
+- `elecom_register_candidate.html`, `elecom_reports.html`, `elecom_reset.html`
+- `elecom_results.html`, `elecom_transparency.html`, `elecom_voters.html`
+- `profile.html`, `search_results.html`
+
+Page-specific CSS files (e.g., `elecom_backup_restore.css`) must **not** override the sidebar background color or active link color — those come from `admin_dashboard.css` and must be consistent across all pages.
