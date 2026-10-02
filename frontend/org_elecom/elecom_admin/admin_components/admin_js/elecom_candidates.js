@@ -403,10 +403,13 @@ document.addEventListener('DOMContentLoaded', function(){
       loadList();
     });
   }
-  // Initial load; if ?org= is present, show only that org section (hide others)
+  // Initial load; if ?org= or #org is present, show only that org section (hide others)
   (async function handleOrgParam() {
     await loadList();
-    const orgParam = new URLSearchParams(window.location.search).get('org');
+    // Support both ?org=USG and #USG
+    const searchParam = new URLSearchParams(window.location.search).get('org');
+    const hashParam = window.location.hash ? window.location.hash.replace('#', '') : null;
+    const orgParam = searchParam || hashParam;
     if (!orgParam) return;
     const normalized = normalizeOrg(orgParam);
 
