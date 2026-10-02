@@ -403,24 +403,38 @@ document.addEventListener('DOMContentLoaded', function(){
       loadList();
     });
   }
-  // Initial load; if ?org= is present, auto-expand and scroll to that org section after render
+  // Initial load; if ?org= is present, show only that org section (hide others)
   (async function handleOrgParam() {
     await loadList();
     const orgParam = new URLSearchParams(window.location.search).get('org');
     if (!orgParam) return;
     const normalized = normalizeOrg(orgParam);
-    const toggle = listEl?.querySelector(`[data-toggle-candidate-org="${normalized}"]`);
-    if (!toggle) return;
-    const section = toggle.closest('.candidate-org-section');
-    const body = section?.querySelector('.candidate-org-body');
-    if (!body) return;
-    // Expand the section
-    body.hidden = false;
-    toggle.setAttribute('aria-expanded', 'true');
-    const icon = toggle.querySelector('.bi');
-    if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
-    // Scroll to it smoothly
-    setTimeout(() => { toggle.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
+
+    // Hide all org sections, then show + expand only the matching one
+    const allSections = listEl?.querySelectorAll('.candidate-org-section');
+    if (!allSections || !allSections.length) return;
+
+    allSections.forEach(section => {
+      const toggle = section.querySelector('[data-toggle-candidate-org]');
+      const sectionOrg = toggle?.getAttribute('data-toggle-candidate-org');
+      if (sectionOrg === normalized) {
+        // Show and expand this section
+        section.style.display = '';
+        const body = section.querySelector('.candidate-org-body');
+        if (body) body.hidden = false;
+        if (toggle) {
+          toggle.setAttribute('aria-expanded', 'true');
+          const icon = toggle.querySelector('.bi');
+          if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
+        }
+      } else {
+        // Hide other org sections
+        section.style.display = 'none';
+      }
+    });
+
+    // Scroll to top of the list
+    setTimeout(() => { listEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
   })();
 
   async function fetchCandidateDetail(candidate) {
