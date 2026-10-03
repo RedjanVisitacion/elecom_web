@@ -1,164 +1,96 @@
-document.addEventListener('DOMContentLoaded', function(){
+document.addEventListener('DOMContentLoaded', function () {
+  // ── Sidebar toggle ──────────────────────────────────────────────────────────
   const menuToggle = document.getElementById('menuToggle');
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
   const closeSidebar = document.getElementById('closeSidebar');
 
-  // Guard: if any sidebar link (e.g. Home) accidentally overlaps the main content,
-  // block navigation when the click happens outside the sidebar's visible bounds.
-  document.addEventListener('click', (e) => {
-    if (!sidebar) return;
-    const link = e.target && e.target.closest ? e.target.closest('a') : null;
-    if (!link) return;
-    if (!sidebar.contains(link)) return;
-
-    const rect = sidebar.getBoundingClientRect();
-    const insideSidebar = (
-      e.clientX >= rect.left &&
-      e.clientX <= rect.right &&
-      e.clientY >= rect.top &&
-      e.clientY <= rect.bottom
-    );
-    if (!insideSidebar) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-  }, true);
-
   if (menuToggle && sidebar && sidebarOverlay) {
-    menuToggle.addEventListener('click', function(){ sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
-  }
-
-  function hideSuggestions(){
-    if (!suggestEl) return;
-    suggestEl.style.display = 'none';
-    suggestEl.innerHTML = '';
-  }
-
-  function showSuggestions(items){
-    if (!suggestEl) return;
-    if (!items || items.length === 0) { hideSuggestions(); return; }
-    const placeholder = 'https://via.placeholder.com/40x40?text=%20';
-    suggestEl.innerHTML = items.map((item) => {
-      const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(' ');
-      const photo = item.photo_url && String(item.photo_url).startsWith('http') ? item.photo_url : placeholder;
-      return `\n<a href="#" class="list-group-item list-group-item-action" data-id="${escapeHtml(item.id)}">\n  <div class="d-flex align-items-center gap-2">\n    <img src="${escapeHtml(photo)}" alt="" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">\n    <div class="flex-grow-1">\n      <div class="d-flex w-100 justify-content-between">\n        <strong>${escapeHtml(name)}</strong>\n        <small>${escapeHtml(item.student_id || '')}</small>\n      </div>\n      <div class="small text-muted">${escapeHtml(item.position || '')}${item.organization ? ' • ' + escapeHtml(item.organization) : ''}</div>\n    </div>\n  </div>\n</a>`;
-    }).join('');
-    suggestEl.style.display = 'block';
+    menuToggle.addEventListener('click', () => { sidebar.classList.add('active'); sidebarOverlay.classList.add('active'); });
   }
   if (closeSidebar && sidebar && sidebarOverlay) {
-    closeSidebar.addEventListener('click', function(){ sidebar.classList.remove('active'); sidebarOverlay.classList.remove('active'); });
+    closeSidebar.addEventListener('click', () => { sidebar.classList.remove('active'); sidebarOverlay.classList.remove('active'); });
   }
   if (sidebarOverlay && sidebar) {
-    sidebarOverlay.addEventListener('click', function(){ sidebar.classList.remove('active'); sidebarOverlay.classList.remove('active'); });
+    sidebarOverlay.addEventListener('click', () => { sidebar.classList.remove('active'); sidebarOverlay.classList.remove('active'); });
   }
-  window.addEventListener('resize', function(){
-    if (window.innerWidth > 992 && sidebar && sidebarOverlay) {
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 992 && sidebar) {
       sidebar.classList.remove('active');
-      sidebarOverlay.classList.remove('active');
+      sidebarOverlay && sidebarOverlay.classList.remove('active');
     }
   });
 
-  const subtitleEl = document.getElementById('searchSubtitle');
-  const titleEl = document.getElementById('searchTitle');
-  const countEl = document.getElementById('searchCount');
-  const emptyEl = document.getElementById('searchEmpty');
-  const listEl = document.getElementById('searchList');
-  const inputEl = document.getElementById('searchInput');
-  const suggestEl = document.getElementById('searchSuggestions');
+  // ── Elements ────────────────────────────────────────────────────────────────
+  const inputEl   = document.getElementById('searchInput');
+  const clearBtn  = document.getElementById('searchClear');
+  const listEl    = document.getElementById('searchList');
+  const statusEl  = document.getElementById('searchStatus');
+  const countEl   = document.getElementById('searchCount');
 
-  const API_BASE = '/api/admin/candidates/';
+  const API_BASE  = '/api/admin/candidates/';
 
-  const getQuery = () => {
-    try {
-      const url = new URL(window.location.href);
-      return (url.searchParams.get('q') || '').trim();
-    } catch (e) {
-      return '';
-    }
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  const escapeHtml = (s) =>
+    String(s || '')
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+
+  const setStatus = (msg) => {
+    if (!statusEl) return;
+    statusEl.textContent = msg;
+    statusEl.style.display = msg ? '' : 'none';
   };
 
-  const shouldFocus = () => {
-    try {
-      const url = new URL(window.location.href);
-      return (url.searchParams.get('focus') || '') === '1';
-    } catch (e) {
-      return false;
-    }
+  const setCount = (msg) => {
+    if (!countEl) return;
+    countEl.textContent = msg;
+    countEl.style.display = msg ? '' : 'none';
   };
 
-  const setVisible = (el, show) => {
-    if (!el) return;
-    el.style.display = show ? '' : 'none';
-  };
-
-  const escapeHtml = (s) => {
-    return String(s || '')
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;')
-      .replace(/'/g, '&#39;');
-  };
-
-  function rowTemplate(item){
+  // ── Result card template ────────────────────────────────────────────────────
+  function resultTemplate(item) {
     const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(' ');
-    const line2 = [item.student_id ? `ID: ${item.student_id}` : '', item.position || '', item.organization || ''].filter(Boolean).join(' • ');
+    const meta = [
+      item.student_id ? `ID: ${item.student_id}` : '',
+      item.position || '',
+      item.organization || '',
+    ].filter(Boolean).join(' • ');
 
-    const hasPhoto = !!(item.photo_url && String(item.photo_url).startsWith('http'));
-    const avatarHtml = hasPhoto
-      ? `<img src="${escapeHtml(item.photo_url)}" alt="" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">`
-      : `<div class="rounded-circle border d-flex align-items-center justify-content-center bg-light" style="width:40px;height:40px;"><i class="bi bi-person fs-5 text-secondary"></i></div>`;
+    const avatar = (item.photo_url && String(item.photo_url).startsWith('http'))
+      ? `<img src="${escapeHtml(item.photo_url)}" alt="" class="search-result-avatar">`
+      : `<div class="search-result-avatar-placeholder"><i class="bi bi-person"></i></div>`;
 
     return `
-      <a href="#" class="list-group-item list-group-item-action" data-id="${escapeHtml(item.id)}">
-        <div class="d-flex align-items-start justify-content-between gap-3">
-          <div class="d-flex align-items-start gap-2 flex-grow-1">
-            ${avatarHtml}
-            <div class="flex-grow-1">
-              <div class="fw-semibold">${escapeHtml(name || item.student_id || '')}</div>
-              <div class="small text-muted">${escapeHtml(line2)}</div>
-            </div>
-          </div>
-          <div class="text-muted small">${escapeHtml(item.party_name || 'Independent')}</div>
+      <a href="#" class="search-result-item" data-id="${escapeHtml(item.id)}">
+        ${avatar}
+        <div class="flex-grow-1 overflow-hidden">
+          <div class="search-result-name">${escapeHtml(name || item.student_id || '')}</div>
+          <div class="search-result-meta">${escapeHtml(meta)}</div>
         </div>
+        <div class="search-result-party">${escapeHtml(item.party_name || 'Independent')}</div>
       </a>`;
   }
 
-  async function loadResults(){
-    const q = getQuery();
-    if (inputEl) inputEl.value = q;
+  // ── Search ──────────────────────────────────────────────────────────────────
+  let searchTimer = null;
 
-    hideSuggestions();
+  async function doSearch() {
+    const q = inputEl ? inputEl.value.trim() : '';
 
-    if (inputEl && shouldFocus()) {
-      try {
-        inputEl.focus();
-        const len = inputEl.value.length;
-        inputEl.setSelectionRange(len, len);
-      } catch (e) {}
-    }
+    // Toggle clear button
+    if (clearBtn) clearBtn.style.display = q ? 'block' : 'none';
 
     if (!q) {
-      if (titleEl) titleEl.style.display = 'none';
-      if (subtitleEl) subtitleEl.style.display = 'none';
-    } else {
-      if (titleEl) titleEl.style.display = '';
-      if (subtitleEl) subtitleEl.style.display = '';
-      if (subtitleEl) subtitleEl.textContent = `Showing results for "${q}"`;
-    }
-
-    if (!q) {
-      if (countEl) countEl.textContent = '';
-      setVisible(emptyEl, false);
-      setVisible(listEl, false);
       if (listEl) listEl.innerHTML = '';
+      setStatus('');
+      setCount('');
       return;
     }
 
-    setVisible(emptyEl, false);
-    setVisible(listEl, false);
-    if (countEl) countEl.textContent = 'Loading...';
+    setStatus('Searching...');
+    setCount('');
+    if (listEl) listEl.innerHTML = '';
 
     try {
       const url = new URL(API_BASE + 'list/', window.location.origin);
@@ -167,113 +99,85 @@ document.addEventListener('DOMContentLoaded', function(){
       const data = await res.json().catch(() => ({}));
       const rows = (data && data.ok) ? (data.candidates || []) : [];
 
-      if (countEl) countEl.textContent = `${rows.length} result(s)`;
+      setStatus('');
 
-      if (!rows || rows.length === 0) {
-        if (emptyEl) emptyEl.textContent = 'No candidates found.';
-        setVisible(emptyEl, true);
-        setVisible(listEl, false);
+      if (!rows.length) {
+        setStatus('No candidates found.');
+        setCount('');
         if (listEl) listEl.innerHTML = '';
         return;
       }
 
-      if (listEl) listEl.innerHTML = rows.map(rowTemplate).join('');
-      setVisible(listEl, true);
+      setCount(`${rows.length} result${rows.length === 1 ? '' : 's'} for "${escapeHtml(q)}"`);
+      if (listEl) listEl.innerHTML = rows.map(resultTemplate).join('');
     } catch (e) {
-      if (countEl) countEl.textContent = '';
-      if (emptyEl) emptyEl.textContent = 'Failed to load results.';
-      setVisible(emptyEl, true);
-      setVisible(listEl, false);
-      if (listEl) listEl.innerHTML = '';
-    }
-  }
-
-  const modalEl = document.getElementById('candidateModal');
-  const modal = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
-
-  async function openCandidate(id){
-    if (!id) return;
-    try {
-      const res = await fetch(`${API_BASE}detail/?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
-      const d = await res.json().catch(() => ({}));
-      if (!d || !d.ok || !d.candidate) return;
-      const c = d.candidate;
-      const name = [c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ');
-      const setValue = (elId, v) => {
-        const el = document.getElementById(elId);
-        if (el) el.value = v || '';
-      };
-      setValue('cd_name', name);
-      setValue('cd_student_id', c.student_id);
-      setValue('cd_position', c.position);
-      setValue('cd_org', c.organization);
-      setValue('cd_program', c.program);
-      setValue('cd_year', c.year_section);
-      const platform = document.getElementById('cd_platform');
-      if (platform) platform.textContent = c.platform || '';
-      const img = document.getElementById('cd_photo');
-      if (img) {
-        if (c.photo_url && String(c.photo_url).startsWith('http')) {
-          img.src = c.photo_url;
-          img.style.display = 'block';
-        } else {
-          img.style.display = 'none';
-        }
-      }
-      if (modal) modal.show();
-    } catch (e) {}
-  }
-
-  let suggestTimer = null;
-
-  async function doSuggest(){
-    if (!inputEl) return;
-    const q = inputEl.value.trim();
-    if (!q || q.length < 2) {
-      hideSuggestions();
-      return;
-    }
-
-    try {
-      const url = new URL(API_BASE + 'list/', window.location.origin);
-      url.searchParams.set('q', q);
-      const res = await fetch(url.toString(), { credentials: 'same-origin' });
-      const data = await res.json().catch(() => ({}));
-      const rows = (data && data.ok) ? (data.candidates || []) : [];
-      showSuggestions(rows.slice(0, 8));
-    } catch (e) {
-      hideSuggestions();
+      setStatus('Search failed. Please try again.');
+      setCount('');
     }
   }
 
   if (inputEl) {
     inputEl.addEventListener('input', () => {
-      clearTimeout(suggestTimer);
-      suggestTimer = setTimeout(doSuggest, 200);
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(doSearch, 220);
     });
+    inputEl.focus();
+  }
 
-    inputEl.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter') {
-        hideSuggestions();
-      }
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      if (inputEl) { inputEl.value = ''; inputEl.focus(); }
+      clearBtn.style.display = 'none';
+      if (listEl) listEl.innerHTML = '';
+      setStatus('');
+      setCount('');
     });
   }
 
-  document.addEventListener('click', (e) => {
-    if (!suggestEl || !inputEl) return;
-    if (!suggestEl.contains(e.target) && e.target !== inputEl) {
-      hideSuggestions();
-    }
-  });
+  // ── Candidate profile modal ─────────────────────────────────────────────────
+  const modalEl = document.getElementById('candidateModal');
+  const modal   = modalEl ? bootstrap.Modal.getOrCreateInstance(modalEl) : null;
 
-  if (suggestEl) {
-    suggestEl.addEventListener('click', (e) => {
-      const a = e.target.closest('a[data-id]');
-      if (!a) return;
-      e.preventDefault();
-      hideSuggestions();
-      openCandidate(a.getAttribute('data-id'));
-    });
+  async function openCandidate(id) {
+    if (!id || !modal) return;
+    try {
+      const res = await fetch(`${API_BASE}detail/?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
+      const d = await res.json().catch(() => ({}));
+      if (!d || !d.ok || !d.candidate) return;
+      const c = d.candidate;
+
+      const name = [c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ');
+
+      const set = (elId, v) => { const el = document.getElementById(elId); if (el) el.value = v || ''; };
+      set('cd_name',       name);
+      set('cd_student_id', c.student_id);
+      set('cd_position',   c.position);
+      set('cd_org',        c.organization);
+      set('cd_party',      c.party_name);
+      set('cd_program',    c.program);
+      set('cd_year',       c.year_section);
+
+      const platformEl = document.getElementById('cd_platform');
+      if (platformEl) platformEl.textContent = c.platform || '';
+
+      const titleEl = document.getElementById('cd_name_title');
+      if (titleEl) titleEl.textContent = name || 'Candidate Details';
+
+      const orgTitleEl = document.getElementById('cd_org_title');
+      if (orgTitleEl) orgTitleEl.textContent = [c.organization, c.position].filter(Boolean).join(' • ');
+
+      const imgEl = document.getElementById('cd_photo');
+      if (imgEl) {
+        if (c.photo_url && String(c.photo_url).startsWith('http')) {
+          imgEl.src = c.photo_url;
+          imgEl.style.display = 'block';
+        } else {
+          imgEl.style.display = 'none';
+        }
+      }
+
+      modal.show();
+    } catch (e) {}
   }
 
   if (listEl) {
@@ -284,6 +188,4 @@ document.addEventListener('DOMContentLoaded', function(){
       openCandidate(a.getAttribute('data-id'));
     });
   }
-
-  loadResults();
 });

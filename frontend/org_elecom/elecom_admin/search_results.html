@@ -7,9 +7,133 @@
     <link rel="icon" type="image/png" href="/static/assets/elecom.png?v=3">
     <link rel="shortcut icon" type="image/png" href="/static/assets/elecom.png?v=3">
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261004-search-after-bell">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261004-search-appbar">
+    <style>
+        .search-hero {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 48px 16px 24px;
+        }
+        .search-hero-logo {
+            width: 52px; height: 52px;
+            margin-bottom: 16px;
+            opacity: .85;
+        }
+        .search-hero-title {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--blue-900);
+            margin-bottom: 24px;
+            letter-spacing: -.01em;
+        }
+        .search-hero-box {
+            width: 100%;
+            max-width: 620px;
+            position: relative;
+        }
+        .search-hero-input-wrap {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border: 2px solid var(--gray-200);
+            border-radius: 999px;
+            padding: 10px 20px;
+            gap: 10px;
+            box-shadow: 0 2px 12px rgba(10,36,99,.08);
+            transition: border-color .18s, box-shadow .18s;
+        }
+        .search-hero-input-wrap:focus-within {
+            border-color: var(--blue-600);
+            box-shadow: 0 4px 20px rgba(10,36,99,.14);
+        }
+        .search-hero-input-wrap i {
+            color: var(--gray-400);
+            font-size: 1.2rem;
+            flex-shrink: 0;
+        }
+        .search-hero-input {
+            border: none;
+            outline: none;
+            flex: 1;
+            font-size: 1rem;
+            background: transparent;
+            color: var(--gray-900);
+        }
+        .search-hero-input::placeholder { color: var(--gray-400); }
+        .search-hero-clear {
+            background: none; border: none; padding: 0;
+            color: var(--gray-400); cursor: pointer;
+            display: none;
+            line-height: 1;
+        }
+        .search-hero-clear:hover { color: var(--gray-700); }
+
+        /* Results list */
+        .search-results-box {
+            width: 100%;
+            max-width: 620px;
+            margin-top: 8px;
+        }
+        .search-result-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 16px;
+            background: #fff;
+            border-radius: var(--radius-md);
+            border: 1px solid var(--gray-100);
+            cursor: pointer;
+            text-decoration: none;
+            color: var(--gray-900);
+            transition: background .14s, box-shadow .14s;
+            margin-bottom: 6px;
+        }
+        .search-result-item:hover {
+            background: #f0f4ff;
+            box-shadow: 0 2px 8px rgba(10,36,99,.08);
+            color: var(--gray-900);
+        }
+        .search-result-avatar {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid var(--gray-100);
+            flex-shrink: 0;
+        }
+        .search-result-avatar-placeholder {
+            width: 44px; height: 44px;
+            border-radius: 50%;
+            background: var(--gray-100);
+            display: flex; align-items: center; justify-content: center;
+            flex-shrink: 0;
+            font-size: 1.2rem;
+            color: var(--gray-400);
+        }
+        .search-result-name { font-weight: 600; font-size: .95rem; }
+        .search-result-meta { font-size: .8rem; color: var(--gray-500); margin-top: 2px; }
+        .search-result-party {
+            margin-left: auto;
+            font-size: .75rem;
+            color: var(--gray-400);
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .search-status {
+            text-align: center;
+            color: var(--gray-400);
+            font-size: .9rem;
+            padding: 24px 0;
+        }
+        .search-count-label {
+            font-size: .8rem;
+            color: var(--gray-400);
+            text-align: center;
+            margin-bottom: 10px;
+        }
+    </style>
 </head>
 <body class="theme-elecom">
 
@@ -19,7 +143,7 @@
         <div class="sidebar-header">
             <div class="sidebar-header-content">
                 <div class="logo-container">
-                    <img src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                    <img src="/static/assets/elecom.png" alt="ELECOM Logo">
                     <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
                 </div>
                 <button class="btn-close-sidebar" id="closeSidebar"><i class="bi bi-x-lg"></i></button>
@@ -27,21 +151,9 @@
         </div>
         <div class="sidebar-menu">
             <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link" href="/static/org_elecom/elecom_admin/admin_dashboard.html">
-                        <i class="bi bi-house-door"></i>
-                        <span>Home</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html">
-                        <i class="bi bi-person-plus"></i>
-                        <span>Register Candidate</span>
-                    </a>
-                </li>
-                
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/admin_dashboard.html"><i class="bi bi-house-door"></i><span>Home</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html"><i class="bi bi-person-plus"></i><span>Register Candidate</span></a></li>
                 <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_elections.html"><i class="bi bi-calendar2-range"></i><span>Election Management</span></a></li>
-                <li class="nav-item">
                 <li class="nav-item">
                     <a class="nav-link" href="#candidatesSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="candidatesSubmenu">
                         <i class="bi bi-people"></i><span>Candidates</span><i class="bi bi-chevron-right chevron ms-auto"></i>
@@ -55,36 +167,11 @@
                         </ul>
                     </div>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html">
-                        <i class="bi bi-graph-up"></i>
-                        <span>Results</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html">
-                        <i class="bi bi-file-earmark-bar-graph"></i>
-                        <span>Generate Reports</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_backup_restore.html">
-                        <i class="bi bi-database"></i>
-                        <span>Backup &amp; Restore</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_transparency.html">
-                        <i class="bi bi-shield-check"></i>
-                        <span>Transparency</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_network_authorize.html">
-                        <i class="bi bi-wifi"></i>
-                        <span>Network Authorize</span>
-                    </a>
-                </li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html"><i class="bi bi-graph-up"></i><span>Results</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html"><i class="bi bi-file-earmark-bar-graph"></i><span>Generate Reports</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_backup_restore.html"><i class="bi bi-database"></i><span>Backup &amp; Restore</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_transparency.html"><i class="bi bi-shield-check"></i><span>Transparency</span></a></li>
+                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_network_authorize.html"><i class="bi bi-wifi"></i><span>Network Authorize</span></a></li>
             </ul>
         </div>
     </div>
@@ -92,42 +179,50 @@
     <div class="main-content">
         <nav class="top-navbar">
             <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
-
-            <form action="/static/org_elecom/elecom_admin/search_results.html" method="GET" class="search-box search-container search-pill position-relative" style="min-width:0; flex:1 1 auto; max-width: 560px;">
-                <div class="input-group input-group-lg search-input-group">
-                    <input id="searchInput" type="text" class="form-control" name="q" placeholder="Search candidate by name, ID, position, or organization..." autocomplete="off">
-                    <button class="btn btn-outline-secondary search-btn" type="submit" id="searchBtn"><i class="bi bi-search"></i></button>
-                </div>
-                <div id="searchSuggestions" class="list-group position-absolute w-100" style="z-index:1050; max-height: 320px; overflow:auto; display:none;"></div>
-            </form>
             <div id="userMenuMount"></div>
         </nav>
 
         <div class="content-area">
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
-                        <div>
-                            <div class="fw-semibold" id="searchTitle">Search Results</div>
-                            <div class="small text-muted" id="searchSubtitle"></div>
-                        </div>
-                        <div class="text-muted small" id="searchCount"></div>
-                    </div>
+            <!-- Hero search -->
+            <div class="search-hero">
+                <img src="/static/assets/elecom.png" alt="ELECOM" class="search-hero-logo">
+                <div class="search-hero-title">Search Candidates</div>
 
-                    <div id="searchEmpty" class="text-muted" style="display:none;"></div>
-                    <div id="searchList" class="list-group" style="display:none;"></div>
+                <div class="search-hero-box">
+                    <div class="search-hero-input-wrap">
+                        <i class="bi bi-search"></i>
+                        <input id="searchInput" type="text" class="search-hero-input"
+                               placeholder="Search by name, ID, position, or organization..."
+                               autocomplete="off" autofocus>
+                        <button class="search-hero-clear" id="searchClear" aria-label="Clear">
+                            <i class="bi bi-x-lg"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Results appear below search box -->
+                <div class="search-results-box">
+                    <div id="searchStatus" class="search-status" style="display:none;"></div>
+                    <div id="searchCount" class="search-count-label" style="display:none;"></div>
+                    <div id="searchList"></div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Candidate Profile Modal -->
     <div class="modal fade" id="candidateModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
             <div class="modal-content">
                 <div class="modal-header">
-                    <div class="d-flex align-items-center gap-2">
-                        <img id="cd_photo" src="" alt="Profile" class="rounded-circle border" style="width:42px;height:42px;object-fit:cover;display:none;">
-                        <h5 class="modal-title mb-0">Candidate Details</h5>
+                    <div class="d-flex align-items-center gap-3">
+                        <img id="cd_photo" src="" alt="Profile"
+                             class="rounded-circle border"
+                             style="width:52px;height:52px;object-fit:cover;display:none;">
+                        <div>
+                            <h5 class="modal-title mb-0" id="cd_name_title">Candidate Details</h5>
+                            <div class="small text-muted" id="cd_org_title"></div>
+                        </div>
                     </div>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
@@ -136,42 +231,48 @@
                         <div class="col-md-6">
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="cd_name" readonly>
-                                <label for="cd_name">Name</label>
+                                <label>Full Name</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="cd_student_id" readonly>
-                                <label for="cd_student_id">Student ID</label>
+                                <label>Student ID</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="cd_position" readonly>
-                                <label for="cd_position">Position</label>
+                                <label>Position</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="cd_org" readonly>
-                                <label for="cd_org">Organization</label>
+                                <label>Organization</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-floating">
+                                <input type="text" class="form-control" id="cd_party" readonly>
+                                <label>Party</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="cd_program" readonly>
-                                <label for="cd_program">Program</label>
+                                <label>Program</label>
                             </div>
                         </div>
                         <div class="col-md-6">
                             <div class="form-floating">
                                 <input type="text" class="form-control" id="cd_year" readonly>
-                                <label for="cd_year">Year/Section</label>
+                                <label>Year / Section</label>
                             </div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label">Platform</label>
-                            <div class="p-2 border rounded" id="cd_platform" style="min-height:64px;"></div>
+                            <label class="form-label fw-semibold">Platform</label>
+                            <div class="p-3 border rounded bg-light" id="cd_platform" style="min-height:64px; white-space:pre-wrap;"></div>
                         </div>
                     </div>
                 </div>
@@ -182,8 +283,8 @@
         </div>
     </div>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261004-search-inside-wrap"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/search_results.js?v=20260313"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/search_results.js?v=20261004-hero-search"></script>
 </body>
 </html>
