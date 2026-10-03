@@ -128,6 +128,39 @@ document.addEventListener('DOMContentLoaded', function () {
     } catch (e) {}
   }
 
+  // ── Cascade: Program → Org → Position ──────────────────────────────────────
+  const PROGRAM_ORGS = {
+    BSIT:   ['USG', 'SITE'],
+    BTLED:  ['USG', 'PAFE'],
+    BFPT:   ['USG', 'AFPROTECHS'],
+  };
+  const BASE_POSITIONS = [
+    'President','Vice President','General Secretary','Associate Secretary',
+    'Treasurer','Auditor','Public Information Officer',
+  ];
+  const PROGRAM_POSITIONS = {
+    BSIT:   [...BASE_POSITIONS, 'BSIT Representative'],
+    BTLED:  [...BASE_POSITIONS, 'BTLED Representative'],
+    BFPT:   [...BASE_POSITIONS, 'BFPT Representative'],
+  };
+
+  function cascadeSelects(progId, orgId, posId, selOrg, selPos) {
+    const prog   = document.getElementById(progId)?.value || '';
+    const orgSel = document.getElementById(orgId);
+    const posSel = document.getElementById(posId);
+    if (!orgSel || !posSel) return;
+    const orgs  = PROGRAM_ORGS[prog]  || ['USG','SITE','PAFE','AFPROTECHS'];
+    const poses = PROGRAM_POSITIONS[prog] || [...BASE_POSITIONS,'BSIT Representative','BTLED Representative','BFPT Representative'];
+    orgSel.innerHTML  = orgs.map(o  => `<option value="${o}"${o  === selOrg ? ' selected' : ''}>${o}</option>`).join('');
+    posSel.innerHTML  = poses.map(p => `<option${p === selPos ? ' selected' : ''}>${p}</option>`).join('');
+  }
+
+  // Wire program change in edit modal
+  const srProgSel = document.getElementById('sr_ed_program');
+  if (srProgSel) {
+    srProgSel.addEventListener('change', () => cascadeSelects('sr_ed_program','sr_ed_org','sr_ed_position','',''));
+  }
+
   // ── Edit modal ──────────────────────────────────────────────────────────────
   const editModalEl = document.getElementById('srEditModal');
   const editModal   = editModalEl ? bootstrap.Modal.getOrCreateInstance(editModalEl) : null;
@@ -141,9 +174,12 @@ document.addEventListener('DOMContentLoaded', function () {
       const c = d.candidate;
       const set = (elId, v) => { const el = document.getElementById(elId); if (el) el.value = v || ''; };
       set('sr_ed_id', c.id); set('sr_ed_first_name', c.first_name); set('sr_ed_middle_name', c.middle_name);
-      set('sr_ed_last_name', c.last_name); set('sr_ed_org', c.organization); set('sr_ed_position', c.position);
-      set('sr_ed_program', c.program); set('sr_ed_year', c.year_section); set('sr_ed_platform', c.platform);
+      set('sr_ed_last_name', c.last_name); set('sr_ed_year', c.year_section); set('sr_ed_platform', c.platform);
       set('sr_ed_photo_url', c.photo_url); set('sr_ed_party_logo_url', c.party_logo_url);
+      // Program first, then cascade org + position
+      const progEl = document.getElementById('sr_ed_program');
+      if (progEl) progEl.value = c.program || '';
+      cascadeSelects('sr_ed_program', 'sr_ed_org', 'sr_ed_position', c.organization || '', c.position || '');
       ['sr_ed_photo_file','sr_ed_party_logo_file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
       ['sr_ed_photo_status','sr_ed_party_logo_status'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
       const prev = document.getElementById('sr_ed_photo_preview');

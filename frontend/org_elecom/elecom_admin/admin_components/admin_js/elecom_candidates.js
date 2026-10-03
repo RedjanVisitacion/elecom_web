@@ -1010,6 +1010,43 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
+  // ── Cascade helper: Program → Org → Position ────────────────────────────────
+  const PROGRAM_ORGS = {
+    BSIT:   ['USG', 'SITE'],
+    BTLED:  ['USG', 'PAFE'],
+    BFPT:   ['USG', 'AFPROTECHS'],
+  };
+  const BASE_POSITIONS = [
+    'President','Vice President','General Secretary','Associate Secretary',
+    'Treasurer','Auditor','Public Information Officer',
+  ];
+  const PROGRAM_POSITIONS = {
+    BSIT:   [...BASE_POSITIONS, 'BSIT Representative'],
+    BTLED:  [...BASE_POSITIONS, 'BTLED Representative'],
+    BFPT:   [...BASE_POSITIONS, 'BFPT Representative'],
+  };
+
+  function _cascadeEditSelects(progId, orgId, posId, selectedOrg, selectedPos) {
+    const prog    = document.getElementById(progId)?.value || '';
+    const orgSel  = document.getElementById(orgId);
+    const posSel  = document.getElementById(posId);
+    if (!orgSel || !posSel) return;
+
+    const orgs  = PROGRAM_ORGS[prog]  || ['USG','SITE','PAFE','AFPROTECHS'];
+    const poses = PROGRAM_POSITIONS[prog] || [...BASE_POSITIONS,'BSIT Representative','BTLED Representative','BFPT Representative'];
+
+    orgSel.innerHTML = orgs.map(o => `<option value="${o}"${o === selectedOrg ? ' selected' : ''}>${o}</option>`).join('');
+    posSel.innerHTML = poses.map(p => `<option${p === selectedPos ? ' selected' : ''}>${p}</option>`).join('');
+  }
+
+  // Wire up program change in edit modal
+  const edProgramSel = document.getElementById('ed_program');
+  if (edProgramSel) {
+    edProgramSel.addEventListener('change', () => {
+      _cascadeEditSelects('ed_program', 'ed_org', 'ed_position', '', '');
+    });
+  }
+
   const edForm = document.getElementById('editForm');
 
   document.addEventListener('click', async (e)=>{
@@ -1027,9 +1064,9 @@ document.addEventListener('DOMContentLoaded', function(){
         document.getElementById('ed_first_name').value = c.first_name || '';
         document.getElementById('ed_middle_name').value = c.middle_name || '';
         document.getElementById('ed_last_name').value = c.last_name || '';
-        document.getElementById('ed_org').value = c.organization || '';
-        document.getElementById('ed_position').value = c.position || '';
+        // Program → cascade org → cascade position
         document.getElementById('ed_program').value = c.program || '';
+        _cascadeEditSelects('ed_program', 'ed_org', 'ed_position', c.organization, c.position);
         document.getElementById('ed_year').value = c.year_section || '';
         document.getElementById('ed_platform').value = c.platform || '';
         document.getElementById('ed_photo_url').value = c.photo_url || '';
