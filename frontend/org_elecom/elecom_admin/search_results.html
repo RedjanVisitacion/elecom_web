@@ -133,6 +133,36 @@
             text-align: center;
             margin-bottom: 10px;
         }
+
+        /* Candidate profile modal fields */
+        .cd-field {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 10px 14px;
+            height: 100%;
+        }
+        .cd-field-label {
+            font-size: .72rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #64748b;
+            margin-bottom: 4px;
+        }
+        .cd-field-value {
+            font-size: .95rem;
+            font-weight: 500;
+            color: #1e293b;
+            min-height: 22px;
+        }
+        .cd-field-platform {
+            white-space: pre-wrap;
+            min-height: 64px;
+            font-weight: 400;
+            font-size: .9rem;
+            line-height: 1.6;
+        }
     </style>
 </head>
 <body class="theme-elecom">
@@ -229,50 +259,52 @@
                 <div class="modal-body">
                     <div class="row g-3">
                         <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="cd_name" readonly>
-                                <label>Full Name</label>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Full Name</div>
+                                <div class="cd-field-value" id="cd_name"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="cd_student_id" readonly>
-                                <label>Student ID</label>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Student ID</div>
+                                <div class="cd-field-value" id="cd_student_id"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="cd_position" readonly>
-                                <label>Position</label>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Position</div>
+                                <div class="cd-field-value" id="cd_position"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="cd_org" readonly>
-                                <label>Organization</label>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Organization</div>
+                                <div class="cd-field-value" id="cd_org"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="cd_party" readonly>
-                                <label>Party</label>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Party</div>
+                                <div class="cd-field-value" id="cd_party"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="cd_program" readonly>
-                                <label>Program</label>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Program</div>
+                                <div class="cd-field-value" id="cd_program"></div>
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="cd_year" readonly>
-                                <label>Year / Section</label>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Year / Section</div>
+                                <div class="cd-field-value" id="cd_year"></div>
                             </div>
                         </div>
                         <div class="col-12">
-                            <label class="form-label fw-semibold">Platform</label>
-                            <div class="p-3 border rounded bg-light" id="cd_platform" style="min-height:64px; white-space:pre-wrap;"></div>
+                            <div class="cd-field">
+                                <div class="cd-field-label">Platform</div>
+                                <div class="cd-field-value cd-field-platform" id="cd_platform"></div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -285,6 +317,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261004-search-inside-wrap"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/search_results.js?v=20261004-fix-autofill"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/search_results.js?v=20261004-clean-modal-fields"></script>
 </body>
 </html>

@@ -152,7 +152,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
       const name = [c.first_name, c.middle_name, c.last_name].filter(Boolean).join(' ');
 
-      const set = (elId, v) => { const el = document.getElementById(elId); if (el) el.value = v || ''; };
+      const set = (elId, v) => { const el = document.getElementById(elId); if (el) el.textContent = v || '—'; };
       set('cd_name',       name);
       set('cd_student_id', c.student_id);
       set('cd_position',   c.position);
