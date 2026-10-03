@@ -1,0 +1,297 @@
+/**
+ * elecom_live_chat.js
+ * Admin Live Chat – Messenger-style support inbox.
+ *
+ * Polls /api/admin/chat/conversations/ every 8 s to refresh the left pane.
+ * When a conversation is open it polls /api/admin/chat/thread/ every 4 s.
+ * Admin replies go to POST /api/admin/chat/reply/.
+ */
+
+document.addEventListener('DOMContentLoaded', () => {
+
+  // ── Sidebar / mobile menu ─────────────────────────────────────────────────
+  const menuToggle    = document.getElementById('menuToggle');
+  const sidebar       = document.getElementById('sidebar');
+  const sidebarOverlay= document.getElementById('sidebarOverlay');
+  const closeSidebar  = document.getElementById('closeSidebar');
+
+  if (menuToggle && sidebar) {
+    menuToggle.addEventListener('click', () => { sidebar.classList.add('active'); sidebarOverlay?.classList.add('active'); });
+  }
+  if (closeSidebar) {
+    closeSidebar.addEventListener('click', () => { sidebar.classList.remove('active'); sidebarOverlay?.classList.remove('active'); });
+  }
+  if (sidebarOverlay) {
+    sidebarOverlay.addEventListener('click', () => { sidebar.classList.remove('active'); sidebarOverlay.classList.remove('active'); });
+  }
+  window.addEventListener('resize', () => {
+    if (window.innerWidth > 992) {
+      sidebar?.classList.remove('active');
+      sidebarOverlay?.classList.remove('active');
+    }
+  });
+
+  // ── DOM refs ──────────────────────────────────────────────────────────────
+  const convListEl      = document.getElementById('convList');
+  const convSearchEl    = document.getElementById('convSearch');
+  const threadEmpty     = document.getElementById('threadEmpty');
+  const activeThread    = document.getElementById('activeThread');
+  const chatMessagesEl  = document.getElementById('chatMessages');
+  const replyInput      = document.getElementById('replyInput');
+  const sendBtn         = document.getElementById('sendBtn');
+  const threadAvatar    = document.getElementById('threadAvatar');
+  const threadNameEl    = document.getElementById('threadName');
+  const threadStudentId = document.getElementById('threadStudentId');
+  const takeoverBadge   = document.getElementById('takeoverBadge');
+
+  // ── State ─────────────────────────────────────────────────────────────────
+  let conversations   = [];
+  let activeStudentId = null;
+  let lastMsgId       = null;
+  let convPollTimer   = null;
+  let threadPollTimer = null;
+  let sending         = false;
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  const esc = (s) =>
+    String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+  function relativeTime(isoStr) {
+    if (!isoStr) return '';
+    const diff = (Date.now() - new Date(isoStr).getTime()) / 1000;
+    if (diff < 60)    return 'just now';
+    if (diff < 3600)  return `${Math.floor(diff / 60)}m ago`;
+    if (diff < 86400) return `${Math.floor(diff / 3600)}h ago`;
+    return new Date(isoStr).toLocaleDateString();
+  }
+
+  function formatTime(isoStr) {
+    if (!isoStr) return '';
+    return new Date(isoStr).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  function initials(name) {
+    const parts = String(name || '?').trim().split(/\s+/);
+    return parts.slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
+  }
+
+  function scrollToBottom() {
+    if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  }
+
+  // ── Render conversations list ─────────────────────────────────────────────
+  function renderConvList() {
+    const q = (convSearchEl?.value || '').toLowerCase();
+    const filtered = q
+      ? conversations.filter(c =>
+          c.display_name.toLowerCase().includes(q) || c.student_id.toLowerCase().includes(q))
+      : conversations;
+
+    if (!filtered.length) {
+      convListEl.innerHTML = `
+        <div class="chat-list-empty">
+          <i class="bi bi-inbox d-block mb-2" style="font-size:1.8rem;"></i>
+          ${q ? 'No matching conversations.' : 'No chat conversations yet.'}
+        </div>`;
+      return;
+    }
+
+    convListEl.innerHTML = filtered.map(c => {
+      const isActive = c.student_id === activeStudentId;
+      const unread   = c.unread_count > 0 ? `<span class="chat-conv-unread">${c.unread_count}</span>` : '';
+      const roleIcon = c.last_role === 'admin' ? '↩ ' : c.last_role === 'assistant' ? '🤖 ' : '';
+      return `
+        <div class="chat-conv-item${isActive ? ' active' : ''}" data-id="${esc(c.student_id)}">
+          <div class="chat-conv-avatar">${esc(initials(c.display_name))}</div>
+          <div class="overflow-hidden flex-grow-1">
+            <div class="chat-conv-name">${esc(c.display_name)}</div>
+            <div class="chat-conv-snippet">${roleIcon}${esc(c.last_message || '…')}</div>
+          </div>
+          <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
+            <span class="chat-conv-time">${relativeTime(c.last_activity)}</span>
+            ${unread}
+          </div>
+        </div>`;
+    }).join('');
+  }
+
+  // ── Load conversations (poll) ─────────────────────────────────────────────
+  async function loadConversations() {
+    try {
+      const res  = await fetch('/api/admin/chat/conversations/', { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        conversations = data.conversations || [];
+        renderConvList();
+      }
+    } catch (_) {}
+  }
+
+  // ── Render a single message bubble ───────────────────────────────────────
+  function msgBubble(msg) {
+    const role    = msg.role; // user | assistant | admin
+    const wrapCls = role === 'admin' ? 'admin-wrap' : role === 'assistant' ? 'bot-wrap' : 'user-wrap';
+    const bubCls  = role === 'admin' ? 'admin-bubble' : role === 'assistant' ? 'bot-bubble' : 'user-bubble';
+    const avCls   = role === 'admin' ? 'admin-av' : role === 'assistant' ? 'bot-av' : 'user-av';
+    const avIcon  = role === 'admin' ? '<i class="bi bi-person-badge"></i>'
+                  : role === 'assistant' ? '<i class="bi bi-robot"></i>'
+                  : '<i class="bi bi-person"></i>';
+    const metaCls = role === 'admin' ? 'admin-meta' : '';
+    const label   = role === 'admin' ? 'Admin' : role === 'assistant' ? 'EleVote AI' : 'Voter';
+
+    const avatar = `<div class="chat-role-avatar ${avCls}">${avIcon}</div>`;
+    const bubble = `
+      <div>
+        <div class="chat-bubble ${bubCls}">${esc(msg.content)}</div>
+        <div class="chat-bubble-meta ${metaCls}">${label} · ${formatTime(msg.created_at)}</div>
+      </div>`;
+
+    return `
+      <div class="chat-bubble-wrap ${wrapCls}">
+        ${role !== 'admin' ? avatar + bubble : bubble + avatar}
+      </div>`;
+  }
+
+  // ── Load thread for active conversation ───────────────────────────────────
+  async function loadThread(studentId, append = false) {
+    const url = new URL('/api/admin/chat/thread/', window.location.origin);
+    url.searchParams.set('student_id', studentId);
+    if (append && lastMsgId) url.searchParams.set('since_id', lastMsgId);
+
+    try {
+      const res  = await fetch(url.toString(), { credentials: 'same-origin' });
+      const data = await res.json().catch(() => ({}));
+      if (!data.ok) return;
+
+      const msgs = data.messages || [];
+      if (!msgs.length) return;
+
+      // Update lastMsgId
+      lastMsgId = msgs[msgs.length - 1].id;
+
+      if (append) {
+        msgs.forEach(m => {
+          const div = document.createElement('div');
+          div.innerHTML = msgBubble(m);
+          chatMessagesEl.appendChild(div.firstElementChild);
+        });
+      } else {
+        chatMessagesEl.innerHTML = msgs.map(msgBubble).join('');
+      }
+      scrollToBottom();
+
+      // Show/hide takeover badge (true if last message was from admin)
+      const lastRole = msgs[msgs.length - 1]?.role;
+      if (takeoverBadge) takeoverBadge.style.display = lastRole === 'admin' ? '' : 'none';
+
+    } catch (_) {}
+  }
+
+  // ── Open a conversation ───────────────────────────────────────────────────
+  function openConversation(studentId) {
+    if (activeStudentId === studentId) return;
+
+    activeStudentId = studentId;
+    lastMsgId       = null;
+
+    // Update list highlight
+    renderConvList();
+
+    // Show thread pane
+    if (threadEmpty)  threadEmpty.style.display  = 'none';
+    if (activeThread) { activeThread.style.display = 'flex'; }
+
+    // Set header
+    const conv = conversations.find(c => c.student_id === studentId);
+    if (conv) {
+      threadNameEl.textContent    = conv.display_name;
+      threadStudentId.textContent = `ID: ${conv.student_id}`;
+      threadAvatar.textContent    = initials(conv.display_name);
+    }
+
+    // Enable input
+    replyInput.disabled = false;
+    replyInput.value    = '';
+    sendBtn.disabled    = true;
+
+    // Clear messages and load fresh
+    chatMessagesEl.innerHTML = '<div class="text-center text-muted py-4" style="font-size:.82rem;">Loading…</div>';
+    loadThread(studentId, false);
+
+    // Start thread polling
+    clearInterval(threadPollTimer);
+    threadPollTimer = setInterval(() => {
+      if (activeStudentId) loadThread(activeStudentId, true);
+    }, 4000);
+  }
+
+  // ── Send admin reply ──────────────────────────────────────────────────────
+  async function sendReply() {
+    if (sending || !activeStudentId) return;
+    const content = (replyInput.value || '').trim();
+    if (!content) return;
+
+    sending = true;
+    sendBtn.disabled = true;
+    replyInput.disabled = true;
+
+    try {
+      const res = await fetch('/api/admin/chat/reply/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: activeStudentId, content }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok && data.message) {
+        replyInput.value = '';
+        // Append the new message immediately
+        const div = document.createElement('div');
+        div.innerHTML = msgBubble(data.message);
+        chatMessagesEl.appendChild(div.firstElementChild);
+        lastMsgId = data.message.id;
+        scrollToBottom();
+        if (takeoverBadge) takeoverBadge.style.display = '';
+        // Refresh conversation list snippet
+        loadConversations();
+      } else {
+        alert(data.error || 'Failed to send message.');
+      }
+    } catch (_) {
+      alert('Network error. Please try again.');
+    } finally {
+      sending = false;
+      replyInput.disabled = false;
+      replyInput.focus();
+    }
+  }
+
+  // ── Event listeners ───────────────────────────────────────────────────────
+  convListEl?.addEventListener('click', (e) => {
+    const item = e.target.closest('.chat-conv-item[data-id]');
+    if (item) openConversation(item.getAttribute('data-id'));
+  });
+
+  convSearchEl?.addEventListener('input', renderConvList);
+
+  replyInput?.addEventListener('input', () => {
+    // Auto-grow
+    replyInput.style.height = 'auto';
+    replyInput.style.height = Math.min(replyInput.scrollHeight, 120) + 'px';
+    sendBtn.disabled = !replyInput.value.trim();
+  });
+
+  replyInput?.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      if (!sendBtn.disabled) sendReply();
+    }
+  });
+
+  sendBtn?.addEventListener('click', sendReply);
+
+  // ── Boot ──────────────────────────────────────────────────────────────────
+  loadConversations();
+  convPollTimer = setInterval(loadConversations, 8000);
+
+});

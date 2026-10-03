@@ -10949,3 +10949,150 @@ def admin_calendar_event_delete_api(request, event_id):
     except Exception as e:
         logger.exception("admin_calendar_event_delete_api failed")
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Admin Live Chat endpoints
+# ─────────────────────────────────────────────────────────────────────────────
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def admin_chat_conversations_api(request):
+    """
+    GET /api/admin/chat/conversations/
+    Returns the list of voters who have chatted via EleVote, sorted by most
+    recent message.  Also returns the last message snippet and unread count
+    (messages with role='user' that arrived after any 'admin' reply in that
+    thread).
+    """
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    _ensure_elevote_chat_table()
+
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT
+                m.student_id,
+                u.email,
+                COALESCE(u.email, m.student_id)          AS display_name,
+                MAX(m.created_at)                         AS last_activity,
+                (
+                    SELECT content FROM elevote_chat_messages
+                    WHERE student_id = m.student_id
+                    ORDER BY created_at DESC LIMIT 1
+                )                                          AS last_message,
+                (
+                    SELECT role FROM elevote_chat_messages
+                    WHERE student_id = m.student_id
+                    ORDER BY created_at DESC LIMIT 1
+                )                                          AS last_role,
+                COUNT(*) FILTER (
+                    WHERE m.role = 'user'
+                    AND m.created_at > COALESCE((
+                        SELECT created_at FROM elevote_chat_messages
+                        WHERE student_id = m.student_id
+                          AND role = 'admin'
+                        ORDER BY created_at DESC LIMIT 1
+                    ), '1970-01-01')
+                )                                          AS unread_count
+            FROM elevote_chat_messages m
+            LEFT JOIN users u ON u.student_id = m.student_id
+            GROUP BY m.student_id, u.email
+            ORDER BY last_activity DESC
+            LIMIT 200
+            """,
+            [],
+        )
+        cols = [c.description[0] for c in cur.description]
+        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+
+    conversations = []
+    for r in rows:
+        last_activity = r["last_activity"]
+        conversations.append({
+            "student_id":    r["student_id"],
+            "display_name":  r["display_name"] or r["student_id"],
+            "last_message":  (r["last_message"] or "")[:120],
+            "last_role":     r["last_role"] or "user",
+            "last_activity": last_activity.isoformat() if last_activity else None,
+            "unread_count":  int(r["unread_count"] or 0),
+        })
+
+    return JsonResponse({"ok": True, "conversations": conversations})
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def admin_chat_thread_api(request):
+    """
+    GET /api/admin/chat/thread/?student_id=<id>&since_id=<msg_id>
+    Returns the full message thread for a given student.
+    Optional since_id for polling (only messages newer than that id).
+    """
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    student_id = (request.GET.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "student_id required."}, status=400)
+
+    since_id = request.GET.get("since_id")
+
+    _ensure_elevote_chat_table()
+
+    qs = EleVoteChatMessage.objects.filter(student_id=student_id)
+    if since_id:
+        try:
+            qs = qs.filter(id__gt=int(since_id))
+        except (ValueError, TypeError):
+            pass
+    rows = list(qs.order_by("created_at")[:500])
+
+    return JsonResponse({
+        "ok": True,
+        "student_id": student_id,
+        "messages": [_elevote_message_json(r) for r in rows],
+    })
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_chat_reply_api(request):
+    """
+    POST /api/admin/chat/reply/
+    Body: { "student_id": "...", "content": "..." }
+    Stores an admin reply message in the chat thread for that student.
+    """
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        body = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON."}, status=400)
+
+    student_id = (body.get("student_id") or "").strip()
+    content    = (body.get("content")    or "").strip()
+
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "student_id required."}, status=400)
+    if not content:
+        return JsonResponse({"ok": False, "error": "Content cannot be empty."}, status=400)
+    if len(content) > 4000:
+        return JsonResponse({"ok": False, "error": "Message too long."}, status=400)
+
+    _ensure_elevote_chat_table()
+
+    row = EleVoteChatMessage.objects.create(
+        student_id=student_id,
+        role="admin",
+        content=content,
+        model=None,
+    )
+
+    return JsonResponse({"ok": True, "message": _elevote_message_json(row)})

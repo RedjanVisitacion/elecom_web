@@ -33,6 +33,9 @@ from .views import (
     account_presence_api,
     account_app_rating_api,
     account_profile_photo_api,
+    admin_chat_conversations_api,
+    admin_chat_thread_api,
+    admin_chat_reply_api,
     account_profile_update_api,
     account_profile_password_api,
     candidates_metrics_api,
@@ -160,6 +163,11 @@ urlpatterns = [
     path('api/admin/network-logs/', admin_network_logs_api, name='admin_network_logs_api'),
     path('api/admin/calendar-events/', admin_calendar_events_api, name='admin_calendar_events_api'),
     path('api/admin/calendar-events/<int:event_id>/', admin_calendar_event_delete_api, name='admin_calendar_event_delete_api'),
+
+    # Admin Live Chat
+    path('api/admin/chat/conversations/', admin_chat_conversations_api, name='admin_chat_conversations_api'),
+    path('api/admin/chat/thread/', admin_chat_thread_api, name='admin_chat_thread_api'),
+    path('api/admin/chat/reply/', admin_chat_reply_api, name='admin_chat_reply_api'),
     path('api/network/check/', check_network_access_api, name='check_network_access_api'),
 
     # Mobile namespace (same handlers; cleaner URL separation for Flutter clients)
