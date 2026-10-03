@@ -62,14 +62,27 @@ document.addEventListener('DOMContentLoaded', function () {
       : `<div class="search-result-avatar-placeholder"><i class="bi bi-person"></i></div>`;
 
     return `
-      <a href="#" class="search-result-item" data-id="${escapeHtml(item.id)}">
-        ${avatar}
-        <div class="flex-grow-1 overflow-hidden">
-          <div class="search-result-name">${escapeHtml(name || item.student_id || '')}</div>
-          <div class="search-result-meta">${escapeHtml(meta)}</div>
+      <div class="search-result-item">
+        <a href="#" class="d-flex align-items-center gap-3 flex-grow-1 text-decoration-none search-result-link" data-id="${escapeHtml(item.id)}" style="min-width:0;">
+          ${avatar}
+          <div class="flex-grow-1 overflow-hidden">
+            <div class="search-result-name">${escapeHtml(name || item.student_id || '')}</div>
+            <div class="search-result-meta">${escapeHtml(meta)}</div>
+          </div>
+          <div class="search-result-party">${escapeHtml(item.party_name || 'Independent')}</div>
+        </a>
+        <div class="d-flex gap-1 ms-2 flex-shrink-0">
+          <button type="button" class="btn btn-sm btn-outline-primary sr-edit-btn"
+                  data-action="edit" data-id="${escapeHtml(item.id)}" title="Edit candidate">
+            <i class="bi bi-pencil-square"></i>
+          </button>
+          <button type="button" class="btn btn-sm btn-outline-danger sr-delete-btn"
+                  data-action="delete" data-id="${escapeHtml(item.id)}"
+                  data-name="${escapeHtml(name)}" title="Unregister candidate">
+            <i class="bi bi-person-dash"></i>
+          </button>
         </div>
-        <div class="search-result-party">${escapeHtml(item.party_name || 'Independent')}</div>
-      </a>`;
+      </div>`;
   }
 
   // ── Search ──────────────────────────────────────────────────────────────────
@@ -186,10 +199,129 @@ document.addEventListener('DOMContentLoaded', function () {
 
   if (listEl) {
     listEl.addEventListener('click', (e) => {
-      const a = e.target.closest('a[data-id]');
-      if (!a) return;
-      e.preventDefault();
-      openCandidate(a.getAttribute('data-id'));
+      // View profile
+      const link = e.target.closest('a[data-id]');
+      if (link) { e.preventDefault(); openCandidate(link.getAttribute('data-id')); return; }
+      // Edit
+      const editBtn = e.target.closest('[data-action="edit"]');
+      if (editBtn) { e.preventDefault(); openEditModal(editBtn.getAttribute('data-id')); return; }
+      // Delete
+      const deleteBtn = e.target.closest('[data-action="delete"]');
+      if (deleteBtn) { e.preventDefault(); openDeleteModal(deleteBtn.getAttribute('data-id'), deleteBtn.getAttribute('data-name')); }
     });
   }
 });
+
+  // ── Edit modal ───────────────────────────────────────────────────────────────
+  const editModalEl = document.getElementById('srEditModal');
+  const editModal   = editModalEl ? bootstrap.Modal.getOrCreateInstance(editModalEl) : null;
+
+  async function openEditModal(id) {
+    if (!id || !editModal) return;
+    try {
+      const res = await fetch(`${API_BASE}detail/?id=${encodeURIComponent(id)}`, { credentials: 'same-origin' });
+      const d = await res.json().catch(() => ({}));
+      if (!d || !d.ok || !d.candidate) return;
+      const c = d.candidate;
+      const set = (elId, v) => { const el = document.getElementById(elId); if (el) el.value = v || ''; };
+      set('sr_ed_id',          c.id);
+      set('sr_ed_first_name',  c.first_name);
+      set('sr_ed_middle_name', c.middle_name);
+      set('sr_ed_last_name',   c.last_name);
+      set('sr_ed_org',         c.organization);
+      set('sr_ed_position',    c.position);
+      set('sr_ed_program',     c.program);
+      set('sr_ed_year',        c.year_section);
+      set('sr_ed_platform',    c.platform);
+      set('sr_ed_photo_url',   c.photo_url);
+      set('sr_ed_party_logo_url', c.party_logo_url);
+      ['sr_ed_photo_file','sr_ed_party_logo_file'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; });
+      ['sr_ed_photo_status','sr_ed_party_logo_status'].forEach(id => { const el = document.getElementById(id); if (el) el.textContent = ''; });
+      const photoPreview = document.getElementById('sr_ed_photo_preview');
+      const photoPlaceholder = document.getElementById('sr_ed_photo_placeholder');
+      if (photoPreview && photoPlaceholder) {
+        if (c.photo_url && c.photo_url.startsWith('http')) {
+          photoPreview.src = c.photo_url; photoPreview.style.display = '';
+          photoPlaceholder.style.display = 'none';
+        } else {
+          photoPreview.style.display = 'none'; photoPlaceholder.style.display = '';
+        }
+      }
+      editModal.show();
+    } catch (e) {}
+  }
+
+  const srSaveEditBtn = document.getElementById('srSaveEditBtn');
+  if (srSaveEditBtn) {
+    srSaveEditBtn.addEventListener('click', async () => {
+      const photoFile = document.getElementById('sr_ed_photo_file')?.files[0];
+      const partyFile = document.getElementById('sr_ed_party_logo_file')?.files[0];
+      let photoUrl    = document.getElementById('sr_ed_photo_url')?.value || '';
+      let partyUrl    = document.getElementById('sr_ed_party_logo_url')?.value || '';
+
+      if (photoFile) {
+        const st = document.getElementById('sr_ed_photo_status');
+        if (st) st.textContent = 'Uploading…';
+        try {
+          const fd = new FormData(); fd.append('image', photoFile); fd.append('type', 'candidate_photo');
+          const r = await fetch('/api/admin/candidates/upload-image/', { method:'POST', credentials:'same-origin', body: fd });
+          const j = await r.json(); photoUrl = j.url || photoUrl;
+          if (st) st.textContent = '';
+          const el = document.getElementById('sr_ed_photo_url'); if (el) el.value = photoUrl;
+        } catch { const st = document.getElementById('sr_ed_photo_status'); if (st) st.textContent = 'Upload failed'; return; }
+      }
+      if (partyFile) {
+        const st = document.getElementById('sr_ed_party_logo_status');
+        if (st) st.textContent = 'Uploading…';
+        try {
+          const fd = new FormData(); fd.append('image', partyFile); fd.append('type', 'party_logo');
+          const r = await fetch('/api/admin/candidates/upload-image/', { method:'POST', credentials:'same-origin', body: fd });
+          const j = await r.json(); partyUrl = j.url || partyUrl;
+          if (st) st.textContent = '';
+          const el = document.getElementById('sr_ed_party_logo_url'); if (el) el.value = partyUrl;
+        } catch { const st = document.getElementById('sr_ed_party_logo_status'); if (st) st.textContent = 'Upload failed'; return; }
+      }
+
+      const get = (elId) => { const el = document.getElementById(elId); return el ? el.value : ''; };
+      const payload = {
+        id: get('sr_ed_id'), first_name: get('sr_ed_first_name'), middle_name: get('sr_ed_middle_name'),
+        last_name: get('sr_ed_last_name'), organization: get('sr_ed_org'), position: get('sr_ed_position'),
+        program: get('sr_ed_program'), year_section: get('sr_ed_year'), platform: get('sr_ed_platform'),
+        photo_url: photoUrl, party_logo_url: partyUrl,
+      };
+      const res = await fetch(API_BASE + 'update/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin', body: JSON.stringify(payload),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (d && d.ok) { editModal.hide(); doSearch(); }
+      else { alert(d && d.error ? d.error : 'Failed to save changes.'); }
+    });
+  }
+
+  // ── Delete modal ─────────────────────────────────────────────────────────────
+  const deleteModalEl = document.getElementById('srDeleteModal');
+  const deleteModal   = deleteModalEl ? bootstrap.Modal.getOrCreateInstance(deleteModalEl) : null;
+
+  function openDeleteModal(id, name) {
+    if (!deleteModal) return;
+    const nameEl = document.getElementById('srDelName');
+    if (nameEl) nameEl.textContent = name || '';
+    const confirmBtn = document.getElementById('srConfirmDeleteBtn');
+    if (confirmBtn) confirmBtn.setAttribute('data-id', id);
+    deleteModal.show();
+  }
+
+  const srConfirmDeleteBtn = document.getElementById('srConfirmDeleteBtn');
+  if (srConfirmDeleteBtn) {
+    srConfirmDeleteBtn.addEventListener('click', async function () {
+      const id = this.getAttribute('data-id');
+      const res = await fetch(API_BASE + 'delete/', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        credentials: 'same-origin', body: JSON.stringify({ id }),
+      });
+      const d = await res.json().catch(() => ({}));
+      if (d && d.ok) { deleteModal.hide(); doSearch(); }
+      else { alert(d && d.error ? d.error : 'Failed to unregister candidate.'); }
+    });
+  }
