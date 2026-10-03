@@ -239,6 +239,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "elecom_network_authorize.html",
     "profile.html",
     "search_results.html",
+    "elecom_live_chat.html",
 }
 _STUDENT_PAGE_ALLOWLIST = {
     "user_dashboard.html",
