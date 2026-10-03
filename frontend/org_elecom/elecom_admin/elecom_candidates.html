@@ -151,15 +151,38 @@
               </div>
               <div class="col-md-4">
                 <label class="form-label">Organization</label>
-                <input type="text" class="form-control" name="organization" id="ed_org" required>
+                <select class="form-select" name="organization" id="ed_org" required>
+                  <option value="" disabled>Select organization</option>
+                  <option value="USG">USG</option>
+                  <option value="SITE">SITE</option>
+                  <option value="PAFE">PAFE</option>
+                  <option value="AFPROTECHS">AFPROTECHS</option>
+                </select>
               </div>
               <div class="col-md-4">
                 <label class="form-label">Position</label>
-                <input type="text" class="form-control" name="position" id="ed_position" required>
+                <select class="form-select" name="position" id="ed_position" required>
+                  <option value="" disabled>Select position</option>
+                  <option>President</option>
+                  <option>Vice President</option>
+                  <option>General Secretary</option>
+                  <option>Associate Secretary</option>
+                  <option>Treasurer</option>
+                  <option>Auditor</option>
+                  <option>Public Information Officer</option>
+                  <option>BSIT Representative</option>
+                  <option>BTLED Representative</option>
+                  <option>BFPT Representative</option>
+                </select>
               </div>
               <div class="col-md-4">
                 <label class="form-label">Program</label>
-                <input type="text" class="form-control" name="program" id="ed_program" required>
+                <select class="form-select" name="program" id="ed_program" required>
+                  <option value="" disabled>Select program</option>
+                  <option value="BSIT">BSIT</option>
+                  <option value="BTLED">BTLED</option>
+                  <option value="BFPT">BFPT</option>
+                </select>
               </div>
               <div class="col-md-4">
                 <label class="form-label">Year/Section</label>
@@ -267,6 +290,6 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261004-search-inside-wrap"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_candidates.js?v=20261004-no-searchinput-guard"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_candidates.js?v=20261004-select-dropdowns"></script>
 </body>
 </html>

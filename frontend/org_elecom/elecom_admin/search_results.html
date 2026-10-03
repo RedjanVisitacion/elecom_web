@@ -328,9 +328,38 @@
               <div class="col-md-4"><label class="form-label">First name</label><input type="text" class="form-control" id="sr_ed_first_name" required></div>
               <div class="col-md-4"><label class="form-label">Middle name</label><input type="text" class="form-control" id="sr_ed_middle_name"></div>
               <div class="col-md-4"><label class="form-label">Last name</label><input type="text" class="form-control" id="sr_ed_last_name" required></div>
-              <div class="col-md-4"><label class="form-label">Organization</label><input type="text" class="form-control" id="sr_ed_org" required></div>
-              <div class="col-md-4"><label class="form-label">Position</label><input type="text" class="form-control" id="sr_ed_position" required></div>
-              <div class="col-md-4"><label class="form-label">Program</label><input type="text" class="form-control" id="sr_ed_program" required></div>
+              <div class="col-md-4"><label class="form-label">Organization</label>
+                <select class="form-select" id="sr_ed_org" required>
+                  <option value="" disabled>Select organization</option>
+                  <option value="USG">USG</option>
+                  <option value="SITE">SITE</option>
+                  <option value="PAFE">PAFE</option>
+                  <option value="AFPROTECHS">AFPROTECHS</option>
+                </select>
+              </div>
+              <div class="col-md-4"><label class="form-label">Position</label>
+                <select class="form-select" id="sr_ed_position" required>
+                  <option value="" disabled>Select position</option>
+                  <option>President</option>
+                  <option>Vice President</option>
+                  <option>General Secretary</option>
+                  <option>Associate Secretary</option>
+                  <option>Treasurer</option>
+                  <option>Auditor</option>
+                  <option>Public Information Officer</option>
+                  <option>BSIT Representative</option>
+                  <option>BTLED Representative</option>
+                  <option>BFPT Representative</option>
+                </select>
+              </div>
+              <div class="col-md-4"><label class="form-label">Program</label>
+                <select class="form-select" id="sr_ed_program" required>
+                  <option value="" disabled>Select program</option>
+                  <option value="BSIT">BSIT</option>
+                  <option value="BTLED">BTLED</option>
+                  <option value="BFPT">BFPT</option>
+                </select>
+              </div>
               <div class="col-md-4"><label class="form-label">Year/Section</label><input type="text" class="form-control" id="sr_ed_year" required></div>
               <div class="col-md-8"><label class="form-label">Platform</label><textarea class="form-control" rows="3" id="sr_ed_platform"></textarea></div>
               <div class="col-md-6">
