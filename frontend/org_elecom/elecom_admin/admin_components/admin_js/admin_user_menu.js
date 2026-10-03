@@ -254,12 +254,11 @@
   const buildMarkup = () => {
     return `
 <div class="top-navbar-actions">
+  <div class="admin-notif-wrap" id="adminNotifWrap">
+  <button type="button" class="admin-hidden-notif-action" id="adminHiddenNotifButton" aria-label="Open reset votes"></button>
   <a href="/static/org_elecom/elecom_admin/search_results.html" class="admin-search-btn notif-bell" title="Search candidates" aria-label="Search candidates">
     <i class="bi bi-search"></i>
   </a>
-
-  <div class="admin-notif-wrap" id="adminNotifWrap">
-  <button type="button" class="admin-hidden-notif-action" id="adminHiddenNotifButton" aria-label="Open reset votes"></button>
   <button type="button" class="notif-bell" id="adminNotifBell" aria-label="Notifications" aria-expanded="false">
     <i class="bi bi-bell"></i>
     <span class="notif-count" id="adminNotifCount" aria-label="0 unread notifications" style="display:none;">0</span>
