@@ -117,6 +117,10 @@ document.addEventListener('DOMContentLoaded', function () {
   }
 
   if (inputEl) {
+    // Clear any browser-autofilled value on load so we don't fire a search immediately
+    inputEl.value = '';
+    if (clearBtn) clearBtn.style.display = 'none';
+
     inputEl.addEventListener('input', () => {
       clearTimeout(searchTimer);
       searchTimer = setTimeout(doSearch, 220);
