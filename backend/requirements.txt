@@ -26,6 +26,13 @@ bcrypt>=4.0.0
 
 # Face++ (Megvii) face enrollment and verification
 # No official PyPI package — calls REST API directly via requests
+# Used as fallback only when face_recognition is not installed.
+
+# Local face recognition (primary — replaces Face++ with zero API calls)
+# Requires cmake and a C++ compiler on the server.
+# Install on Ubuntu/Debian: apt-get install -y cmake build-essential libopenblas-dev liblapack-dev
+# Then: pip install face_recognition
+face_recognition>=1.3.0
 
 # Groq AI (EleVote chat)
 groq>=0.9.0

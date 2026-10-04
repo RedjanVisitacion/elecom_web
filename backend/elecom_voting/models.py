@@ -86,6 +86,9 @@ class FaceEnrollment(models.Model):
     face_image_url = models.TextField()
     cloudinary_public_id = models.CharField(max_length=255)
     facepp_face_token = models.CharField(max_length=64, null=True, blank=True)
+    # 128-d face embedding stored as JSON array — used by local face_recognition
+    # verification so the system works without Face++ API calls.
+    face_encoding = models.TextField(null=True, blank=True)
     enrollment_status = models.CharField(max_length=32, default="active")
     enrolled_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

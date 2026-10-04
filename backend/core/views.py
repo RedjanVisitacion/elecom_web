@@ -43,6 +43,7 @@ from elecom_voting.models import (
 )
 
 from . import facepp_service
+from . import local_face_service
 from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes
 
 logger = logging.getLogger(__name__)
@@ -4248,32 +4249,43 @@ def face_detect_api(request):
     max_bytes = 2 * 1024 * 1024
     if not raw or len(raw) > max_bytes:
         return JsonResponse({"ok": False, "error": "Invalid or oversized image upload."}, status=400)
-    if not _facepp_configured():
+    if not _facepp_configured() and not local_face_service.is_available():
         return JsonResponse({"ok": False, "error": "Face detection is not configured."}, status=503)
 
+    # ── Local path (preferred) ────────────────────────────────────────────────
+    if local_face_service.is_available():
+        try:
+            encoding = local_face_service.encode_face_bytes(raw)
+            return JsonResponse({
+                "ok": True,
+                "face_detected": True,
+                "rectangle": {},   # local service doesn't return bounding box
+                "encoding_length": len(encoding),
+            })
+        except local_face_service.LocalFaceError as e:
+            status_code = 200 if e.code == "no_face" else 400
+            return JsonResponse(
+                {"ok": e.code != "no_face", "face_detected": False,
+                 "error": e.message, "code": e.code},
+                status=status_code,
+            )
+        except Exception:
+            logger.exception("Local face detect API failed")
+            return JsonResponse({"ok": False, "error": "Failed to detect face."}, status=500)
+
+    # ── Face++ fallback ───────────────────────────────────────────────────────
     try:
         detail = facepp_service.detect_face_detail_bytes(raw)
         rect = detail.get("rectangle") or {}
         flags = _face_detail_flags(detail)
         detected = bool(rect.get("width") and rect.get("height"))
-        return JsonResponse(
-            {
-                "ok": True,
-                "face_detected": detected,
-                "rectangle": rect,
-                **flags,
-            }
-        )
+        return JsonResponse({"ok": True, "face_detected": detected, "rectangle": rect, **flags})
     except facepp_service.FacePPError as e:
-        status = 200 if e.code == "no_face" else 502
+        status_code = 200 if e.code == "no_face" else 502
         return JsonResponse(
-            {
-                "ok": True if e.code == "no_face" else False,
-                "face_detected": False,
-                "error": e.message,
-                "code": e.code,
-            },
-            status=status,
+            {"ok": e.code == "no_face", "face_detected": False,
+             "error": e.message, "code": e.code},
+            status=status_code,
         )
     except Exception:
         logger.exception("Face detect API failed")
@@ -4350,15 +4362,86 @@ def _enrollment_json(rec: FaceEnrollment) -> dict:
 
 
 def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: bytes) -> JsonResponse:
+    """
+    Enroll a student's face.
+
+    Primary path: local face_recognition library (dlib-based, no external API).
+    Fallback: Face++ API if face_recognition is not installed on this server.
+
+    The local path stores a 128-d face encoding in FaceEnrollment.face_encoding
+    for later verification without any API calls.
+    """
+    # ── Local face_recognition path (preferred) ───────────────────────────────
+    if local_face_service.is_available():
+        try:
+            # 1. Encode the submitted face image.
+            new_encoding = local_face_service.encode_face_bytes(raw)
+
+            # 2. Duplicate check — reject if this face already belongs to another student.
+            dup_sid = local_face_service.check_duplicate_enrollment(
+                new_encoding, exclude_student_id=student_id
+            )
+            if dup_sid:
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": _DUP_FACE_ENROLL_MSG,
+                        "code": "face_already_enrolled",
+                    },
+                    status=409,
+                )
+
+            # 3. Upload photo to Cloudinary for storage/display.
+            secure_url = ""
+            public_id = ""
+            try:
+                secure_url, public_id = upload_enrollment_image_bytes(raw)
+                if len(public_id) > 255:
+                    public_id = public_id[:255]
+            except Exception as e:
+                logger.exception("Cloudinary enrollment upload failed")
+                msg = str(e) if getattr(settings, "DEBUG", False) else "Failed to store enrollment image."
+                return JsonResponse({"ok": False, "error": msg}, status=500)
+
+            # 4. Atomically archive old enrollment and create new one with encoding.
+            encoding_json = local_face_service.encoding_to_json(new_encoding)
+            with transaction.atomic():
+                FaceEnrollment.objects.filter(
+                    student_id=student_id, enrollment_status="active"
+                ).update(enrollment_status="archived")
+                rec = FaceEnrollment.objects.create(
+                    user_id=user_id,
+                    student_id=student_id,
+                    face_image_url=secure_url,
+                    cloudinary_public_id=public_id,
+                    facepp_face_token=None,
+                    face_encoding=encoding_json,
+                    enrollment_status="active",
+                )
+
+            logger.info("Local face enrollment saved for student %s", student_id)
+            return JsonResponse({"ok": True, "enrolled": True, "enrollment": _enrollment_json(rec)})
+
+        except local_face_service.LocalFaceError as e:
+            logger.warning("Local face enrollment error: %s", e.message)
+            return JsonResponse({"ok": False, "error": e.message, "code": e.code}, status=400)
+        except Exception as e:
+            logger.exception("Local face enrollment unexpected error")
+            if getattr(settings, "DEBUG", False):
+                return JsonResponse({"ok": False, "error": str(e)}, status=500)
+            return JsonResponse({"ok": False, "error": "Failed to save face enrollment."}, status=500)
+
+    # ── Face++ fallback (only used when face_recognition is not installed) ─────
+    logger.warning(
+        "face_recognition library not available — falling back to Face++ API for enrollment. "
+        "Install face_recognition on the server to remove this dependency."
+    )
     thr = getattr(settings, "FACEPP_DUPLICATE_THRESHOLD", 80.0)
-    # Face++ free plan: ~1 req/s. Sleep 2 s between sequential API calls to
-    # avoid CONCURRENCY_LIMIT_EXCEEDED across the detect → search → addface chain.
     _FPP_INTER_CALL_DELAY = 2.0
     try:
         facepp_service.create_faceset_if_missing()
         time.sleep(_FPP_INTER_CALL_DELAY)
         face_detail = facepp_service.detect_face_detail_bytes(raw)
-        rect = face_detail.get("rectangle") or {}
         flags = _face_detail_flags(face_detail)
         if flags.get("mask_detected"):
             return JsonResponse(
@@ -4372,8 +4455,6 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
         try:
             results = facepp_service.search_duplicate_face(new_token)
         except facepp_service.FacePPError as e:
-            # First enrollment: Face++ Search can return EMPTY_FACESET when the faceset exists
-            # but has zero faces. Treat it as "no duplicate found" and proceed.
             msg = (e.message or "").strip().upper()
             if "EMPTY_FACESET" in msg:
                 results = []
@@ -4390,10 +4471,6 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
             matched_token = (r.get("face_token") or "").strip()
             if not matched_token:
                 continue
-            # Best signal: Face++ user_id (we set it to student_id on enrollment).
-            # If the DB enrollment was manually deleted, Face++ can still return an
-            # orphan token. Treat that as stale external memory, remove it, and
-            # allow the account to enroll again.
             rid = str(r.get("user_id") or r.get("userid") or "").strip()
             owner = FaceEnrollment.objects.filter(
                 enrollment_status="active",
@@ -4401,25 +4478,16 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
             ).first()
             if owner is not None and owner.student_id != student_id:
                 return JsonResponse(
-                    {
-                        "ok": False,
-                        "error": _DUP_FACE_ENROLL_MSG,
-                        "code": "face_already_enrolled",
-                    },
+                    {"ok": False, "error": _DUP_FACE_ENROLL_MSG, "code": "face_already_enrolled"},
                     status=409,
                 )
             if rid and rid != student_id:
                 rid_owner = FaceEnrollment.objects.filter(
-                    student_id=rid,
-                    enrollment_status="active",
+                    student_id=rid, enrollment_status="active"
                 ).first()
                 if rid_owner is not None:
                     return JsonResponse(
-                        {
-                            "ok": False,
-                            "error": _DUP_FACE_ENROLL_MSG,
-                            "code": "face_already_enrolled",
-                        },
+                        {"ok": False, "error": _DUP_FACE_ENROLL_MSG, "code": "face_already_enrolled"},
                         status=409,
                     )
                 stale_tokens_to_remove.add(matched_token)
@@ -4441,8 +4509,8 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
         try:
             facepp_service.set_face_userid(new_token, student_id)
         except Exception:
-            # Non-fatal; DB token fallback still applies.
             pass
+
         secure_url = ""
         public_id = ""
         try:
@@ -4470,10 +4538,9 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
         if old_token and old_token != new_token:
             facepp_service.remove_face_from_faceset(old_token)
         return JsonResponse({"ok": True, "enrolled": True, "enrollment": _enrollment_json(rec)})
+
     except facepp_service.FacePPError as e:
         logger.warning("Face++ enrollment error: %s", e.message)
-        # Return a friendly message for rate-limit errors so the student
-        # sees "busy, try again" instead of the raw API error code.
         if (e.code or "").upper() == "CONCURRENCY_LIMIT_EXCEEDED":
             return JsonResponse(
                 {
@@ -4560,14 +4627,61 @@ def _face_verification_vote_handler(request) -> JsonResponse:
         failure_reason = "Blink/liveness check failed."
     elif not live_bytes:
         failure_reason = "Missing live capture."
+    elif local_face_service.is_available():
+        # ── Primary path: local face_recognition comparison ──────────────────
+        # Use the stored 128-d encoding when available (new enrollments).
+        # Fall back to encoding the Cloudinary URL for students enrolled before
+        # this migration (they won't have face_encoding set yet).
+        stored_encoding = local_face_service.encoding_from_json(
+            getattr(enrollment, "face_encoding", None)
+        )
+        try:
+            if stored_encoding is None:
+                # Legacy enrollment — encode from the stored Cloudinary image URL.
+                if not enrollment.face_image_url:
+                    failure_reason = "Face enrollment must be repeated. Please re-enroll."
+                else:
+                    stored_encoding = local_face_service.encode_face_url(
+                        enrollment.face_image_url
+                    )
+                    # Back-fill the encoding so next verification is instant.
+                    try:
+                        FaceEnrollment.objects.filter(pk=enrollment.pk).update(
+                            face_encoding=local_face_service.encoding_to_json(stored_encoding)
+                        )
+                    except Exception:
+                        pass  # Non-fatal; will re-encode next time
+
+            if stored_encoding is not None:
+                live_encoding = local_face_service.encode_face_bytes(live_bytes)
+                matched, distance = local_face_service.compare_encodings(
+                    stored_encoding, live_encoding
+                )
+                # Convert distance to a 0–1 score for the log (closer to 1 = better match)
+                score = max(0.0, min(1.0, 1.0 - distance))
+                match_score = Decimal(str(round(score, 4)))
+                verified = matched
+                if verified:
+                    verification_status = "passed"
+                else:
+                    failure_reason = _MISMATCH_VOTER_MSG
+
+        except local_face_service.LocalFaceError as e:
+            logger.warning("Local face verify error: %s", e.message)
+            failure_reason = e.message
+        except Exception:
+            logger.exception("Local face verify unexpected error")
+            failure_reason = _MISMATCH_VOTER_MSG
+
     elif _facepp_configured():
+        # ── Face++ fallback (only when face_recognition not installed) ────────
         thr = getattr(settings, "FACEPP_VERIFY_THRESHOLD", 80.0)
         if not enrolled_token:
             failure_reason = "Face enrollment must be repeated (missing Face ID). Complete enrollment again."
         else:
             try:
                 live_token = facepp_service.detect_face(live_bytes)
-                time.sleep(2.0)  # Face++ free plan: 1 req/s shared pool — gap between detect and compare
+                time.sleep(2.0)
                 conf = facepp_service.compare_faces(enrolled_token, live_token)
                 match_score = Decimal(str(round(conf, 4)))
                 verified = conf >= thr
@@ -4581,6 +4695,7 @@ def _face_verification_vote_handler(request) -> JsonResponse:
                 logger.exception("Face++ verify unexpected error")
                 failure_reason = _MISMATCH_VOTER_MSG
     else:
+        # ── Last-resort URL-based pixel comparison ────────────────────────────
         live_url = str(payload.get("live_face_image_url") or "").strip()
         if live_url and enrollment is not None:
             matched, ms, compare_reason = _compare_face_urls(
