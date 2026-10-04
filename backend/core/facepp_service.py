@@ -126,6 +126,19 @@ def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> di
             if "CONCURRENCY_LIMIT_EXCEEDED" in err_upper:
                 last_exc = FacePPError(err, "CONCURRENCY_LIMIT_EXCEEDED")
                 continue  # retry after delay
+            # Quota / auth errors — no point retrying, surface a clear message
+            if any(k in err_upper for k in (
+                "AUTHENTICATION_ERROR",
+                "INVALID_API_KEY",
+                "QUOTA_EXCEEDED",
+                "RATE_LIMIT_EXCEEDED",
+                "ACCOUNT_SUSPENDED",
+            )):
+                raise FacePPError(
+                    "Face verification is unavailable right now (service quota). "
+                    "Please contact ELECOM or try again later.",
+                    "facepp_quota_error",
+                )
             # Log the real Face++ error so it appears in gunicorn logs
             logger.error("Face++ API error on %s: %s | response=%s", api_method, err, out)
             raise FacePPError(err, "facepp_api_error")
