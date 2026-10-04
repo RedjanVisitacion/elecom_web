@@ -712,3 +712,56 @@ Transparency → Live Chat → Network Authorize
 
 Admin HTML files that contain a hardcoded sidebar (all must be kept in sync):
 `admin_dashboard.html`, `elecom_backup_restore.html`, `elecom_candidates.html`, `elecom_dashboard.html`, `elecom_election_date.html`, `elecom_elections.html`, `elecom_live_chat.html`, `elecom_network_authorize.html`, `elecom_register_candidate.html`, `elecom_reports.html`, `elecom_reset.html`, `elecom_results.html`, `elecom_transparency.html`, `elecom_voters.html`, `profile.html`, `search_results.html`
+
+---
+
+## Live Chat — Additional Lessons (Session 2)
+
+### Bubble Wrapping Bug (Root Cause)
+
+Short admin messages like "goods", "nice one" wrapped onto two lines because:
+- `.chat-bubble` had both `max-width: 68%` and `width: fit-content` — the `max-width` was calculated relative to `.chat-bubble-inner` which had no fixed width, making the percentage meaningless
+- The meta label `"Admin · 03:30 PM"` (~115px) was wider than short words, so the unconstrained inner `<div>` expanded to the meta width and the bubble matched it
+
+**Fix applied:**
+- Removed `max-width` and `width` from `.chat-bubble` entirely
+- Put `width: fit-content` and `max-width: 75%` on `.chat-bubble-inner` — this is the direct flex child so `75%` resolves against the actual thread pane width
+- Added `align-items: flex-end` on `.admin-wrap .chat-bubble-inner` so meta aligns right under the bubble
+- Changed `white-space: pre-wrap` → `pre-line` on user/bot bubbles (preserves intentional newlines, collapses extra whitespace)
+
+### Admin Avatar Removal
+
+The admin (sender) should have no avatar — same as mobile where the sender has no icon. In `msgBubble()`, the `else` branch for `role === 'admin'` sets `avatar = ''` and the return uses `bubble` alone (no avatar appended).
+
+### git Status / Deploy Workflow Issue
+
+Changes made in-session were sometimes not committed before the server pull. **Always verify with `git log --oneline -3` that `HEAD` and `origin/main` match the latest commit before asking the server to pull.** The server's `Already up to date` means it was pulled before the latest push — run `git pull` again after confirming the push.
+
+Also: file paths in `git add` must use absolute paths or be relative to the workspace root (`F:\elecom_web`), not relative to a subdirectory like `backend\`.
+
+### EleVote Lottie Avatar
+
+The EleVote AI bubble avatar uses `Robot-Bot 3D.json` (from `elecom_mobile/assets/`, copied to `frontend/assets/`). Rendered via `lottie-web` CDN.
+
+**Do NOT add an `integrity=` SRI hash to the lottie CDN script tag.** The hash causes the browser to block the script when the CDN delivers even a minor variation, leaving `lottie` undefined and the avatar empty.
+
+Correct script tag:
+```html
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+```
+
+The JS uses `waitForLottieAndInit()` which polls every 500ms (up to 5s) for the `lottie` global before calling `lottie.loadAnimation()`. If lottie never loads, it falls back to a static SVG robot icon.
+
+The `.elevote-av` CSS background must be **light** (`#f0f4ff`) not dark — the Robot-Bot 3D animation has light-grey body fills on a transparent canvas; dark backgrounds make it look like a black circle.
+
+### CSS Version Bumping
+
+Every time `elecom_live_chat.html` or `elecom_live_chat.js` is changed, bump the `?v=` query string on the `<script>` tag in `elecom_live_chat.html`. The collectstatic pipeline on the server uses content-hashed filenames for CSS/JS served through WhiteNoise — without a version bump, the browser serves the stale cached file.
+
+### Conversation List Snippet Prefix
+
+- `last_role === 'admin'` → prefix `↩ ` (admin replied)  
+- `last_role === 'assistant'` → prefix `EleVote: ` (plain text, not emoji — formal)
+- `last_role === 'user'` → no prefix
+
+The old `🤖 ` emoji prefix was removed for formality.
