@@ -278,6 +278,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Load thread for active conversation ───────────────────────────────────
   async function loadThread(studentId, append = false) {
+    // Don't poll while a send is in flight — avoids duplicates from the race
+    // between the optimistic append in sendReply() and the poll fetching the
+    // same message before lastMsgId is updated.
+    if (append && sending) return;
+
     const url = new URL('/api/admin/chat/thread/', window.location.origin);
     url.searchParams.set('student_id', studentId);
     if (append && lastMsgId) url.searchParams.set('since_id', lastMsgId);
@@ -294,13 +299,26 @@ document.addEventListener('DOMContentLoaded', () => {
       lastMsgId = msgs[msgs.length - 1].id;
 
       if (append) {
-        msgs.forEach(m => {
+        // Deduplicate: skip any message whose id is already rendered in the DOM
+        const existingIds = new Set(
+          [...chatMessagesEl.querySelectorAll('[data-msg-id]')]
+            .map(el => el.dataset.msgId)
+        );
+        const newMsgs = msgs.filter(m => !existingIds.has(String(m.id)));
+        if (!newMsgs.length) return;
+        newMsgs.forEach(m => {
           const div = document.createElement('div');
           div.innerHTML = msgBubble(m);
-          chatMessagesEl.appendChild(div.firstElementChild);
+          const el = div.firstElementChild;
+          if (el) {
+            el.dataset.msgId = m.id;
+            chatMessagesEl.appendChild(el);
+          }
         });
       } else {
-        chatMessagesEl.innerHTML = msgs.map(msgBubble).join('');
+        chatMessagesEl.innerHTML = msgs.map(m =>
+          msgBubble(m).replace('<div class="chat-bubble-wrap', `<div data-msg-id="${m.id}" class="chat-bubble-wrap`)
+        ).join('');
       }
       scrollToBottom();
 
@@ -392,10 +410,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json().catch(() => ({}));
       if (data.ok && data.message) {
         replyInput.value = '';
-        // Append the new message immediately
+        // Append the new message immediately (optimistic), stamped with its id
+        // so the 4-second poll deduplicator can skip it.
         const div = document.createElement('div');
         div.innerHTML = msgBubble(data.message);
-        chatMessagesEl.appendChild(div.firstElementChild);
+        const el = div.firstElementChild;
+        if (el) {
+          el.dataset.msgId = data.message.id;
+          chatMessagesEl.appendChild(el);
+        }
         lastMsgId = data.message.id;
         scrollToBottom();
         // Refresh conversation list snippet

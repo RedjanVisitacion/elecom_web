@@ -1357,12 +1357,21 @@ def elevote_chat_api(request):
         return JsonResponse({"ok": False, "error": "EleVote chat storage is unavailable."}, status=500)
 
     if request.method == "GET":
-        rows = list(
-            EleVoteChatMessage.objects.filter(student_id=student_id)
-            .order_by("-created_at")[:30]
-        )
-        rows.reverse()
-        return JsonResponse({"ok": True, "messages": [_elevote_message_json(row) for row in rows]})
+        since_id = request.GET.get("since_id")
+        qs = EleVoteChatMessage.objects.filter(student_id=student_id)
+        if since_id:
+            try:
+                qs = qs.filter(id__gt=int(since_id))
+            except (ValueError, TypeError):
+                pass
+        rows = list(qs.order_by("created_at")[:50])
+        # When polling with since_id, also return takeover state so the
+        # mobile client can detect admin-mode without sending a message.
+        takeover = _is_admin_takeover_active(student_id) if since_id else None
+        resp: dict = {"ok": True, "messages": [_elevote_message_json(row) for row in rows]}
+        if takeover is not None:
+            resp["takeover_active"] = takeover
+        return JsonResponse(resp)
 
     if request.method == "DELETE":
         EleVoteChatMessage.objects.filter(student_id=student_id).delete()
