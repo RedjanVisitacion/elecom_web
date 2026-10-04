@@ -10970,52 +10970,85 @@ def admin_chat_conversations_api(request):
     if forbidden:
         return forbidden
 
-    _ensure_elevote_chat_table()
+    try:
+        _ensure_elevote_chat_table()
+    except Exception as e:
+        logger.exception("admin_chat_conversations_api: failed to ensure chat table")
+        return JsonResponse({"ok": False, "error": "Chat table unavailable."}, status=500)
 
-    with connection.cursor() as cur:
-        cur.execute(
-            """
-            SELECT
-                m.student_id,
-                u.email,
-                COALESCE(
-                    NULLIF(TRIM(CONCAT_WS(' ',
-                        NULLIF(TRIM(u.first_name), ''),
-                        NULLIF(TRIM(u.last_name), '')
-                    )), ''),
-                    u.email,
-                    m.student_id
-                )                                          AS display_name,
-                MAX(m.created_at)                         AS last_activity,
-                (
-                    SELECT content FROM elevote_chat_messages
+    # Check which columns exist in the users table so we can build the right query.
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT column_name FROM information_schema.columns
+                WHERE table_schema = 'public' AND table_name = 'users'
+                  AND column_name IN ('first_name', 'last_name', 'email')
+                """
+            )
+            user_cols = {row[0] for row in cur.fetchall()}
+    except Exception:
+        user_cols = set()
+
+    has_name_cols = "first_name" in user_cols and "last_name" in user_cols
+    has_email_col = "email" in user_cols
+
+    if has_name_cols:
+        display_name_expr = """COALESCE(
+                            NULLIF(TRIM(CONCAT_WS(' ',
+                                NULLIF(TRIM(u.first_name), ''),
+                                NULLIF(TRIM(u.last_name), '')
+                            )), ''),
+                            u.email,
+                            m.student_id
+                        )"""
+        group_by_cols = "m.student_id, u.first_name, u.last_name, u.email"
+    elif has_email_col:
+        display_name_expr = "COALESCE(u.email, m.student_id)"
+        group_by_cols = "m.student_id, u.email"
+    else:
+        display_name_expr = "m.student_id"
+        group_by_cols = "m.student_id"
+
+    sql = f"""
+        SELECT
+            m.student_id,
+            {display_name_expr}                            AS display_name,
+            MAX(m.created_at)                              AS last_activity,
+            (
+                SELECT content FROM elevote_chat_messages
+                WHERE student_id = m.student_id
+                ORDER BY created_at DESC LIMIT 1
+            )                                              AS last_message,
+            (
+                SELECT role FROM elevote_chat_messages
+                WHERE student_id = m.student_id
+                ORDER BY created_at DESC LIMIT 1
+            )                                              AS last_role,
+            COUNT(*) FILTER (
+                WHERE m.role = 'user'
+                AND m.created_at > COALESCE((
+                    SELECT created_at FROM elevote_chat_messages
                     WHERE student_id = m.student_id
+                      AND role = 'admin'
                     ORDER BY created_at DESC LIMIT 1
-                )                                          AS last_message,
-                (
-                    SELECT role FROM elevote_chat_messages
-                    WHERE student_id = m.student_id
-                    ORDER BY created_at DESC LIMIT 1
-                )                                          AS last_role,
-                COUNT(*) FILTER (
-                    WHERE m.role = 'user'
-                    AND m.created_at > COALESCE((
-                        SELECT created_at FROM elevote_chat_messages
-                        WHERE student_id = m.student_id
-                          AND role = 'admin'
-                        ORDER BY created_at DESC LIMIT 1
-                    ), '1970-01-01')
-                )                                          AS unread_count
-            FROM elevote_chat_messages m
-            LEFT JOIN users u ON u.student_id = m.student_id
-            GROUP BY m.student_id, u.email, u.first_name, u.last_name
-            ORDER BY last_activity DESC
-            LIMIT 200
-            """,
-            [],
-        )
-        cols = [c.description[0] for c in cur.description]
-        rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+                ), '1970-01-01')
+            )                                              AS unread_count
+        FROM elevote_chat_messages m
+        LEFT JOIN users u ON u.student_id = m.student_id
+        GROUP BY {group_by_cols}
+        ORDER BY last_activity DESC
+        LIMIT 200
+    """
+
+    try:
+        with connection.cursor() as cur:
+            cur.execute(sql, [])
+            cols = [c.description[0] for c in cur.description]
+            rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+    except Exception as e:
+        logger.exception("admin_chat_conversations_api: query failed")
+        return JsonResponse({"ok": False, "error": f"Database error: {e}"}, status=500)
 
     conversations = []
     for r in rows:
@@ -11050,15 +11083,18 @@ def admin_chat_thread_api(request):
 
     since_id = request.GET.get("since_id")
 
-    _ensure_elevote_chat_table()
-
-    qs = EleVoteChatMessage.objects.filter(student_id=student_id)
-    if since_id:
-        try:
-            qs = qs.filter(id__gt=int(since_id))
-        except (ValueError, TypeError):
-            pass
-    rows = list(qs.order_by("created_at")[:500])
+    try:
+        _ensure_elevote_chat_table()
+        qs = EleVoteChatMessage.objects.filter(student_id=student_id)
+        if since_id:
+            try:
+                qs = qs.filter(id__gt=int(since_id))
+            except (ValueError, TypeError):
+                pass
+        rows = list(qs.order_by("created_at")[:500])
+    except Exception as e:
+        logger.exception("admin_chat_thread_api: query failed")
+        return JsonResponse({"ok": False, "error": f"Database error: {e}"}, status=500)
 
     return JsonResponse({
         "ok": True,
@@ -11096,11 +11132,15 @@ def admin_chat_reply_api(request):
 
     _ensure_elevote_chat_table()
 
-    row = EleVoteChatMessage.objects.create(
-        student_id=student_id,
-        role="admin",
-        content=content,
-        model=None,
-    )
+    try:
+        row = EleVoteChatMessage.objects.create(
+            student_id=student_id,
+            role="admin",
+            content=content,
+            model=None,
+        )
+    except Exception as e:
+        logger.exception("admin_chat_reply_api: failed to save message")
+        return JsonResponse({"ok": False, "error": f"Database error: {e}"}, status=500)
 
     return JsonResponse({"ok": True, "message": _elevote_message_json(row)})

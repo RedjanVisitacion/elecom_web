@@ -134,7 +134,7 @@ document.addEventListener('DOMContentLoaded', () => {
         convListEl.innerHTML = `
           <div class="chat-list-empty text-warning">
             <i class="bi bi-exclamation-triangle d-block mb-2" style="font-size:1.8rem;"></i>
-            ${data.error || 'Could not load conversations.'}
+            ${esc(data.error || 'Could not load conversations.')}
           </div>`;
       }
     } catch (_) {
