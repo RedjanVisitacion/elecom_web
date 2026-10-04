@@ -95,19 +95,51 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Initialize Lottie avatars after bubbles are added to the DOM ─────────
-  function initLottieAvatars(container) {
-    if (typeof lottie === 'undefined') return;
-    const els = (container || chatMessagesEl).querySelectorAll('[data-lottie]:not([data-lottie-loaded])');
-    els.forEach(el => {
-      el.setAttribute('data-lottie-loaded', '1');
+  const LOTTIE_PATH = '/static/assets/Robot-Bot 3D.json';
+
+  function renderLottieEl(el) {
+    el.setAttribute('data-lottie-loaded', '1');
+    if (typeof lottie !== 'undefined') {
       lottie.loadAnimation({
         container: el,
         renderer:  'svg',
         loop:      true,
         autoplay:  true,
-        path:      el.dataset.lottie,
+        path:      LOTTIE_PATH,
       });
-    });
+    } else {
+      // Static SVG robot fallback when lottie library is unavailable
+      el.innerHTML = `<svg viewBox="0 0 24 24" fill="#2563eb" width="22" height="22">
+        <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2zm-4 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zM1 15h22v2a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-2z"/>
+      </svg>`;
+      el.style.cssText += ';display:flex;align-items:center;justify-content:center;';
+    }
+  }
+
+  function initLottieAvatars() {
+    const els = chatMessagesEl.querySelectorAll('[data-lottie]:not([data-lottie-loaded])');
+    els.forEach(renderLottieEl);
+  }
+
+  // Retry once lottie library finishes loading (handles async CDN load)
+  function waitForLottieAndInit() {
+    if (typeof lottie !== 'undefined') {
+      initLottieAvatars();
+    } else {
+      // Poll until available or give up after 5s and use fallback
+      let attempts = 0;
+      const check = setInterval(() => {
+        attempts++;
+        const pending = chatMessagesEl.querySelectorAll('[data-lottie]:not([data-lottie-loaded])');
+        if (typeof lottie !== 'undefined') {
+          clearInterval(check);
+          pending.forEach(renderLottieEl);
+        } else if (attempts >= 10) {
+          clearInterval(check);
+          pending.forEach(renderLottieEl); // renders SVG fallback
+        }
+      }, 500);
+    }
   }
 
   // ── Sync takeover button + banner + badge to a conversation's state ───────
@@ -336,7 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join('');
       }
       scrollToBottom();
-      initLottieAvatars();
+      waitForLottieAndInit();
 
       // Sync takeover badge/banner/button from conversations state
       const conv = conversations.find(c => c.student_id === activeStudentId);
