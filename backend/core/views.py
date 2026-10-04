@@ -11169,6 +11169,68 @@ def admin_calendar_event_delete_api(request, event_id):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+# ── Mobile read-only calendar events endpoint ─────────────────────────────────
+@csrf_exempt
+@require_http_methods(["GET"])
+def mobile_calendar_events_api(request):
+    """
+    GET /api/mobile/calendar-events/?year=YYYY&month=MM
+    Read-only view of election calendar events for student voters.
+    No admin authentication required — only a valid student session.
+    """
+    student_id = (request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+
+    _ensure_calendar_events_table()
+
+    year  = request.GET.get("year")
+    month = request.GET.get("month")
+    try:
+        with connection.cursor() as cur:
+            if year and month:
+                cur.execute(
+                    """
+                    SELECT id, title, event_date, end_date, description,
+                           location, color, start_time, end_time
+                    FROM election_calendar_events
+                    WHERE EXTRACT(YEAR  FROM event_date) = %s
+                      AND EXTRACT(MONTH FROM event_date) = %s
+                    ORDER BY event_date, id
+                    """,
+                    [int(year), int(month)],
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT id, title, event_date, end_date, description,
+                           location, color, start_time, end_time
+                    FROM election_calendar_events
+                    ORDER BY event_date, id
+                    """
+                )
+            rows = cur.fetchall()
+
+        events = [
+            {
+                "id":          r[0],
+                "title":       r[1],
+                "event_date":  r[2].isoformat() if r[2] else None,
+                "end_date":    r[3].isoformat() if r[3] else None,
+                "description": r[4] or "",
+                "location":    r[5] or "",
+                "color":       r[6] or "#1D4ED8",
+                "start_time":  str(r[7]) if r[7] else None,
+                "end_time":    str(r[8]) if r[8] else None,
+            }
+            for r in rows
+        ]
+        return JsonResponse({"ok": True, "events": events})
+    except Exception as e:
+        logger.exception("mobile_calendar_events_api GET failed")
+        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Admin Live Chat endpoints
 # ─────────────────────────────────────────────────────────────────────────────

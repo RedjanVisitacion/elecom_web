@@ -93,6 +93,7 @@ from .views import (
     terms_conditions_view,
     admin_calendar_events_api,
     admin_calendar_event_delete_api,
+    mobile_calendar_events_api,
 )
 
 def home_redirect(request):
@@ -164,6 +165,7 @@ urlpatterns = [
     path('api/admin/network-logs/', admin_network_logs_api, name='admin_network_logs_api'),
     path('api/admin/calendar-events/', admin_calendar_events_api, name='admin_calendar_events_api'),
     path('api/admin/calendar-events/<int:event_id>/', admin_calendar_event_delete_api, name='admin_calendar_event_delete_api'),
+    path('api/mobile/calendar-events/', mobile_calendar_events_api, name='mobile_calendar_events_api'),
 
     # Admin Live Chat
     path('api/admin/chat/conversations/', admin_chat_conversations_api, name='admin_chat_conversations_api'),
