@@ -616,3 +616,99 @@ Files that need updating together (check all when bumping):
 - `profile.html`, `search_results.html`
 
 Page-specific CSS files (e.g., `elecom_backup_restore.css`) must **not** override the sidebar background color or active link color — those come from `admin_dashboard.css` and must be consistent across all pages.
+
+---
+
+## Live Chat System (Admin Support Inbox)
+
+### Architecture
+
+The EleVote Live Chat is a two-layer system:
+
+1. **EleVote AI (Groq)** — auto-replies to voter messages via `POST /api/mobile/elevote/chat/`. This is the default behavior; every voter message gets an instant AI response.
+2. **Admin takeover** — COMELEC officers can suppress AI replies and reply directly to a voter from the web admin Live Chat page.
+
+### Database Tables
+
+```
+elevote_chat_messages   — all chat messages (user, assistant, admin roles)
+elevote_chat_takeover   — per-student admin takeover state
+```
+
+`elevote_chat_messages` schema:
+```sql
+id         BIGSERIAL PRIMARY KEY
+student_id varchar(64) NOT NULL
+role       varchar(16) NOT NULL   -- 'user' | 'assistant' | 'admin'
+content    text NOT NULL
+model      varchar(128) NULL      -- Groq model name, NULL for human messages
+created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+```
+
+`elevote_chat_takeover` schema:
+```sql
+student_id varchar(64) PRIMARY KEY
+active     boolean NOT NULL DEFAULT TRUE
+taken_at   timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
+taken_by   varchar(64) NULL       -- admin student_id who triggered takeover
+```
+
+Both tables are created by `_ensure_elevote_chat_table()` (called by `_ensure_all_system_tables()` middleware every 60s) — no separate migration needed.
+
+### Backend Endpoints
+
+| Method | URL | Purpose |
+|--------|-----|---------|
+| GET/POST/DELETE | `/api/mobile/elevote/chat/` | Voter sends message; AI replies (suppressed during takeover) |
+| GET | `/api/admin/chat/conversations/` | List all voter conversations with last message, unread count, photo, takeover state |
+| GET | `/api/admin/chat/thread/?student_id=X&since_id=Y` | Full message thread for one voter |
+| POST | `/api/admin/chat/reply/` | Admin sends reply: `{ student_id, content }` |
+| POST | `/api/admin/chat/takeover/` | Enable/disable admin takeover: `{ student_id, active: true|false }` |
+
+All admin endpoints require `_require_admin(request)` (Django session, role=admin).
+
+### Takeover Flow
+
+1. Voter sends message → EleVote auto-replies (AI mode, default).
+2. Admin opens Live Chat, sees conversation, clicks **"Take Over"**.
+3. Backend upserts `elevote_chat_takeover` row with `active=TRUE` for that `student_id`.
+4. Next voter message → `elevote_chat_api` calls `_is_admin_takeover_active(student_id)` → returns `true` → skips Groq, saves user message only, returns `{ ok, reply: null, takeover_active: true }`.
+5. Mobile app: when `reply` is null and `takeover_active` is true, show no AI bubble (just the voter's sent message).
+6. Admin types reply → `POST /api/admin/chat/reply/` saves `role='admin'` message.
+7. Admin clicks **"Release to EleVote"** → `POST /api/admin/chat/takeover/` with `active=false` → AI resumes for future messages.
+
+### Admin UI Files
+
+- **Page**: `frontend/org_elecom/elecom_admin/elecom_live_chat.html`
+- **JS**: `frontend/org_elecom/elecom_admin/admin_components/admin_js/elecom_live_chat.js`
+
+The JS polls `/api/admin/chat/conversations/` every **8 seconds** (left panel) and `/api/admin/chat/thread/` every **4 seconds** (open thread). Always bump the JS `?v=` query string in the HTML after any JS change.
+
+Key JS functions:
+- `loadConversations()` — fetches conversation list, calls `renderConvList()`, syncs takeover UI for active thread
+- `renderConvList()` — renders left panel; uses `avatarHtml(name, photoUrl)` for photo/initials avatar
+- `openConversation(studentId)` — switches active thread, calls `updateTakeoverUI(conv)`
+- `updateTakeoverUI(conv)` — syncs Take Over/Release button and banner based on `conv.takeover_active`
+- `setTakeover(active)` — POSTs to `/api/admin/chat/takeover/`, updates local state, refreshes UI
+- `msgBubble(msg)` — renders a message bubble; user bubbles show real profile photo (with initials fallback), EleVote AI shows navy "EV" badge, admin shows gold badge icon
+- `avatarHtml(name, photoUrl)` — returns `<img>` with `onerror` fallback to initials `<div>`
+
+### `admin_chat_conversations_api` — Common Bugs Fixed
+
+- **`c.description[0]` is wrong** — `psycopg2` cursor description rows use `c[0]` (tuple index) not `c.description[0]`. All `cols = [...]` lines in this file use `c[0]`.
+- **Missing try/except** — all three chat views now have try/except wrapping the DB calls, returning `{"ok": false, "error": "Database error: ..."}` on failure so the JS can display the actual error instead of staying frozen on "Loading conversations…".
+- **Silent failure in loadConversations()** — the JS now shows an explicit error state (lock icon for 403, warning icon for other errors, wifi-off for network errors) instead of silently staying on the loading spinner.
+- **display_name** — built with `CONCAT_WS(' ', first_name, last_name)` falling back to `email` then `student_id`. Column existence is checked via `information_schema.columns` first to handle schema variations.
+- **photo_url** — fetched from `users.photo_url` (if column exists) and included in each conversation object so the admin can show the voter's real profile photo.
+- **GROUP BY** — must include all non-aggregated columns from the `users` LEFT JOIN (`first_name`, `last_name`, `email`, `photo_url`).
+
+### Sidebar Order Rule (Live Chat)
+
+The correct sidebar order across **all** admin HTML pages is:
+```
+Transparency → Live Chat → Network Authorize
+```
+**Live Chat must appear before Network Authorize.** When adding or editing sidebars, verify both the order and consistent indentation across all admin HTML files.
+
+Admin HTML files that contain a hardcoded sidebar (all must be kept in sync):
+`admin_dashboard.html`, `elecom_backup_restore.html`, `elecom_candidates.html`, `elecom_dashboard.html`, `elecom_election_date.html`, `elecom_elections.html`, `elecom_live_chat.html`, `elecom_network_authorize.html`, `elecom_register_candidate.html`, `elecom_reports.html`, `elecom_reset.html`, `elecom_results.html`, `elecom_transparency.html`, `elecom_voters.html`, `profile.html`, `search_results.html`
