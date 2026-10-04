@@ -76,6 +76,7 @@ def _get_insight_app():
         return _insight_app
     except Exception as e:
         _insight_available = False
+        logger.error("InsightFace initialisation failed: %s", e, exc_info=True)
         raise LocalFaceError(
             f"InsightFace initialisation failed: {e}",
             "library_missing",
@@ -250,10 +251,11 @@ def is_available() -> bool:
     try:
         _get_insight_app()
         return True
-    except LocalFaceError:
-        pass
+    except LocalFaceError as e:
+        logger.warning("InsightFace not available: %s", e.message)
     try:
         import face_recognition  # type: ignore  # noqa: F401
         return True
     except ImportError:
+        logger.warning("face_recognition (dlib) not available either.")
         return False
