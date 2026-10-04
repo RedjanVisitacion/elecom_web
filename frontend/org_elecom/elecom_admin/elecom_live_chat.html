@@ -178,12 +178,18 @@
             width: fit-content;
             position: relative;
         }
-        /* Preserve line breaks for AI / voter multi-line replies */
+        /* Preserve explicit line breaks for AI / voter multi-line replies */
         .chat-bubble.user-bubble,
-        .chat-bubble.bot-bubble  { white-space: pre-wrap; }
+        .chat-bubble.bot-bubble  { white-space: pre-line; }
         .chat-bubble.user-bubble  { background: #eff6ff; color: #1e293b; border-bottom-left-radius: 4px; }
         .chat-bubble.bot-bubble   { background: #f0fdf4; color: #1e293b; border-bottom-left-radius: 4px; }
         .chat-bubble.admin-bubble { background: var(--blue-900, #0a2462); color: #fff; border-bottom-right-radius: 4px; }
+        /* Inner wrapper: shrinks to bubble width so meta label doesn't stretch the bubble */
+        .chat-bubble-inner {
+            display: inline-flex;
+            flex-direction: column;
+            max-width: 100%;
+        }
         .chat-bubble-meta { font-size: .68rem; color: #94a3b8; margin-top: 2px; padding: 0 4px; }
         .admin-meta { text-align: right; }
 
@@ -419,6 +425,6 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261004-search-inside-wrap"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_live_chat.js?v=20261004-no-admin-av"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_live_chat.js?v=20261004-bubble-inner"></script>
 </body>
 </html>

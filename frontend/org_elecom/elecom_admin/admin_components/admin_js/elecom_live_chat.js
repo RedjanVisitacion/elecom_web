@@ -263,7 +263,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const bubble = `
-      <div>
+      <div class="chat-bubble-inner">
         <div class="chat-bubble ${bubCls}">${esc(msg.content)}</div>
         <div class="chat-bubble-meta ${metaCls}">${label} · ${formatTime(msg.created_at)}</div>
       </div>`;
