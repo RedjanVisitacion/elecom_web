@@ -94,6 +94,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
   }
 
+  // ── Initialize Lottie avatars after bubbles are added to the DOM ─────────
+  function initLottieAvatars(container) {
+    if (typeof lottie === 'undefined') return;
+    const els = (container || chatMessagesEl).querySelectorAll('[data-lottie]:not([data-lottie-loaded])');
+    els.forEach(el => {
+      el.setAttribute('data-lottie-loaded', '1');
+      lottie.loadAnimation({
+        container: el,
+        renderer:  'svg',
+        loop:      true,
+        autoplay:  true,
+        path:      el.dataset.lottie,
+      });
+    });
+  }
+
   // ── Sync takeover button + banner + badge to a conversation's state ───────
   function updateTakeoverUI(conv) {
     if (!conv) return;
@@ -254,11 +270,10 @@ document.addEventListener('DOMContentLoaded', () => {
         avatar = `<div class="chat-role-avatar user-av">${esc(initials(name))}</div>`;
       }
     } else if (role === 'assistant') {
-      avatar = `<div class="chat-role-avatar bot-av elevote-av" title="EleVote AI">
-                  <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12 2a2 2 0 0 1 2 2c0 .74-.4 1.39-1 1.73V7h1a7 7 0 0 1 7 7H3a7 7 0 0 1 7-7h1V5.73A2 2 0 0 1 12 2zm-4 9a1 1 0 1 0 0 2 1 1 0 0 0 0-2zm8 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2zM1 15h22v2a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2v-2z"/>
-                  </svg>
-                </div>`;
+      // Use a unique id so the Lottie runtime can target each bubble's avatar
+      const avId = `ev-av-${msg.id || Math.random().toString(36).slice(2)}`;
+      avatar = `<div class="chat-role-avatar bot-av elevote-av" id="${avId}" title="EleVote AI"
+                     data-lottie="/static/assets/Robot-Bot 3D.json"></div>`;
     } else {
       // admin — no avatar, admin is the sender (same pattern as mobile)
       avatar = '';
@@ -321,6 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
         ).join('');
       }
       scrollToBottom();
+      initLottieAvatars();
 
       // Sync takeover badge/banner/button from conversations state
       const conv = conversations.find(c => c.student_id === activeStudentId);
@@ -421,6 +437,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         lastMsgId = data.message.id;
         scrollToBottom();
+        initLottieAvatars();
         // Refresh conversation list snippet
         loadConversations();
       } else {
