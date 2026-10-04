@@ -75,6 +75,18 @@ document.addEventListener('DOMContentLoaded', () => {
     return parts.slice(0, 2).map(p => p[0]).join('').toUpperCase() || '?';
   }
 
+  // Returns either an <img> avatar or an initials div, depending on photo availability.
+  function avatarHtml(name, photoUrl, extraClass = '') {
+    const cls = `chat-conv-avatar${extraClass ? ' ' + extraClass : ''}`;
+    if (photoUrl) {
+      return `<img class="${cls} chat-conv-avatar-img" src="${esc(photoUrl)}"
+                   alt="${esc(initials(name))}"
+                   onerror="this.style.display='none';this.nextElementSibling.style.display='flex';">
+              <div class="${cls}" style="display:none;">${esc(initials(name))}</div>`;
+    }
+    return `<div class="${cls}">${esc(initials(name))}</div>`;
+  }
+
   function scrollToBottom() {
     if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
   }
@@ -102,7 +114,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const roleIcon = c.last_role === 'admin' ? '↩ ' : c.last_role === 'assistant' ? '🤖 ' : '';
       return `
         <div class="chat-conv-item${isActive ? ' active' : ''}" data-id="${esc(c.student_id)}">
-          <div class="chat-conv-avatar">${esc(initials(c.display_name))}</div>
+          <div class="chat-conv-avatar-wrap">${avatarHtml(c.display_name, c.photo_url)}</div>
           <div class="overflow-hidden flex-grow-1">
             <div class="chat-conv-name">${esc(c.display_name)}</div>
             <div class="chat-conv-snippet">${roleIcon}${esc(c.last_message || '…')}</div>
@@ -225,7 +237,27 @@ document.addEventListener('DOMContentLoaded', () => {
     if (conv) {
       threadNameEl.textContent    = conv.display_name;
       threadStudentId.textContent = `ID: ${conv.student_id}`;
-      threadAvatar.textContent    = initials(conv.display_name);
+      // Photo or initials in thread header avatar
+      if (conv.photo_url) {
+        threadAvatar.innerHTML = '';
+        threadAvatar.style.padding = '0';
+        threadAvatar.style.overflow = 'hidden';
+        const img = document.createElement('img');
+        img.src   = conv.photo_url;
+        img.alt   = initials(conv.display_name);
+        img.style.cssText = 'width:100%;height:100%;object-fit:cover;border-radius:50%;';
+        img.onerror = () => {
+          threadAvatar.innerHTML = esc(initials(conv.display_name));
+          threadAvatar.style.padding = '';
+          threadAvatar.style.overflow = '';
+        };
+        threadAvatar.appendChild(img);
+      } else {
+        threadAvatar.innerHTML  = '';
+        threadAvatar.textContent = initials(conv.display_name);
+        threadAvatar.style.padding  = '';
+        threadAvatar.style.overflow = '';
+      }
     }
 
     // Enable input

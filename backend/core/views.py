@@ -10983,15 +10983,16 @@ def admin_chat_conversations_api(request):
                 """
                 SELECT column_name FROM information_schema.columns
                 WHERE table_schema = 'public' AND table_name = 'users'
-                  AND column_name IN ('first_name', 'last_name', 'email')
+                  AND column_name IN ('first_name', 'last_name', 'email', 'photo_url')
                 """
             )
             user_cols = {row[0] for row in cur.fetchall()}
     except Exception:
         user_cols = set()
 
-    has_name_cols = "first_name" in user_cols and "last_name" in user_cols
-    has_email_col = "email" in user_cols
+    has_name_cols  = "first_name" in user_cols and "last_name" in user_cols
+    has_email_col  = "email" in user_cols
+    has_photo_col  = "photo_url" in user_cols
 
     if has_name_cols:
         display_name_expr = """COALESCE(
@@ -11010,10 +11011,15 @@ def admin_chat_conversations_api(request):
         display_name_expr = "m.student_id"
         group_by_cols = "m.student_id"
 
+    photo_select = "u.photo_url" if has_photo_col else "NULL::text"
+    if has_photo_col:
+        group_by_cols += ", u.photo_url"
+
     sql = f"""
         SELECT
             m.student_id,
             {display_name_expr}                            AS display_name,
+            {photo_select}                                 AS photo_url,
             MAX(m.created_at)                              AS last_activity,
             (
                 SELECT content FROM elevote_chat_messages
@@ -11056,6 +11062,7 @@ def admin_chat_conversations_api(request):
         conversations.append({
             "student_id":    r["student_id"],
             "display_name":  r["display_name"] or r["student_id"],
+            "photo_url":     r.get("photo_url") or None,
             "last_message":  (r["last_message"] or "")[:120],
             "last_role":     r["last_role"] or "user",
             "last_activity": last_activity.isoformat() if last_activity else None,
