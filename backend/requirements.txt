@@ -24,15 +24,25 @@ certifi>=2026.7.22
 # Password hashing
 bcrypt>=4.0.0
 
-# Face++ (Megvii) face enrollment and verification
-# No official PyPI package — calls REST API directly via requests
-# Used as fallback only when face_recognition is not installed.
+# ── Local face recognition (replaces Face++ — zero API calls, no cost) ────────
+#
+# PRIMARY: InsightFace (ArcFace via ONNX) — pre-built wheels, no compilation.
+# Before running pip install, install the system OpenGL library:
+#   Ubuntu/Debian: apt-get install -y libgl1
+#
+insightface>=0.7.3
+onnxruntime>=1.16.0
+opencv-python>=4.8.0
 
-# Local face recognition (primary — replaces Face++ with zero API calls)
-# Requires cmake and a C++ compiler on the server.
-# Install on Ubuntu/Debian: apt-get install -y cmake build-essential libopenblas-dev liblapack-dev
-# Then: pip install face_recognition
-face_recognition>=1.3.0
+# FALLBACK: face_recognition (dlib-based 128-d embeddings).
+# Only used if insightface is unavailable.
+# Requires C++ compilation — install build tools first:
+#   Ubuntu/Debian: apt-get install -y cmake build-essential libopenblas-dev liblapack-dev
+# face_recognition>=1.3.0   # uncomment only if you want dlib as backup
+
+# Face++ (Megvii) — no longer used as primary. Kept as last-resort fallback
+# when neither insightface nor face_recognition is installed.
+# No PyPI package — calls REST API directly via requests (already listed above).
 
 # Groq AI (EleVote chat)
 groq>=0.9.0
