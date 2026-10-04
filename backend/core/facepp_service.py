@@ -8,6 +8,7 @@ from __future__ import annotations
 import base64
 import json
 import logging
+import random
 import time
 
 import urllib.error
@@ -61,9 +62,9 @@ def _verify_threshold() -> float:
 
 
 # Face++ free plan allows ~1 request/second. CONCURRENCY_LIMIT_EXCEEDED means
-# the rate limit was hit. We retry up to this many times with an exponential delay.
-_CONCURRENCY_RETRIES = 5
-_CONCURRENCY_DELAY   = 2.0  # seconds between retries (doubled from 1.2 for new accounts)
+# the rate limit was hit. We retry up to this many times with jittered backoff.
+_CONCURRENCY_RETRIES = 8
+_CONCURRENCY_BASE_DELAY = 2.0  # seconds for first retry; grows linearly + jitter
 
 # Cache flag: once we confirm the faceset exists, skip the getdetail API call
 # on every enrollment — saves one Face++ request per enrollment on the free plan.
@@ -88,8 +89,10 @@ def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> di
     last_exc: FacePPError | None = None
     for attempt in range(1 + _CONCURRENCY_RETRIES):
         if attempt > 0:
-            # Exponential backoff: 2s, 4s, 6s, 8s, 10s
-            delay = _CONCURRENCY_DELAY * attempt
+            # Linear base + full jitter: spreads retries so concurrent
+            # gunicorn workers don't all hammer Face++ at the same second.
+            base = _CONCURRENCY_BASE_DELAY * attempt
+            delay = base + random.uniform(0.5, 2.0)
             logger.warning(
                 "Face++ CONCURRENCY_LIMIT_EXCEEDED on %s, retry %d/%d after %.1fs",
                 api_method, attempt, _CONCURRENCY_RETRIES, delay,
@@ -130,7 +133,10 @@ def _post(api_method: str, fields: dict, image_bytes: bytes | None = None) -> di
         return out
 
     # All retries exhausted — raise the last concurrency error
-    raise last_exc or FacePPError("Face++ concurrency limit exceeded after retries.", "CONCURRENCY_LIMIT_EXCEEDED")
+    raise last_exc or FacePPError(
+        "Face verification is temporarily busy. Please wait a moment and try again.",
+        "CONCURRENCY_LIMIT_EXCEEDED",
+    )
 
 
 def detect_face_bytes(image_bytes: bytes) -> str:

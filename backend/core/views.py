@@ -4472,6 +4472,17 @@ def _save_face_enrollment_facepp(student_id: str, user_id: int | None, raw: byte
         return JsonResponse({"ok": True, "enrolled": True, "enrollment": _enrollment_json(rec)})
     except facepp_service.FacePPError as e:
         logger.warning("Face++ enrollment error: %s", e.message)
+        # Return a friendly message for rate-limit errors so the student
+        # sees "busy, try again" instead of the raw API error code.
+        if (e.code or "").upper() == "CONCURRENCY_LIMIT_EXCEEDED":
+            return JsonResponse(
+                {
+                    "ok": False,
+                    "error": "The face verification service is temporarily busy. Please wait a few seconds and tap Retry.",
+                    "code": "concurrency_limit",
+                },
+                status=503,
+            )
         return JsonResponse({"ok": False, "error": e.message}, status=400)
     except Exception as e:
         logger.exception("Face enrollment failed")
