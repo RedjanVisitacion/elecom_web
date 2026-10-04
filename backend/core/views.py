@@ -11044,7 +11044,7 @@ def admin_chat_conversations_api(request):
     try:
         with connection.cursor() as cur:
             cur.execute(sql, [])
-            cols = [c.description[0] for c in cur.description]
+            cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, row)) for row in cur.fetchall()]
     except Exception as e:
         logger.exception("admin_chat_conversations_api: query failed")
