@@ -250,10 +250,14 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.ok) {
         conversations = data.conversations || [];
         renderConvList();
-        // Keep takeover UI in sync after each poll
+        // If the active conversation was deleted by the voter, close the thread pane
         if (activeStudentId) {
-          const conv = conversations.find(c => c.student_id === activeStudentId);
-          if (conv) updateTakeoverUI(conv);
+          const still = conversations.find(c => c.student_id === activeStudentId);
+          if (!still) {
+            closeActiveThread();
+          } else {
+            updateTakeoverUI(still);
+          }
         }
       } else if (res.status === 403) {
         convListEl.innerHTML = `
@@ -375,6 +379,25 @@ document.addEventListener('DOMContentLoaded', () => {
       if (conv) updateTakeoverUI(conv);
 
     } catch (_) {}
+  }
+
+  // ── Close the active thread (e.g. voter deleted their chat) ─────────────
+  function closeActiveThread() {
+    clearInterval(threadPollTimer);
+    activeStudentId = null;
+    lastMsgId       = null;
+
+    if (activeThread) activeThread.style.display = 'none';
+    if (threadEmpty)  threadEmpty.style.display  = '';
+    if (chatMessagesEl) chatMessagesEl.innerHTML  = '';
+    if (takeoverBanner) takeoverBanner.style.display = 'none';
+    if (takeoverBadge)  takeoverBadge.style.display  = 'none';
+    if (takeoverBtn) {
+      takeoverBtn.innerHTML = '<i class="bi bi-person-check me-1"></i>Take Over';
+      takeoverBtn.classList.remove('btn-takeover-release');
+      takeoverBtn.classList.add('btn-takeover-take');
+    }
+    renderConvList(); // remove active highlight from list
   }
 
   // ── Open a conversation ───────────────────────────────────────────────────
