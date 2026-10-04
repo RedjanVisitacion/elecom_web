@@ -255,7 +255,13 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     } else if (role === 'assistant') {
       avatar = `<div class="chat-role-avatar bot-av elevote-av" title="EleVote AI">
-                  <span style="font-size:.55rem;font-weight:800;letter-spacing:-.5px;line-height:1;">EV</span>
+                  <lottie-player
+                    src="/static/assets/AI robot assistant.json"
+                    background="transparent"
+                    speed="1"
+                    style="width:28px;height:28px;"
+                    loop autoplay>
+                  </lottie-player>
                 </div>`;
     } else {
       // admin — no avatar, admin is the sender (same pattern as mobile)
