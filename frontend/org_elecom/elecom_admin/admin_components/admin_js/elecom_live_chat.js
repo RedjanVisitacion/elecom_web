@@ -238,7 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const label   = role === 'admin' ? 'Admin' : role === 'assistant' ? 'EleVote' : 'Voter';
     const metaCls = role === 'admin' ? 'admin-meta' : '';
 
-    // Build avatar — real photo for user, EleVote wordmark for assistant, badge for admin
+    // Build avatar — real photo for user, EleVote wordmark for assistant, none for admin (sender)
     let avatar;
     if (role === 'user') {
       const conv     = conversations.find(c => c.student_id === activeStudentId);
@@ -258,10 +258,8 @@ document.addEventListener('DOMContentLoaded', () => {
                   <span style="font-size:.55rem;font-weight:800;letter-spacing:-.5px;line-height:1;">EV</span>
                 </div>`;
     } else {
-      // admin
-      avatar = `<div class="chat-role-avatar admin-av" title="Admin">
-                  <i class="bi bi-person-badge-fill"></i>
-                </div>`;
+      // admin — no avatar, admin is the sender (same pattern as mobile)
+      avatar = '';
     }
 
     const bubble = `
@@ -272,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     return `
       <div class="chat-bubble-wrap ${wrapCls}">
-        ${role !== 'admin' ? avatar + bubble : bubble + avatar}
+        ${role !== 'admin' ? avatar + bubble : bubble}
       </div>`;
   }
 
