@@ -36,6 +36,7 @@ from .views import (
     admin_chat_conversations_api,
     admin_chat_thread_api,
     admin_chat_reply_api,
+    admin_chat_takeover_api,
     account_profile_update_api,
     account_profile_password_api,
     candidates_metrics_api,
@@ -168,6 +169,7 @@ urlpatterns = [
     path('api/admin/chat/conversations/', admin_chat_conversations_api, name='admin_chat_conversations_api'),
     path('api/admin/chat/thread/', admin_chat_thread_api, name='admin_chat_thread_api'),
     path('api/admin/chat/reply/', admin_chat_reply_api, name='admin_chat_reply_api'),
+    path('api/admin/chat/takeover/', admin_chat_takeover_api, name='admin_chat_takeover_api'),
     path('api/network/check/', check_network_access_api, name='check_network_access_api'),
 
     # Mobile namespace (same handlers; cleaner URL separation for Flutter clients)

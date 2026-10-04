@@ -1061,6 +1061,18 @@ def _ensure_elevote_chat_table() -> None:
             ON elevote_chat_messages (role)
             """
         )
+        # Takeover table: tracks whether an admin has suppressed EleVote AI
+        # replies for a given student conversation.
+        cur.execute(
+            """
+            CREATE TABLE IF NOT EXISTS elevote_chat_takeover (
+                student_id  varchar(64) PRIMARY KEY,
+                active      boolean NOT NULL DEFAULT TRUE,
+                taken_at    timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                taken_by    varchar(64) NULL
+            )
+            """
+        )
 
 
 def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
@@ -1372,6 +1384,20 @@ def elevote_chat_api(request):
         role="user",
         content=message,
     )
+
+    # If an admin has taken over this conversation, suppress the AI reply.
+    # The message is saved so the admin can see it; no assistant row is created.
+    if _is_admin_takeover_active(student_id):
+        return JsonResponse(
+            {
+                "ok": True,
+                "reply": None,
+                "message": _elevote_message_json(user_row),
+                "assistant_message": None,
+                "takeover_active": True,
+            }
+        )
+
     try:
         reply, model = _elevote_groq_reply(student_id, message)
     except Exception as e:
@@ -1391,6 +1417,7 @@ def elevote_chat_api(request):
             "reply": reply,
             "message": _elevote_message_json(user_row),
             "assistant_message": _elevote_message_json(assistant_row),
+            "takeover_active": False,
         }
     )
 
@@ -11056,17 +11083,28 @@ def admin_chat_conversations_api(request):
         logger.exception("admin_chat_conversations_api: query failed")
         return JsonResponse({"ok": False, "error": f"Database error: {e}"}, status=500)
 
+    # Fetch all active takeovers in one query for efficiency
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT student_id FROM elevote_chat_takeover WHERE active = TRUE"
+            )
+            takeover_ids = {row[0] for row in cur.fetchall()}
+    except Exception:
+        takeover_ids = set()
+
     conversations = []
     for r in rows:
         last_activity = r["last_activity"]
         conversations.append({
-            "student_id":    r["student_id"],
-            "display_name":  r["display_name"] or r["student_id"],
-            "photo_url":     r.get("photo_url") or None,
-            "last_message":  (r["last_message"] or "")[:120],
-            "last_role":     r["last_role"] or "user",
-            "last_activity": last_activity.isoformat() if last_activity else None,
-            "unread_count":  int(r["unread_count"] or 0),
+            "student_id":      r["student_id"],
+            "display_name":    r["display_name"] or r["student_id"],
+            "photo_url":       r.get("photo_url") or None,
+            "last_message":    (r["last_message"] or "")[:120],
+            "last_role":       r["last_role"] or "user",
+            "last_activity":   last_activity.isoformat() if last_activity else None,
+            "unread_count":    int(r["unread_count"] or 0),
+            "takeover_active": r["student_id"] in takeover_ids,
         })
 
     return JsonResponse({"ok": True, "conversations": conversations})
@@ -11151,3 +11189,69 @@ def admin_chat_reply_api(request):
         return JsonResponse({"ok": False, "error": f"Database error: {e}"}, status=500)
 
     return JsonResponse({"ok": True, "message": _elevote_message_json(row)})
+
+
+# ── Helpers ──────────────────────────────────────────────────────────────────
+
+def _is_admin_takeover_active(student_id: str) -> bool:
+    """Return True if an admin has taken over the chat for this student."""
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT active FROM elevote_chat_takeover
+                WHERE student_id = %s
+                """,
+                [student_id],
+            )
+            row = cur.fetchone()
+            return bool(row and row[0])
+    except Exception:
+        return False
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_chat_takeover_api(request):
+    """
+    POST /api/admin/chat/takeover/
+    Body: { "student_id": "...", "active": true|false }
+    Enables or disables admin takeover for a conversation, suppressing EleVote AI
+    auto-replies while active=true.
+    """
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+
+    try:
+        body = json.loads(request.body)
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Invalid JSON."}, status=400)
+
+    student_id = (body.get("student_id") or "").strip()
+    active     = bool(body.get("active", True))
+
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "student_id required."}, status=400)
+
+    admin_id = str(request.session.get("student_id") or "").strip()
+
+    try:
+        _ensure_elevote_chat_table()
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO elevote_chat_takeover (student_id, active, taken_at, taken_by)
+                VALUES (%s, %s, NOW(), %s)
+                ON CONFLICT (student_id) DO UPDATE
+                    SET active    = EXCLUDED.active,
+                        taken_at  = EXCLUDED.taken_at,
+                        taken_by  = EXCLUDED.taken_by
+                """,
+                [student_id, active, admin_id],
+            )
+    except Exception as e:
+        logger.exception("admin_chat_takeover_api: failed")
+        return JsonResponse({"ok": False, "error": f"Database error: {e}"}, status=500)
+
+    return JsonResponse({"ok": True, "student_id": student_id, "takeover_active": active})

@@ -43,6 +43,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const threadNameEl    = document.getElementById('threadName');
   const threadStudentId = document.getElementById('threadStudentId');
   const takeoverBadge   = document.getElementById('takeoverBadge');
+  const takeoverBtn     = document.getElementById('takeoverBtn');
+  const takeoverBanner  = document.getElementById('takeoverBanner');
 
   // ── State ─────────────────────────────────────────────────────────────────
   let conversations   = [];
@@ -51,6 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let convPollTimer   = null;
   let threadPollTimer = null;
   let sending         = false;
+  let takeoverBusy    = false;
 
   // ── Helpers ───────────────────────────────────────────────────────────────
   const esc = (s) =>
@@ -89,6 +92,70 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function scrollToBottom() {
     if (chatMessagesEl) chatMessagesEl.scrollTop = chatMessagesEl.scrollHeight;
+  }
+
+  // ── Sync takeover button + banner + badge to a conversation's state ───────
+  function updateTakeoverUI(conv) {
+    if (!conv) return;
+    const active = !!conv.takeover_active;
+
+    // Header badge
+    if (takeoverBadge) {
+      takeoverBadge.style.display = active ? '' : 'none';
+    }
+
+    // Banner above the message feed
+    if (takeoverBanner) {
+      takeoverBanner.style.display = active ? '' : 'none';
+    }
+
+    // Toggle button label
+    if (takeoverBtn) {
+      if (active) {
+        takeoverBtn.innerHTML = '<i class="bi bi-robot me-1"></i>Release to EleVote';
+        takeoverBtn.classList.remove('btn-takeover-take');
+        takeoverBtn.classList.add('btn-takeover-release');
+        takeoverBtn.title = 'Hand conversation back to EleVote AI';
+      } else {
+        takeoverBtn.innerHTML = '<i class="bi bi-person-check me-1"></i>Take Over';
+        takeoverBtn.classList.remove('btn-takeover-release');
+        takeoverBtn.classList.add('btn-takeover-take');
+        takeoverBtn.title = 'Suppress EleVote AI and reply as Admin';
+      }
+    }
+  }
+
+  // ── Toggle admin takeover for the active conversation ─────────────────────
+  async function setTakeover(active) {
+    if (takeoverBusy || !activeStudentId) return;
+    takeoverBusy = true;
+    if (takeoverBtn) takeoverBtn.disabled = true;
+
+    try {
+      const res  = await fetch('/api/admin/chat/takeover/', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: activeStudentId, active }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (data.ok) {
+        // Update local conversations state immediately (no need to wait for poll)
+        const conv = conversations.find(c => c.student_id === activeStudentId);
+        if (conv) {
+          conv.takeover_active = data.takeover_active;
+          updateTakeoverUI(conv);
+          renderConvList();
+        }
+      } else {
+        alert(data.error || 'Could not update takeover state.');
+      }
+    } catch (_) {
+      alert('Network error. Please try again.');
+    } finally {
+      takeoverBusy = false;
+      if (takeoverBtn) takeoverBtn.disabled = false;
+    }
   }
 
   // ── Render conversations list ─────────────────────────────────────────────
@@ -135,6 +202,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.ok) {
         conversations = data.conversations || [];
         renderConvList();
+        // Keep takeover UI in sync after each poll
+        if (activeStudentId) {
+          const conv = conversations.find(c => c.student_id === activeStudentId);
+          if (conv) updateTakeoverUI(conv);
+        }
       } else if (res.status === 403) {
         convListEl.innerHTML = `
           <div class="chat-list-empty text-danger">
@@ -232,9 +304,9 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       scrollToBottom();
 
-      // Show/hide takeover badge (true if last message was from admin)
-      const lastRole = msgs[msgs.length - 1]?.role;
-      if (takeoverBadge) takeoverBadge.style.display = lastRole === 'admin' ? '' : 'none';
+      // Sync takeover badge/banner/button from conversations state
+      const conv = conversations.find(c => c.student_id === activeStudentId);
+      if (conv) updateTakeoverUI(conv);
 
     } catch (_) {}
   }
@@ -286,6 +358,9 @@ document.addEventListener('DOMContentLoaded', () => {
     replyInput.value    = '';
     sendBtn.disabled    = true;
 
+    // Sync takeover UI immediately from known conversation state
+    updateTakeoverUI(conv || {});
+
     // Clear messages and load fresh
     chatMessagesEl.innerHTML = '<div class="text-center text-muted py-4" style="font-size:.82rem;">Loading…</div>';
     loadThread(studentId, false);
@@ -323,7 +398,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessagesEl.appendChild(div.firstElementChild);
         lastMsgId = data.message.id;
         scrollToBottom();
-        if (takeoverBadge) takeoverBadge.style.display = '';
         // Refresh conversation list snippet
         loadConversations();
       } else {
@@ -361,6 +435,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   sendBtn?.addEventListener('click', sendReply);
+
+  takeoverBtn?.addEventListener('click', () => {
+    const conv = conversations.find(c => c.student_id === activeStudentId);
+    const currentlyActive = conv?.takeover_active ?? false;
+    setTakeover(!currentlyActive);
+  });
 
   // ── Boot ──────────────────────────────────────────────────────────────────
   loadConversations();
