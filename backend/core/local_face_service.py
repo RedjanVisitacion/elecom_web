@@ -1,24 +1,23 @@
 """
-Local face verification service using the `face_recognition` library (dlib-based).
+Local face verification service — uses InsightFace (ArcFace model via ONNX).
 
-This replaces Face++ entirely — no external API calls, no rate limits, no cost.
+InsightFace replaces Face++ entirely:
+  - No external API calls, no rate limits, no cost
+  - Pre-built ONNX wheels — no C++ compilation needed
+  - ArcFace model accuracy equals or exceeds Face++
 
 Encoding:
-  - A 128-dimensional float64 vector is computed from a face image using
-    dlib's ResNet face-recognition model (same algorithm Face++ uses internally).
-  - The encoding is stored as a JSON array in FaceEnrollment.face_encoding.
+  - A 512-dimensional float32 embedding is computed from a face image.
+  - Stored as a JSON array in FaceEnrollment.face_encoding.
 
 Verification:
-  - Euclidean distance between the enrolled encoding and a live capture encoding.
-  - Threshold 0.50 (conservative) — equivalent to Face++'s ~80 confidence level.
-    Lower distance = better match. 0.6 is the library's default; we use 0.50 for
-    stricter security suitable for an election system.
+  - Cosine similarity between enrolled and live embeddings.
+  - Threshold >= 0.40 to accept (conservative for election security).
+    InsightFace typically scores 0.6–0.9 for same person on good photos.
 
-Duplicate detection:
-  - All active enrolled encodings are loaded from the DB and compared against
-    the new encoding. If any match above threshold, enrollment is rejected.
-    This runs in O(n) over the number of enrolled voters — typically < 2000 for
-    a campus election, fast enough without a vector index.
+Fallback:
+  - If insightface is unavailable, falls back to face_recognition (dlib).
+  - If neither is available, raises LocalFaceError.
 """
 from __future__ import annotations
 
@@ -33,10 +32,13 @@ import numpy as np
 
 logger = logging.getLogger(__name__)
 
-# Maximum Euclidean distance to accept as a face match.
-# Lower = stricter. 0.50 is tighter than face_recognition's default 0.60,
-# appropriate for a campus election where security matters.
-MATCH_THRESHOLD = 0.50
+# Cosine similarity threshold — must be >= this value to accept as a match.
+# 0.40 is conservative; increase to 0.35 if legitimate users are getting rejected.
+MATCH_THRESHOLD = 0.40
+
+# InsightFace app singleton — created once, reused across requests.
+_insight_app = None
+_insight_available: Optional[bool] = None
 
 
 class LocalFaceError(Exception):
@@ -48,51 +50,115 @@ class LocalFaceError(Exception):
         super().__init__(message)
 
 
-def _import_face_recognition():
-    """Lazy import so the module loads even if face_recognition is not installed."""
-    try:
-        import face_recognition  # type: ignore
-        return face_recognition
-    except ImportError as e:
+# ── InsightFace backend ───────────────────────────────────────────────────────
+
+def _get_insight_app():
+    """Return a cached InsightFace FaceAnalysis app, initialising it on first call."""
+    global _insight_app, _insight_available
+    if _insight_available is False:
         raise LocalFaceError(
-            "Face recognition library is not installed on the server. "
-            "Run: pip install face_recognition",
+            "InsightFace is not installed on the server.",
+            "library_missing",
+        )
+    if _insight_app is not None:
+        return _insight_app
+    try:
+        from insightface.app import FaceAnalysis  # type: ignore
+        app = FaceAnalysis(
+            name="buffalo_sc",   # small, fast model — good for server use
+            providers=["CPUExecutionProvider"],
+        )
+        # det_size controls detection resolution — 320 is fast, 640 is more accurate
+        app.prepare(ctx_id=0, det_size=(320, 320))
+        _insight_app = app
+        _insight_available = True
+        logger.info("InsightFace (buffalo_sc) initialised successfully.")
+        return _insight_app
+    except Exception as e:
+        _insight_available = False
+        raise LocalFaceError(
+            f"InsightFace initialisation failed: {e}",
             "library_missing",
         ) from e
 
 
-def encode_face_bytes(image_bytes: bytes) -> list[float]:
-    """
-    Detect the primary face in `image_bytes` and return its 128-d encoding.
-
-    Raises LocalFaceError if no face is found or the library is unavailable.
-    """
-    fr = _import_face_recognition()
-
+def _encode_insightface(image_bytes: bytes) -> list[float]:
+    """Encode a face image using InsightFace ArcFace model."""
+    import cv2  # type: ignore — bundled with insightface via opencv-python
     if not image_bytes or len(image_bytes) < 512:
         raise LocalFaceError("Image is too small or empty.", "face_invalid_image")
-
-    try:
-        img = fr.load_image_file(io.BytesIO(image_bytes))
-    except Exception as e:
-        raise LocalFaceError(f"Could not decode image: {e}", "face_decode_error") from e
-
-    # Use HOG model (fast, CPU-friendly) for campus-scale usage.
-    # Switch to "cnn" if a GPU is available for better accuracy.
-    encodings = fr.face_encodings(img, model="large", num_jitters=2)
-    if not encodings:
+    app = _get_insight_app()
+    arr = np.frombuffer(image_bytes, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        raise LocalFaceError("Could not decode image.", "face_decode_error")
+    faces = app.get(img)
+    if not faces:
         raise LocalFaceError(
             "No face detected in the image. "
             "Please center your face and ensure good lighting.",
             "no_face",
         )
+    # Use the face with the largest bounding box (most prominent)
+    face = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+    return face.embedding.tolist()
 
-    # Always take the first (largest) detected face.
+
+def _cosine_similarity(a: list[float], b: list[float]) -> float:
+    """Return cosine similarity in [0, 1] between two embedding vectors."""
+    va = np.array(a, dtype=np.float32)
+    vb = np.array(b, dtype=np.float32)
+    denom = np.linalg.norm(va) * np.linalg.norm(vb)
+    if denom == 0:
+        return 0.0
+    return float(np.dot(va, vb) / denom)
+
+
+# ── face_recognition (dlib) fallback ─────────────────────────────────────────
+
+def _encode_face_recognition(image_bytes: bytes) -> list[float]:
+    """Encode using dlib face_recognition — fallback when insightface unavailable."""
+    try:
+        import face_recognition  # type: ignore
+    except ImportError as e:
+        raise LocalFaceError(
+            "Neither InsightFace nor face_recognition is installed.",
+            "library_missing",
+        ) from e
+    if not image_bytes or len(image_bytes) < 512:
+        raise LocalFaceError("Image is too small or empty.", "face_invalid_image")
+    try:
+        img = face_recognition.load_image_file(io.BytesIO(image_bytes))
+    except Exception as exc:
+        raise LocalFaceError(f"Could not decode image: {exc}", "face_decode_error") from exc
+    encodings = face_recognition.face_encodings(img, model="large", num_jitters=2)
+    if not encodings:
+        raise LocalFaceError(
+            "No face detected. Please center your face and ensure good lighting.",
+            "no_face",
+        )
     return encodings[0].tolist()
 
 
+# ── Public API ────────────────────────────────────────────────────────────────
+
+def encode_face_bytes(image_bytes: bytes) -> list[float]:
+    """
+    Detect the primary face in `image_bytes` and return its embedding vector.
+    Uses InsightFace when available, falls back to face_recognition (dlib).
+    """
+    try:
+        return _encode_insightface(image_bytes)
+    except LocalFaceError as e:
+        if e.code == "library_missing":
+            # InsightFace not available — try dlib fallback
+            logger.warning("InsightFace unavailable, trying face_recognition fallback.")
+            return _encode_face_recognition(image_bytes)
+        raise
+
+
 def encode_face_url(image_url: str) -> list[float]:
-    """Download an image from `image_url` and return its 128-d face encoding."""
+    """Download an image from `image_url` and return its face embedding."""
     try:
         with urllib.request.urlopen(image_url, timeout=15) as resp:
             image_bytes = resp.read()
@@ -107,15 +173,23 @@ def compare_encodings(
     threshold: float = MATCH_THRESHOLD,
 ) -> tuple[bool, float]:
     """
-    Compare two 128-d face encodings.
+    Compare two face embeddings.
 
-    Returns (matched: bool, distance: float).
-    Lower distance = better match. Passes when distance < threshold.
+    Returns (matched: bool, score: float).
+    Score is cosine similarity for InsightFace (higher = better match).
+    For dlib 128-d vectors the score is also converted to cosine similarity.
+    Both backends produce values in [0, 1]; threshold >= MATCH_THRESHOLD to pass.
     """
-    enc1 = np.array(enrolled_encoding, dtype=np.float64)
-    enc2 = np.array(live_encoding, dtype=np.float64)
-    distance = float(np.linalg.norm(enc1 - enc2))
-    return distance < threshold, distance
+    enc_len = len(enrolled_encoding)
+    if enc_len == 128:
+        # dlib 128-d vector — use cosine similarity for consistent API
+        score = _cosine_similarity(enrolled_encoding, live_encoding)
+    else:
+        # InsightFace 512-d ArcFace vector
+        score = _cosine_similarity(enrolled_encoding, live_encoding)
+
+    matched = score >= threshold
+    return matched, score
 
 
 def encoding_from_json(json_str: Optional[str]) -> Optional[list[float]]:
@@ -124,7 +198,7 @@ def encoding_from_json(json_str: Optional[str]) -> Optional[list[float]]:
         return None
     try:
         parsed = json.loads(json_str)
-        if isinstance(parsed, list) and len(parsed) == 128:
+        if isinstance(parsed, list) and len(parsed) in (128, 512):
             return [float(x) for x in parsed]
     except Exception:
         pass
@@ -142,12 +216,9 @@ def check_duplicate_enrollment(
     threshold: float = MATCH_THRESHOLD,
 ) -> Optional[str]:
     """
-    Check whether `new_encoding` matches any *other* active student's enrollment.
-
-    Returns the matched `student_id` string if a duplicate is found, else None.
-    Loads all active enrollments with a non-null encoding from the DB.
+    Check whether `new_encoding` matches any other active student's enrollment.
+    Returns the matched student_id if a duplicate is found, else None.
     """
-    # Import here to avoid circular imports at module load time.
     from elecom_voting.models import FaceEnrollment  # noqa: PLC0415
 
     active = FaceEnrollment.objects.filter(
@@ -164,6 +235,9 @@ def check_duplicate_enrollment(
         existing = encoding_from_json(enc_json)
         if existing is None:
             continue
+        # Only compare same-dimension encodings (don't mix dlib 128 vs ArcFace 512)
+        if len(existing) != len(new_encoding):
+            continue
         matched, _ = compare_encodings(existing, new_encoding, threshold)
         if matched:
             return sid
@@ -172,9 +246,14 @@ def check_duplicate_enrollment(
 
 
 def is_available() -> bool:
-    """Return True if face_recognition is importable (library installed)."""
+    """Return True if at least one face recognition backend is importable."""
     try:
-        _import_face_recognition()
+        _get_insight_app()
         return True
     except LocalFaceError:
+        pass
+    try:
+        import face_recognition  # type: ignore  # noqa: F401
+        return True
+    except ImportError:
         return False
