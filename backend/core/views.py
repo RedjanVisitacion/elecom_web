@@ -1033,41 +1033,60 @@ def _elevote_message_json(row: EleVoteChatMessage) -> dict:
         "content": row.content,
         "created_at": row.created_at.isoformat() if row.created_at else None,
     }
-    # For admin messages, `model` stores the admin's student_id.
-    # Look up their display name and photo so the mobile client can
-    # show the real profile photo instead of a generic icon.
-    if row.role == "admin" and row.model:
-        try:
-            with connection.cursor() as cur:
-                cur.execute(
-                    """
-                    SELECT
-                        COALESCE(
-                            NULLIF(TRIM(CONCAT_WS(' ',
-                                NULLIF(TRIM(first_name), ''),
-                                NULLIF(TRIM(last_name), '')
-                            )), ''),
-                            student_id
-                        ) AS display_name,
-                        photo_url
-                    FROM users
-                    WHERE student_id = %s
-                    LIMIT 1
-                    """,
-                    [row.model],
-                )
-                admin_row = cur.fetchone()
-            if admin_row:
-                data["sender_name"] = admin_row[0] or "Admin"
-                raw_photo = (admin_row[1] or "").strip()
-                if raw_photo:
-                    from django.conf import settings as _s
-                    base = getattr(_s, "SITE_URL", "").rstrip("/")
-                    if not raw_photo.startswith("http") and base:
-                        raw_photo = f"{base}{raw_photo}"
-                    data["sender_photo_url"] = raw_photo
-        except Exception:
-            pass  # fall back to generic icon on any DB error
+    # For admin messages, `model` stores the admin's student_id (set on new
+    # messages). For older messages where model is NULL, fall back to the
+    # taken_by field in elevote_chat_takeover for this student's conversation.
+    if row.role == "admin":
+        admin_sid = row.model or None
+        if not admin_sid:
+            try:
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT taken_by FROM elevote_chat_takeover
+                        WHERE student_id = %s AND taken_by IS NOT NULL
+                        LIMIT 1
+                        """,
+                        [row.student_id],
+                    )
+                    tb = cur.fetchone()
+                    if tb and tb[0]:
+                        admin_sid = tb[0]
+            except Exception:
+                pass
+
+        if admin_sid:
+            try:
+                with connection.cursor() as cur:
+                    cur.execute(
+                        """
+                        SELECT
+                            COALESCE(
+                                NULLIF(TRIM(CONCAT_WS(' ',
+                                    NULLIF(TRIM(first_name), ''),
+                                    NULLIF(TRIM(last_name), '')
+                                )), ''),
+                                student_id
+                            ) AS display_name,
+                            photo_url
+                        FROM users
+                        WHERE student_id = %s
+                        LIMIT 1
+                        """,
+                        [admin_sid],
+                    )
+                    admin_row = cur.fetchone()
+                if admin_row:
+                    data["sender_name"] = admin_row[0] or "Admin"
+                    raw_photo = (admin_row[1] or "").strip()
+                    if raw_photo:
+                        from django.conf import settings as _s
+                        base = getattr(_s, "SITE_URL", "").rstrip("/")
+                        if not raw_photo.startswith("http") and base:
+                            raw_photo = f"{base}{raw_photo}"
+                        data["sender_photo_url"] = raw_photo
+            except Exception:
+                pass  # fall back to generic icon on any DB error
     return data
 
 
