@@ -111,7 +111,7 @@ document.addEventListener('DOMContentLoaded', () => {
     convListEl.innerHTML = filtered.map(c => {
       const isActive = c.student_id === activeStudentId;
       const unread   = c.unread_count > 0 ? `<span class="chat-conv-unread">${c.unread_count}</span>` : '';
-      const roleIcon = c.last_role === 'admin' ? '↩ ' : c.last_role === 'assistant' ? '🤖 ' : '';
+      const roleIcon = c.last_role === 'admin' ? '↩ ' : c.last_role === 'assistant' ? 'EleVote: ' : '';
       return `
         <div class="chat-conv-item${isActive ? ' active' : ''}" data-id="${esc(c.student_id)}">
           <div class="chat-conv-avatar-wrap">${avatarHtml(c.display_name, c.photo_url)}</div>
@@ -163,14 +163,35 @@ document.addEventListener('DOMContentLoaded', () => {
     const role    = msg.role; // user | assistant | admin
     const wrapCls = role === 'admin' ? 'admin-wrap' : role === 'assistant' ? 'bot-wrap' : 'user-wrap';
     const bubCls  = role === 'admin' ? 'admin-bubble' : role === 'assistant' ? 'bot-bubble' : 'user-bubble';
-    const avCls   = role === 'admin' ? 'admin-av' : role === 'assistant' ? 'bot-av' : 'user-av';
-    const avIcon  = role === 'admin' ? '<i class="bi bi-person-badge"></i>'
-                  : role === 'assistant' ? '<i class="bi bi-robot"></i>'
-                  : '<i class="bi bi-person"></i>';
+    const label   = role === 'admin' ? 'Admin' : role === 'assistant' ? 'EleVote' : 'Voter';
     const metaCls = role === 'admin' ? 'admin-meta' : '';
-    const label   = role === 'admin' ? 'Admin' : role === 'assistant' ? 'EleVote AI' : 'Voter';
 
-    const avatar = `<div class="chat-role-avatar ${avCls}">${avIcon}</div>`;
+    // Build avatar — real photo for user, EleVote wordmark for assistant, badge for admin
+    let avatar;
+    if (role === 'user') {
+      const conv     = conversations.find(c => c.student_id === activeStudentId);
+      const photoUrl = conv?.photo_url;
+      const name     = conv?.display_name || activeStudentId || '?';
+      if (photoUrl) {
+        avatar = `<div class="chat-role-avatar user-av msg-photo-av" style="padding:0;overflow:hidden;">
+                    <img src="${esc(photoUrl)}" alt="${esc(initials(name))}"
+                         style="width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;"
+                         onerror="this.parentElement.innerHTML='${esc(initials(name))}';this.parentElement.style.padding='';">
+                  </div>`;
+      } else {
+        avatar = `<div class="chat-role-avatar user-av">${esc(initials(name))}</div>`;
+      }
+    } else if (role === 'assistant') {
+      avatar = `<div class="chat-role-avatar bot-av elevote-av" title="EleVote AI">
+                  <span style="font-size:.55rem;font-weight:800;letter-spacing:-.5px;line-height:1;">EV</span>
+                </div>`;
+    } else {
+      // admin
+      avatar = `<div class="chat-role-avatar admin-av" title="Admin">
+                  <i class="bi bi-person-badge-fill"></i>
+                </div>`;
+    }
+
     const bubble = `
       <div>
         <div class="chat-bubble ${bubCls}">${esc(msg.content)}</div>
