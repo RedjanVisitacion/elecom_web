@@ -10978,7 +10978,14 @@ def admin_chat_conversations_api(request):
             SELECT
                 m.student_id,
                 u.email,
-                COALESCE(u.email, m.student_id)          AS display_name,
+                COALESCE(
+                    NULLIF(TRIM(CONCAT_WS(' ',
+                        NULLIF(TRIM(u.first_name), ''),
+                        NULLIF(TRIM(u.last_name), '')
+                    )), ''),
+                    u.email,
+                    m.student_id
+                )                                          AS display_name,
                 MAX(m.created_at)                         AS last_activity,
                 (
                     SELECT content FROM elevote_chat_messages
@@ -11001,7 +11008,7 @@ def admin_chat_conversations_api(request):
                 )                                          AS unread_count
             FROM elevote_chat_messages m
             LEFT JOIN users u ON u.student_id = m.student_id
-            GROUP BY m.student_id, u.email
+            GROUP BY m.student_id, u.email, u.first_name, u.last_name
             ORDER BY last_activity DESC
             LIMIT 200
             """,

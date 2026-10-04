@@ -123,8 +123,27 @@ document.addEventListener('DOMContentLoaded', () => {
       if (data.ok) {
         conversations = data.conversations || [];
         renderConvList();
+      } else if (res.status === 403) {
+        convListEl.innerHTML = `
+          <div class="chat-list-empty text-danger">
+            <i class="bi bi-lock d-block mb-2" style="font-size:1.8rem;"></i>
+            Session expired. Please <a href="/static/org_elecom/elecom_admin/admin_dashboard.html">log in again</a>.
+          </div>`;
+        clearInterval(convPollTimer);
+      } else {
+        convListEl.innerHTML = `
+          <div class="chat-list-empty text-warning">
+            <i class="bi bi-exclamation-triangle d-block mb-2" style="font-size:1.8rem;"></i>
+            ${data.error || 'Could not load conversations.'}
+          </div>`;
       }
-    } catch (_) {}
+    } catch (_) {
+      convListEl.innerHTML = `
+        <div class="chat-list-empty text-muted">
+          <i class="bi bi-wifi-off d-block mb-2" style="font-size:1.8rem;"></i>
+          Network error. Retrying…
+        </div>`;
+    }
   }
 
   // ── Render a single message bubble ───────────────────────────────────────
