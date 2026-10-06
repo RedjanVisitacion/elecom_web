@@ -269,12 +269,12 @@ document.addEventListener("DOMContentLoaded", () => {
         const reviewingRequirements = app.status === "requirements_review";
         const requirementLinks = reviewingRequirements
           ? [
-              ["2x2 Picture", app.requirements_photo_url],
-              ["Certificate of Enrollment", app.enrollment_certificate_url],
-              ["Grades - Last 2 Semesters", app.grades_url],
-              ["Good Moral Certificate", app.good_moral_url],
+              ["2x2 Picture", app.requirements_photo_url, "requirements_photo"],
+              ["Certificate of Enrollment", app.enrollment_certificate_url, "enrollment_certificate"],
+              ["Grades - Last 2 Semesters", app.grades_url, "grades"],
+              ["Good Moral Certificate", app.good_moral_url, "good_moral"],
             ]
-              .map(([label, url]) => `<a class="btn btn-outline-secondary btn-sm" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`)
+              .map(([label, url, kind]) => `<button type="button" class="btn btn-outline-secondary btn-sm" data-app-preview="${kind}" data-app-id="${escapeHtml(app.id)}" data-election-id="${escapeHtml(app.election_id || "")}" data-candidate-name="${escapeHtml(candidateName(app))}" ${url ? "" : "disabled"}>${escapeHtml(label)}</button>`)
               .join("")
           : "";
         return `
@@ -395,7 +395,57 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  const previewElement = document.getElementById('candidatePreviewModal');
+  const previewModal = new bootstrap.Modal(previewElement);
+  const previewBody = document.getElementById('candidatePreviewBody');
+  let previewUrl = '', previewRequest = null;
+  function clearPreview() {
+    if (previewRequest) previewRequest.abort();
+    previewRequest = null; previewBody.replaceChildren();
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = '';
+  }
+  previewElement.addEventListener('hidden.bs.modal', clearPreview);
+  async function openPreview(kind, label, selected) {
+    if (!selected) return;
+    clearPreview();
+    const controller = new AbortController(); previewRequest = controller;
+    document.getElementById('candidatePreviewTitle').textContent = `${label} ? ${selected.name}`;
+    const message = document.createElement('p'); message.className = 'preview-message'; message.setAttribute('role', 'status'); message.textContent = 'Loading file?';
+    previewBody.append(message); previewModal.show();
+    const params = new URLSearchParams({ id: selected.id, source: 'application', election_id: selected.election_id || '', kind });
+    try {
+      const response = await fetch(`/api/admin/candidates/document/preview/?${params}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
+      const type = response.headers.get('content-type') || '';
+      if (!response.ok) {
+        const data = type.includes('application/json') ? await response.json() : null;
+        throw new Error(data?.error || 'Unable to load this file. Refresh the page and try again.');
+      }
+      if (!['application/pdf', 'image/jpeg', 'image/png'].some(allowed => type.startsWith(allowed))) throw new Error('This file type cannot be previewed.');
+      const blob = await response.blob();
+      if (controller.signal.aborted || previewRequest !== controller) return;
+      previewUrl = URL.createObjectURL(blob);
+      const viewer = document.createElement(type.startsWith('image/') ? 'img' : 'iframe');
+      viewer.className = type.startsWith('image/') ? 'candidate-preview-photo' : 'candidate-preview-pdf';
+      if (type.startsWith('image/')) viewer.alt = label;
+      else viewer.title = label;
+      viewer.src = previewUrl;
+      viewer.addEventListener('error', () => { message.textContent = 'Unable to display this file in your browser.'; previewBody.replaceChildren(message); });
+      previewBody.replaceChildren(viewer);
+    } catch (error) {
+      if (error.name === 'AbortError' || previewRequest !== controller) return;
+      message.textContent = error.message; message.classList.add('text-danger'); previewBody.replaceChildren(message);
+    }
+  }
   applicationsList?.addEventListener("click", (event) => {
+    const previewButton = event.target.closest('[data-app-preview]');
+    if (previewButton) {
+      openPreview(previewButton.dataset.appPreview, previewButton.textContent.trim(), {
+        id: previewButton.dataset.appId, election_id: previewButton.dataset.electionId, name: previewButton.dataset.candidateName,
+      });
+      return;
+    }
+
     const btn = event.target.closest("[data-app-decision]");
     if (!btn) return;
     if (btn.dataset.appDecision === "reject") {
