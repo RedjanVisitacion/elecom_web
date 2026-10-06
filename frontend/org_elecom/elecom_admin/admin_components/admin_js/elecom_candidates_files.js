@@ -8,7 +8,17 @@
   const election = document.getElementById('filesElection');
   let rows = [], org = '', candidate = null, generation = 0, loading = false;
   const name = row => [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(' ') || String(row.student_id);
-  const group = row => String(row.organization || 'Other').trim().toUpperCase();
+  const group = row => {
+    const label = String(row.organization || 'Other').trim().toUpperCase();
+    return label === 'AFPRO' ? 'AFPROTECHS' : label;
+  };
+  const view = document.getElementById('filesView');
+  const sort = document.getElementById('filesSort');
+  const direction = document.getElementById('filesDirection');
+  const compare = (a, b) => {
+    const value = sort.value === 'details' ? a.detail.localeCompare(b.detail, undefined, { numeric: true }) : a.label.localeCompare(b.label, undefined, { numeric: true });
+    return (value || a.label.localeCompare(b.label)) * (direction.value === 'desc' ? -1 : 1);
+  };
   const url = value => {
     try { const parsed = new URL(value); return ['https:', 'http:'].includes(parsed.protocol) ? parsed.href : ''; } catch (_) { return ''; }
   };
@@ -25,6 +35,7 @@
   function navigate(nextOrg = '', nextCandidate = null) { org = nextOrg; candidate = nextCandidate; search.value = ''; render(); }
   function render() {
     grid.replaceChildren();
+    grid.classList.toggle('files-list', view.value === 'list');
     document.getElementById('filesBack').disabled = !org || loading;
     const crumbs = document.getElementById('filesBreadcrumb'); crumbs.replaceChildren();
     const crumb = (label, action) => { const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label; btn.addEventListener('click', action); crumbs.append(btn); };
@@ -33,24 +44,26 @@
     if (candidate) { crumbs.append(' / '); const span = document.createElement('span'); span.textContent = name(candidate); crumbs.append(span); }
     if (loading) { status.textContent = 'Loading candidate files…'; return; }
     const query = search.value.trim().toLowerCase();
+    const items = [];
     if (candidate) {
       for (const [label, key, icon] of documents) {
         if (!label.toLowerCase().includes(query)) continue;
         const href = candidate[key] ? url(candidate[key]) : '';
-        tile(label, href ? 'Open file ↗' : 'Not submitted', icon, null, href, !href);
+        items.push({ label, detail: href ? 'Open file ↗' : 'Not submitted', icon, href, missing: !href });
       }
     } else if (org) {
       rows.filter(row => group(row) === org && `${name(row)} ${row.student_id} ${row.position}`.toLowerCase().includes(query))
         .sort((a, b) => name(a).localeCompare(name(b))).forEach(row => {
           const count = documents.filter(([, key]) => row[key] && url(row[key])).length;
-          tile(name(row), `${row.student_id} · ${row.position} · ${count}/4 files · ${row.status}`, 'bi-folder-fill', () => navigate(org, row));
+          items.push({ label: name(row), detail: `${row.student_id} · ${row.position} · ${count}/4 files · ${row.status}`, icon: 'bi-folder-fill', action: () => navigate(org, row) });
         });
     } else {
       [...new Set([...orgs, ...rows.map(group)])].filter(label => label.toLowerCase().includes(query)).forEach(label => {
         const count = rows.filter(row => group(row) === label).length;
-        tile(`${label} Candidates`, `${count} candidate folder${count === 1 ? '' : 's'}`, 'bi-folder-fill', () => navigate(label));
+        items.push({ label: `${label} Candidates`, detail: `${count} candidate folder${count === 1 ? '' : 's'}`, icon: 'bi-folder-fill', action: () => navigate(label) });
       });
     }
+    items.sort(compare).forEach(item => tile(item.label, item.detail, item.icon, item.action, item.href, item.missing));
     status.textContent = grid.children.length ? `${grid.children.length} item${grid.children.length === 1 ? '' : 's'}` : query ? 'No matching items in this folder.' : 'No candidates in this organization for the selected election.';
   }
   async function load() {
@@ -68,6 +81,16 @@
     }
   }
   search.addEventListener('input', render);
+  for (const control of [view, sort, direction]) control.addEventListener('change', () => {
+    try { localStorage.setItem('elecom_candidate_files_view', JSON.stringify({ view: view.value, sort: sort.value, direction: direction.value })); } catch (_) { /* Storage may be unavailable. */ }
+    render();
+  });
+  try {
+    const saved = JSON.parse(localStorage.getItem('elecom_candidate_files_view') || '{}');
+    for (const [control, key] of [[view, 'view'], [sort, 'sort'], [direction, 'direction']]) {
+      if ([...control.options].some(option => option.value === saved[key])) control.value = saved[key];
+    }
+  } catch (_) { /* Use default browser view. */ }
   election.addEventListener('change', () => { org = ''; load(); });
   document.getElementById('filesBack').addEventListener('click', () => navigate(candidate ? org : ''));
   document.getElementById('filesRefresh').addEventListener('click', load);
