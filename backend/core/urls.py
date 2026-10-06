@@ -1,3 +1,4 @@
+from .candidate_push import register_push_token_api, unregister_push_token_api
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import redirect
@@ -218,6 +219,8 @@ urlpatterns = [
     path('api/mobile/auth/verify-otp/', forgot_password_verify_otp_api, name='mobile_forgot_password_verify_otp_api'),
     path('api/mobile/auth/reset-password/', forgot_password_reset_password_api, name='mobile_forgot_password_reset_password_api'),
     path('api/mobile/tutorial/state/', mobile_tutorial_state_api, name='mobile_tutorial_state_api'),
+    path('api/mobile/notifications/push-token/register/', register_push_token_api, name='mobile_push_token_register'),
+    path('api/mobile/notifications/push-token/unregister/', unregister_push_token_api, name='mobile_push_token_unregister'),
     path('api/mobile/notifications/', user_notifications_list_api, name='mobile_user_notifications_list_api'),
     path('api/mobile/notifications/create/', user_notifications_create_api, name='mobile_user_notifications_create_api'),
     path('api/mobile/notifications/read/', user_notifications_mark_read_api, name='mobile_user_notifications_mark_read_api'),

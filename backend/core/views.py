@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 from datetime import timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
@@ -7299,9 +7299,14 @@ def _insert_user_notification_for_student(*, student_id: str, notif_type: str, t
             """
             INSERT INTO user_notifications (student_id, type, title, body, created_at, read_at, receipt_id, pinned)
             VALUES (%s, %s, %s, %s, NOW(), NULL, NULL, FALSE)
+            RETURNING id
             """,
             [sid, notif_type, title, body],
         )
+        notification_id = int(cur.fetchone()[0])
+    if notif_type == "candidate_filing":
+        from .candidate_push import queue_candidate_push
+        queue_candidate_push(notification_id=notification_id, student_id=sid, title=title, body=body)
 
 def _uploaded_candidate_image(request, field_name: str, folder: str):
     upload = request.FILES.get(field_name)
@@ -7875,9 +7880,11 @@ def admin_candidate_application_decision_api(request):
                     _insert_user_notification_for_student(
                         student_id=app.get("student_id"),
                         notif_type="candidate_filing",
-                        title="Candidate filing rejected",
+                        title="Requirements rejected" if current_status == "requirements_review" else "Candidate filing rejected",
                         body=(
-                            f"Your filing for {app.get('position') or 'candidate'} was rejected. "
+                            (f"Your follow-up requirements for {app.get('position') or 'candidate'} were rejected. You cannot file again for this election. "
+                             if current_status == "requirements_review" else
+                             f"Your filing for {app.get('position') or 'candidate'} was rejected. You may correct it and file again. ")
                             + (f"Reason: {reason}" if reason else "Contact ELECOM for details.")
                         ),
                     )
