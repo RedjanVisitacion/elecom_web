@@ -7382,6 +7382,7 @@ def candidate_application_requirements_api(request):
                 """
                 SELECT id, status, requirements_photo_url,
                        enrollment_certificate_url, grades_url, good_moral_url
+                FROM candidate_applications
                 WHERE COALESCE(election_id, 0) = COALESCE(%s, 0) AND student_id = %s
                 ORDER BY created_at DESC, id DESC LIMIT 1
                 """,
