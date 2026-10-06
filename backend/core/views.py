@@ -7082,6 +7082,21 @@ def _ensure_candidate_applications_table() -> None:
         )
 
 
+def _candidate_application_can_file_again(application: dict) -> bool:
+    if str(application.get("status") or "").strip().lower() != "rejected":
+        return False
+    return not any(
+        str(application.get(field) or "").strip()
+        for field in (
+            "requirements_submitted_at",
+            "requirements_photo_url",
+            "enrollment_certificate_url",
+            "grades_url",
+            "good_moral_url",
+        )
+    )
+
+
 def _candidate_application_json(row: dict) -> dict:
     out = {}
     for key, value in row.items():
@@ -7094,6 +7109,7 @@ def _candidate_application_json(row: dict) -> dict:
                 out[key] = str(value)
         else:
             out[key] = value
+    out["can_file_again"] = _candidate_application_can_file_again(row)
     return out
 
 
@@ -7535,7 +7551,10 @@ def candidate_application_submit_api(request):
         with connection.cursor() as cur:
             cur.execute(
                 """
-                SELECT id, election_id, student_id, position, status FROM candidate_applications
+                SELECT id, election_id, student_id, position, status,
+                       requirements_submitted_at, requirements_photo_url,
+                       enrollment_certificate_url, grades_url, good_moral_url
+                FROM candidate_applications
                 WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
                   AND student_id = %s
                 ORDER BY created_at DESC, id DESC
@@ -7551,6 +7570,21 @@ def candidate_application_submit_api(request):
             else:
                 existing_app = None
                 existing_status = ""
+            if (
+                existing_app
+                and existing_status == "rejected"
+                and not _candidate_application_can_file_again(existing_app)
+            ):
+                return JsonResponse(
+                    {
+                        "ok": False,
+                        "error": "Your follow-up requirements were rejected. You cannot file again for this election.",
+                        "code": "requirements_rejected",
+                        "application_id": int(existing_app["id"]),
+                        "status": "rejected",
+                    },
+                    status=409,
+                )
             if (
                 existing_app
                 and existing_status != "rejected"
