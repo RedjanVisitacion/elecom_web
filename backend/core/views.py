@@ -8010,7 +8010,7 @@ def admin_candidates_files_api(request):
         with connection.cursor() as cur:
             cur.execute("""
                 SELECT id, student_id, first_name, middle_name, last_name,
-                       organization, position, status, requirements_photo_url,
+                       organization, position, status, created_at, requirements_photo_url,
                        enrollment_certificate_url, grades_url, good_moral_url
                 FROM candidate_applications
                 WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
@@ -8020,7 +8020,7 @@ def admin_candidates_files_api(request):
             rows = [dict(zip(cols, row)) for row in cur.fetchall()]
             cur.execute("""
                 SELECT c.id, c.student_id, c.first_name, c.middle_name, c.last_name,
-                       c.organization, c.position, 'registered' AS status,
+                       c.organization, c.position, 'registered' AS status, c.created_at,
                        c.photo_url AS requirements_photo_url,
                        NULL AS enrollment_certificate_url, NULL AS grades_url,
                        NULL AS good_moral_url
