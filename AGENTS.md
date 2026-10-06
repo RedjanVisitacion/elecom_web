@@ -1,767 +1,713 @@
-# Agent Instructions (ELECOM workspace)
+# ELECOM Web & Backend — Secure Election Platform 🗳️
 
-> Intended for any AI coding agent working in this workspace. If you maintain `CLAUDE.md` or `GEMINI.md` elsewhere, keep them aligned with this file.
+[![Django](https://img.shields.io/badge/Django-6.0-green.svg)](https://www.djangoproject.com/)
+[![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-336791.svg)](https://www.postgresql.org/)
+[![InsightFace](https://img.shields.io/badge/InsightFace-ArcFace%20ONNX-orange.svg)](https://github.com/deepinsight/insightface)
+[![Groq AI](https://img.shields.io/badge/Groq-EleVote%20AI-purple.svg)](https://groq.com/)
+[![Nginx](https://img.shields.io/badge/Nginx-Reverse%20Proxy-009639.svg)](https://nginx.org/)
+[![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-This workspace contains the ELECOM voting system across multiple surfaces. Optimize for fast, safe iteration: small changes, correct repo/file ownership, clean checks, and no assumptions about what has already been staged, pushed, or deployed.
+The official backend REST API service and web administration portal for the **ELECOM** student election platform at **USTP-Oroquieta Campus**. Built with Django, PostgreSQL, local InsightFace biometrics, Groq AI, and vanilla JavaScript/HTML/CSS for the COMELEC administrative board.
 
-## What This Workspace Is
+> **Audience**: Intended for any AI coding agent or software engineer working in this workspace. Keep this document aligned with `F:\elecom_mobile\AGENTS.md`.
 
-- **Flutter mobile app (`elecom_mobile`)**: Flutter UI, local config, and HTTP calls to the backend. There is no Django/Python API code inside the Flutter app.
-- **Django backend**: `F:\elecom_web\backend` (contains `manage.py`, `core/settings.py`, `core/urls.py`, `core/views.py`, `elecom_auth/`, `.env`).
-- **Static web/admin frontend**: `F:\elecom_web\frontend\org_elecom\`, especially `frontend/org_elecom/elecom_admin/*.html`.
+---
 
-Agents fixing **404/500 API routes, database behavior, election scoping, reset behavior, OTP/email, reports, or network authorization** must inspect the Django backend. Agents changing **mobile screens or mobile HTTP calls** must edit Flutter files. Agents changing **web admin UI** must edit static admin HTML/CSS/JS.
+## 📖 Table of Contents
 
-## Shared Backend Contract
+- [Overview & Workspace Map](#-overview--workspace-map)
+- [System Architecture](#-system-architecture)
+- [Key Features](#-key-features)
+- [Tech Stack & Dependencies](#-tech-stack--dependencies)
+- [Repository & Directory Structure](#-repository--directory-structure)
+- [Configuration & Environment Variables (.env)](#-configuration--environment-variables-env)
+- [Local Development Setup (Windows)](#-local-development-setup-windows)
+- [Production Deployment & Server Operations (Ubuntu)](#-production-deployment--server-operations-ubuntu)
+- [Shared Backend & API Contracts](#-shared-backend--api-contracts)
+- [Biometric Face Verification (InsightFace)](#-biometric-face-verification-insightface)
+- [SMS OTP Verification (SMS Chef Gateway)](#-sms-otp-verification-sms-chef-gateway)
+- [EleVote Live Chat & Admin Support System](#-elevote-live-chat--admin-support-system)
+- [Web Admin UI Rules & Design Consistency](#-web-admin-ui-rules--design-consistency)
+- [USTP-Oroquieta Omnibus Election Code Context](#-ustp-oroquieta-omnibus-election-code-context)
+- [Quality Gates & Testing](#-quality-gates--testing)
+- [Engineering Conventions & Git Hygiene](#-engineering-conventions--git-hygiene)
+- [Troubleshooting & Common Failure Scenarios](#-troubleshooting--common-failure-scenarios)
 
-The web admin and Flutter app are different clients for the same Django backend and database. Do not hallucinate separate mobile-only data when the system already stores it in backend tables.
+---
 
-- Treat the Django backend as the source of truth for elections, candidates, votes, notifications, ratings, network authorization, and reports.
-- Preserve API response contracts. Mobile endpoints usually return JSON with an `ok` boolean; do not let Django HTML error pages leak into mobile flows.
-- For API errors, confirm the exact URL the client calls and check `backend/core/urls.py` and `backend/core/views.py`.
-- Prefer adding or reusing `/api/mobile/...` endpoints for mobile behavior and `/api/admin/...` endpoints for admin behavior, unless an existing shared endpoint is already the correct contract.
-- Keep election scoping consistent across clients. Records commonly use `election_id`; active/current behavior must not accidentally hide archived election data where the UI asks for a previous year.
-- PostgreSQL is used. Never use SQLite-only DDL such as `AUTOINCREMENT`; use Django migrations or PostgreSQL-safe SQL (`SERIAL`, `BIGSERIAL`, etc.).
+## 🗺️ Overview & Workspace Map
 
-## Flutter Repo Map
+The complete ELECOM voting solution consists of two primary project directories:
 
-- **App entrypoint**: `lib/main.dart` boots notifications/services then runs `ElecomApp`.
-- **App shell / routing / top-level widgets**: `lib/app/`
-- **Reusable "core" concerns**: `lib/core/` (config, networking, session, notifications, ledger, etc.).
-- **Feature modules**: `lib/features/`
-- **Assets**: `assets/` and `pubspec.yaml` `flutter/assets`
-
-## API Base URL (Flutter)
-
-- Preferred run command: `flutter run --dart-define=API_BASE_URL=http://<host>:8000`
-- Implementation: `lib/core/config/api_config.dart` reads `String.fromEnvironment('API_BASE_URL')`.
-- If empty, current fallback is:
-  - Android emulator/device: `http://192.168.1.171:8000` (LAN IP - adjust if the user's PC address differs).
-  - Other platforms: `http://127.0.0.1:8000`
-- Do not scatter hardcoded base URLs; use `ApiConfig.baseUrl` or the same centralized pattern.
-
-## Mobile HTTP API Shape
-
-The Flutter app calls Django under `{baseUrl}/api/mobile/...` for most mobile flows.
-
-- Forgot password: `POST /api/mobile/auth/forgot-password/`, `POST /api/mobile/auth/verify-otp/`, `POST /api/mobile/auth/reset-password/` (see `lib/features/auth/data/forgot_password_api.dart`).
-- Forgot-password step 1 returns `404` with `ok: false` when no account matches the Student ID or email; no OTP is sent.
-- If the client gets `404`, check backend `core/urls.py`.
-- If the app reports an unexpected `500`, the server may have returned non-JSON. Check Django logs and the matching view in `core/views.py`.
-
-## Web Admin Files
-
-- **Admin pages**: `frontend/org_elecom/elecom_admin/*.html`
-- **Shared admin header/profile/notification bell JS**: `frontend/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js`
-- **Shared admin CSS**: `frontend/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css`
-- **Reports page JS/CSS**: `frontend/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js`, `frontend/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css`
-
-When changing shared static assets used by admin pages, bump the query string version in HTML, e.g. `admin_user_menu.js?v=...`, `admin_dashboard.css?v=...`, or `elecom_reports.js?v=...`, so browser cache and collected static files do not keep stale code.
-
-When adding sidebar items, update all admin HTML files that contain a hardcoded sidebar. The **Network Authorize** link should exist on every admin screen, but only `elecom_network_authorize.html` should mark it `active`.
-
-## Current Admin Behavior To Preserve
-
-- The **Reset Votes** sidebar item is intentionally removed from admin sidebars. Do not re-add it unless the user explicitly asks.
-- Reset Votes is opened through the small hidden header control next to the notification bell.
-- That hidden shortcut must ask for the admin password first, using the shared modal in `admin_user_menu.js`, then navigate to `elecom_reset.html`.
-- Keep the notification bell visible and preserve its behavior in `admin_user_menu.js`.
-- Resetting votes also clears user notifications. UI copy should say votes and notifications are deleted.
-- Backend reset/status code should ensure the notifications table exists before counting or deleting notifications.
-- The reset screen still requires typing `RESET`; the hidden header shortcut only gates navigation to the reset screen.
-
-## Election-Scoped Admin Pages
-
-- Election Management history action buttons must use the selected election ID, not dashboard/home URLs:
-  - `/elections/<election_id>/edit-dates/`
-  - `/elections/<election_id>/results/`
-  - `/elections/<election_id>/reports/`
-- Matching routes live in `backend/core/urls.py`; views live in `backend/core/views.py`.
-- Buttons inside election loops should use the current election object (`election.id`, `election.pk`, or the local variable used by that template), not the active election by default.
-- If an action button is a `<button>` inside a form, use `type="button"` unless it should submit the form.
-
-## Results And Reports Lessons
-
-- Results must support previewing the active/current election and archived previous elections. Prefer `history.pushState`/AJAX updates over full-page navigation when changing selected year, so the page does not blink.
-- Reports must support **All elections** and a specific election year. The report API should receive `scope=all` for all elections, or `election_id=<id>` for a selected election.
-- Do not let report summary endpoints silently fall back to the active election when the UI selected **All elections**.
-- When filtering reports by date, apply the same date range to totals and candidate vote breakdowns.
-- Report previews and exports should show the selected scope/year and date range clearly.
-- PDF export in `elecom_reports.js` has been fragile. Avoid hidden/fixed temporary overlays for html2pdf; they caused blank PDFs. Prefer exporting from the real preview or a canvas source, ensure images are loaded/inlined first, and always bump the report JS query-string version after changes.
-
-## Network Authorization Notes
-
-The web admin Network Authorize page uses:
-
-- Table: `authorized_networks`
-- Table: `network_access_attempts`
-- Backend endpoints: `/api/admin/network-settings/`, `/api/admin/network-logs/`, `/api/network/check/`
-
-Important LAN/public IP distinction:
-
-- For online deployments, Django sees the public/NAT request IP, not the phone's Wi-Fi/LAN IP.
-- Network authorization should allow the voter device's local Wi-Fi IP/prefix, for example `192.168.101.4`, usually authorized as `192.168.101.0/24` or prefix `192.168.101`.
-- `/api/network/check/` prefers client-supplied LAN IP fields: `device_ip`, `local_ip`, `network_ip`, or `ip_address` (query string or JSON body), plus headers `X-Device-Local-IP` / `X-Client-Local-IP`.
-- If no LAN IP is supplied, the endpoint falls back to the server-seen request IP and returns `ip_source: "request"`; this is not suitable for mobile Wi-Fi LAN authorization behind NAT.
-- Mobile/Flutter clients must read the device Wi-Fi/local IP and send it to `/api/mobile/network/check/` before voting.
-- Browsers/servers cannot reliably read a phone's Wi-Fi SSID or private LAN IP for security reasons.
-- SSID is stored/displayed for admin context only; do not depend on SSID for enforcement unless a trusted mobile client supplies it.
-
-## Notifications And Ratings
-
-- Mobile app ratings are stored in `app_ratings` through `/api/account/app-rating/`.
-- The web admin bell loads rating notifications from `/api/admin/notifications/app-ratings/`.
-- The unread badge is browser-local: `admin_user_menu.js` stores the latest seen rating id in `localStorage` under `elecom_admin_seen_rating_id`.
-- User notifications are shared backend data. If mobile notification behavior changes, check backend notification tables/endpoints before inventing client-only state.
-
-## Backend Configuration
-
-The Django server reads `backend/.env` (loaded in `core/settings.py`). Relevant knobs agents often touch:
-
-- **Database**: `DATABASES` / `DB_*` as used in that project's settings.
-- **Email / forgot-password OTP**: `EMAIL_BACKEND`, `EMAIL_HOST*`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `DEFAULT_FROM_EMAIL`.
-- Default email backend may be console (no real inbox) unless SMTP is set in `.env`.
-
-Restart `runserver` or the production service after changing `.env`, URL routes, or backend behavior.
-
-### Local/offline PostgreSQL startup lessons
-
-When switching from the online Kamatera/Gunicorn deployment back to offline Windows development, confirm the local PostgreSQL credentials before changing code.
-
-- Start local PostgreSQL first, then run Django from `F:\elecom_web\backend`:
-  - `python manage.py runserver 0.0.0.0:8000`
-- If Django fails with `password authentication failed for user "elecom_user"`, the backend is running but PostgreSQL rejected the credentials in `backend/.env`.
-- In the current local Windows setup, pgAdmin was connected to database `elecom_db` as user `postgres`, so local `.env` needed:
-  - `DB_NAME=elecom_db`
-  - `DB_USER=postgres`
-  - `DB_PASSWORD=123` or the actual local postgres password
-  - `DB_HOST=localhost`
-  - `DB_PORT=5432`
-- The old failing traceback may remain in the terminal scrollback. The successful signal is `System check identified no issues` and `Starting development server at http://0.0.0.0:8000/`.
-- `python manage.py migrate` saying `No migrations to apply` means the local schema matches the local migration files. If online has newer records, candidates, elections, votes, or settings, that is a data/backup restore issue, not a migration issue.
-- Do not assume Kamatera `.env` credentials and local Windows `.env` credentials are the same. Before going back online, ensure the server `.env` uses the production database credentials again.
-
-## Production Deploy Notes
-
-On the Linux server, the Django/Gunicorn service is named:
-
-- **`gunicorn`** (not `elecom` — `sudo systemctl restart elecom` will fail)
-
-The live backend runs from **`/var/www/elecom/backend`**, served by gunicorn with venv at `/var/www/elecom/venv`.
-There is a separate clone at `~/elecom_web` used only for git pulls — it is **not** the live directory.
-
-**Public URL**: `https://el3com.duckdns.org` (HTTPS via Nginx + Let's Encrypt).
-The raw IP (`79.108.225.33:8000`) still works but is HTTP-only — do not use it in the Flutter app or share it with users.
-Gunicorn binds to `127.0.0.1:8000`; Nginx handles the public-facing ports 80/443 and proxies to gunicorn.
-
-### Nginx + HTTPS setup (already configured)
-
-Nginx config lives at `/etc/nginx/sites-available/elecom` (symlinked to `sites-enabled`).
-SSL certificate issued by Let's Encrypt via Certbot, stored at `/etc/letsencrypt/live/el3com.duckdns.org/`.
-Certificate expires **2026-12-13** — Certbot auto-renews it via a scheduled task.
-
-To renew manually if needed:
-```bash
-sudo certbot renew --dry-run   # test
-sudo certbot renew             # actual renewal
-sudo systemctl restart nginx
+```
+F:\
+├── elecom_web\                # [THIS REPO] Django API backend & Static Admin Web Frontend
+│   ├── backend\               # Django project (manage.py, settings, views, migrations)
+│   └── frontend\              # Admin web portal HTML/CSS/JS assets
+│
+└── elecom_mobile\             # [SEPARATE REPO] Flutter Client (iOS & Android)
+    ├── lib\                   # Flutter app entrypoint, features, and core config
+    └── assets\                # App images, logos, and Lottie animations
 ```
 
-If Nginx is down after a server reboot:
-```bash
-sudo systemctl enable nginx
-sudo systemctl start nginx
+### Responsibility Boundaries
+
+- **Django Backend (`F:\elecom_web\backend`)**: The sole source of truth for database records, election states, candidate rosters, votes, SHA-256 ledger integrity, biometric embeddings, OTP delivery, user profiles, and audit logs.
+- **Admin Web Frontend (`F:\elecom_web\frontend\org_elecom\elecom_admin`)**: Static administrative interface for COMELEC officers (elections management, candidate registration, canvassing, reports, network whitelist, and live chat support).
+- **Mobile Client (`F:\elecom_mobile`)**: Flutter client consuming `{API_BASE_URL}/api/mobile/...` endpoints for authentication, voting, receipt verification, and voter support chat.
+
+> **Rule for Agents**: Any task addressing 404/500 API errors, database schemas, OTP/email delivery, live chat backend logic, or election lifecycle rules must be executed in `F:\elecom_web\backend`, not in `elecom_mobile`.
+
+---
+
+## 🏛️ System Architecture
+
+```mermaid
+flowchart TD
+    subgraph Clients [Clients & Interfaces]
+        MobileApp["Flutter Mobile App (iOS / Android)"]
+        AdminWeb["COMELEC Admin Web Portal (Desktop)"]
+        VoterWeb["Voter Web Interface"]
+    end
+
+    subgraph EdgeLayer [Edge & Networking]
+        DNS["DuckDNS (el3com.duckdns.org)"]
+        Nginx["Nginx Reverse Proxy (Ports 80 -> 443 SSL)"]
+        Certbot["Let's Encrypt Auto-Renewal"]
+    end
+
+    subgraph BackendCore [Django Backend (Gunicorn 127.0.0.1:8000)]
+        DjangoCore["Django 6.0 + REST Framework"]
+        WhiteNoise["WhiteNoise Middleware (Static Files)"]
+        CoreApp["core (Views, Auth, Admin APIs, Router)"]
+        VotingApp["elecom_voting (Elections, Ballots, Ledger)"]
+        FaceService["local_face_service.py (InsightFace ArcFace 512-d)"]
+    end
+
+    subgraph DataIntegrations [Data Stores & External Gateways]
+        Postgres[("PostgreSQL Database (elecom_db)")]
+        Cloudinary["Cloudinary (Candidate Photos & Logos)"]
+        GroqCloud["Groq Cloud AI (EleVote Llama 3)"]
+        SMSChefGateway["SMS Chef Gateway (Realme RMX3261 Phone)"]
+    end
+
+    MobileApp -->|HTTPS / REST API| DNS
+    AdminWeb -->|HTTPS / Static & REST| DNS
+    VoterWeb -->|HTTPS / Static & REST| DNS
+    DNS --> Nginx
+    Certbot -.-> Nginx
+    Nginx -->|proxy_pass| DjangoCore
+    DjangoCore --> WhiteNoise
+    DjangoCore --> CoreApp
+    DjangoCore --> VotingApp
+    DjangoCore --> FaceService
+    CoreApp --> Postgres
+    VotingApp --> Postgres
+    CoreApp --> Cloudinary
+    CoreApp --> GroqCloud
+    CoreApp --> SMSChefGateway
 ```
 
-### Correct deploy sequence after pushing to GitHub
+---
+
+## 🌟 Key Features
+
+- **Secure Authentication & RBAC**: Session-based authentication for COMELEC admin officers and JWT / token authentication for students and voters.
+- **USTP-Oroquieta Election Code Compliance**: Enforces voter eligibility, candidate qualification, election timelines, non-partisan balloting, and tie-breaking protocols.
+- **Biometric Voter Verification (Local InsightFace)**: 512-dimensional ArcFace facial embeddings with ONNX Runtime. Ensures 1-student-1-face registration and live face verification before voting with zero external API fees.
+- **Hardware-Relayed SMS OTP**: Automated two-factor verification code dispatch via SMS Chef running on a dedicated Android phone gateway (Realme RMX3261).
+- **EleVote AI Live Chat & Admin Takeover**: Groq-powered AI support assistant that answers election guidelines instantly, with real-time COMELEC officer takeover and thread management.
+- **Campus Network Authorization**: Enforces voting exclusively from designated USTP campus Wi-Fi networks using LAN IP prefix and subnet filtering.
+- **Tamper-Evident SHA-256 Vote Ledger**: Cryptographic chaining of cast votes ensuring election immutability and verifiable vote receipts.
+- **Dynamic Canvassing & PDF Reporting**: Instant real-time vote tabulations supporting current and historical election scopes, with printable PDF proclamation reports.
+- **Database Backup, Restore & Protected Reset**: One-click database backups and password-gated vote reset functionality for test cycle purges.
+
+---
+
+## 🛠️ Tech Stack & Dependencies
+
+| Layer | Technology | Details |
+|---|---|---|
+| **Language** | Python 3.10+ | Strict type hints where possible |
+| **Framework** | Django 6.0+ & DRF 3.18+ | REST APIs, Session Auth, Form Handling |
+| **Database** | PostgreSQL 14+ | `psycopg2-binary`, BIGSERIAL primary keys |
+| **WSGI Server** | Gunicorn 20.1+ | Bound to `127.0.0.1:8000`, 3 workers |
+| **Reverse Proxy** | Nginx | Port 80 HTTP -> 443 HTTPS redirect |
+| **SSL / TLS** | Let's Encrypt Certbot | Domain: `el3com.duckdns.org` |
+| **Static Delivery** | WhiteNoise 6.0+ | `CompressedManifestStaticFilesStorage` |
+| **Biometrics** | InsightFace + ONNX Runtime + OpenCV | ArcFace model (`buffalo_sc`), `libgl1` required |
+| **AI Assistant** | Groq Python SDK 0.9+ | Fast LLM inference for voter questions |
+| **Image Hosting** | Cloudinary SDK 1.36+ | Candidate portraits, party logos, verification snapshots |
+| **SMS Relay** | SMS Chef REST Gateway | Direct Android SIM relay to Philippine carriers |
+| **Cryptography** | bcrypt 4.0+ | Password hashing for voter import |
+| **Frontend** | Vanilla JS, HTML5, CSS3 | No compilation needed; query versioning `?v=` |
+
+---
+
+## 📁 Repository & Directory Structure
+
+```
+F:\elecom_web\
+├── AGENTS.md                                # [This Guide] Comprehensive agent instructions
+├── README.md                                # High-level project summary
+├── .gitignore                               # Git exclusions (.env, pycache, static builds)
+│
+├── backend\                                 # Django Web & API Core
+│   ├── manage.py                            # Django management script
+│   ├── requirements.txt                     # Python pip dependencies
+│   ├── .env                                 # Secrets & environment config (NEVER COMMIT)
+│   ├── core\                               # Core project configuration
+│   │   ├── __init__.py
+│   │   ├── settings.py                      # Django settings (DB, Cloudinary, Apps, Middleware)
+│   │   ├── urls.py                          # Global URL router (Mobile & Admin APIs)
+│   │   ├── views.py                         # Primary views, authentication, APIs & admin handlers
+│   │   ├── wsgi.py                          # Gunicorn WSGI entrypoint
+│   │   ├── asgi.py                          # ASGI stub
+│   │   ├── local_face_service.py            # Local InsightFace ArcFace biometric engine
+│   │   └── facepp_service.py                # Legacy Face++ fallback service
+│   ├── elecom_auth\                         # Authentication & user profile module
+│   │   ├── models.py                        # User, Profile, and Role models
+│   │   ├── views.py                         # Auth endpoints
+│   │   └── migrations\                     # Django schema migrations
+│   ├── elecom_voting\                       # Voting, elections, and candidate module
+│   │   ├── models.py                        # Elections, Candidates, Votes, Ledger models
+│   │   ├── views.py                         # Voting logic & tallying views
+│   │   └── migrations\                     # Django schema migrations
+│   ├── db\                                 # Database utilities and schema scripts
+│   └── backup\                             # Local SQL backup dumps
+│
+└── frontend\                                # Web Admin & Static Assets
+    ├── assets\                             # Shared branding, images, and Lottie animations
+    └── org_elecom\
+        └── elecom_admin\                   # COMELEC Administration Portal
+            ├── admin_dashboard.html         # Main dashboard overview
+            ├── elecom_elections.html        # Election creation and lifecycle
+            ├── elecom_election_date.html    # Voting period & date range scheduler
+            ├── elecom_candidates.html       # Candidate listing and status
+            ├── elecom_register_candidate.html # Candidate filing form
+            ├── elecom_voters.html           # Voter list and batch CSV/Excel import
+            ├── elecom_results.html          # Live canvassing & results preview
+            ├── elecom_reports.html          # Proclamation & audit report exporter
+            ├── elecom_transparency.html     # Cryptographic vote ledger inspection
+            ├── elecom_live_chat.html        # Admin support inbox & human takeover
+            ├── elecom_network_authorize.html # Campus Wi-Fi IP/subnet whitelist
+            ├── elecom_backup_restore.html   # DB backup management
+            ├── elecom_reset.html            # Protected test data purge
+            ├── profile.html                 # Officer profile management
+            ├── search_results.html          # Global voter/candidate search
+            └── admin_components\            # Reusable admin styles and scripts
+                ├── admin_css\
+                │   ├── admin_dashboard.css  # Core design system & navy sidebar styles
+                │   └── elecom_reports.css   # Report print and export styling
+                └── admin_js\
+                    ├── admin_user_menu.js   # Shared header, notifications bell & reset gate
+                    ├── elecom_live_chat.js  # Live chat polling and takeover controller
+                    └── elecom_reports.js    # Canvas/PDF export engine
+```
+
+---
+
+## ⚙️ Configuration & Environment Variables (.env)
+
+The backend loads configuration from `F:\elecom_web\backend\.env` locally and `/var/www/elecom/backend/.env` in production.
+
+| Variable Name | Required | Default / Example | Purpose |
+|---|:---:|---|---|
+| `DEBUG` | Yes | `True` (local), `False` (prod) | Django debug mode |
+| `SECRET_KEY` | Yes | `django-insecure-...` | Django security cryptographic salt |
+| `DJANGO_ALLOWED_HOSTS` | No | `el3com.duckdns.org,127.0.0.1` | Comma-separated allowed hostnames |
+| `DB_NAME` | Yes | `elecom_db` | PostgreSQL database name |
+| `DB_USER` | Yes | `postgres` (local) / `elecom_backend` | PostgreSQL username |
+| `DB_PASSWORD` | Yes | Local password or socket peer auth | PostgreSQL user password |
+| `DB_HOST` | Yes | `localhost` or `127.0.0.1` | PostgreSQL host |
+| `DB_PORT` | Yes | `5432` | PostgreSQL port |
+| `CLOUDINARY_CLOUD_NAME`| Yes | `your_cloud_name` | Cloudinary storage bucket |
+| `CLOUDINARY_API_KEY` | Yes | `your_api_key` | Cloudinary API access key |
+| `CLOUDINARY_API_SECRET`| Yes | `your_api_secret` | Cloudinary API secret |
+| `GROQ_API_KEY` | Yes | `gsk_...` | Groq AI API key for EleVote chat |
+| `GROQ_MODEL` | No | `llama3-70b-8192` | Model identifier for EleVote responses |
+| `SMSCHEF_API_KEY` | Yes | `your_smschef_key` | SMS Chef cloud gateway API token |
+| `SMSCHEF_DEVICE_ID` | Yes | `cb723b0014acd1b3` | Dedicated Realme gateway device ID |
+| `SMSCHEF_SIM_SLOT` | No | `0` (SIM 1) | Active SIM slot index (0 = SIM 1) |
+| `EMAIL_BACKEND` | Yes | `django.core.mail.backends.smtp.EmailBackend` | Mail backend (console for testing) |
+| `EMAIL_HOST` | Yes | `smtp.gmail.com` | SMTP relay server |
+| `EMAIL_PORT` | Yes | `587` | SMTP port |
+| `EMAIL_USE_TLS` | Yes | `True` | Enable TLS for SMTP |
+| `EMAIL_HOST_USER` | Yes | `it.elecom.ustp@gmail.com` | System sender email address |
+| `EMAIL_HOST_PASSWORD` | Yes | 16-character Google App Password | SMTP credential |
+| `DEFAULT_FROM_EMAIL` | Yes | `ELECOM <it.elecom.ustp@gmail.com>` | Display sender name and email |
+| `FACE_VOTE_VERIFY_SESSION_MINUTES` | No | `20` | Face verification validity window |
+| `FACEPP_API_KEY` | No | Fallback key | Legacy Face++ API key (if needed) |
+| `FACEPP_API_SECRET` | No | Fallback secret | Legacy Face++ API secret |
+
+---
+
+## 💻 Local Development Setup (Windows)
+
+### Prerequisites
+
+- **Python 3.10+** (verified with Python 3.13)
+- **PostgreSQL 14+** installed with pgAdmin
+- **Git for Windows**
+
+### Setup Steps
+
+1. **Navigate to the backend directory**:
+   ```powershell
+   cd F:\elecom_web\backend
+   ```
+
+2. **Create and activate a virtual environment**:
+   ```powershell
+   python -m venv venv
+   .\venv\Scripts\Activate.ps1
+   ```
+
+3. **Install dependencies**:
+   ```powershell
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```
+
+4. **Configure Local PostgreSQL**:
+   Open pgAdmin or run `psql -U postgres`:
+   ```sql
+   CREATE DATABASE elecom_db;
+   ```
+   Ensure your `backend\.env` reflects your local postgres credentials:
+   ```env
+   DEBUG=True
+   DB_NAME=elecom_db
+   DB_USER=postgres
+   DB_PASSWORD=your_local_password
+   DB_HOST=localhost
+   DB_PORT=5432
+   ```
+
+5. **Run database migrations**:
+   ```powershell
+   python manage.py migrate
+   ```
+
+6. **Create an initial administrative account**:
+   ```powershell
+   python manage.py createsuperuser
+   ```
+   *(Or insert COMELEC admin student record directly in pgAdmin)*
+
+7. **Launch the development server**:
+   ```powershell
+   python manage.py runserver 0.0.0.0:8000
+   ```
+
+### Connecting the Flutter App to Local Backend
+
+When testing the mobile client against your local Windows PC:
+- Bind Django to `0.0.0.0:8000` (not `127.0.0.1`).
+- Find your local IPv4 address via `ipconfig` (e.g., `192.168.1.171`).
+- Verify Windows Defender Firewall allows incoming connections on port 8000.
+- Run the Flutter app with:
+  ```powershell
+  cd F:\elecom_mobile
+  flutter run --dart-define=API_BASE_URL=http://192.168.1.171:8000
+  ```
+
+---
+
+## 🚀 Production Deployment & Server Operations (Ubuntu)
+
+The live production backend runs on a **Kamatera Ubuntu Linux VPS**.
+
+- **Public HTTPS Domain**: `https://el3com.duckdns.org`
+- **Application Directory**: `/var/www/elecom/backend`
+- **Virtual Environment**: `/var/www/elecom/venv`
+- **Static Files Directory**: `/var/www/elecom_static`
+- **Gunicorn Systemd Service**: `gunicorn` (`/etc/systemd/system/gunicorn.service`)
+- **Nginx Configuration**: `/etc/nginx/sites-available/elecom`
+
+> **CRITICAL**: Do **NOT** deploy or pull code inside `~/elecom_web`. The live web server is exclusively served from `/var/www/elecom`.
+
+### Standard Deploy Workflow
+
+After committing and pushing changes to GitHub:
 
 ```bash
+# 1. Connect to the VPS and enter the live repository
 cd /var/www/elecom
 git pull origin main
+
+# 2. Collect static files for WhiteNoise and Nginx
 /var/www/elecom/venv/bin/python backend/manage.py collectstatic --noinput
+
+# 3. Apply any pending database migrations
+/var/www/elecom/venv/bin/python backend/manage.py migrate
+
+# 4. Restart Gunicorn app workers
 sudo systemctl restart gunicorn
-sudo systemctl status gunicorn --no-pager
+
+# 5. Verify service health
+sudo systemctl status gunicorn --no-pager | tail -10
 ```
 
-Do **not** deploy from `~/elecom_web` — gunicorn does not serve from there.
-If `git pull` aborts with "local changes would be overwritten", run:
+### Fresh Server Bootstrap Checklist
 
-```bash
-git checkout backend/core/views.py   # or whichever file is conflicted
-git pull origin main
-sudo systemctl restart gunicorn
-```
+If setting up a new server or recovering from a wipe:
 
-### Production server Python packages (venv)
-
-Install missing packages into the production venv at `/var/www/elecom/venv`:
-
-```bash
-/var/www/elecom/venv/bin/pip install cloudinary
-/var/www/elecom/venv/bin/pip install -r /var/www/elecom/backend/requirements.txt
-```
-
-Key packages that must be present:
-- `cloudinary` — required for candidate photo and party logo uploads (Register Candidate, face enrollment)
-- `faceplusplus-sdk` or equivalent — required for face enrollment and verification
-- All packages in `backend/requirements.txt`
-
-If a 500 error says "pip install cloudinary" or similar, the package is missing from the venv.
-
-### Production .env
-
-The production `.env` lives at `/var/www/elecom/backend/.env`. It is **not** committed to git (gitignored).
-It must be created manually on the server. Do not copy the local Windows `.env` directly — DB credentials differ.
-
-**After a fresh server setup or redeploy, the `.env` file will not exist.** Django will run with defaults — no Cloudinary, no email, no Face++, and the DB section in `settings.py` hardcodes local credentials that won't match production. Always create `.env` before testing anything.
-
-**Do not include DB credentials** in the production `.env` unless you know the exact production PostgreSQL password.
-The production DB uses peer/socket authentication; Django's built-in defaults (`elecom_backend` user, `127.0.0.1` host) connect without a password when no `DB_*` env vars are set.
-
-To verify Django is reading `.env` correctly without exposing secrets:
-```bash
-/var/www/elecom/venv/bin/python -c "
-import os, sys
-sys.path.insert(0, '/var/www/elecom/backend')
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'core.settings')
-import django; django.setup()
-from django.conf import settings
-print('Cloud name:', settings.CLOUDINARY_CLOUD_NAME)
-print('API key:', settings.CLOUDINARY_API_KEY[:6] + '...' if settings.CLOUDINARY_API_KEY else 'MISSING')
-"
-```
-
-Minimum required production `.env` contents:
-
-```env
-DEBUG=False
-SECRET_KEY=elecom_secret_key
-
-CLOUDINARY_CLOUD_NAME=<your_cloud_name>
-CLOUDINARY_API_KEY=<your_api_key>
-CLOUDINARY_API_SECRET=<your_api_secret>
-
-FACEPP_API_KEY=<your_facepp_key>
-FACEPP_API_SECRET=<your_facepp_secret>
-FACEPP_FACESET_OUTER_ID=elecom_voters
-FACEPP_DUPLICATE_THRESHOLD=80
-FACEPP_VERIFY_THRESHOLD=80
-FACE_VOTE_VERIFY_SESSION_MINUTES=20
-
-EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_USE_TLS=true
-EMAIL_HOST_USER=<gmail_address>
-EMAIL_HOST_PASSWORD=<gmail_app_password>
-DEFAULT_FROM_EMAIL=ELECOM <<gmail_address>>
-
-GROQ_API_KEY=<your_groq_key>
-GROQ_MODEL=llama-3.1-8b-instant
-
-APP_UPDATE_LATEST_VERSION=1.0.0
-APP_UPDATE_LATEST_BUILD=2
-APP_UPDATE_APK_URL=<apk_download_url>
-APP_UPDATE_FORCE=false
-APP_UPDATE_MESSAGE=New ELECOM update is available. Please download the latest version.
-```
-
-After creating or editing `.env`, always restart gunicorn:
-
-```bash
-sudo systemctl restart gunicorn
-```
-
-### Backup and restore notes
-
-- Backup files are stored in `/var/www/elecom/backend/backup/admin_backups/` on the production server.
-- The restore function (`_run_psql_restore` in `core/views.py`) calls `_ensure_audit_logs_table()` before running psql. This creates `public.audit_logs` if missing and patches all three audit trigger functions (`audit_row_change`, `deny_update_delete`, `vote_blocks_allow_status_update_only`) to use schema-qualified `public.audit_logs` so they work regardless of psql session `search_path`.
-- If restore fails with `relation "audit_logs" does not exist`, it means the trigger functions in the live DB are still using the old unqualified reference. The fix is to ensure the new `views.py` is deployed and run the restore once — `_ensure_audit_logs_table()` will patch them permanently.
-- The `ALTER TABLE ... DISABLE TRIGGER ALL` statements in the sanitized restore SQL require the DB user to own the tables. The production DB user (`elecom_backend` or `postgres`) must have ownership.
-
-### Face++ rate limits
-
-Face++ free plan allows ~1 request/second. `CONCURRENCY_LIMIT_EXCEEDED` errors from the mobile app mean the rate limit was hit. Retry after a second. For production load, upgrade the Face++ plan at console.faceplusplus.com.
-
-### Gunicorn port conflict recovery
-
-If gunicorn fails to start with `[Errno 98] Address already in use` on port 8000, stale gunicorn processes from a previous failed service cycle are holding the port. Systemd's `restart` does not kill them automatically.
-
-**Diagnosis:**
-```bash
-sudo lsof -i :8000
-```
-This lists every PID holding port 8000.
-
-**Fix — kill the stale PIDs, then restart:**
-```bash
-sudo kill -9 <PID1> <PID2>   # use the PIDs shown by lsof
-sudo systemctl restart gunicorn
-sudo systemctl status gunicorn --no-pager
-```
-
-**Root cause:** When the service was deleted/recreated while old worker processes were still alive, those orphaned processes kept the socket open. Systemd starts the new service unit but gunicorn cannot bind.
-
-**After restart is confirmed `active (running)`**, verify the app responds:
-```bash
-curl -s http://localhost:8000/api/mobile/auth/ | head -c 200
-```
-
-### Gunicorn `No module named 'core'` on startup
-
-This means gunicorn is not running from the correct working directory. The service file must have:
-- `WorkingDirectory=/var/www/elecom/backend`
-- **No** `Environment="PYTHONPATH=..."` line — that line conflicts with `WorkingDirectory` and breaks the import
-
-Correct minimal service file (`/etc/systemd/system/gunicorn.service`):
-```ini
-[Unit]
-Description=Gunicorn daemon for Django project
-After=network.target
-
-[Service]
-User=root
-WorkingDirectory=/var/www/elecom/backend
-ExecStart=/var/www/elecom/venv/bin/gunicorn --access-logfile - --workers 3 --bind 127.0.0.1:8000 core.wsgi:application
-Restart=on-failure
-RestartSec=5s
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Note: bind is `127.0.0.1:8000` (localhost only) because Nginx handles public traffic on ports 80/443 and proxies to gunicorn. Do **not** use `0.0.0.0:8000` in production — that exposes gunicorn directly without HTTPS.
-
-After editing: `sudo systemctl daemon-reload && sudo systemctl restart gunicorn`
-
-### Static files unstyled (no Nginx, gunicorn-only setup)
-
-Gunicorn does not serve static files by default. Without Nginx in front, the browser gets a Django 404 HTML page instead of CSS/JS, making every page look completely unstyled.
-
-**Fix: use whitenoise** — it plugs into Django's middleware and lets gunicorn serve static files directly.
-
-1. Install on the server:
+1. **Install System Dependencies (including OpenGL for OpenCV)**:
    ```bash
-   /var/www/elecom/venv/bin/pip install whitenoise
+   sudo apt-get update
+   sudo apt-get install -y python3-venv python3-pip postgresql nginx certbot python3-certbot-nginx libgl1
    ```
 
-2. In `backend/core/settings.py`, add whitenoise middleware **immediately after** `SecurityMiddleware`:
-   ```python
-   MIDDLEWARE = [
-       'django.middleware.security.SecurityMiddleware',
-       'whitenoise.middleware.WhiteNoiseMiddleware',  # ← add this
-       ...
-   ]
-   ```
-   Also add compressed static storage:
-   ```python
-   STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-   ```
-
-3. Commit, push, then on the server:
+2. **Clone Repository & Setup Virtual Environment**:
    ```bash
-   cd /var/www/elecom
-   git pull origin main
-   /var/www/elecom/venv/bin/python backend/manage.py collectstatic --noinput
-   sudo systemctl restart gunicorn
-   ```
-
-`STATIC_ROOT` is `/var/www/elecom_static` and `STATICFILES_DIRS` includes `frontend/` — collectstatic copies everything there, whitenoise serves it.
-
-### Fresh server / clean deploy checklist
-
-When standing up the server from scratch (or after the DB was wiped), do these in order:
-
-1. **Pull the repo** into `/var/www/elecom` and install venv packages:
-   ```bash
-   cd /var/www/elecom
-   git pull origin main
+   sudo git clone https://github.com/your-org/elecom_web.git /var/www/elecom
+   sudo chown -R $USER:$USER /var/www/elecom
+   python3 -m venv /var/www/elecom/venv
+   /var/www/elecom/venv/bin/pip install --upgrade pip
    /var/www/elecom/venv/bin/pip install -r /var/www/elecom/backend/requirements.txt
    ```
 
-2. **Create `/var/www/elecom/backend/.env`** with all production credentials (Cloudinary, Face++, email, Groq). See the Production .env section above.
+3. **Create Production `.env` File (`/var/www/elecom/backend/.env`)**:
+   Populate with production Cloudinary, Groq, SMS Chef, and Email credentials.
 
-3. **Run migrations** to create all tables:
+4. **Initialize Database Schema & Admin**:
    ```bash
    /var/www/elecom/venv/bin/python /var/www/elecom/backend/manage.py migrate
-   ```
 
-4. **Insert the admin user** (plain-text password works on first login — change it after):
-   ```sql
+   # Insert default COMELEC administrator user
    sudo -u postgres psql -d elecom_db -c "
    INSERT INTO users (id, student_id, password_hash, created_at, role, department, position, phone, email, terms_accepted_at)
    VALUES (1, '2023304637', '2023304637', NOW(), 'admin', 'BSIT', '', '09308288544', 'rpsvcodes@gmail.com', NOW())
    ON CONFLICT (id) DO NOTHING;"
    ```
 
-5. **Collect static files**:
-   ```bash
-   /var/www/elecom/venv/bin/python /var/www/elecom/backend/manage.py collectstatic --noinput
+5. **Configure Gunicorn Systemd Unit (`/etc/systemd/system/gunicorn.service`)**:
+   ```ini
+   [Unit]
+   Description=Gunicorn daemon for ELECOM Voting Backend
+   After=network.target
+
+   [Service]
+   User=root
+   Group=www-data
+   WorkingDirectory=/var/www/elecom/backend
+   ExecStart=/var/www/elecom/venv/bin/gunicorn \
+             --access-logfile - \
+             --error-logfile - \
+             --workers 3 \
+             --timeout 120 \
+             --bind 127.0.0.1:8000 \
+             core.wsgi:application
+   Restart=on-failure
+   RestartSec=5s
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+   *Note: Gunicorn strictly binds to `127.0.0.1:8000`. Never expose `0.0.0.0:8000` directly in production.*
+
+6. **Configure Nginx Site (`/etc/nginx/sites-available/elecom`)**:
+   ```nginx
+   server {
+       server_name el3com.duckdns.org;
+
+       location /static/ {
+           alias /var/www/elecom_static/;
+           expires 30d;
+           add_header Cache-Control "public, max-age=2592000";
+       }
+
+       location / {
+           proxy_pass http://127.0.0.1:8000;
+           proxy_set_header Host $host;
+           proxy_set_header X-Real-IP $remote_addr;
+           proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+           proxy_set_header X-Forwarded-Proto $scheme;
+       }
+   }
    ```
 
-6. **Start services**:
+7. **Issue Let's Encrypt SSL Certificate**:
    ```bash
-   sudo systemctl restart gunicorn
-   sudo systemctl restart nginx
+   sudo certbot --nginx -d el3com.duckdns.org
    ```
-
-7. **Import voters** via the admin panel (Voters Management → Import). If import fails with `No module named 'bcrypt'`, run `/var/www/elecom/venv/bin/pip install bcrypt` and restart gunicorn.
-
-8. **Verify Cloudinary** by uploading a candidate photo. If it fails, check the `.env` credentials.
-
-### Database is empty / "Invalid credentials" on login
-
-If the login page shows "Invalid credentials" for known-good accounts, the `users` table is likely empty. Check:
-```bash
-sudo -u postgres psql -d elecom_db -c "SELECT COUNT(*) FROM users;"
-```
-If count is 0, either restore from backup (Backup & Restore page in admin) or insert the admin user manually (see Fresh deploy checklist above), then import voters via the admin panel.
-
-### Voter import fails with `No module named 'bcrypt'`
-
-`bcrypt` is required for hashing default voter passwords during import. Install it:
-```bash
-/var/www/elecom/venv/bin/pip install bcrypt
-sudo systemctl restart gunicorn
-```
-It is listed in `backend/requirements.txt` — if it's missing after a fresh `pip install -r`, check that `requirements.txt` includes `bcrypt>=4.0.0`.
-
-## Running The Flutter App Locally
-
-- Install deps: `flutter pub get`
-- Run: `flutter run`
-- Optional: `flutter run --dart-define=API_BASE_URL=http://<host>:8000`
-- For a real phone/local device, do not use `127.0.0.1`; that points to the phone itself. Run Django with `0.0.0.0:8000`, find the PC Wi-Fi/LAN IPv4 with `ipconfig`, then run Flutter with `--dart-define=API_BASE_URL=http://<PC_LAN_IP>:8000`.
-- The phone and PC must be on the same Wi-Fi/LAN, and Windows Firewall must allow Python/Django on port `8000`.
-- For Android emulator, `http://10.0.2.2:8000` may work; for a physical device, use the PC LAN IP.
-- If Django returns `DisallowedHost` from a phone, add the PC LAN IP through `DJANGO_ALLOWED_HOSTS` in `backend/.env` or the `ALLOWED_HOSTS` list in `backend/core/settings.py`.
-
-## Quality Gates
-
-For Flutter changes:
-
-- `dart format .`
-- `flutter analyze`
-- `flutter test` when tests exist or the touched flow is testable
-
-For Django/backend changes:
-
-- `python manage.py check`
-- Run migrations only when models/schema changed and the user approves or the task requires it.
-
-For admin JavaScript changes:
-
-- `node --check <changed-js-file>`
-
-For web static CSS/HTML-only changes, at minimum inspect the diff and bump relevant cache query strings.
-
-## Engineering Conventions
-
-- Prefer feature-first placement in Flutter: UI/state for a feature goes under `lib/features/<feature>/...`; shared utilities go in `lib/core/...`.
-- Avoid mixing state management styles within one flow; follow existing patterns in the closest feature/module.
-- Keep API base URL decisions centralized in `ApiConfig`.
-- Keep diffs tight. Avoid drive-by refactors unless necessary to complete the task.
-- Do not redesign the web system when the user asks for a targeted route, layout, or behavior fix.
-
-## Git Hygiene
-
-Do not assume changes are staged, committed, pushed, or deployed. Check `git status --short` before answering about what changed. Only run `git add`, `git commit`, or `git push` when the user explicitly asks or clearly approves it.
-
-Do **not** commit build outputs or IDE caches. These paths should remain untracked/ignored:
-
-- `.dart_tool/`
-- `build/`
-- `android/.gradle/`
-- Platform build folders under `android/app/` (`debug`, `profile`, `release`)
-
-If they show up as untracked changes, remove them from git tracking if accidentally added and keep them ignored.
-
-## When Things Break
-
-- Start from the actual error output (compile/runtime/logcat/Django traceback/browser console/network tab) and fix the root cause.
-- For API issues, confirm which host the device hits (`ApiConfig`) and which repo owns the route (Flutter vs Django backend).
-- For shared data issues, inspect the backend tables/views before changing Flutter UI logic.
-- Prefer deterministic reproduction steps and add/adjust tests where feasible.
-
-## USTP-Oroquieta Omnibus Election Code — Context
-
-ELECOM is the digital implementation of the **USTP-Oroquieta Omnibus Election Code** (prepared by COMELEC Chairperson Ginbert A. Fernandez, approved by SSC President Juvel Enayo Lavornina). Understanding this code is essential for implementing election rules correctly.
-
-### Governance Structure
-- **COMELEC** oversees all SSC, College Student Council, and Unit Organization (UO) elections at USTP-Oroquieta Campus.
-- COMELEC is composed of a Chairperson (Chief Commissioner), 5 Deputy Commissioners, and the Director of Student Affairs (ex-officio).
-- The admin panel is used by COMELEC officers.
-
-### Voter Qualifications (Article V)
-- Must be officially enrolled USTP-Oroquieta undergraduate students.
-- Must be SSC members.
-- Disqualified if: suspended on election day, or found guilty of violating SSC/USTP provisions within 1 year prior.
-- **System implication:** Voter import from student database; login by Student ID. Network authorization ensures voting only from campus.
-
-### Candidate Qualifications (Articles III–IV)
-- Bona fide USTP student, good moral character, not graduating, completed ≥2 consecutive semesters, not on probation.
-- Cannot hold another office/organization simultaneously.
-- Must submit: 2x2 ID photo, COR, grades, Certificate of Good Moral Character, PDS form, temporary resignation letter.
-- Political parties need minimum 5 candidates to be recognized; independent candidates are allowed.
-- **System implication:** Candidate registration screen collects and stores these requirements. Party/independent distinction is tracked.
-
-### Election Timeline (Article VII)
-- Elections held in **April or no later than first week of May**, second semester each academic year.
-- 5-week calendar: Week 1 = info dissemination → Week 2 = COC filing, submissions → Week 3 = protests/deliberations → Weeks 4–5 = campaign, convocation, election proper, winner announcement.
-- Election period lasts no more than **5 weeks** unless extended by COMELEC.
-- **System implication:** Election Management sets start/end dates for the vote window. Results and Reports pages correspond to the canvassing and proclamation stages.
-
-### Voting Process (Article XI)
-- Election time: **8:00 AM to 5:00 PM, two consecutive days** (no lunch break).
-- For automated elections: voters enter their **ID number** and cast votes on a computer.
-- Right hand finger marked with indelible ink after voting (physical; not enforced by ELECOM digitally).
-- **System implication:** The vote window enforces the time range. Face verification replaces the manual ID check + indelible ink conformity.
-
-### Canvassing & Results (Article XII)
-- Votes counted immediately after polls close.
-- Ties resolved by **drawing of lots** at a public meeting — 5 days notice to tied candidates.
-- **System implication:** Results page shows vote totals per candidate/position. Tie-breaking is a manual COMELEC decision; ELECOM shows the tie but does not auto-resolve it.
-
-### Proclamation (Article XIII)
-- COMELEC proclaims winners after complete tabulation.
-- Results forwarded to Office of Student Affairs and posted on COMELEC Bulletin and official social media.
-- **System implication:** Results and Reports pages serve as the official digital record. Transparency page shows blockchain/ledger hash for integrity.
-
-### Penal Clause (Article XIV)
-- Violations result in suspension or forfeiture of seat (if after proclamation).
-- **System implication:** Audit logs and the Transparency page provide the paper trail for any disputes.
 
 ---
 
-## Face++ Integration Lessons
+## 📡 Shared Backend & API Contracts
 
-### Free Plan Behavior
-- Face++ free plan uses **shared QPS** with other users — there is NO guaranteed requests-per-second.
-- `CONCURRENCY_LIMIT_EXCEEDED` errors mean the shared pool is saturated, not necessarily that the code is wrong.
-- The error can appear misleadingly when the actual underlying issue is something else (e.g., `IMAGE_ERROR_UNSUPPORTED_FORMAT`) — always check server logs (`journalctl -u gunicorn`) for the real error.
+### General Rules
 
-### Enrollment Flow (views.py `_save_face_enrollment_facepp`)
-- Makes 4–5 sequential Face++ calls: `create_faceset_if_missing` → `detect` → `search` → `addface` → `set_face_userid`.
-- A `time.sleep(2.0)` delay is required **between each call** to avoid hitting the shared QPS limit.
-- `create_faceset_if_missing()` is cached per-worker (`_faceset_confirmed` flag in `facepp_service.py`) — after first confirmation it skips the `getdetail` API call.
-- Only `return_attributes=mask` is requested on detect (not the full eyestatus/mouthstatus/facequality set) to reduce API weight.
+- **Source of Truth**: The Django database is the single authority for elections, candidates, cast votes, audit records, and live chat threads.
+- **Consistent JSON Shape**: All mobile and admin JSON endpoints return an `ok` boolean flag:
+  - Success: `{"ok": true, "data": ...}`
+  - Error: `{"ok": false, "error": "Human readable explanation"}`
+- **PostgreSQL-Safe SQL**: Never use SQLite syntax like `AUTOINCREMENT`. Use Django ORM or PostgreSQL DDL (`BIGSERIAL`, `ON CONFLICT DO NOTHING`).
+- **Election Scoping**: Always respect `election_id`. Archival views must not inadvertently hide past election cycles when requested.
 
-### Verification Flow (views.py `_face_verification_vote_handler`)
-- Makes 2 sequential Face++ calls: `detect_face(live_bytes)` → `compare_faces(enrolled_token, live_token)`.
-- A `time.sleep(2.0)` is placed between detect and compare.
+### Key Mobile Endpoints (`/api/mobile/...`)
 
-### Retry Logic (facepp_service.py `_post`)
-- On `CONCURRENCY_LIMIT_EXCEEDED`, retries up to 5 times with **exponential backoff**: 2s, 4s, 6s, 8s, 10s.
-- All other Face++ errors are raised immediately and logged via `logger.error`.
+| HTTP Method | Route | Description |
+|---|---|---|
+| `POST` | `/api/mobile/auth/login/` | Voter credentials verification & token generation |
+| `POST` | `/api/mobile/auth/forgot-password/` | Initiates OTP dispatch (returns 404 if Student ID not found) |
+| `POST` | `/api/mobile/auth/verify-otp/` | Validates 6-digit SMS/Email OTP code |
+| `POST` | `/api/mobile/auth/reset-password/` | Commits new voter account password |
+| `GET` | `/api/mobile/election/current/` | Active election details, positions, and timeline |
+| `GET` | `/api/mobile/ballot/` | Eligible candidates list for voter's department/course |
+| `POST` | `/api/mobile/face/verify/` | Live selfie comparison before ballot unlock |
+| `POST` | `/api/mobile/vote/submit/` | Cryptographic vote submission & block ledger generation |
+| `GET` | `/api/mobile/vote/receipt/` | Verifiable digital vote receipt with SHA-256 hash |
+| `GET/POST`| `/api/mobile/elevote/chat/` | Voter messaging to EleVote AI & live support thread |
+| `GET` | `/api/mobile/network/check/` | Pre-flight check verifying student device is on campus Wi-Fi |
 
-### INVALID_FACE_TOKEN
-- Occurs when a stored `facepp_face_token` no longer exists on Face++ (e.g., after creating a new Face++ account or if the faceset was deleted/reset).
-- Fix: the affected user must **re-enroll** their face. The old DB record's token is stale.
-- The error message is surfaced to the mobile app as-is; consider showing "Please re-enroll your face" instead of the raw token error.
+### Key Admin Endpoints (`/api/admin/...`)
 
-### Image Format
-- Flutter `camera.takePicture()` always produces **JPEG** regardless of `imageFormatGroup` (which only affects the preview stream for ML Kit).
-- The enrollment image is sent as `multipart/form-data` with field name `face_image`.
-- Face++ accepts JPEG via `image_base64` (base64-encoded bytes sent in the POST body).
-
----
-
-## Nginx + Gunicorn Port Conflict Lessons
-
-### Symptom: `ERR_TOO_MANY_REDIRECTS` + gunicorn `Connection in use: ('127.0.0.1', 8000)`
-- Root cause: A stale or misconfigured Nginx config (`elecom-ip-redirect` or similar) was binding to port 8000, preventing gunicorn from starting.
-- Nginx then proxied requests to itself (port 8000 → nginx → port 8000 → ...) causing the infinite redirect loop.
-
-### Diagnosis
-```bash
-sudo lsof -i :8000          # see what process owns port 8000
-sudo grep -r "listen 8000" /etc/nginx/   # find rogue nginx configs
-```
-
-### Fix
-1. Remove the conflicting nginx site from `sites-enabled`:
-   ```bash
-   sudo rm /etc/nginx/sites-enabled/elecom-ip-redirect
-   ```
-2. Kill any stale PIDs holding port 8000 (use actual PID numbers, not placeholders):
-   ```bash
-   sudo kill -9 <PID>
-   ```
-3. Restart both services:
-   ```bash
-   sudo nginx -t
-   sudo systemctl restart nginx
-   sudo systemctl restart gunicorn
-   sudo systemctl status gunicorn --no-pager
-   ```
-
-### Correct architecture
-- Gunicorn binds to `127.0.0.1:8000` (localhost only).
-- Nginx listens on ports **80** (redirect to HTTPS) and **443** (SSL), and proxies to gunicorn via `proxy_pass http://127.0.0.1:8000`.
-- No other service should listen on port 8000.
+| HTTP Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/admin/dashboard/` | Real-time turnout, candidate vote distribution, and metrics |
+| `POST` | `/api/admin/elections/create/` | Register new academic election cycle |
+| `POST` | `/api/admin/candidates/register/` | Register verified candidate with Cloudinary photo upload |
+| `POST` | `/api/admin/voters/import/` | Batch import student voters from CSV/Excel (hashes via bcrypt) |
+| `GET` | `/api/admin/chat/conversations/` | List all voter chat threads, unread status, and takeover state |
+| `GET` | `/api/admin/chat/thread/` | Fetch full conversation history for a given student ID |
+| `POST` | `/api/admin/chat/reply/` | Send COMELEC officer reply into voter thread |
+| `POST` | `/api/admin/chat/takeover/` | Toggle human officer takeover (suppresses AI responses) |
+| `POST` | `/api/admin/network-settings/` | Update authorized campus IP subnets and ranges |
+| `POST` | `/api/admin/reset/` | Protected test vote purge (requires admin password verification) |
 
 ---
 
-## Admin CSS Consistency Rule
+## 👤 Biometric Face Verification (InsightFace)
 
-All admin HTML pages must reference the **same version** of `admin_dashboard.css`. When the dashboard is redesigned (e.g., new dark navy sidebar), bump the version query string on **every** admin HTML file, not just `admin_dashboard.html`.
+To avoid external API costs and eliminate quota limits (`CONCURRENCY_LIMIT_EXCEEDED` on Face++), ELECOM uses a **local InsightFace (ArcFace)** deep-learning engine.
 
-Current correct version: `admin_dashboard.css?v=20260920-ustp-redesign`
+### How it Works
 
-Files that need updating together (check all when bumping):
-- `admin_dashboard.html`, `elecom_backup_restore.html`, `elecom_candidates.html`, `elecom_dashboard.html`
-- `elecom_election_date.html`, `elecom_elections.html`, `elecom_network_authorize.html`
-- `elecom_register_candidate.html`, `elecom_reports.html`, `elecom_reset.html`
-- `elecom_results.html`, `elecom_transparency.html`, `elecom_voters.html`
-- `profile.html`, `search_results.html`
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Voter as Voter (Mobile Device)
+    participant Django as Django Backend
+    participant ArcFace as InsightFace Engine (buffalo_sc)
+    participant DB as PostgreSQL (FaceEnrollment)
 
-Page-specific CSS files (e.g., `elecom_backup_restore.css`) must **not** override the sidebar background color or active link color — those come from `admin_dashboard.css` and must be consistent across all pages.
+    Note over Voter,DB: Enrollment Stage
+    Voter->>Django: Upload Selfie Image (multipart face_image)
+    Django->>ArcFace: Compute 512-d ArcFace Embedding
+    ArcFace-->>Django: Vector Embedding [0.124, -0.045, ...]
+    Django->>DB: Check Cosine Similarity against all active voters
+    alt Similarity >= 0.40 with existing student
+        Django-->>Voter: Error: Face already enrolled under another ID
+    else Face is unique
+        Django->>DB: Store face_encoding JSON in FaceEnrollment
+        Django-->>Voter: Enrollment Successful
+    end
+
+    Note over Voter,DB: Voting Stage
+    Voter->>Django: Submit Live Selfie before Ballot
+    Django->>ArcFace: Compute live 512-d Embedding
+    Django->>DB: Retrieve enrolled face_encoding
+    Django->>Django: Compute Cosine Similarity(live, enrolled)
+    alt Similarity >= 0.40
+        Django-->>Voter: Face Verified (20-minute valid session)
+    else Similarity < 0.40
+        Django-->>Voter: Verification Failed (Score below threshold)
+    end
+```
+
+### Technical Implementation
+
+- **Model**: `buffalo_sc` (ArcFace 512-dimensional embedding via ONNX Runtime).
+- **Core File**: `backend/core/local_face_service.py`.
+- **Database Column**: `FaceEnrollment.face_encoding` (TextField containing JSON serialized vector).
+- **Match Threshold**: `cosine_similarity >= 0.40`.
+- **System Requirements**: Requires `libgl1` on Linux (`apt-get install -y libgl1`).
+- **First Run Behavior**: On initial execution, InsightFace downloads the ~30MB model weights into `~/.insightface/models/`.
 
 ---
 
-## Live Chat System (Admin Support Inbox)
+## 📱 SMS OTP Verification (SMS Chef Gateway)
 
-### Architecture
+ELECOM utilizes an Android hardware gateway to dispatch SMS verification codes directly through local telecom providers at zero per-message API cost.
 
-The EleVote Live Chat is a two-layer system:
+### Gateway Specifications
 
-1. **EleVote AI (Groq)** — auto-replies to voter messages via `POST /api/mobile/elevote/chat/`. This is the default behavior; every voter message gets an instant AI response.
-2. **Admin takeover** — COMELEC officers can suppress AI replies and reply directly to a voter from the web admin Live Chat page.
+- **Relay Device**: Realme RMX3261 Android Smartphone
+- **Device ID**: `cb723b0014acd1b3`
+- **Active SIM Slot**: `0` (SIM 1)
+- **Gateway Service**: SMS Chef Cloud (`https://www.cloud.smschef.com/api/send/sms`)
 
-### Database Tables
+### Implementation Details
 
-```
-elevote_chat_messages   — all chat messages (user, assistant, admin roles)
-elevote_chat_takeover   — per-student admin takeover state
-```
+- **Handler**: `_send_otp_sms(phone, otp_code)` in `backend/core/views.py`.
+- **Phone Normalization**: Converts numbers automatically to international E.164 format:
+  - Input: `09308288544` -> Normalized: `+639308288544`.
+- **Diagnosis of Failure Codes**:
+  - `400 Invalid Parameters`: Missing or malformed `SMSCHEF_DEVICE_ID`.
+  - `400 Invalid phone number!`: Malformed recipient phone number format.
+  - `401 Invalid API secret`: Misconfigured `SMSCHEF_API_KEY`.
+  - HTTP 200 returned but no SMS sent: Verify `SMSCHEF_SIM_SLOT=0` on the server.
 
-`elevote_chat_messages` schema:
+---
+
+## 💬 EleVote Live Chat & Admin Support System
+
+The support system combines automated Groq AI customer support with a human COMELEC officer takeover workflow.
+
+### Polling Architecture (WSGI Compatible)
+
+Because Gunicorn operates via synchronous WSGI without Django Channels / WebSockets, real-time messaging is achieved via **low-overhead de-duplicated HTTP polling**:
+- **Mobile Polling**: Polls every **3 seconds** (`GET /api/mobile/elevote/chat/?since_id=<last_id>`).
+- **Admin Thread Polling**: Polls active student thread every **4 seconds**.
+- **Admin Inbox Polling**: Polls conversation list every **8 seconds**.
+
+### Database Models
+
 ```sql
-id         BIGSERIAL PRIMARY KEY
-student_id varchar(64) NOT NULL
-role       varchar(16) NOT NULL   -- 'user' | 'assistant' | 'admin'
-content    text NOT NULL
-model      varchar(128) NULL      -- Groq model name, NULL for human messages
-created_at timestamp with time zone DEFAULT CURRENT_TIMESTAMP
+-- Message ledger
+CREATE TABLE elevote_chat_messages (
+    id BIGSERIAL PRIMARY KEY,
+    student_id VARCHAR(64) NOT NULL,
+    role VARCHAR(16) NOT NULL,          -- 'user' | 'assistant' | 'admin'
+    content TEXT NOT NULL,
+    model VARCHAR(128) NULL,            -- Groq model name, or admin student_id
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Admin takeover status
+CREATE TABLE elevote_chat_takeover (
+    student_id VARCHAR(64) PRIMARY KEY,
+    active BOOLEAN NOT NULL DEFAULT TRUE,
+    taken_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    taken_by VARCHAR(64) NULL           -- Admin student ID who took over
+);
 ```
-
-`elevote_chat_takeover` schema:
-```sql
-student_id varchar(64) PRIMARY KEY
-active     boolean NOT NULL DEFAULT TRUE
-taken_at   timestamp with time zone NOT NULL DEFAULT CURRENT_TIMESTAMP
-taken_by   varchar(64) NULL       -- admin student_id who triggered takeover
-```
-
-Both tables are created by `_ensure_elevote_chat_table()` (called by `_ensure_all_system_tables()` middleware every 60s) — no separate migration needed.
-
-### Backend Endpoints
-
-| Method | URL | Purpose |
-|--------|-----|---------|
-| GET/POST/DELETE | `/api/mobile/elevote/chat/` | Voter sends message; AI replies (suppressed during takeover) |
-| GET | `/api/admin/chat/conversations/` | List all voter conversations with last message, unread count, photo, takeover state |
-| GET | `/api/admin/chat/thread/?student_id=X&since_id=Y` | Full message thread for one voter |
-| POST | `/api/admin/chat/reply/` | Admin sends reply: `{ student_id, content }` |
-| POST | `/api/admin/chat/takeover/` | Enable/disable admin takeover: `{ student_id, active: true|false }` |
-
-All admin endpoints require `_require_admin(request)` (Django session, role=admin).
 
 ### Takeover Flow
 
-1. Voter sends message → EleVote auto-replies (AI mode, default).
-2. Admin opens Live Chat, sees conversation, clicks **"Take Over"**.
-3. Backend upserts `elevote_chat_takeover` row with `active=TRUE` for that `student_id`.
-4. Next voter message → `elevote_chat_api` calls `_is_admin_takeover_active(student_id)` → returns `true` → skips Groq, saves user message only, returns `{ ok, reply: null, takeover_active: true }`.
-5. Mobile app: when `reply` is null and `takeover_active` is true, show no AI bubble (just the voter's sent message).
-6. Admin types reply → `POST /api/admin/chat/reply/` saves `role='admin'` message.
-7. Admin clicks **"Release to EleVote"** → `POST /api/admin/chat/takeover/` with `active=false` → AI resumes for future messages.
+1. **AI Mode (Default)**: Student sends message -> Groq AI generates reply instantly.
+2. **Takeover Initiated**: COMELEC officer clicks **"Take Over"** in `elecom_live_chat.html`.
+3. **AI Suppression**: Backend sets `elevote_chat_takeover.active = TRUE`. Future voter messages are saved without triggering Groq.
+4. **Officer Reply**: Admin types response -> dispatches via `POST /api/admin/chat/reply/` with `role='admin'`.
+5. **Release**: Admin clicks **"Release to EleVote"** -> AI auto-replies resume.
 
-### Admin UI Files
+### Frontend UI & CSS Rules
 
-- **Page**: `frontend/org_elecom/elecom_admin/elecom_live_chat.html`
-- **JS**: `frontend/org_elecom/elecom_admin/admin_components/admin_js/elecom_live_chat.js`
-
-The JS polls `/api/admin/chat/conversations/` every **8 seconds** (left panel) and `/api/admin/chat/thread/` every **4 seconds** (open thread). Always bump the JS `?v=` query string in the HTML after any JS change.
-
-Key JS functions:
-- `loadConversations()` — fetches conversation list, calls `renderConvList()`, syncs takeover UI for active thread
-- `renderConvList()` — renders left panel; uses `avatarHtml(name, photoUrl)` for photo/initials avatar
-- `openConversation(studentId)` — switches active thread, calls `updateTakeoverUI(conv)`
-- `updateTakeoverUI(conv)` — syncs Take Over/Release button and banner based on `conv.takeover_active`
-- `setTakeover(active)` — POSTs to `/api/admin/chat/takeover/`, updates local state, refreshes UI
-- `msgBubble(msg)` — renders a message bubble; user bubbles show real profile photo (with initials fallback), EleVote AI shows navy "EV" badge, admin shows gold badge icon
-- `avatarHtml(name, photoUrl)` — returns `<img>` with `onerror` fallback to initials `<div>`
-
-### `admin_chat_conversations_api` — Common Bugs Fixed
-
-- **`c.description[0]` is wrong** — `psycopg2` cursor description rows use `c[0]` (tuple index) not `c.description[0]`. All `cols = [...]` lines in this file use `c[0]`.
-- **Missing try/except** — all three chat views now have try/except wrapping the DB calls, returning `{"ok": false, "error": "Database error: ..."}` on failure so the JS can display the actual error instead of staying frozen on "Loading conversations…".
-- **Silent failure in loadConversations()** — the JS now shows an explicit error state (lock icon for 403, warning icon for other errors, wifi-off for network errors) instead of silently staying on the loading spinner.
-- **display_name** — built with `CONCAT_WS(' ', first_name, last_name)` falling back to `email` then `student_id`. Column existence is checked via `information_schema.columns` first to handle schema variations.
-- **photo_url** — fetched from `users.photo_url` (if column exists) and included in each conversation object so the admin can show the voter's real profile photo.
-- **GROUP BY** — must include all non-aggregated columns from the `users` LEFT JOIN (`first_name`, `last_name`, `email`, `photo_url`).
-
-### Sidebar Order Rule (Live Chat)
-
-The correct sidebar order across **all** admin HTML pages is:
-```
-Transparency → Live Chat → Network Authorize
-```
-**Live Chat must appear before Network Authorize.** When adding or editing sidebars, verify both the order and consistent indentation across all admin HTML files.
-
-Admin HTML files that contain a hardcoded sidebar (all must be kept in sync):
-`admin_dashboard.html`, `elecom_backup_restore.html`, `elecom_candidates.html`, `elecom_dashboard.html`, `elecom_election_date.html`, `elecom_elections.html`, `elecom_live_chat.html`, `elecom_network_authorize.html`, `elecom_register_candidate.html`, `elecom_reports.html`, `elecom_reset.html`, `elecom_results.html`, `elecom_transparency.html`, `elecom_voters.html`, `profile.html`, `search_results.html`
+- **Bubble Wrapping**: `.chat-bubble-inner` must use `width: fit-content; max-width: 75%;` to ensure short messages like "Yes" do not stretch to the width of the timestamp label.
+- **Admin Avatar**: Sender bubbles have no avatar (matches mobile messaging style).
+- **Lottie Robot Avatar**: Uses `Robot-Bot 3D.json` via CDN. **Never add an `integrity=` SRI hash** to the CDN script tag as variations will block the script and break rendering.
 
 ---
 
-## Live Chat — Additional Lessons (Session 2)
+## 🎨 Web Admin UI Rules & Design Consistency
 
-### Bubble Wrapping Bug (Root Cause)
+### Sidebar Consistency Rule
 
-Short admin messages like "goods", "nice one" wrapped onto two lines because:
-- `.chat-bubble` had both `max-width: 68%` and `width: fit-content` — the `max-width` was calculated relative to `.chat-bubble-inner` which had no fixed width, making the percentage meaningless
-- The meta label `"Admin · 03:30 PM"` (~115px) was wider than short words, so the unconstrained inner `<div>` expanded to the meta width and the bubble matched it
+All 17 admin HTML pages share a uniform dark navy sidebar. The link order must **strictly** be:
 
-**Fix applied:**
-- Removed `max-width` and `width` from `.chat-bubble` entirely
-- Put `width: fit-content` and `max-width: 75%` on `.chat-bubble-inner` — this is the direct flex child so `75%` resolves against the actual thread pane width
-- Added `align-items: flex-end` on `.admin-wrap .chat-bubble-inner` so meta aligns right under the bubble
-- Changed `white-space: pre-wrap` → `pre-line` on user/bot bubbles (preserves intentional newlines, collapses extra whitespace)
-
-### Admin Avatar Removal
-
-The admin (sender) should have no avatar — same as mobile where the sender has no icon. In `msgBubble()`, the `else` branch for `role === 'admin'` sets `avatar = ''` and the return uses `bubble` alone (no avatar appended).
-
-### git Status / Deploy Workflow Issue
-
-Changes made in-session were sometimes not committed before the server pull. **Always verify with `git log --oneline -3` that `HEAD` and `origin/main` match the latest commit before asking the server to pull.** The server's `Already up to date` means it was pulled before the latest push — run `git pull` again after confirming the push.
-
-Also: file paths in `git add` must use absolute paths or be relative to the workspace root (`F:\elecom_web`), not relative to a subdirectory like `backend\`.
-
-### EleVote Lottie Avatar
-
-The EleVote AI bubble avatar uses `Robot-Bot 3D.json` (from `elecom_mobile/assets/`, copied to `frontend/assets/`). Rendered via `lottie-web` CDN.
-
-**Do NOT add an `integrity=` SRI hash to the lottie CDN script tag.** The hash causes the browser to block the script when the CDN delivers even a minor variation, leaving `lottie` undefined and the avatar empty.
-
-Correct script tag:
-```html
-<script src="https://cdnjs.cloudflare.com/ajax/libs/lottie-web/5.12.2/lottie.min.js"></script>
+```
+Dashboard -> Elections -> Election Dates -> Candidates -> Register Candidate -> Voters -> Results -> Reports -> Transparency -> Live Chat -> Network Authorize -> Backup & Restore
 ```
 
-The JS uses `waitForLottieAndInit()` which polls every 500ms (up to 5s) for the `lottie` global before calling `lottie.loadAnimation()`. If lottie never loads, it falls back to a static SVG robot icon.
+> **Live Chat must always appear before Network Authorize.**
 
-The `.elevote-av` CSS background must be **light** (`#f0f4ff`) not dark — the Robot-Bot 3D animation has light-grey body fills on a transparent canvas; dark backgrounds make it look like a black circle.
+### Cache Busting Rule
 
-### CSS Version Bumping
+When editing shared administrative stylesheets or scripts, **always bump the query version string** across all referencing HTML templates:
+- `admin_dashboard.css?v=20261006`
+- `admin_user_menu.js?v=20261006`
+- `elecom_live_chat.js?v=20261006`
 
-Every time `elecom_live_chat.html` or `elecom_live_chat.js` is changed, bump the `?v=` query string on the `<script>` tag in `elecom_live_chat.html`. The collectstatic pipeline on the server uses content-hashed filenames for CSS/JS served through WhiteNoise — without a version bump, the browser serves the stale cached file.
+### Protected Reset Shortcut
 
-### Conversation List Snippet Prefix
+- The **Reset Votes** item is intentionally hidden from the main sidebar.
+- It is triggered via a small discreet control in the header navigation next to the notification bell.
+- Clicking the control opens a password confirmation modal (`admin_user_menu.js`). Only after verifying the admin password does it navigate to `elecom_reset.html`.
 
-- `last_role === 'admin'` → prefix `↩ ` (admin replied)  
-- `last_role === 'assistant'` → prefix `EleVote: ` (plain text, not emoji — formal)
-- `last_role === 'user'` → no prefix
+---
 
-The old `🤖 ` emoji prefix was removed for formality.
+## 📜 USTP-Oroquieta Omnibus Election Code Context
+
+ELECOM is the official digital realization of the **USTP-Oroquieta Omnibus Election Code** prepared by the Commission on Elections (COMELEC) and approved by the Supreme Student Council (SSC).
+
+- **Governance (Article II)**: The COMELEC consists of a Chairperson, 5 Deputy Commissioners, and the Director of Student Affairs (ex-officio).
+- **Voter Qualifications (Article V)**: Officially enrolled USTP undergraduate students who are SSC members not currently under suspension.
+- **Candidate Qualifications (Articles III-IV)**: Requires Certificate of Good Moral Character, 2x2 ID photo, and minimum of 5 candidates for recognized political parties.
+- **Voting Window (Article XI)**: Digital elections run for two consecutive days (8:00 AM to 5:00 PM without noon recess). Time gating is enforced by the election window API.
+- **Canvassing & Ties (Article XII)**: Votes count automatically upon poll closure. Ties are resolved by a manual public **drawing of lots**; the system highlights ties but never auto-resolves them.
+
+---
+
+## ✅ Quality Gates & Testing
+
+Before submitting code changes, verify all quality gates pass:
+
+### Backend Checks
+```powershell
+cd F:\elecom_web\backend
+.\venv\Scripts\Activate.ps1
+python manage.py check
+```
+
+### Static Admin Script Syntax Checks
+```powershell
+node --check F:\elecom_web\frontend\org_elecom\elecom_admin\admin_components\admin_js\admin_user_menu.js
+node --check F:\elecom_web\frontend\org_elecom\elecom_admin\admin_components\admin_js\elecom_live_chat.js
+node --check F:\elecom_web\frontend\org_elecom\elecom_admin\admin_components\admin_js\elecom_reports.js
+```
+
+### Mobile App Checks
+```powershell
+cd F:\elecom_mobile
+flutter analyze
+dart format --output=none --set-exit-if-changed .
+```
+
+---
+
+## 🛡️ Engineering Conventions & Git Hygiene
+
+- **Centralized Configuration**: Never hardcode database credentials, external API keys, or IP addresses in views or templates. Read them from `os.getenv()`.
+- **No Drive-by Refactors**: Keep diffs tight, focused, and minimal.
+- **Git Hygiene**:
+  - Never stage or commit `.env`, `venv/`, `__pycache__/`, or `.vscode/`.
+  - Always verify branch synchronization with `git log --oneline -3` before and after deployment pulls.
+  - When committing from the root, ensure file paths are relative to `F:\elecom_web`.
+
+---
+
+## 🔧 Troubleshooting & Common Failure Scenarios
+
+### 1. `ERR_TOO_MANY_REDIRECTS` or Gunicorn `Connection in use: 127.0.0.1:8000`
+- **Cause**: A rogue Nginx configuration or orphaned process is bound to port 8000.
+- **Fix**:
+  ```bash
+  sudo lsof -i :8000
+  sudo kill -9 <PID>
+  sudo rm /etc/nginx/sites-enabled/elecom-ip-redirect   # if conflicting config exists
+  sudo systemctl restart nginx
+  sudo systemctl restart gunicorn
+  ```
+
+### 2. Database Password Authentication Failed (`elecom_user` vs `postgres`)
+- **Cause**: Local Windows `.env` contains production server credentials.
+- **Fix**: Update `F:\elecom_web\backend\.env` with your local PostgreSQL user (`postgres`) and local password (`123`).
+
+### 3. Missing `libGL.so.1` on Server
+- **Cause**: InsightFace / OpenCV dependency missing on headless Linux VPS.
+- **Fix**:
+  ```bash
+  sudo apt-get install -y libgl1
+  sudo systemctl restart gunicorn
+  ```
+
+### 4. Admin Live Chat Shows "Loading conversations..." Indefinitely
+- **Cause**: Database query failed in `admin_chat_conversations_api` due to missing columns or unhandled exception.
+- **Fix**: Check `journalctl -u gunicorn -n 50 --no-pager`. Verify `users.photo_url` column exists or fallback is in place.
+
+### 5. Blank PDF Export from Reports
+- **Cause**: Exporting hidden DOM elements using html2pdf.
+- **Fix**: In `elecom_reports.js`, export directly from the visible preview canvas and ensure all candidate images are pre-loaded.
