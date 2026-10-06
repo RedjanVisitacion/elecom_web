@@ -237,7 +237,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   const applicationsList = document.getElementById("candidateApplicationsList");
-  const refreshApplicationsBtn = document.getElementById("refreshApplicationsBtn");
+  let applicationsSnapshot = "", applicationsRequest = null, applicationsGeneration = 0, reviewingApplication = false;
   const rejectionRemarksModalEl = document.getElementById("rejectionRemarksModal");
   const rejectionRemarksInput = document.getElementById("rejectionRemarksInput");
   const rejectionRemarksError = document.getElementById("rejectionRemarksError");
@@ -263,12 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const renderApplications = (applications) => {
     if (!applicationsList) return;
-    if (!applications.length) {
-      applicationsList.innerHTML = '<div class="text-muted">No pending candidate filings.</div>';
-      return;
-    }
-
-    applicationsList.innerHTML = applications
+    const cards = (items) => items
       .map((app) => {
         const photo = app.photo_url || "/static/assets/avatar-placeholder.png";
         const reviewingRequirements = app.status === "requirements_review";
@@ -298,39 +293,65 @@ document.addEventListener("DOMContentLoaded", () => {
               ${reviewingRequirements ? `<div class="small fw-semibold mt-3 mb-2">Submitted follow-up requirements</div><div class="d-flex flex-wrap gap-2">${requirementLinks}</div>` : ""}
               <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
                 <button type="button" class="btn btn-outline-danger btn-sm" data-app-decision="reject" data-app-id="${escapeHtml(app.id)}">Reject</button>
-                <button type="button" class="btn btn-primary btn-sm" data-app-decision="approve" data-app-id="${escapeHtml(app.id)}" data-app-stage="${reviewingRequirements ? "final" : "initial"}">${reviewingRequirements ? "Approve & Publish" : "Initial Approve"}</button>
+                <button type="button" class="btn btn-primary btn-sm" data-app-decision="approve" data-app-id="${escapeHtml(app.id)}" data-app-stage="${reviewingRequirements ? "final" : "initial"}">${reviewingRequirements ? "Approve & Publish" : "Approve Initial Filing"}</button>
               </div>
             </div>
           </div>
         `;
       })
       .join("");
+    const initial = applications.filter(app => app.status === 'pending');
+    const requirements = applications.filter(app => app.status === 'requirements_review');
+    document.getElementById('initialApplicationsList').innerHTML = cards(initial) || '<div class="text-muted small py-2">No initial filings awaiting review.</div>';
+    document.getElementById('requirementsApplicationsList').innerHTML = cards(requirements) || '<div class="text-muted small py-2">No supporting documents awaiting final review.</div>';
+    document.getElementById('initialApplicationsCount').textContent = initial.length;
+    document.getElementById('requirementsApplicationsCount').textContent = requirements.length;
+
   };
 
-  const loadApplications = async () => {
-    if (!applicationsList) return;
-    applicationsList.innerHTML = '<div class="text-muted">Loading applications...</div>';
+  const loadApplications = async (silent = false) => {
+    if (!applicationsList || (silent && (applicationsRequest || reviewingApplication || document.hidden || document.querySelector('.modal.show')))) return;
+    if (applicationsRequest) applicationsRequest.abort();
+    const controller = new AbortController(); applicationsRequest = controller;
+    const generation = ++applicationsGeneration;
+    const timeout = setTimeout(() => controller.abort(), 12000);
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 12000);
       const res = await fetch(`${window.location.origin}/api/admin/candidate-applications/list/?status=pending`, {
-        method: "GET",
-        credentials: "include",
-        signal: controller.signal,
+        method: 'GET', credentials: 'include', cache: 'no-store', signal: controller.signal,
       });
-      clearTimeout(timeout);
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) throw new Error(data.error || "Failed to load applications.");
-      renderApplications(Array.isArray(data.applications) ? data.applications : []);
+      if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to load applications.');
+      if (generation !== applicationsGeneration) return;
+      const applications = Array.isArray(data.applications) ? data.applications : [];
+      const snapshot = JSON.stringify(applications);
+      if (snapshot !== applicationsSnapshot) { renderApplications(applications); applicationsSnapshot = snapshot; }
+      document.getElementById('applicationsSyncStatus').textContent = 'Updates automatically';
     } catch (err) {
-      applicationsList.innerHTML = `<div class="text-danger">${escapeHtml(err.message || "Failed to load applications.")}</div>`;
+      if (generation === applicationsGeneration) document.getElementById('applicationsSyncStatus').textContent = 'Connection interrupted. Retrying automatically...';
+    } finally {
+      clearTimeout(timeout);
+      if (applicationsRequest === controller) applicationsRequest = null;
     }
   };
+  let applicationsTimer = null;
+  const startApplicationsPolling = () => {
+    if (!applicationsTimer && !document.hidden) applicationsTimer = setInterval(() => loadApplications(true), 3000);
+  };
+  const stopApplicationsPolling = () => { clearInterval(applicationsTimer); applicationsTimer = null; };
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopApplicationsPolling();
+    else { loadApplications(true); startApplicationsPolling(); }
+  });
+  window.addEventListener('pagehide', () => { stopApplicationsPolling(); applicationsRequest?.abort(); });
+  window.addEventListener('pageshow', startApplicationsPolling);
+  startApplicationsPolling();
 
   const decideApplication = async (id, action, reason = "", stage = "") => {
+    if (reviewingApplication) return;
     const label = action === "approve" && stage === "final" ? "approve these requirements and publish this candidate" : action === "approve" ? "approve this filing and request follow-up requirements" : "reject";
     if (action !== "reject" && !confirm(`Are you sure you want to ${label} this filing?`)) return;
     try {
+      reviewingApplication = true;
       if (confirmRejectApplicationBtn) confirmRejectApplicationBtn.disabled = true;
       const res = await fetch(`${window.location.origin}/api/admin/candidate-applications/decision/`, {
         method: "POST",
@@ -351,6 +372,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       showAlert("error", err.message || "Failed to review application.");
     } finally {
+      reviewingApplication = false;
       if (confirmRejectApplicationBtn) confirmRejectApplicationBtn.disabled = false;
     }
   };
@@ -373,7 +395,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  refreshApplicationsBtn?.addEventListener("click", loadApplications);
   applicationsList?.addEventListener("click", (event) => {
     const btn = event.target.closest("[data-app-decision]");
     if (!btn) return;
