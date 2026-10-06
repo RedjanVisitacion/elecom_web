@@ -271,6 +271,17 @@ document.addEventListener("DOMContentLoaded", () => {
     applicationsList.innerHTML = applications
       .map((app) => {
         const photo = app.photo_url || "/static/assets/avatar-placeholder.png";
+        const reviewingRequirements = app.status === "requirements_review";
+        const requirementLinks = reviewingRequirements
+          ? [
+              ["2x2 Picture", app.requirements_photo_url],
+              ["Certificate of Enrollment", app.enrollment_certificate_url],
+              ["Grades - Last 2 Semesters", app.grades_url],
+              ["Good Moral Certificate", app.good_moral_url],
+            ]
+              .map(([label, url]) => `<a class="btn btn-outline-secondary btn-sm" href="${escapeHtml(url)}" target="_blank" rel="noopener">${escapeHtml(label)}</a>`)
+              .join("")
+          : "";
         return `
           <div class="border rounded-3 p-3 d-flex gap-3 align-items-start">
             <img src="${escapeHtml(photo)}" alt="" class="rounded-3 border" style="width:72px;height:82px;object-fit:cover;">
@@ -281,12 +292,13 @@ document.addEventListener("DOMContentLoaded", () => {
                   <div class="small text-muted">${escapeHtml(app.student_id)} &bull; ${escapeHtml(app.organization)} &bull; ${escapeHtml(app.position)}</div>
                   <div class="small text-muted">${escapeHtml(app.program)} ${escapeHtml(app.year_section)} &bull; ${escapeHtml(app.candidate_type || "Independent")}</div>
                 </div>
-                <span class="badge text-bg-warning">Pending</span>
+                <span class="badge ${reviewingRequirements ? "text-bg-info" : "text-bg-warning"}">${reviewingRequirements ? "Requirements Review" : "Initial Review"}</span>
               </div>
               <div class="small mt-2">${escapeHtml(app.platform || "")}</div>
+              ${reviewingRequirements ? `<div class="small fw-semibold mt-3 mb-2">Submitted follow-up requirements</div><div class="d-flex flex-wrap gap-2">${requirementLinks}</div>` : ""}
               <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
                 <button type="button" class="btn btn-outline-danger btn-sm" data-app-decision="reject" data-app-id="${escapeHtml(app.id)}">Reject</button>
-                <button type="button" class="btn btn-primary btn-sm" data-app-decision="approve" data-app-id="${escapeHtml(app.id)}">Approve</button>
+                <button type="button" class="btn btn-primary btn-sm" data-app-decision="approve" data-app-id="${escapeHtml(app.id)}" data-app-stage="${reviewingRequirements ? "final" : "initial"}">${reviewingRequirements ? "Approve & Publish" : "Initial Approve"}</button>
               </div>
             </div>
           </div>
@@ -315,8 +327,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
-  const decideApplication = async (id, action, reason = "") => {
-    const label = action === "approve" ? "approve" : "reject";
+  const decideApplication = async (id, action, reason = "", stage = "") => {
+    const label = action === "approve" && stage === "final" ? "approve these requirements and publish this candidate" : action === "approve" ? "approve this filing and request follow-up requirements" : "reject";
     if (action !== "reject" && !confirm(`Are you sure you want to ${label} this filing?`)) return;
     try {
       if (confirmRejectApplicationBtn) confirmRejectApplicationBtn.disabled = true;
@@ -328,7 +340,12 @@ document.addEventListener("DOMContentLoaded", () => {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) throw new Error(data.error || "Failed to review application.");
-      showAlert("success", action === "approve" ? "Candidate approved and published." : "Candidate filing rejected.");
+      const successMessage = action === "reject"
+        ? "Candidate filing rejected."
+        : data.status === "requirements_pending"
+          ? "Initial filing approved. The student can now submit follow-up requirements."
+          : "Requirements approved. Candidate published.";
+      showAlert("success", successMessage);
       if (action === "reject") rejectionRemarksModal?.hide();
       await loadApplications();
     } catch (err) {
@@ -364,7 +381,7 @@ document.addEventListener("DOMContentLoaded", () => {
       openRejectRemarks(btn.dataset.appId);
       return;
     }
-    decideApplication(btn.dataset.appId, btn.dataset.appDecision);
+    decideApplication(btn.dataset.appId, btn.dataset.appDecision, "", btn.dataset.appStage || "");
   });
   confirmRejectApplicationBtn?.addEventListener("click", () => {
     const reason = String(rejectionRemarksInput?.value || "").trim();

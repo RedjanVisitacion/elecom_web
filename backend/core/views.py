@@ -44,7 +44,7 @@ from elecom_voting.models import (
 
 from . import facepp_service
 from . import local_face_service
-from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes
+from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes, upload_raw_bytes
 
 logger = logging.getLogger(__name__)
 
@@ -7027,6 +7027,15 @@ def _ensure_candidate_applications_table() -> None:
                 photo_public_id VARCHAR(255) NULL,
                 party_logo_url TEXT NULL,
                 party_logo_public_id VARCHAR(255) NULL,
+                requirements_photo_url TEXT NULL,
+                requirements_photo_public_id VARCHAR(255) NULL,
+                enrollment_certificate_url TEXT NULL,
+                enrollment_certificate_public_id VARCHAR(255) NULL,
+                grades_url TEXT NULL,
+                grades_public_id VARCHAR(255) NULL,
+                good_moral_url TEXT NULL,
+                good_moral_public_id VARCHAR(255) NULL,
+                requirements_submitted_at TIMESTAMP NULL,
                 status VARCHAR(32) NOT NULL DEFAULT 'pending',
                 reviewed_by VARCHAR(64) NULL,
                 reviewed_at TIMESTAMP NULL,
@@ -7050,6 +7059,20 @@ def _ensure_candidate_applications_table() -> None:
         )
         cur.execute("ALTER TABLE candidate_applications ADD COLUMN IF NOT EXISTS party_code_hash VARCHAR(128) NULL")
         cur.execute("ALTER TABLE candidate_applications ADD COLUMN IF NOT EXISTS party_code VARCHAR(32) NULL")
+        for column, definition in (
+            ("requirements_photo_url", "TEXT NULL"),
+            ("requirements_photo_public_id", "VARCHAR(255) NULL"),
+            ("enrollment_certificate_url", "TEXT NULL"),
+            ("enrollment_certificate_public_id", "VARCHAR(255) NULL"),
+            ("grades_url", "TEXT NULL"),
+            ("grades_public_id", "VARCHAR(255) NULL"),
+            ("good_moral_url", "TEXT NULL"),
+            ("good_moral_public_id", "VARCHAR(255) NULL"),
+            ("requirements_submitted_at", "TIMESTAMP NULL"),
+        ):
+            cur.execute(
+                f"ALTER TABLE candidate_applications ADD COLUMN IF NOT EXISTS {column} {definition}"
+            )
         cur.execute(
             """
             CREATE UNIQUE INDEX IF NOT EXISTS ux_candidate_applications_pending
@@ -7064,7 +7087,7 @@ def _candidate_application_json(row: dict) -> dict:
     for key, value in row.items():
         if key == "party_code_hash":
             continue
-        if key in {"reviewed_at", "created_at", "updated_at"} and value:
+        if key in {"reviewed_at", "created_at", "updated_at", "requirements_submitted_at"} and value:
             try:
                 out[key] = value.isoformat()
             except Exception:
@@ -7195,7 +7218,7 @@ def _party_slot_count(cur, *, election_id, party_name: str, organization: str, p
               AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
               AND organization = %s
               AND position = %s
-              AND status = 'pending'
+              AND status IN ('pending', 'requirements_pending', 'requirements_review')
               {app_exclusion}
             UNION ALL
             SELECT id
@@ -7267,6 +7290,24 @@ def _uploaded_candidate_image(request, field_name: str, folder: str):
     return upload_image_bytes(raw, folder=folder)
 
 
+def _uploaded_candidate_pdf(request, field_name: str, folder: str):
+    upload = request.FILES.get(field_name)
+    if upload is None:
+        return "", ""
+    filename = str(upload.name or "document.pdf").strip()
+    content_type = str(getattr(upload, "content_type", "") or "").lower()
+    if not filename.lower().endswith(".pdf") or content_type not in {
+        "application/pdf",
+        "application/x-pdf",
+        "application/octet-stream",
+    }:
+        raise ValueError("Only PDF documents are accepted.")
+    raw = upload.read()
+    if not raw or len(raw) > 8 * 1024 * 1024 or not raw.startswith(b"%PDF-"):
+        raise ValueError("Invalid or oversized PDF upload (maximum 8 MB).")
+    return upload_raw_bytes(raw, folder=folder, filename=field_name + ".pdf")
+
+
 @require_http_methods(["GET"])
 def candidate_application_status_api(request):
     student_id = str(request.session.get("student_id") or "").strip()
@@ -7283,7 +7324,9 @@ def candidate_application_status_api(request):
                 SELECT id, election_id, student_id, first_name, middle_name, last_name,
                        organization, position, program, year_section, platform,
                        candidate_type, party_name, party_code, photo_url, party_logo_url,
-                       status, reviewed_by, reviewed_at, rejection_reason, created_at, updated_at
+                       status, reviewed_by, reviewed_at, rejection_reason, created_at, updated_at,
+                       requirements_photo_url, enrollment_certificate_url, grades_url,
+                       good_moral_url, requirements_submitted_at
                 FROM candidate_applications
                 WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
                   AND student_id = %s
@@ -7315,6 +7358,104 @@ def candidate_application_status_api(request):
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to load candidate filing status."}, status=500)
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def candidate_application_requirements_api(request):
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    allowed_fields = {
+        "requirements_photo",
+        "enrollment_certificate",
+        "grades",
+        "good_moral",
+    }
+    if not any(field in request.FILES for field in allowed_fields):
+        return JsonResponse({"ok": False, "error": "Attach at least one requirement."}, status=400)
+    try:
+        _ensure_candidate_applications_table()
+        election_id = _current_election_id() or None
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT id, status, requirements_photo_url,
+                       enrollment_certificate_url, grades_url, good_moral_url
+                WHERE COALESCE(election_id, 0) = COALESCE(%s, 0) AND student_id = %s
+                ORDER BY created_at DESC, id DESC LIMIT 1
+                """,
+                [election_id, student_id],
+            )
+            row = cur.fetchone()
+        if not row:
+            return JsonResponse({"ok": False, "error": "Candidate filing not found."}, status=404)
+        application_id, status, photo_url, enrollment_url, grades_url, good_moral_url = row
+        if str(status or "").lower() not in {"requirements_pending", "requirements_review"}:
+            return JsonResponse(
+                {"ok": False, "error": "Requirements can be submitted only after initial approval."},
+                status=403,
+            )
+
+        updates = {}
+        folder = f"elecom/candidate_applications/{application_id}/requirements"
+        if "requirements_photo" in request.FILES:
+            url, public_id = _uploaded_candidate_image(request, "requirements_photo", folder)
+            updates.update(requirements_photo_url=url, requirements_photo_public_id=public_id)
+        for field, url_column, id_column in (
+            ("enrollment_certificate", "enrollment_certificate_url", "enrollment_certificate_public_id"),
+            ("grades", "grades_url", "grades_public_id"),
+            ("good_moral", "good_moral_url", "good_moral_public_id"),
+        ):
+            if field in request.FILES:
+                url, public_id = _uploaded_candidate_pdf(request, field, folder)
+                updates[url_column] = url
+                updates[id_column] = public_id
+
+        with connection.cursor() as cur:
+            assignments = [f"{column} = %s" for column in updates]
+            values = list(updates.values())
+            complete = all(
+                str(value or "").strip()
+                for value in (
+                    updates.get("requirements_photo_url", photo_url),
+                    updates.get("enrollment_certificate_url", enrollment_url),
+                    updates.get("grades_url", grades_url),
+                    updates.get("good_moral_url", good_moral_url),
+                )
+            )
+            assignments.append("updated_at = CURRENT_TIMESTAMP")
+            if complete:
+                assignments.extend(
+                    [
+                        "status = 'requirements_review'",
+                        "requirements_submitted_at = CURRENT_TIMESTAMP",
+                    ]
+                )
+            cur.execute(
+                f"UPDATE candidate_applications SET {', '.join(assignments)} WHERE id = %s",
+                values + [application_id],
+            )
+        if complete:
+            _insert_user_notification_for_student(
+                student_id=student_id,
+                notif_type="candidate_filing",
+                title="Requirements submitted",
+                body="Your follow-up candidate requirements were submitted for final ELECOM review.",
+            )
+        return JsonResponse(
+            {
+                "ok": True,
+                "application_id": application_id,
+                "status": "requirements_review" if complete else str(status),
+            }
+        )
+    except ValueError as e:
+        return JsonResponse({"ok": False, "error": str(e)}, status=400)
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to upload candidate requirements."}, status=500)
 
 
 @require_http_methods(["GET"])
@@ -7578,7 +7719,7 @@ def admin_candidate_applications_list_api(request):
         return forbidden
 
     status = str(request.GET.get("status") or "pending").strip().lower()
-    if status not in {"pending", "approved", "rejected", "all"}:
+    if status not in {"pending", "requirements_pending", "requirements_review", "approved", "rejected", "all"}:
         status = "pending"
     q = str(request.GET.get("q") or "").strip()
 
@@ -7588,7 +7729,9 @@ def admin_candidate_applications_list_api(request):
         election_id = _current_election_id() or None
         where_parts = ["COALESCE(election_id, 0) = COALESCE(%s, 0)"]
         params = [election_id]
-        if status != "all":
+        if status == "pending":
+            where_parts.append("status IN ('pending', 'requirements_review')")
+        elif status != "all":
             where_parts.append("status = %s")
             params.append(status)
         if q:
@@ -7604,7 +7747,9 @@ def admin_candidate_applications_list_api(request):
                 SELECT id, election_id, student_id, first_name, middle_name, last_name,
                        organization, position, program, year_section, platform,
                        candidate_type, party_name, photo_url, party_logo_url,
-                       status, reviewed_by, reviewed_at, rejection_reason, created_at
+                       status, reviewed_by, reviewed_at, rejection_reason, created_at,
+                       requirements_photo_url, enrollment_certificate_url, grades_url,
+                       good_moral_url, requirements_submitted_at
                 FROM candidate_applications
                 WHERE {' AND '.join(where_parts)}
                 ORDER BY created_at DESC, id DESC
@@ -7615,7 +7760,7 @@ def admin_candidate_applications_list_api(request):
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, r)) for r in cur.fetchall()]
         for row in rows:
-            for key in ("reviewed_at", "created_at"):
+            for key in ("reviewed_at", "created_at", "requirements_submitted_at"):
                 if row.get(key):
                     row[key] = row[key].isoformat()
         return JsonResponse({"ok": True, "applications": rows})
@@ -7655,7 +7800,8 @@ def admin_candidate_application_decision_api(request):
                     """
                     SELECT id, election_id, student_id, first_name, middle_name, last_name,
                            organization, position, program, year_section, platform,
-                           candidate_type, party_name, party_code_hash, party_code, photo_url, party_logo_url, status
+                           candidate_type, party_name, party_code_hash, party_code, photo_url, party_logo_url, status,
+                           requirements_photo_url, enrollment_certificate_url, grades_url, good_moral_url
                     FROM candidate_applications
                     WHERE id = %s
                     FOR UPDATE
@@ -7667,7 +7813,8 @@ def admin_candidate_application_decision_api(request):
                     return JsonResponse({"ok": False, "error": "Application not found."}, status=404)
                 cols = [c[0] for c in cur.description]
                 app = dict(zip(cols, row))
-                if app.get("status") != "pending":
+                current_status = str(app.get("status") or "").strip().lower()
+                if current_status not in {"pending", "requirements_review"}:
                     return JsonResponse({"ok": False, "error": "Application was already reviewed."}, status=409)
 
                 if action == "reject":
@@ -7693,6 +7840,42 @@ def admin_candidate_application_decision_api(request):
                         ),
                     )
                     return JsonResponse({"ok": True, "status": "rejected"})
+
+                if current_status == "pending":
+                    cur.execute(
+                        """
+                        UPDATE candidate_applications
+                        SET status = 'requirements_pending',
+                            reviewed_by = %s,
+                            reviewed_at = CURRENT_TIMESTAMP,
+                            rejection_reason = NULL,
+                            updated_at = CURRENT_TIMESTAMP
+                        WHERE id = %s
+                        """,
+                        [reviewer, app_id],
+                    )
+                    _insert_user_notification_for_student(
+                        student_id=app.get("student_id"),
+                        notif_type="candidate_filing",
+                        title="Candidate filing initially approved",
+                        body=(
+                            f"Your filing for {app.get('position') or 'candidate'} passed the initial review. "
+                            "Please upload your 2x2 picture and required PDF documents."
+                        ),
+                    )
+                    return JsonResponse({"ok": True, "status": "requirements_pending"})
+
+                required_documents = (
+                    app.get("requirements_photo_url"),
+                    app.get("enrollment_certificate_url"),
+                    app.get("grades_url"),
+                    app.get("good_moral_url"),
+                )
+                if not all(str(value or "").strip() for value in required_documents):
+                    return JsonResponse(
+                        {"ok": False, "error": "All follow-up requirements must be submitted before final approval."},
+                        status=409,
+                    )
 
                 if str(app.get("candidate_type") or "").lower() == "political party":
                     used_slots = _party_slot_count(
@@ -7761,7 +7944,7 @@ def admin_candidate_application_decision_api(request):
                     student_id=app.get("student_id"),
                     notif_type="candidate_filing",
                     title="Candidate filing approved",
-                    body=f"Your filing for {app.get('position') or 'candidate'} was approved. You are now an official candidate.",
+                    body=f"Your follow-up requirements for {app.get('position') or 'candidate'} were approved. You are now an official candidate.",
                 )
                 return JsonResponse({"ok": True, "status": "approved", "candidate_id": candidate_id})
     except Exception as e:
