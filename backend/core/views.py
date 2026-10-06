@@ -1546,22 +1546,27 @@ def admin_app_rating_notifications_api(request):
         with connection.cursor() as cur:
             cur.execute(
                 """
-                SELECT COUNT(*), MAX(created_at)
+                SELECT id, student_id, first_name, last_name, organization, position,
+                       status, created_at, requirements_submitted_at
                 FROM candidate_applications
-                WHERE LOWER(COALESCE(status, 'pending')) = 'pending'
-                """
+                WHERE status IN ('pending', 'requirements_review')
+                  AND COALESCE(election_id, 0) = COALESCE(%s, 0)
+                ORDER BY COALESCE(requirements_submitted_at, created_at) DESC, id DESC
+                LIMIT 50
+                """, [_current_election_id() or None],
             )
-            row = cur.fetchone()
-            pending_candidates = int(row[0] or 0) if row else 0
-            if pending_candidates:
+            for application in cur.fetchall():
+                app_id, student_id, first_name, last_name, org, position, stage, created, submitted = application
+                candidate_name = " ".join(str(part or "").strip() for part in (first_name, last_name)).strip() or str(student_id)
+                final_review = stage == "requirements_review"
                 add_alert(
-                    "candidate_review",
+                    "candidate_requirements_review" if final_review else "candidate_initial_review",
                     "action",
-                    f"{pending_candidates} candidate filing(s) need review",
-                    "Approve or reject pending candidate applications before the ballot is finalized.",
-                    row[1] if row else None,
-                    "bi-person-check",
-                    "/static/org_elecom/elecom_admin/elecom_candidates.html",
+                    f"Supporting documents ready: {candidate_name}" if final_review else f"New candidate filing: {candidate_name}",
+                    f"{student_id} - {org} {position}. " + ("Review the four documents for final approval." if final_review else "Review the initial application.") + f" Filing #{app_id}.",
+                    submitted or created if final_review else created,
+                    "bi-file-earmark-check" if final_review else "bi-person-check",
+                    "/static/org_elecom/elecom_admin/elecom_register_candidate.html#pendingFilingsCollapse",
                 )
 
             cur.execute(

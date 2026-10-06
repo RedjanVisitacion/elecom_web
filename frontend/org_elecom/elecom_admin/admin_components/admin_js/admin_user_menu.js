@@ -508,15 +508,23 @@
     });
   };
 
+  let adminAlertsLoading = false;
   const loadAdminAlerts = async (els) => {
+    if (adminAlertsLoading || document.hidden) return;
+    adminAlertsLoading = true;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 12000);
     try {
-      const resp = await fetch(API_ADMIN_ALERTS, { method: "GET", cache: "no-store" });
+      const resp = await fetch(API_ADMIN_ALERTS, { method: "GET", cache: "no-store", signal: controller.signal });
       if (!resp.ok) return;
       const data = await resp.json();
       if (!data || !data.ok) return;
       renderAdminAlerts({ ...els, data });
     } catch (e) {
-      // ignore
+      // Retain the last successful notification list on transient failures.
+    } finally {
+      clearTimeout(timeout);
+      adminAlertsLoading = false;
     }
   };
 
@@ -899,7 +907,7 @@
         summaryEl: adminNotifSummary,
         countEl: adminNotifCount,
       });
-    }, 30000);
+    }, 10000);
 
     (async () => {
       try {
