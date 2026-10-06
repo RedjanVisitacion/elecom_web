@@ -7,6 +7,7 @@ from .views import (
     admin_candidates_delete_api,
     admin_candidates_detail_api,
     admin_candidates_list_api,
+    admin_candidates_files_api,
     admin_candidates_update_api,
     admin_voters_delete_api,
     admin_voters_import_api,
@@ -101,6 +102,7 @@ def home_redirect(request):
     return redirect('/login/')
 
 urlpatterns = [
+    path('api/admin/candidates/files/', admin_candidates_files_api, name='admin_candidates_files_api'),
     path('', home_redirect),
     path('g/<path:token>/', admin_secure_page_view, name='admin_secure_page_view'),
     path('u/<path:token>/', student_secure_page_view, name='student_secure_page_view'),

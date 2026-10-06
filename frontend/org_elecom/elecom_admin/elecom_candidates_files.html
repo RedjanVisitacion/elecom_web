@@ -3,16 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Reset Votes - ELECOM</title>
+    <title>Candidates Files - ELECOM</title>
     <link rel="icon" type="image/png" href="/static/assets/elecom.png?v=3">
     <link rel="shortcut icon" type="image/png" href="/static/assets/elecom.png?v=3">
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261004-search-after-bell">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reset.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_candidates_files.css?v=20261007">
 </head>
-<body class="theme-elecom">
+<body class="theme-elecom candidates-page-body">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -21,9 +21,8 @@
                     <img class="sidebar-logo" src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
                     <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
                 </div>
-                <button class="btn-close-sidebar" id="closeSidebar">
-                    <i class="bi bi-x-lg"></i>
-                </button>
+
+                <button class="btn-close-sidebar" id="closeSidebar"><i class="bi bi-x-lg"></i></button>
             </div>
         </div>
         <div class="sidebar-menu">
@@ -44,7 +43,7 @@
                         </ul>
                     </div>
                 </li>
-                <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates_files.html"><i class="bi bi-folder2-open"></i><span>Candidates Files</span></a></li>
+                <li class="nav-item"><a class="nav-link active" href="/static/org_elecom/elecom_admin/elecom_candidates_files.html"><i class="bi bi-folder2-open"></i><span>Candidates Files</span></a></li>
                 <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html"><i class="bi bi-graph-up"></i><span>Results</span></a></li>
                 <li class="nav-item">
                     <a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html">
@@ -82,59 +81,25 @@
         </nav>
 
         <div class="content-area">
-            <div class="alert alert-success" id="successAlert" role="alert" style="display:none;"></div>
-            <div class="alert alert-danger" id="errorAlert" role="alert" style="display:none;"></div>
-
-            <div class="card p-4 border-0 reset-card">
-                <h4 class="mb-4 fw-bold"><i class="bi bi-arrow-counterclockwise me-2"></i>Reset Votes</h4>
-                
-                <div class="alert alert-warning" role="alert">
-                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
-                    <strong>Warning:</strong> This action will permanently delete all vote records and all user notifications from the database. This cannot be undone.
-                </div>
-
-                <div class="row g-4 mb-4">
-                    <div class="col-md-4">
-                        <div class="status-box p-3 border rounded text-center">
-                            <div class="status-label text-muted mb-1">Total Votes</div>
-                            <div class="status-value fs-2 fw-bold" id="votesCount">-</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="status-box p-3 border rounded text-center">
-                            <div class="status-label text-muted mb-1">Vote Items</div>
-                            <div class="status-value fs-2 fw-bold" id="voteItemsCount">-</div>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <div class="status-box p-3 border rounded text-center">
-                            <div class="status-label text-muted mb-1">Notifications</div>
-                            <div class="status-value fs-2 fw-bold" id="notificationsCount">-</div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="p-4 border rounded confirmation-section">
-                    <h6 class="mb-3 fw-semibold"><i class="bi bi-shield-lock me-2"></i>Confirmation Required</h6>
-                    <p class="text-muted mb-3">To reset all votes and clear notifications, type <strong class="text-dark">RESET</strong> in the field below:</p>
-                    <div class="row g-3 align-items-end">
-                        <div class="col-md-6">
-                            <input type="text" id="confirmInput" class="form-control form-control-lg" placeholder="Type RESET to confirm" autocomplete="off">
-                        </div>
-                        <div class="col-md-6 text-md-end">
-                            <button type="button" id="resetVotesBtn" class="btn btn-danger btn-lg">
-                                <i class="bi bi-trash me-2"></i>Reset Votes & Notifications
-                            </button>
-                        </div>
-                    </div>
-                    <div id="resetStatus" class="small mt-3" style="display:none;"></div>
-                </div>
+          <h1 class="h4 mb-2">Candidates Files</h1>
+          <p class="text-muted">Browse organizations, candidate folders, and submitted requirements.</p>
+          <section class="card border-0 shadow-sm files-explorer">
+            <div class="card-body">
+              <div class="d-flex gap-2 flex-wrap mb-3">
+                <button id="filesBack" class="btn btn-outline-secondary" aria-label="Go to parent folder"><i class="bi bi-arrow-left"></i> Back</button>
+                <select id="filesElection" class="form-select w-auto" aria-label="Election"><option value="">Current election</option></select>
+                <input id="filesSearch" type="search" class="form-control files-search" placeholder="Search this folder" aria-label="Search this folder">
+                <button id="filesRefresh" class="btn btn-outline-primary">Refresh</button>
+              </div>
+              <nav id="filesBreadcrumb" aria-label="Folder path" class="mb-3"></nav>
+              <p id="filesStatus" role="status" class="text-muted small"></p>
+              <div id="filesGrid" class="files-grid"></div>
             </div>
+          </section>
         </div>
     </div>
-
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261004-search-inside-wrap"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reset.js?v=20260519-reset-notifications"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_candidates_files.js?v=20261007"></script>
 </body>
 </html>

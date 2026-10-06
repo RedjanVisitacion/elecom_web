@@ -231,6 +231,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "elecom_elections.html",
     "elecom_election_date.html",
     "elecom_candidates.html",
+    "elecom_candidates_files.html",
     "elecom_voters.html",
     "elecom_results.html",
     "elecom_reset.html",
@@ -7989,6 +7990,57 @@ def admin_candidate_application_decision_api(request):
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": msg}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to review application."}, status=500)
+
+
+@require_http_methods(["GET"])
+def admin_candidates_files_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+    raw_election = request.GET.get("election_id")
+    try:
+        election_id = int(raw_election) if raw_election else (_current_election_id() or None)
+        if raw_election and election_id <= 0:
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "Invalid election id."}, status=400)
+    try:
+        _ensure_candidate_applications_table()
+        _ensure_election_scoped_tables()
+        with connection.cursor() as cur:
+            cur.execute("""
+                SELECT id, student_id, first_name, middle_name, last_name,
+                       organization, position, status, requirements_photo_url,
+                       enrollment_certificate_url, grades_url, good_moral_url
+                FROM candidate_applications
+                WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+                ORDER BY id DESC
+            """, [election_id])
+            cols = [c[0] for c in cur.description]
+            rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+            cur.execute("""
+                SELECT c.id, c.student_id, c.first_name, c.middle_name, c.last_name,
+                       c.organization, c.position, 'registered' AS status,
+                       c.photo_url AS requirements_photo_url,
+                       NULL AS enrollment_certificate_url, NULL AS grades_url,
+                       NULL AS good_moral_url
+                FROM candidates_registration c
+                WHERE COALESCE(c.election_id, 0) = COALESCE(%s, 0)
+                  AND NOT EXISTS (
+                    SELECT 1 FROM candidate_applications a
+                    WHERE COALESCE(a.election_id, 0) = COALESCE(c.election_id, 0)
+                      AND a.student_id::text = c.student_id::text
+                      AND UPPER(a.organization) = UPPER(c.organization)
+                      AND a.position = c.position
+                  )
+                ORDER BY c.last_name, c.first_name, c.id
+            """, [election_id])
+            cols = [c[0] for c in cur.description]
+            rows.extend(dict(zip(cols, row)) for row in cur.fetchall())
+        return JsonResponse({"ok": True, "election_id": election_id, "candidates": rows})
+    except Exception:
+        logger.exception("Failed to load candidate files")
+        return JsonResponse({"ok": False, "error": "Failed to load candidate files."}, status=500)
 
 
 @require_http_methods(["GET"])
