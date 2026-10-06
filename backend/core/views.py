@@ -25,6 +25,7 @@ from datetime import datetime, timedelta, timezone as dt_timezone
 from django.http import FileResponse, HttpResponse, JsonResponse
 from django.shortcuts import render
 from django.db import connection, transaction
+from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
 
@@ -7992,6 +7993,106 @@ def admin_candidate_application_decision_api(request):
         return JsonResponse({"ok": False, "error": "Failed to review application."}, status=500)
 
 
+def _ensure_admin_candidate_documents_table():
+    # Manual registrations have no candidate application to hold requirements.
+    with connection.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS admin_candidate_documents (
+                candidate_id BIGINT NOT NULL REFERENCES candidates_registration(id) ON DELETE CASCADE,
+                kind VARCHAR(32) NOT NULL,
+                file_url TEXT NULL,
+                public_id TEXT NULL,
+                updated_by VARCHAR(64) NULL,
+                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY (candidate_id, kind)
+            )
+        """)
+
+
+@require_http_methods(["POST"])
+def admin_candidate_document_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+    fields = {
+        "requirements_photo": ("requirements_photo_url", "requirements_photo_public_id"),
+        "enrollment_certificate": ("enrollment_certificate_url", "enrollment_certificate_public_id"),
+        "grades": ("grades_url", "grades_public_id"),
+        "good_moral": ("good_moral_url", "good_moral_public_id"),
+    }
+    kind = request.POST.get("kind")
+    source = request.POST.get("source")
+    action = request.POST.get("action")
+    if kind not in fields or source not in {"application", "registration"} or action not in {"upload", "delete"}:
+        return JsonResponse({"ok": False, "error": "Invalid document action."}, status=400)
+    try:
+        record_id = int(request.POST.get("id", ""))
+        election_id = int(request.POST.get("election_id")) if request.POST.get("election_id") else None
+        if record_id <= 0 or (election_id is not None and election_id <= 0):
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "Invalid candidate or election id."}, status=400)
+    if action == "upload" and not request.FILES.get(kind):
+        return JsonResponse({"ok": False, "error": "Select a file to upload."}, status=400)
+    table = "candidate_applications" if source == "application" else "candidates_registration"
+    url_column, id_column = fields[kind]
+    try:
+        _ensure_candidate_applications_table()
+        _ensure_election_scoped_tables()
+        _ensure_admin_candidate_documents_table()
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                cur.execute(f"SELECT id FROM {table} WHERE id = %s AND COALESCE(election_id, 0) = COALESCE(%s, 0) FOR UPDATE", [record_id, election_id])
+                if not cur.fetchone():
+                    return JsonResponse({"ok": False, "error": "Candidate not found in this election."}, status=404)
+                file_url, public_id = None, None
+                if action == "upload":
+                    folder = f"elecom/admin_candidate_documents/{source}/{record_id}/{secrets.token_hex(8)}"
+                    if kind == "requirements_photo":
+                        upload = request.FILES[kind]
+                        if upload.size <= 0 or upload.size > 8 * 1024 * 1024:
+                            raise ValueError("Photo must be non-empty and at most 8 MB.")
+                        from PIL import Image
+                        try:
+                            image = Image.open(upload)
+                            if image.format not in {"JPEG", "PNG"}:
+                                raise ValueError
+                            image.verify()
+                        except Exception:
+                            raise ValueError("Select a valid JPG or PNG photo.")
+                        upload.seek(0)
+                        file_url, public_id = _uploaded_candidate_image(request, kind, folder)
+                    else:
+                        file_url, public_id = _uploaded_candidate_pdf(request, kind, folder)
+                if source == "application":
+                    cur.execute(f"UPDATE candidate_applications SET {url_column} = %s, {id_column} = %s, updated_at = CURRENT_TIMESTAMP WHERE id = %s", [file_url, public_id, record_id])
+                    # Only follow-up stages change; final decisions stay intact.
+                    cur.execute("""
+                        UPDATE candidate_applications SET
+                          status = CASE WHEN requirements_photo_url IS NOT NULL
+                            AND enrollment_certificate_url IS NOT NULL AND grades_url IS NOT NULL
+                            AND good_moral_url IS NOT NULL THEN 'requirements_review' ELSE 'requirements_pending' END,
+                          requirements_submitted_at = CASE WHEN requirements_photo_url IS NOT NULL
+                            AND enrollment_certificate_url IS NOT NULL AND grades_url IS NOT NULL
+                            AND good_moral_url IS NOT NULL THEN COALESCE(requirements_submitted_at, CURRENT_TIMESTAMP)
+                            ELSE requirements_submitted_at END
+                        WHERE id = %s AND status IN ('requirements_pending', 'requirements_review')
+                    """, [record_id])
+                else:
+                    cur.execute("""
+                        INSERT INTO admin_candidate_documents (candidate_id, kind, file_url, public_id, updated_by)
+                        VALUES (%s, %s, %s, %s, %s)
+                        ON CONFLICT (candidate_id, kind) DO UPDATE SET file_url = EXCLUDED.file_url,
+                          public_id = EXCLUDED.public_id, updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP
+                    """, [record_id, kind, file_url, public_id, str(request.session.get("student_id") or "admin")])
+        return JsonResponse({"ok": True, "file_url": file_url})
+    except ValueError as error:
+        return JsonResponse({"ok": False, "error": str(error)}, status=400)
+    except Exception:
+        logger.exception("Failed to update candidate document")
+        return JsonResponse({"ok": False, "error": "Failed to update the document. Please try again."}, status=500)
+
+
 @require_http_methods(["GET"])
 def admin_candidates_files_api(request):
     forbidden = _require_admin(request)
@@ -8007,9 +8108,10 @@ def admin_candidates_files_api(request):
     try:
         _ensure_candidate_applications_table()
         _ensure_election_scoped_tables()
+        _ensure_admin_candidate_documents_table()
         with connection.cursor() as cur:
             cur.execute("""
-                SELECT id, student_id, first_name, middle_name, last_name,
+                SELECT id, election_id, 'application' AS source, student_id, first_name, middle_name, last_name,
                        organization, position, status, created_at, requirements_photo_url,
                        enrollment_certificate_url, grades_url, good_moral_url
                 FROM candidate_applications
@@ -8019,7 +8121,7 @@ def admin_candidates_files_api(request):
             cols = [c[0] for c in cur.description]
             rows = [dict(zip(cols, row)) for row in cur.fetchall()]
             cur.execute("""
-                SELECT c.id, c.student_id, c.first_name, c.middle_name, c.last_name,
+                SELECT c.id, c.election_id, 'registration' AS source, c.student_id, c.first_name, c.middle_name, c.last_name,
                        c.organization, c.position, 'registered' AS status, c.created_at,
                        c.photo_url AS requirements_photo_url,
                        NULL AS enrollment_certificate_url, NULL AS grades_url,
@@ -8037,7 +8139,15 @@ def admin_candidates_files_api(request):
             """, [election_id])
             cols = [c[0] for c in cur.description]
             rows.extend(dict(zip(cols, row)) for row in cur.fetchall())
-        return JsonResponse({"ok": True, "election_id": election_id, "candidates": rows})
+            cur.execute("SELECT candidate_id, kind, file_url FROM admin_candidate_documents")
+            overrides = {(row[0], row[1]): row[2] for row in cur.fetchall()}
+        for row in rows:
+            if row.get("source") == "registration":
+                for kind, column in (("requirements_photo", "requirements_photo_url"), ("enrollment_certificate", "enrollment_certificate_url"), ("grades", "grades_url"), ("good_moral", "good_moral_url")):
+                    key = (row["id"], kind)
+                    if key in overrides:
+                        row[column] = overrides[key]
+        return JsonResponse({"ok": True, "election_id": election_id, "candidates": rows, "csrf_token": get_token(request)})
     except Exception:
         logger.exception("Failed to load candidate files")
         return JsonResponse({"ok": False, "error": "Failed to load candidate files."}, status=500)
