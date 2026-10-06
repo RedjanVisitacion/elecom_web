@@ -45,7 +45,7 @@ from elecom_voting.models import (
 
 from . import facepp_service
 from . import local_face_service
-from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes, upload_raw_bytes
+from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes, upload_raw_bytes, read_candidate_document
 
 logger = logging.getLogger(__name__)
 
@@ -8007,6 +8007,63 @@ def _ensure_admin_candidate_documents_table():
                 PRIMARY KEY (candidate_id, kind)
             )
         """)
+
+
+@require_http_methods(["GET"])
+def admin_candidate_document_preview_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+    fields = {
+        "requirements_photo": ("requirements_photo_url", "requirements_photo_public_id"),
+        "enrollment_certificate": ("enrollment_certificate_url", "enrollment_certificate_public_id"),
+        "grades": ("grades_url", "grades_public_id"),
+        "good_moral": ("good_moral_url", "good_moral_public_id"),
+    }
+    kind, source = request.GET.get("kind"), request.GET.get("source")
+    if kind not in fields or source not in {"application", "registration"}:
+        return JsonResponse({"ok": False, "error": "Invalid document."}, status=400)
+    try:
+        record_id = int(request.GET.get("id", ""))
+        election_id = int(request.GET.get("election_id")) if request.GET.get("election_id") else None
+        if record_id <= 0 or (election_id is not None and election_id <= 0):
+            raise ValueError
+    except (TypeError, ValueError):
+        return JsonResponse({"ok": False, "error": "Invalid candidate or election id."}, status=400)
+    try:
+        _ensure_candidate_applications_table()
+        _ensure_election_scoped_tables()
+        _ensure_admin_candidate_documents_table()
+        with connection.cursor() as cur:
+            if source == "application":
+                url_column, id_column = fields[kind]
+                cur.execute(f"SELECT {url_column}, {id_column} FROM candidate_applications WHERE id = %s AND COALESCE(election_id, 0) = COALESCE(%s, 0)", [record_id, election_id])
+                row = cur.fetchone()
+            else:
+                cur.execute("SELECT photo_url FROM candidates_registration WHERE id = %s AND COALESCE(election_id, 0) = COALESCE(%s, 0)", [record_id, election_id])
+                registered = cur.fetchone()
+                if not registered:
+                    return JsonResponse({"ok": False, "error": "Candidate not found."}, status=404)
+                cur.execute("SELECT file_url, public_id FROM admin_candidate_documents WHERE candidate_id = %s AND kind = %s", [record_id, kind])
+                override = cur.fetchone()
+                row = override if override is not None else (registered[0], None) if kind == "requirements_photo" else None
+        if not row or not row[0]:
+            return JsonResponse({"ok": False, "error": "This file has not been submitted or was deleted."}, status=404)
+        raw, content_type = read_candidate_document(row[0], row[1], photo=kind == "requirements_photo")
+        response = HttpResponse(raw, content_type=content_type)
+        response["Content-Disposition"] = 'inline; filename="' + kind + ('.pdf' if content_type == 'application/pdf' else '.png' if content_type == 'image/png' else '.jpg') + '"'
+        response["Cache-Control"] = "private, no-store"
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+    except urllib.error.HTTPError as error:
+        if error.code in {401, 403}:
+            return JsonResponse({"ok": False, "error": "The document service blocked this file. Check PDF and ZIP files delivery in Cloudinary Security settings, then try again."}, status=502)
+        return JsonResponse({"ok": False, "error": "The stored file is currently unavailable."}, status=502)
+    except ValueError as error:
+        return JsonResponse({"ok": False, "error": str(error)}, status=400)
+    except Exception:
+        # Do not log signed download URLs: they contain temporary credentials.
+        return JsonResponse({"ok": False, "error": "Unable to load the file preview. Please try again."}, status=502)
 
 
 @require_http_methods(["POST"])

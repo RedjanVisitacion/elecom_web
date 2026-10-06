@@ -49,7 +49,8 @@
     if (kind) {
       const actions = document.createElement('div'); actions.className = 'file-document-actions';
       if (href) {
-        const open = document.createElement('a'); open.href = href; open.target = '_blank'; open.rel = 'noopener noreferrer';
+        const open = document.createElement('button'); open.type = 'button';
+        open.addEventListener('click', () => openPreview(kind, label));
         open.className = 'files-control'; open.textContent = 'Open'; open.setAttribute('aria-label', `Open ${label}`); actions.append(open);
       }
       const upload = document.createElement('button'); upload.type = 'button'; upload.className = 'files-control';
@@ -121,6 +122,48 @@
     } catch (error) {
       if (id !== generation) return;
       loading = false; grid.replaceChildren(); status.textContent = `${error.message} Use Refresh to try again.`;
+    }
+  }
+  const previewElement = document.getElementById('candidatePreviewModal');
+  const previewModal = new bootstrap.Modal(previewElement);
+  const previewBody = document.getElementById('candidatePreviewBody');
+  let previewUrl = '', previewRequest = null;
+  function clearPreview() {
+    if (previewRequest) previewRequest.abort();
+    previewRequest = null; previewBody.replaceChildren();
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = '';
+  }
+  previewElement.addEventListener('hidden.bs.modal', clearPreview);
+  async function openPreview(kind, label) {
+    if (!candidate) return;
+    clearPreview();
+    const controller = new AbortController(); previewRequest = controller;
+    document.getElementById('candidatePreviewTitle').textContent = `${label} ? ${name(candidate)}`;
+    const message = document.createElement('p'); message.className = 'preview-message'; message.setAttribute('role', 'status'); message.textContent = 'Loading file?';
+    previewBody.append(message); previewModal.show();
+    const params = new URLSearchParams({ id: candidate.id, source: candidate.source, election_id: candidate.election_id || '', kind });
+    try {
+      const response = await fetch(`/api/admin/candidates/document/preview/?${params}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
+      const type = response.headers.get('content-type') || '';
+      if (!response.ok) {
+        const data = type.includes('application/json') ? await response.json() : null;
+        throw new Error(data?.error || 'Unable to load this file. Refresh the page and try again.');
+      }
+      if (!['application/pdf', 'image/jpeg', 'image/png'].some(allowed => type.startsWith(allowed))) throw new Error('This file type cannot be previewed.');
+      const blob = await response.blob();
+      if (controller.signal.aborted || previewRequest !== controller) return;
+      previewUrl = URL.createObjectURL(blob);
+      const viewer = document.createElement(type.startsWith('image/') ? 'img' : 'iframe');
+      viewer.className = type.startsWith('image/') ? 'candidate-preview-photo' : 'candidate-preview-pdf';
+      if (type.startsWith('image/')) viewer.alt = label;
+      else viewer.title = label;
+      viewer.src = previewUrl;
+      viewer.addEventListener('error', () => { message.textContent = 'Unable to display this file in your browser.'; previewBody.replaceChildren(message); });
+      previewBody.replaceChildren(viewer);
+    } catch (error) {
+      if (error.name === 'AbortError' || previewRequest !== controller) return;
+      message.textContent = error.message; message.classList.add('text-danger'); previewBody.replaceChildren(message);
     }
   }
   const dialogElement = document.getElementById('candidateDocumentModal');
