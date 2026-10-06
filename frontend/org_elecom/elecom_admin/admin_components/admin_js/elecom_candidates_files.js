@@ -59,7 +59,7 @@
     document.getElementById('filesBack').disabled = !org || loading;
     const crumbs = document.getElementById('filesBreadcrumb'); crumbs.replaceChildren();
     const crumb = (label, action) => { const btn = document.createElement('button'); btn.type = 'button'; btn.textContent = label; btn.addEventListener('click', action); crumbs.append(btn); };
-    crumb('Candidates Files', () => navigate());
+    crumb('Candidate Files', () => navigate());
     if (org) { crumbs.append(' / '); crumb(org, () => navigate(org)); }
     if (candidate) { crumbs.append(' / '); const span = document.createElement('span'); span.textContent = name(candidate); crumbs.append(span); }
     if (loading) { status.textContent = 'Loading candidate files…'; return; }
