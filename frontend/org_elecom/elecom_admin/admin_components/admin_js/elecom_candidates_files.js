@@ -107,23 +107,59 @@
     items.sort(compare).forEach(item => tile(item.label, item.detail, item.icon, item.action, item.href, item.missing, item.metadata, item.kind));
     status.textContent = grid.children.length ? `${grid.children.length} item${grid.children.length === 1 ? '' : 's'}` : query ? 'No matching items in this folder.' : 'No candidates in this organization for the selected election.';
   }
-  async function load() {
+  let filesRequest = null;
+  const candidateMatches = (row, selected) =>
+    (row.id === selected.id && row.source === selected.source)
+    || (String(row.student_id) === String(selected.student_id) && group(row) === group(selected) && row.position === selected.position);
+  async function load(silent = false) {
+    if (silent && (filesRequest || loading || saving || document.hidden
+        || document.querySelector('.modal.show'))) return;
+    if (filesRequest) filesRequest.abort();
+    const controller = new AbortController(); filesRequest = controller;
+    const timeout = setTimeout(() => controller.abort(), 20000);
     const previous = candidate;
-    const id = ++generation; loading = true; rows = []; candidate = null; render();
+    const id = ++generation;
+    if (!silent) { loading = true; render(); }
     try {
       const params = new URLSearchParams(); if (election.value) params.set('election_id', election.value);
-      const res = await fetch(`/api/admin/candidates/files/?${params}`, { credentials: 'same-origin', cache: 'no-store' });
+      const res = await fetch(`/api/admin/candidates/files/?${params}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Unable to load candidate files.');
       if (id !== generation) return;
-      rows = data.candidates || []; csrfToken = data.csrf_token || '';
-      candidate = previous ? rows.find(row => row.id === previous.id && row.source === previous.source) || null : null;
-      loading = false; render();
+      const nextRows = data.candidates || [];
+      const changed = JSON.stringify(rows) !== JSON.stringify(nextRows);
+      csrfToken = data.csrf_token || csrfToken;
+      // Navigation can change during a background request; use the current folder.
+      const selected = silent ? candidate : previous;
+      rows = nextRows;
+      candidate = selected ? rows.find(row => candidateMatches(row, selected)) || null : null;
+      loading = false;
+      if (!silent || changed) render();
     } catch (error) {
       if (id !== generation) return;
-      loading = false; grid.replaceChildren(); status.textContent = `${error.message} Use Refresh to try again.`;
+      loading = false;
+      // Retain the last successful contents and retry on the next poll.
+      if (!silent) { render(); status.textContent = `${error.name === 'AbortError' ? 'The request timed out.' : error.message} Use Refresh to try again.`; }
+    } finally {
+      clearTimeout(timeout);
+      if (filesRequest === controller) filesRequest = null;
     }
   }
+  let pollTimer = null;
+  function startPolling() {
+    if (pollTimer || document.hidden) return;
+    pollTimer = setInterval(() => load(true), 3000);
+  }
+  function stopPolling() {
+    if (pollTimer) clearInterval(pollTimer);
+    pollTimer = null;
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) stopPolling();
+    else { load(true); startPolling(); }
+  });
+  window.addEventListener('pagehide', () => { stopPolling(); if (filesRequest) filesRequest.abort(); });
+  window.addEventListener('pageshow', () => { startPolling(); });
   const previewElement = document.getElementById('candidatePreviewModal');
   const previewModal = new bootstrap.Modal(previewElement);
   const previewBody = document.getElementById('candidatePreviewBody');
@@ -229,7 +265,7 @@
   } catch (_) { /* Use default browser view. */ }
   election.addEventListener('change', () => { org = ''; candidate = null; load(); });
   document.getElementById('filesBack').addEventListener('click', () => navigate(candidate ? org : ''));
-  document.getElementById('filesRefresh').addEventListener('click', load);
+  document.getElementById('filesRefresh').addEventListener('click', () => load());
   async function init() {
     try {
       const res = await fetch('/api/admin/elections/', { credentials: 'same-origin' }); const data = await res.json();
@@ -237,7 +273,8 @@
       const selected = new URLSearchParams(location.search).get('election_id');
       if (selected && [...election.options].some(option => option.value === selected)) election.value = selected;
     } catch (_) { /* Current election remains available. */ }
-    load();
+    await load();
+    startPolling();
   }
   init();
 })();
