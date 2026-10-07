@@ -202,7 +202,7 @@
       };
       dayEventsList.innerHTML = evs.map((ev) => {
         const timeStr = ev.start_time
-          ? (ev.end_time ? `${fmtTime(ev.start_time)} – ${fmtTime(ev.end_time)}` : fmtTime(ev.start_time))
+          ? (ev.end_time ? `${fmtTime(ev.start_time)} - ${fmtTime(ev.end_time)}` : fmtTime(ev.start_time))
           : "";
         const meta = [
           timeStr ? `<i class="bi bi-clock me-1"></i>${timeStr}` : "",
@@ -336,7 +336,7 @@
     if (endDate && endDate < evDate) { showModalError("End date cannot be before start date."); endDateInput.focus(); return; }
 
     saveBtn.disabled = true;
-    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Saving…';
+    saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Saving...';
 
     try {
       await createEvent({ title, event_date: evDate, end_date: endDate, start_time: startTime, end_time: endTime, description: desc, location, color });
