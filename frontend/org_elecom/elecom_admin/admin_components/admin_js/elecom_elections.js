@@ -36,7 +36,6 @@ document.addEventListener('DOMContentLoaded', function(){
   const listEl = document.getElementById('electionsList');
   const alertEl = document.getElementById('electionAlert');
   const form = document.getElementById('newElectionForm');
-  const refreshBtn = document.getElementById('refreshElectionsBtn');
   const createBtn = document.getElementById('createElectionBtn');
   const cancelEditBtn = document.getElementById('cancelEditElectionBtn');
   const editingElectionId = document.getElementById('editingElectionId');
@@ -96,6 +95,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const date = new Date(value);
     if (Number.isNaN(date.getTime())) return String(value);
     return date.toLocaleString([], {
+      timeZone: 'Asia/Manila',
       year: 'numeric',
       month: 'short',
       day: '2-digit',
@@ -105,15 +105,16 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function statusInfo(election) {
-    const raw = String(election.status || 'draft').toLowerCase();
-    if (election.is_active) return { className: 'active', label: 'Active' };
-    if (raw === 'upcoming') return { className: 'upcoming', label: 'Upcoming' };
-    if (raw === 'closed') return { className: 'closed', label: 'Closed' };
-    return { className: 'archived', label: 'Archived' };
+    // is_active identifies the current term, not whether voting is still open.
+    const raw = String(election.status || '').trim().toLowerCase();
+    const statuses = { active: 'Active', upcoming: 'Upcoming', closed: 'Closed', archived: 'Archived', draft: 'Draft' };
+    if (statuses[raw]) return { className: raw, label: statuses[raw] };
+    return election.is_active
+      ? { className: 'active', label: 'Active' }
+      : { className: 'archived', label: 'Archived' };
   }
 
   function setLoading(isLoading) {
-    if (refreshBtn) refreshBtn.disabled = !!isLoading;
     if (createBtn) createBtn.disabled = !!isLoading;
     if (cancelEditBtn) cancelEditBtn.disabled = !!isLoading;
   }
@@ -164,7 +165,6 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function rowHtml(election) {
-    const rawStatus = String(election.status || 'draft').toLowerCase();
     const primaryStatus = statusInfo(election);
     const candidateCount = Number(election.candidate_count || 0);
     const voteCount = Number(election.vote_count || 0);
@@ -179,19 +179,17 @@ document.addEventListener('DOMContentLoaded', function(){
           <div class="election-title">
             <h3>${escapeHtml(election.name || `Election #${election.id}`)}</h3>
             <span class="election-pill ${escapeHtml(primaryStatus.className)}">${escapeHtml(primaryStatus.label)}</span>
-            ${rawStatus !== primaryStatus.className && rawStatus !== 'draft' ? `<span class="election-pill ${escapeHtml(rawStatus)}">${escapeHtml(rawStatus)}</span>` : ''}
           </div>
           <div class="election-info-grid">
-            <span class="election-info"><i class="bi bi-calendar-week"></i>${escapeHtml(election.school_year || 'No school year')}</span>
-            <span class="election-info"><i class="bi bi-play-circle"></i>${escapeHtml(formatDateTime(election.start_at))}</span>
-            <span class="election-info"><i class="bi bi-stop-circle"></i>${escapeHtml(formatDateTime(election.end_at))}</span>
-            <span class="election-info"><i class="bi bi-flag"></i>${escapeHtml(formatDateTime(election.results_at))}</span>
+            <span class="election-info"><span class="election-info-label"><i class="bi bi-calendar-week" aria-hidden="true"></i>School Year</span>${escapeHtml(election.school_year || 'Not set')}</span>
+            <span class="election-info"><span class="election-info-label"><i class="bi bi-play-circle" aria-hidden="true"></i>Start Date</span>${escapeHtml(formatDateTime(election.start_at))}</span>
+            <span class="election-info"><span class="election-info-label"><i class="bi bi-stop-circle" aria-hidden="true"></i>End Date</span>${escapeHtml(formatDateTime(election.end_at))}</span>
+            <span class="election-info"><span class="election-info-label"><i class="bi bi-flag" aria-hidden="true"></i>Results Release Date</span>${escapeHtml(formatDateTime(election.results_at))}</span>
           </div>
           <div class="election-stats">
             <span class="election-stat"><i class="bi bi-people"></i> Candidates<strong>${candidateCount}</strong></span>
             <span class="election-stat"><i class="bi bi-check2-square"></i> Votes Cast<strong>${voteCount}</strong></span>
             <span class="election-stat"><i class="bi bi-percent"></i> Turnout<strong>${turnout}</strong></span>
-            <span class="election-stat"><i class="bi bi-activity"></i> Status<strong>${escapeHtml(primaryStatus.label)}</strong></span>
           </div>
         </div>
         <div class="election-actions">
@@ -231,7 +229,6 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
-  if (refreshBtn) refreshBtn.addEventListener('click', loadElections);
   if (cancelEditBtn) {
     cancelEditBtn.addEventListener('click', function(){
       form?.reset();

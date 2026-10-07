@@ -45,7 +45,6 @@
   margin: 6px 0 0;
 }
 
-.elections-hero .btn,
 .election-form .btn,
 .election-actions .btn {
   border-radius: 10px;
@@ -57,12 +56,6 @@
   transition: transform 0.16s ease, box-shadow 0.16s ease, background-color 0.16s ease, border-color 0.16s ease;
 }
 
-.elections-hero .btn {
-  min-width: 96px;
-  padding: 0 16px;
-}
-
-.elections-hero .btn:hover,
 .election-form .btn:hover,
 .election-actions .btn:hover {
   transform: translateY(-1px);
@@ -260,7 +253,7 @@
 
 .election-stats {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 8px;
   margin-top: 12px;
 }
@@ -352,3 +345,8 @@
     flex-direction: column;
   }
 }
+
+.election-info { color: #4a5568; overflow-wrap: anywhere; line-height: 1.5; }
+.election-info-label { display: block; color: #2d3748; font-size: .75rem; font-weight: 700; margin-bottom: 2px; }
+.election-confirmation { margin-top: 4px; padding-top: 14px; border-top: 1px solid #e5eaf2; }
+.election-confirmation .input-group { width: 100%; }
