@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261007-sidebar-persistence">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261007-calendar-overlay">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261007-turnout-area">
 </head>
 <body class="theme-elecom dashboard-page">
 
@@ -286,7 +286,10 @@
                                 </div>
                                 <div class="turnout-progress" role="progressbar" aria-label="Overall voter turnout" aria-valuemin="0" aria-valuemax="100" id="turnoutProgress"><div id="turnoutProgressFill"></div></div>
                                 <p class="chart-caption">Hourly ballots cast / Philippine time</p>
-                                <div id="turnoutChart" class="turnout-chart"><p class="overview-empty">Loading hourly turnout...</p></div>
+                                <div id="turnoutChart" class="turnout-chart">
+                                    <canvas id="turnoutCanvas" role="img" aria-label="Hourly turnout area chart. Withheld counts appear as gaps. Open View hourly totals for accessible data.">View hourly totals for a text alternative.</canvas>
+                                    <p id="turnoutChartEmpty" class="chart-empty-message">Loading hourly turnout...</p>
+                                </div>
                                 <button type="button" class="turnout-totals-button" data-bs-toggle="modal" data-bs-target="#turnoutTotalsModal">View hourly totals</button>
                                 <p id="turnoutChartStatus" class="chart-status" role="status" hidden></p>
                                 <p class="privacy-note"><i class="bi bi-shield-check" aria-hidden="true"></i> Completed hours only. Counts below five are withheld; gaps do not mean zero.</p>
@@ -539,7 +542,8 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261007-network-left"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261007-single-screen"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/vendor/chart.umd.min.js?v=4.5.1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261007-turnout-area"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261007-event-utf8"></script>
 </body>
 </html>

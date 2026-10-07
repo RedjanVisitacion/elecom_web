@@ -509,6 +509,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }).format(date);
   };
 
+  let turnoutChartInstance = null;
   const renderTurnout = (turnout, metrics) => {
     const total = Number(metrics.total_voters) || 0;
     const cast = Number(metrics.total_cast_votes) || 0;
@@ -520,61 +521,108 @@ document.addEventListener("DOMContentLoaded", function () {
     const fill = document.getElementById("turnoutProgressFill");
     if (fill) fill.style.width = `${percent}%`;
 
-    const chart = document.getElementById("turnoutChart");
+    const canvas = document.getElementById("turnoutCanvas");
+    const message = document.getElementById("turnoutChartEmpty");
     const table = document.getElementById("turnoutTableBody");
-    if (!chart || !table) return;
+    if (!canvas || !message || !table) return;
     table.replaceChildren();
     const hourly = Array.isArray(turnout?.hourly) ? turnout.hourly.slice(-24) : [];
-    if (!hourly.length) {
-      chart.textContent = "Hourly turnout is temporarily unavailable.";
-      return;
-    }
-    // Only coarse, numeric buckets enter the SVG. No ballot or voter fields are read.
+    // Keep withheld buckets as null: never connect or fill across privacy gaps.
     const values = hourly.map((item) => {
       if (item.withheld || item.count === null) return null;
       const count = Number(item.count);
       return Number.isInteger(count) && (count === 0 || count >= 5) ? count : null;
     });
-    const max = Math.ceil(Math.max(8, ...values.filter((value) => value !== null)) / 4) * 4;
-    const width = Math.max(180, chart.clientWidth);
-    const height = Math.max(70, chart.clientHeight);
-    const left = width < 300 ? 24 : 40;
-    const right = width - 24;
-    const bottom = height - 24;
-    const x = (i) => left + i * (right - left) / Math.max(1, hourly.length - 1);
-    const y = (value) => bottom - value / max * (bottom - 12);
-    const labelStep = width < 300 ? Math.max(1, hourly.length - 1) : Math.ceil(hourly.length / (width < 400 ? 3 : 5));
-    let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Hourly turnout for the last 24 completed hours. Withheld counts appear as gaps; open hourly totals for details.">`;
-    for (let tick = 0; tick <= 4; tick++) {
-      const value = max * tick / 4;
-      svg += `<line x1="${left}" x2="${right}" y1="${y(value)}" y2="${y(value)}" class="chart-grid"/><text x="${left - 8}" y="${y(value) + 4}" text-anchor="end">${Number(value.toFixed(1))}</text>`;
-    }
-    let path = "";
-    values.forEach((value, i) => {
-      if (value === null) { if (path) svg += `<path d="${path}" class="chart-line"/>`; path = ""; }
-      else { path += `${path ? " L" : "M"}${x(i)} ${y(value)}`; }
-    });
-    if (path) svg += `<path d="${path}" class="chart-line"/>`;
     hourly.forEach((item, i) => {
-      const value = values[i];
-      if (value !== null) svg += `<circle cx="${x(i)}" cy="${y(value)}" r="3" class="chart-point"/>`;
-      if (i % labelStep === 0 || i === hourly.length - 1) {
-        // Date formatting produces a fixed locale label rather than server-provided HTML.
-        svg += `<text x="${x(i)}" y="${height - 6}" text-anchor="middle">${turnoutDate(item.hour, false)}</text>`;
-      }
       const row = document.createElement("tr");
       const hour = document.createElement("th");
       hour.scope = "row"; hour.textContent = turnoutDate(item.hour);
       const count = document.createElement("td");
-      count.textContent = value === null ? "Withheld" : fmt(value);
+      count.textContent = values[i] === null ? "Withheld" : fmt(values[i]);
       row.append(hour, count); table.append(row);
     });
-    chart.innerHTML = svg + '</svg>';
+    if (!hourly.length || typeof window.Chart !== "function") {
+      turnoutChartInstance?.destroy();
+      turnoutChartInstance = null;
+      canvas.hidden = true;
+      message.hidden = false;
+      message.textContent = hourly.length
+        ? "Chart unavailable. Open View hourly totals to see the data."
+        : "Hourly turnout is temporarily unavailable.";
+      return;
+    }
+    canvas.hidden = false;
+    const hasPublishedVotes = values.some((value) => value !== null && value > 0);
+    message.hidden = hasPublishedVotes;
+    message.textContent = "Published hourly turnout will appear here as voting progresses.";
+    const labels = hourly.map((item) => turnoutDate(item.hour, false));
+    if (turnoutChartInstance) {
+      turnoutChartInstance.data.labels = labels;
+      turnoutChartInstance.data.datasets[0].data = values;
+      turnoutChartInstance.update("none");
+      return;
+    }
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    turnoutChartInstance = new window.Chart(canvas, {
+      type: "line",
+      data: {
+        labels,
+        datasets: [{
+          label: "Votes cast", data: values,
+          borderColor: "#0d1b3e", borderWidth: 2.5,
+          tension: 0.4, fill: "origin", spanGaps: false,
+          backgroundColor: ({ chart }) => {
+            const area = chart.chartArea;
+            if (!area) return "rgba(13, 27, 62, 0.05)";
+            const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+            gradient.addColorStop(0, "rgba(13, 27, 62, 0.20)");
+            gradient.addColorStop(1, "rgba(13, 27, 62, 0)");
+            return gradient;
+          },
+          pointRadius: (context) => context.raw > 0 ? 2.5 : 0,
+          pointBackgroundColor: "#fff", pointBorderColor: "#0d1b3e", pointBorderWidth: 2,
+          pointHoverRadius: 5, pointHoverBorderWidth: 2, pointHitRadius: 14,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false, resizeDelay: 50,
+        animation: reducedMotion ? false : { duration: 300 },
+        interaction: { mode: "index", intersect: false },
+        layout: { padding: { top: 12, right: 10, bottom: 4 } },
+        font: { family: "Inter, system-ui, sans-serif", size: 11 },
+        onResize: (chart, size) => {
+          chart.options.scales.x.ticks.maxTicksLimit = size.width < 300 ? 2 : size.width < 500 ? 4 : 6;
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: "#0d1b3e", titleColor: "#fff", bodyColor: "#fff",
+            padding: 12, cornerRadius: 10, displayColors: false, caretPadding: 8,
+            titleFont: { family: "Inter, system-ui, sans-serif", size: 11, weight: "600" },
+            bodyFont: { family: "Inter, system-ui, sans-serif", size: 12 },
+            filter: (item) => item.raw !== null,
+            callbacks: {
+              title: (items) => items.length ? items[0].label + " / Completed hour" : "",
+              label: (item) => `${item.label}: ${fmt(item.parsed.y)} votes cast`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            grid: { display: false }, border: { display: false },
+            ticks: { color: "#4a5568", font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
+          },
+          y: {
+            beginAtZero: true, min: 0, suggestedMax: 8,
+            grid: { color: "#e9edf4", drawTicks: false }, border: { display: false },
+            ticks: { color: "#4a5568", font: { size: 10 }, padding: 8, precision: 0, maxTicksLimit: 5 },
+          },
+        },
+      },
+    });
   };
 
   let dashboardLoading = false;
-  let lastTurnout = null;
-  let lastMetrics = null;
   const loadDashboard = async () => {
     if (dashboardLoading || document.hidden) return;
     dashboardLoading = true;
@@ -599,9 +647,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setElectionTexts(e);
       setElectionScheduleDetails(e);
       startCountdown({ start_at: e.start_at, end_at: e.end_at });
-      lastTurnout = data.turnout;
-      lastMetrics = m;
-      renderTurnout(lastTurnout, lastMetrics);
+      renderTurnout(data.turnout, m);
       const status = document.getElementById("turnoutChartStatus");
       if (status) status.hidden = true;
     } catch (e) {
@@ -621,19 +667,8 @@ document.addEventListener("DOMContentLoaded", function () {
     if (topNav) document.body.style.setProperty("--dashboard-header-height", `${topNav.getBoundingClientRect().height}px`);
   };
   syncHeaderHeight();
-  let chartResizeFrame = null;
-  if (typeof ResizeObserver !== "undefined") {
-    const observer = new ResizeObserver(() => {
-      syncHeaderHeight();
-      if (chartResizeFrame !== null) cancelAnimationFrame(chartResizeFrame);
-      chartResizeFrame = requestAnimationFrame(() => {
-        chartResizeFrame = null;
-        if (lastMetrics) renderTurnout(lastTurnout, lastMetrics);
-      });
-    });
-    if (topNav) observer.observe(topNav);
-    const chart = document.getElementById("turnoutChart");
-    if (chart) observer.observe(chart);
+  if (typeof ResizeObserver !== "undefined" && topNav) {
+    new ResizeObserver(syncHeaderHeight).observe(topNav);
   }
 
   void loadDashboard();
