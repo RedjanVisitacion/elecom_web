@@ -151,7 +151,7 @@
           ? `<span class="acal-dot" style="background:${dotColor};"></span>`
           : "";
 
-        html += `<td><span class="${classes}" data-key="${k}" data-day="${dayNum}">${dayNum}${dot}</span></td>`;
+        html += `<td><button type="button" class="${classes}" data-key="${k}" data-day="${dayNum}" aria-label="View events for ${k}" aria-pressed="${isSel}">${dayNum}${dot}</button></td>`;
         dayNum++;
       }
       html += '</tr>';
@@ -240,11 +240,21 @@
       });
     }
 
-    dayEventsWrap.style.display = "block";
+    const wasHidden = dayEventsWrap.hidden;
+    dayEventsWrap.hidden = false;
+    dayEventsWrap.classList.add("is-open");
+    const calendarBody = gridEl.closest(".card-body");
+    if (calendarBody) calendarBody.inert = true;
+    if (wasHidden) dayEventsClose?.focus({ preventScroll: true });
   };
 
   const hideDayEvents = () => {
-    if (dayEventsWrap) dayEventsWrap.style.display = "none";
+    if (dayEventsWrap) {
+      dayEventsWrap.hidden = true;
+      dayEventsWrap.classList.remove("is-open");
+      const calendarBody = gridEl.closest(".card-body");
+      if (calendarBody) calendarBody.inert = false;
+    }
   };
 
   const escHtml = (str) =>
@@ -401,10 +411,19 @@
   }
 
   if (dayEventsClose) {
-    dayEventsClose.addEventListener("click", () => {
+    const closeDayEvents = () => {
+      const key = selectedKey;
       selectedKey = null;
       hideDayEvents();
       renderGrid();
+      if (key) gridEl.querySelector(`[data-key="${key}"]`)?.focus({ preventScroll: true });
+    };
+    dayEventsClose.addEventListener("click", closeDayEvents);
+    dayEventsWrap?.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        closeDayEvents();
+      }
     });
   }
 

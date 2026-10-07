@@ -83,24 +83,6 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 .dashboard-page #vwInfo .text-muted { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px; padding: 3px 0; font-size: 11px !important; line-height: 1.4; }
 .dashboard-page #vwInfo .text-muted::before { display: none; }
 .dashboard-page #vwInfo span { color: var(--overview-ink); font-weight: 600; }
-.dashboard-page .compact-calendar { position: relative; }
-.dashboard-page .compact-calendar .card-body { height: 100%; padding: 10px 12px !important; overflow: hidden; }
-.dashboard-page .compact-calendar .mb-2 { margin-bottom: 4px !important; flex-shrink: 0; }
-.dashboard-page .compact-calendar #activitiesCalendarGrid { min-height: 0; font-size: 10px; overflow: hidden; }
-.dashboard-page #activitiesCalendarGrid table { height: 100%; }
-.dashboard-page #activitiesCalendarGrid th { color: var(--overview-slate); font-size: 10px; padding: 2px; }
-.dashboard-page #activitiesCalendarGrid th { white-space: nowrap; }
-.dashboard-page #activitiesCalendarGrid td { padding: 1px; }
-.dashboard-page .compact-calendar .acal-day { height: clamp(16px, 3vh, 28px); width: 26px; line-height: clamp(16px, 3vh, 28px); font-size: 10px; }
-.dashboard-page .compact-calendar #calDayEvents { position: absolute; inset: 62px 10px 10px; margin: 0 !important; padding: 10px; background: #fff; border: 1px solid #dce4ef; border-radius: 8px; box-shadow: 0 4px 14px #0d1b3e14; z-index: 2; overflow: hidden; }
-.dashboard-page .compact-calendar #calDayEventsList { max-height: calc(100% - 28px); overflow-y: auto; }
-.dashboard-page .compact-calendar .cal-event-chip-meta, .dashboard-page .compact-calendar .cal-event-del { color: var(--overview-slate); }
-/* Let each week share the available height rather than forcing fixed day cells. */
-.dashboard-page #activitiesCalendarGrid table { display: grid; grid-template-rows: 18px minmax(0, 1fr); min-height: 0; }
-.dashboard-page #activitiesCalendarGrid tbody { display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
-.dashboard-page #activitiesCalendarGrid tr { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 0; }
-.dashboard-page #activitiesCalendarGrid td { display: flex; align-items: center; justify-content: center; min-height: 0; }
-.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day { display: inline-flex; align-items: center; justify-content: center; height: 100%; max-height: 26px; line-height: 1; }
 /* Existing header rules, unchanged. */
 .dashboard-page #userMenuMount { margin-left: auto; }
 .dashboard-page .system-status-badge { font-size: 11px; padding: 5px 9px; }
@@ -156,3 +138,51 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
   .dashboard-page .compact-calendar .acal-day { height: 20px; line-height: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .turnout-progress > div { transition: none; } }
+
+/* A complete six-week month in a compact Activities panel. */
+.dashboard-page .dashboard-secondary .compact-calendar {
+  position: relative; isolation: isolate; height: 100%; max-height: 200px; align-self: start;
+}
+.dashboard-page .dashboard-secondary .compact-calendar .card-body {
+  display: grid !important; grid-template-rows: 24px 18px minmax(0, 1fr); gap: 2px;
+  height: 100%; min-height: 0; padding: 5px 10px !important; overflow: hidden;
+}
+.dashboard-page .compact-calendar .mb-2 { margin-bottom: 0 !important; min-height: 0; }
+.dashboard-page .compact-calendar #btnNewCalEvent { height: 24px; min-height: 0; padding: 2px 8px !important; line-height: 1; font-size: 11px !important; }
+.dashboard-page .compact-calendar #calMonthLabel { min-width: 0 !important; line-height: 18px; font-size: 12px; }
+.dashboard-page .compact-calendar #calPrevMonth,
+.dashboard-page .compact-calendar #calNextMonth { width: 20px; height: 18px; line-height: 18px; font-size: 12px; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid { min-height: 0; height: 100%; overflow: hidden; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid table { display: grid; grid-template-rows: 14px minmax(0, 1fr); height: 100%; min-height: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid tbody { display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid tr { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid th { padding: 0 4px; font-size: 10px; line-height: 14px; white-space: nowrap; color: var(--overview-slate); }
+.dashboard-page .compact-calendar #activitiesCalendarGrid td { display: flex; align-items: center; justify-content: center; padding: 2px 4px; min-height: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 24px; max-width: 100%; height: 100%; max-height: 24px; min-height: 0;
+  padding: 0; border: 0; background: transparent; font-size: 0.75rem; line-height: 1; color: inherit;
+}
+.dashboard-page .compact-calendar .acal-day:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 1px; }
+.dashboard-page .compact-calendar .acal-dot { width: 3px; height: 3px; bottom: 0; }
+.dashboard-page .compact-calendar #calDayEvents {
+  position: absolute; inset: 0; z-index: 10; background: white; padding: 12px; margin: 0 !important;
+  border-radius: inherit; min-height: 0; overflow: hidden; flex-direction: column;
+}
+.dashboard-page .compact-calendar #calDayEvents[hidden] { display: none; }
+.dashboard-page .compact-calendar #calDayEvents.is-open { display: flex; animation: calendar-event-enter .18s ease-out; }
+.dashboard-page .compact-calendar #calDayEvents > div:first-child { flex-shrink: 0; gap: 8px; }
+.dashboard-page .compact-calendar #calDayEventsLabel { font-size: 12px; line-height: 1.4; color: var(--overview-ink) !important; }
+.dashboard-page .compact-calendar #calDayEventsClose { flex-shrink: 0; width: 28px; height: 28px; }
+.dashboard-page .compact-calendar #calDayEventsList { flex: 1 1 0; min-height: 0; overflow-y: auto; }
+.dashboard-page .compact-calendar .cal-event-chip-meta,
+.dashboard-page .compact-calendar .cal-event-del { color: var(--overview-slate); }
+@keyframes calendar-event-enter { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@media (max-width: 600px) {
+  .dashboard-page .dashboard-secondary .compact-calendar .card-body { padding: 6px !important; }
+  .dashboard-page .compact-calendar #activitiesCalendarGrid td { padding: 2px 1px; }
+  .dashboard-page .compact-calendar #activitiesCalendarGrid th { padding: 0; font-size: 9px; }
+  .dashboard-page .compact-calendar #calMonthLabel { font-size: 11px; }
+  .dashboard-page .compact-calendar #calDayEvents { padding: 8px; }
+}
+@media (prefers-reduced-motion: reduce) { .dashboard-page .compact-calendar #calDayEvents.is-open { animation: none; } }
