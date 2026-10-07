@@ -16,9 +16,13 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261007-sidebar-persistence">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261007-private-turnout">
 </head>
-<body class="theme-elecom">
+<body class="theme-elecom dashboard-page">
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -31,7 +35,7 @@
                     <i class="bi bi-list" aria-hidden="true"></i>
                 </button>
                 <div class="logo-container">
-                    <img class="sidebar-logo" src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
+                    <img src="/static/assets/elecom.png" alt="ELECOM Logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
                     <img class="wordmark" src="/static/assets/img_text/elecom_white1.png" alt="Electoral Commission">
                 </div>
             </div>
@@ -176,20 +180,15 @@
         <!-- Content Area -->
         <div class="content-area">
             <!-- Election Countdown -->
-            <?php if ($vw && in_array($vw_status, ['Upcoming','Active'])): ?>
             <div class="mb-3">
-                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, #9b8cf2 0%, #ff9ec7 100%); color: #fff;">
+                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, rgba(29, 78, 216, 0.75) 0%, rgba(250, 204, 21, 0.75) 100%); color: #fff;">
                     <div class="card-body">
                         <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
                             <div>
                                 <div class="fw-semibold fs-5">USTP-OROQUIETA Election</div>
                                 <div class="opacity-75">General Election to legislative assembly</div>
                                 <div class="small mt-2">
-                                    <?php if ($vw_status === 'Upcoming'): ?>
-                                        Voting opens on <?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($vw['start_at']))); ?>
-                                    <?php else: ?>
-                                        Voting closes on <?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($vw['end_at']))); ?>
-                                    <?php endif; ?>
+                                    <span id="electionHelperText">Set the election schedule in Election Management.</span>
                                 </div>
                             </div>
                             <div class="d-flex align-items-center gap-3">
@@ -211,294 +210,333 @@
                                 </div>
                             </div>
                             <div>
-                                <a href="elecom_elections.html" class="btn btn-light text-primary fw-semibold">Manage</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <?php endif; ?>
-
-            <!-- KPIs Row -->
-            <div class="row g-3 mb-4">
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body d-flex align-items-center">
-                            <div class="me-3 text-primary">
-                                <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
-                            </div>
-                            <div>
-                                <div class="small text-muted">Total Candidates</div>
-                                <div class="h3 mb-0"><?php echo number_format($total_candidates); ?></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body d-flex align-items-center">
-                            <div class="me-3 text-success">
-                                <i class="bi bi-person-vcard-fill" style="font-size: 2rem;"></i>
-                            </div>
-                            <div>
-                                <div class="small text-muted">Total Voters</div>
-                                <div class="h3 mb-0"><?php echo number_format($total_voters); ?></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body d-flex align-items-center">
-                            <div class="me-3 text-danger">
-                                <i class="bi bi-check2-square" style="font-size: 2rem;"></i>
-                            </div>
-                            <div>
-                                <div class="small text-muted">Total Cast Votes</div>
-                                <div class="h3 mb-0"><?php echo number_format($total_cast_votes); ?></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12 col-sm-6 col-lg-3">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body d-flex align-items-center">
-                            <div class="me-3 text-secondary">
-                                <i class="bi bi-hourglass-split" style="font-size: 2rem;"></i>
-                            </div>
-                            <div>
-                                <div class="small text-muted">Total Not Voted</div>
-                                <div class="h3 mb-0"><?php echo number_format($total_not_voted); ?></div>
+                                <a href="/static/org_elecom/elecom_admin/elecom_elections.html" class="btn btn-light text-primary fw-semibold">Manage</a>
                             </div>
                         </div>
                     </div>
                 </div>
             </div>
 
-            <!-- Voting History and Election Date -->
-            <div class="row g-3">
-                <div class="col-12 col-lg-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
-                            <h5 class="mb-3">Recent Voting History</h5>
-                            <?php if (!empty($recentVotes)): ?>
-                                <div style="max-height: 340px; overflow: auto;" id="recentVotesScroll">
-                                <ul class="list-group list-group-flush">
-                                    <?php foreach ($recentVotes as $rv): ?>
-                                        <?php
-                                            $nm = trim(($rv['first_name'] ?? '').' '.($rv['middle_name'] ?? '').' '.($rv['last_name'] ?? ''));
-                                            $nm = $nm !== '' ? $nm : ($rv['sid'] ?? '');
-                                            $dt = '';
-                                            try {
-                                                if (!empty($rv['voted_at'])) {
-                                                    $d = new DateTime($rv['voted_at']);
-                                                    $d->modify('-1 hour');
-                                                    $dt = $d->format('M d, Y h:i A');
-                                                }
-                                            } catch (Throwable $e) {
-                                                $dt = isset($rv['voted_at']) ? date('M d, Y h:i A', strtotime($rv['voted_at'].' -1 hour')) : '';
-                                            }
-                                        ?>
-                                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                                            <div class="d-flex align-items-center gap-2">
-                                                <i class="bi bi-person-check text-success"></i>
-                                                <div>
-                                                    <div class="fw-semibold"><?php echo htmlspecialchars($nm); ?></div>
-                                                    <div class="small text-muted"><?php echo htmlspecialchars($rv['sid'] ?? ''); ?></div>
-                                                </div>
-                                            </div>
-                                            <div class="small text-muted"><?php echo htmlspecialchars($dt); ?></div>
-                                        </li>
-                                    <?php endforeach; ?>
-                                </ul>
+            <section class="dashboard-overview" aria-label="Election overview">
+                <div class="row g-3 dashboard-stats">
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card shadow-sm border-0 h-100">
+                                <div class="card-body d-flex align-items-center">
+                                    <div class="stat-icon me-3 text-primary">
+                                        <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
+                                    </div>
+                                    <div>
+                                        <div class="small text-muted">Total Candidates</div>
+                                        <div class="h3 mb-0" id="kpiCandidates">0</div>
+                                    </div>
                                 </div>
-                            <?php else: ?>
-                                <div class="text-muted">No votes have been cast yet.</div>
-                            <?php endif; ?>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card shadow-sm border-0 h-100 dashboard-action-card" id="totalVotersCard" role="button" tabindex="0" aria-label="Open voters management">
+                                <div class="card-body d-flex align-items-center">
+                                    <div class="stat-icon me-3 text-success">
+                                        <i class="bi bi-person-vcard-fill" style="font-size: 2rem;"></i>
+                                    </div>
+                                    <div>
+                                        <div class="small text-muted">Total Voters</div>
+                                        <div class="h3 mb-0" id="kpiVoters">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card shadow-sm border-0 h-100">
+                                <div class="card-body d-flex align-items-center">
+                                    <div class="stat-icon me-3 text-danger">
+                                        <i class="bi bi-check2-square" style="font-size: 2rem;"></i>
+                                    </div>
+                                    <div>
+                                        <div class="small text-muted">Total Cast Votes</div>
+                                        <div class="h3 mb-0" id="kpiCastVotes">0</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 col-sm-6 col-xl-3">
+                            <div class="card shadow-sm border-0 h-100">
+                                <div class="card-body d-flex align-items-center">
+                                    <div class="stat-icon me-3 text-secondary">
+                                        <i class="bi bi-hourglass-split" style="font-size: 2rem;"></i>
+                                    </div>
+                                    <div>
+                                        <div class="small text-muted">Total Not Voted</div>
+                                        <div class="h3 mb-0" id="kpiNotVoted">0</div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-12 col-lg-6">
-                    <div class="card shadow-sm border-0 h-100">
-                        <div class="card-body">
+                <div class="dashboard-grid">
+                    <div class="dashboard-primary">
+                        <section class="card turnout-card" aria-labelledby="turnoutTitle">
+                            <div class="card-body">
+                                <div class="overview-card-heading">
+                                    <div><span class="overview-eyebrow">PARTICIPATION</span><h2 id="turnoutTitle">Voter turnout</h2></div>
+                                    <span class="overview-tag">Last 24 completed hours</span>
+                                </div>
+                                <div class="turnout-summary">
+                                    <strong id="turnoutPercent">--</strong>
+                                    <div><span>of registered voters have voted</span><p id="turnoutSummary">Loading election totals...</p></div>
+                                </div>
+                                <div class="turnout-progress" role="progressbar" aria-label="Overall voter turnout" aria-valuemin="0" aria-valuemax="100" id="turnoutProgress"><div id="turnoutProgressFill"></div></div>
+                                <p class="chart-caption">Hourly ballots cast / Philippine time</p>
+                                <div id="turnoutChart" class="turnout-chart"><p class="overview-empty">Loading hourly turnout...</p></div>
+                                <details class="turnout-table"><summary>View hourly totals</summary><table><caption>Completed hourly turnout, Philippine time</caption><thead><tr><th scope="col">Hour</th><th scope="col">Votes</th></tr></thead><tbody id="turnoutTableBody"></tbody></table></details>
+                                <p class="privacy-note"><i class="bi bi-shield-check" aria-hidden="true"></i> Completed hours only. Counts below five are withheld; gaps do not mean zero.</p>
+                            </div>
+                        </section>
+                        <section class="card activity-card" aria-labelledby="activityTitle">
+                            <div class="card-body">
+                                <div class="overview-card-heading"><div><span class="overview-eyebrow">CAMPUS ACTIVITY</span><h2 id="activityTitle">Live Turnout Activity Stream</h2></div><span class="overview-tag"><span class="activity-dot"></span>Auto refresh</span></div>
+                                <p class="overview-meta">Grouped campus updates. No voter identities, ballot references, or individual vote times.</p>
+                                <p id="turnoutActivityEmpty" class="overview-empty">Loading turnout activity...</p>
+                                <ul id="turnoutActivityList" class="turnout-activity-list" aria-label="Grouped turnout activity"></ul>
+                                <p id="dashboardUpdateStatus" class="overview-meta" role="status">Waiting for the latest totals?</p>
+                            </div>
+                        </section>
+                    </div>
+                    <aside class="dashboard-secondary" aria-label="Election schedule and activities">
+                        <section class="card window-card" aria-labelledby="windowTitle"><div class="card-body">
+                            <span class="overview-eyebrow">ELECTION SCHEDULE</span><h2 id="windowTitle">Voting window</h2>
+                            <div id="vwInfo" class="small" style="display:none;"><div class="text-muted">Start: <span id="vwStartText"></span></div><div class="text-muted">End: <span id="vwEndText"></span></div><div class="text-muted">Status: <span id="vwStatusText"></span></div></div>
+                        </div></section>
+                        <section class="card compact-calendar" aria-label="Calendar of Activities">
+<div class="card-body d-flex flex-column">
+                            <!-- Header -->
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="d-flex align-items-center gap-2">
-                                    <i class="bi bi-calendar-event text-info" style="font-size: 1.5rem;"></i>
-                                    <div class="fw-semibold">Election Date</div>
+                                    <i class="bi bi-calendar3 text-info" style="font-size:1.4rem;"></i>
+                                    <div class="fw-semibold">Activities</div>
                                 </div>
-                                <span class="badge bg-<?php echo htmlspecialchars($vw_status_class); ?>"><?php echo htmlspecialchars($vw_status); ?></span>
+                                <button type="button" class="btn btn-sm btn-warning fw-semibold px-2" id="btnNewCalEvent" style="font-size:0.8rem;">
+                                    <i class="bi bi-plus-lg me-1"></i>New event
+                                </button>
                             </div>
-                            <?php if ($vw): ?>
-                                <div class="small text-muted">Start</div>
-                                <div class="mb-2"><?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($vw['start_at']))); ?></div>
-                                <div class="small text-muted">End</div>
-                                <div class="mb-2"><?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($vw['end_at']))); ?></div>
-                                <?php if (!empty($vw['results_at'])): ?>
-                                    <div class="small text-muted">Results</div>
-                                    <div class="mb-2"><?php echo htmlspecialchars(date('M d, Y h:i A', strtotime($vw['results_at']))); ?></div>
-                                <?php endif; ?>
-                                
-                            <?php else: ?>
-                                <div class="text-muted">No schedule set. Configure it in <a href="elecom_elections.html">Election Management</a>.</div>
-                            <?php endif; ?>
+
+                            <!-- Month navigation -->
+                            <div class="d-flex align-items-center justify-content-between mb-2">
+                                <button type="button" class="btn btn-sm btn-link text-warning p-0 fw-semibold" id="calPrevMonth" aria-label="Previous month">
+                                    <i class="bi bi-chevron-left"></i>
+                                </button>
+                                <div class="fw-semibold small" id="calMonthLabel" style="min-width:140px;text-align:center;"></div>
+                                <button type="button" class="btn btn-sm btn-link text-warning p-0 fw-semibold" id="calNextMonth" aria-label="Next month">
+                                    <i class="bi bi-chevron-right"></i>
+                                </button>
+                            </div>
+
+                            <!-- Calendar grid -->
+                            <div id="activitiesCalendarGrid" style="flex:1;"></div>
+
+                            <!-- Event list for selected day -->
+                            <div id="calDayEvents" class="mt-2" style="display:none;">
+                                <div class="d-flex align-items-center justify-content-between mb-1">
+                                    <small class="fw-semibold text-muted" id="calDayEventsLabel"></small>
+                                    <button type="button" class="btn btn-sm btn-link p-0 text-muted" id="calDayEventsClose" aria-label="Close">
+                                        <i class="bi bi-x-lg" style="font-size:0.75rem;"></i>
+                                    </button>
+                                </div>
+                                <div id="calDayEventsList"></div>
+                            </div>
+                        </div>
+                        </section>
+                    </aside>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <!-- New Event Modal -->
+    <div class="modal fade" id="calEventModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="bi bi-calendar-plus me-2 text-warning"></i>New event</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-danger d-none" id="calEventError"></div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="calEventType">
+                            Activity type <span class="text-danger">*</span>
+                        </label>
+                        <select class="form-select" id="calEventType">
+                            <option value="" disabled selected>ï¿½ Select activity ï¿½</option>
+                            <optgroup label="Election Calendar (Article VII)">
+                                <option value="Dissemination of Election Information">Dissemination of Election Information</option>
+                                <option value="Filing of Certificates of Candidacy">Filing of Certificates of Candidacy</option>
+                                <option value="Submission of Requirements">Submission of Requirements</option>
+                                <option value="Submission of Individual Platform">Submission of Individual Platform</option>
+                                <option value="Submission of Affidavit of Undertaking">Submission of Affidavit of Undertaking</option>
+                                <option value="Deliberation on Protests / Official List of Candidates">Deliberation on Protests / Official List of Candidates</option>
+                                <option value="Start of Official Campaign Period">Start of Official Campaign Period</option>
+                                <option value="Miting de Avance">Miting de Avance</option>
+                                <option value="Election Day (Voting)">Election Day (Voting)</option>
+                                <option value="Announcement of Winners">Announcement of Winners</option>
+                                <option value="Proclamation of Winning Candidates">Proclamation of Winning Candidates</option>
+                                <option value="Induction of Newly Elected Officers">Induction of Newly Elected Officers</option>
+                            </optgroup>
+                            <optgroup label="COMELEC Activities">
+                                <option value="COMELEC Meeting">COMELEC Meeting</option>
+                                <option value="COMELEC Orientation">COMELEC Orientation</option>
+                                <option value="Poll Clerk / Marshal Training">Poll Clerk / Marshal Training</option>
+                                <option value="Voters Education Drive">Voters Education Drive</option>
+                                <option value="Candidacy Protest Hearing">Candidacy Protest Hearing</option>
+                                <option value="Post-Election Protest Hearing">Post-Election Protest Hearing</option>
+                                <option value="Canvassing of Votes">Canvassing of Votes</option>
+                                <option value="Release of Official Results">Release of Official Results</option>
+                            </optgroup>
+                            <optgroup label="Other">
+                                <option value="__custom__">Other (type your ownï¿½)</option>
+                            </optgroup>
+                        </select>
+                    </div>
+                    <!-- Custom title ï¿½ shown only when "Other" is selected -->
+                    <div class="mb-3 d-none" id="calCustomTitleWrap">
+                        <label class="form-label fw-semibold" for="calEventTitle">
+                            Custom title <span class="text-danger">*</span>
+                        </label>
+                        <input type="text" class="form-control" id="calEventTitle" placeholder="Enter activity name" maxlength="255">
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="calEventDate">
+                                Start date <span class="text-danger">*</span>
+                            </label>
+                            <input type="date" class="form-control" id="calEventDate">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="calEventEndDate">End date <span class="text-muted fw-normal">(optional)</span></label>
+                            <input type="date" class="form-control" id="calEventEndDate">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="calEventStartTime">Start time <span class="text-muted fw-normal">(optional)</span></label>
+                            <input type="time" class="form-control" id="calEventStartTime" placeholder="e.g. 08:00">
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label fw-semibold" for="calEventEndTime">End time <span class="text-muted fw-normal">(optional)</span></label>
+                            <input type="time" class="form-control" id="calEventEndTime" placeholder="e.g. 17:00">
                         </div>
                     </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="calEventLocation">Location <span class="text-muted fw-normal">(optional)</span></label>
+                        <input type="text" class="form-control" id="calEventLocation" placeholder="e.g. COMELEC Office, Main Campus" maxlength="255">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="calEventDescription">Description <span class="text-muted fw-normal">(optional)</span></label>
+                        <textarea class="form-control" id="calEventDescription" rows="3" placeholder="Additional details about this activityï¿½"></textarea>
+                    </div>
+
+                    <div class="mb-1">
+                        <label class="form-label fw-semibold" for="calEventColor">Color</label>
+                        <div class="d-flex gap-2 flex-wrap" id="calColorPicker">
+                            <label class="cal-color-opt" style="--c:#1D4ED8;" title="Blue"><input type="radio" name="calColor" value="#1D4ED8" checked><span></span></label>
+                            <label class="cal-color-opt" style="--c:#16A34A;" title="Green"><input type="radio" name="calColor" value="#16A34A"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#DC2626;" title="Red"><input type="radio" name="calColor" value="#DC2626"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#D97706;" title="Amber"><input type="radio" name="calColor" value="#D97706"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#7C3AED;" title="Purple"><input type="radio" name="calColor" value="#7C3AED"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#0891B2;" title="Cyan"><input type="radio" name="calColor" value="#0891B2"><span></span></label>
+                            <label class="cal-color-opt" style="--c:#475569;" title="Slate"><input type="radio" name="calColor" value="#475569"><span></span></label>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-warning fw-semibold" id="btnSaveCalEvent">
+                        <i class="bi bi-check-lg me-1"></i>Save
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <style>
+    /* Color picker swatches */
+    .cal-color-opt { cursor:pointer; margin:0; }
+    .cal-color-opt input[type=radio] { display:none; }
+    .cal-color-opt span {
+        display:block; width:22px; height:22px; border-radius:50%;
+        background:var(--c); border:2px solid transparent;
+        transition:border-color .15s, transform .15s;
+    }
+    .cal-color-opt input[type=radio]:checked + span {
+        border-color:#000; transform:scale(1.2);
+    }
+    /* Activity calendar grid */
+    #activitiesCalendarGrid table { width:100%; table-layout:fixed; }
+    #activitiesCalendarGrid th {
+        text-align:center; font-size:11px; color:#6b7280;
+        font-weight:600; border:0; padding:2px 0;
+    }
+    #activitiesCalendarGrid td { border:0; padding:2px; text-align:center; }
+    .acal-day {
+        width:30px; height:30px; line-height:30px; font-size:12px;
+        border-radius:6px; display:inline-block; cursor:pointer;
+        transition:background .12s;
+        position:relative;
+    }
+    .acal-day:hover { background:#f1f5f9 !important; }
+    .acal-day.is-today { box-shadow:0 0 0 2px #1D4ED8; font-weight:700; }
+    .acal-day.is-selected { background:#1D4ED8 !important; color:#fff !important; }
+    .acal-dot {
+        position:absolute; bottom:2px; left:50%; transform:translateX(-50%);
+        width:5px; height:5px; border-radius:50%;
+    }
+    /* Day events list */
+    .cal-event-chip {
+        display:flex; align-items:flex-start; gap:8px;
+        background:#f8fafc; border-radius:7px;
+        padding:6px 10px; margin-bottom:5px; font-size:12px;
+    }
+    .cal-event-chip-dot {
+        width:8px; height:8px; border-radius:50%;
+        flex-shrink:0; margin-top:3px;
+    }
+    .cal-event-chip-body { flex:1; min-width:0; }
+    .cal-event-chip-title { font-weight:600; line-height:1.3; }
+    .cal-event-chip-meta { color:#6b7280; font-size:11px; }
+    .cal-event-del {
+        background:none; border:none; color:#9ca3af; cursor:pointer;
+        padding:0 2px; line-height:1; font-size:13px;
+    }
+    .cal-event-del:hover { color:#DC2626; }
+    </style>
+
+    <div class="modal fade" id="votersAccessModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Admin Password Required</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">Enter your admin password to open voters management.</p>
+                    <label class="form-label" for="votersAccessPassword">Password</label>
+                    <input type="password" class="form-control" id="votersAccessPassword" autocomplete="current-password">
+                    <div class="invalid-feedback d-block mt-2" id="votersAccessError" style="display:none!important;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-dark" id="votersAccessConfirmBtn">
+                        <i class="bi bi-shield-lock"></i> Continue
+                    </button>
                 </div>
             </div>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261007-sidebar-persistence"></script>
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            const menuToggle = document.getElementById('menuToggle');
-            const sidebar = document.getElementById('sidebar');
-            const sidebarOverlay = document.getElementById('sidebarOverlay');
-            const closeSidebar = document.getElementById('closeSidebar');
-
-            menuToggle.addEventListener('click', function() {
-                sidebar.classList.add('active');
-                sidebarOverlay.classList.add('active');
-            });
-
-            closeSidebar.addEventListener('click', function() {
-                sidebar.classList.remove('active');
-                sidebarOverlay.classList.remove('active');
-            });
-
-            sidebarOverlay.addEventListener('click', function() {
-                sidebar.classList.remove('active');
-                sidebarOverlay.classList.remove('active');
-            });
-
-            document.querySelectorAll('.sidebar .nav-link').forEach(link => {
-                link.addEventListener('click', function() {
-                    if (window.innerWidth <= 992) {
-                        sidebar.classList.remove('active');
-                        sidebarOverlay.classList.remove('active');
-                    }
-                });
-            });
-
-            window.addEventListener('resize', function() {
-                if (window.innerWidth > 992) {
-                    sidebar.classList.remove('active');
-                    sidebarOverlay.classList.remove('active');
-                }
-            });
-
-            // Candidate Search Logic
-            const input = document.getElementById('candidateSearch');
-            const btn = document.getElementById('candidateSearchBtn');
-            const results = document.getElementById('searchResults');
-            let debounceTimer = null;
-
-            function hideResults() {
-                results.style.display = 'none';
-                results.innerHTML = '';
-            }
-
-            function showResults(items) {
-                if (!items || items.length === 0) { hideResults(); return; }
-                const placeholder = 'https://via.placeholder.com/40x40?text=%20';
-                results.innerHTML = items.map(item => {
-                    const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(' ');
-                    const photo = item.photo_url && item.photo_url.startsWith('http') ? item.photo_url : placeholder;
-                    return `\n<a href="#" class="list-group-item list-group-item-action" data-id="${item.id}">\n  <div class="d-flex align-items-center gap-2">\n    <img src="${photo}" alt="" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">\n    <div class="flex-grow-1">\n      <div class="d-flex w-100 justify-content-between">\n        <strong>${name}</strong>\n        <small>${item.student_id || ''}</small>\n      </div>\n      <div class="small text-muted">${item.position || ''}${item.organization ? ' � ' + item.organization : ''}</div>\n    </div>\n  </div>\n</a>`;
-                }).join('');
-                results.style.display = 'block';
-            }
-
-            async function doSearch() {
-                const q = input.value.trim();
-                if (!q || q.length < 2) { hideResults(); return; }
-                try {
-                    const res = await fetch(`elecom_candidates_api.php?action=search&q=${encodeURIComponent(q)}`);
-                    const data = await res.json();
-                    showResults(data);
-                } catch (e) { hideResults(); }
-            }
-
-            input.addEventListener('input', () => {
-                clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(doSearch, 250);
-            });
-            btn.addEventListener('click', (e) => { e.preventDefault(); doSearch(); });
-
-            document.addEventListener('click', (e) => {
-                if (!results.contains(e.target) && e.target !== input) {
-                    hideResults();
-                }
-            });
-
-            results.addEventListener('click', async (e) => {
-                const link = e.target.closest('a[data-id]');
-                if (!link) return;
-                e.preventDefault();
-                const id = link.getAttribute('data-id');
-                hideResults();
-                try {
-                    const res = await fetch(`elecom_candidates_api.php?action=detail&id=${encodeURIComponent(id)}`);
-                    const d = await res.json();
-                    if (d && !d.error) {
-                        const name = [d.first_name, d.middle_name, d.last_name].filter(Boolean).join(' ');
-                        document.getElementById('cd_name').value = name;
-                        document.getElementById('cd_student_id').value = d.student_id || '';
-                        document.getElementById('cd_position').value = d.position || '';
-                        document.getElementById('cd_org').value = d.organization || '';
-                        document.getElementById('cd_program').value = d.program || '';
-                        document.getElementById('cd_year').value = d.year_section || '';
-                        document.getElementById('cd_platform').textContent = d.platform || '';
-                        const img = document.getElementById('cd_photo');
-                        if (d.photo_url && d.photo_url.startsWith('http')) {
-                            img.src = d.photo_url; img.style.display = 'block';
-                        } else { img.style.display = 'none'; }
-                        const modal = new bootstrap.Modal(document.getElementById('candidateModal'));
-                        modal.show();
-                    }
-                } catch (err) {
-                    // ignore
-                }
-            });
-
-            // Election Countdown timer
-            (function(){
-                const daysEl = document.getElementById('ec_days');
-                const hoursEl = document.getElementById('ec_hours');
-                const minsEl = document.getElementById('ec_mins');
-                const secsEl = document.getElementById('ec_secs');
-                if (!daysEl || !hoursEl || !minsEl || !secsEl) return;
-
-                const targetTs = 0;
-                if (!targetTs) return;
-
-                const pad = (n) => String(n).padStart(2,'0');
-                function tick(){
-                    const now = Date.now();
-                    let diff = Math.max(0, targetTs - now);
-                    const totalHours = Math.floor(Math.max(0, targetTs - now) / 3600000);
-                    const d = Math.floor(diff / 86400000);
-                    diff -= d * 86400000;
-                    const h = Math.floor(diff / 3600000);
-                    diff -= h * 3600000;
-                    const m = Math.floor(diff / 60000);
-                    diff -= m * 60000;
-                    const s = Math.floor(diff / 1000);
-                    daysEl.textContent = pad(d);
-                    hoursEl.textContent = String(totalHours);
-                    minsEl.textContent = pad(m);
-                    secsEl.textContent = pad(s);
-                    if (targetTs <= now) {
-                        clearInterval(timer);
-                        setTimeout(() => location.reload(), 1500);
-                    }
-                }
-
-                tick();
-                const timer = setInterval(tick, 1000);
-            })();
-        });
-    </script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261007-turnout-header"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261007-private-turnout"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261002-tz-fix"></script>
 </body>
 </html>

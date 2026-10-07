@@ -26,9 +26,6 @@ document.addEventListener("DOMContentLoaded", function () {
   const ecHours = document.getElementById("ec_hours");
   const ecMins = document.getElementById("ec_mins");
   const ecSecs = document.getElementById("ec_secs");
-  const recentVotesEmpty = document.getElementById("recentVotesEmpty");
-  const recentVotesScroll = document.getElementById("recentVotesScroll");
-  const recentVotesList = document.getElementById("recentVotesList");
   const totalVotersCard = document.getElementById("totalVotersCard");
   const votersAccessModalEl = document.getElementById("votersAccessModal");
   const votersAccessPassword = document.getElementById("votersAccessPassword");
@@ -218,7 +215,7 @@ document.addEventListener("DOMContentLoaded", function () {
       hour: "2-digit",
       minute: "2-digit",
     });
-    return `${datePart} — ${timePart}`;
+    return `${datePart} â€” ${timePart}`;
   };
 
   const dateOnlyKey = (d) => {
@@ -503,48 +500,110 @@ document.addEventListener("DOMContentLoaded", function () {
     return num.toLocaleString();
   };
 
-  const renderRecentVotes = (items) => {
-    if (!recentVotesList || !recentVotesScroll || !recentVotesEmpty) return;
-    const list = Array.isArray(items) ? items : [];
-
-    if (list.length === 0) {
-      recentVotesEmpty.style.display = "block";
-      recentVotesScroll.style.display = "none";
-      recentVotesList.innerHTML = "";
-      return;
-    }
-
-    recentVotesEmpty.style.display = "none";
-    recentVotesScroll.style.display = "block";
-    recentVotesList.innerHTML = list
-      .map((rv) => {
-        const name = rv.name || rv.student_id || "";
-        const sid = rv.student_id || "";
-        const dt = rv.voted_at ? new Date(rv.voted_at).toLocaleString() : "";
-        return `
-<li class="list-group-item d-flex justify-content-between align-items-center">
-  <div class="d-flex align-items-center gap-2">
-    <i class="bi bi-person-check text-success"></i>
-    <div>
-      <div class="fw-semibold">${name}</div>
-      <div class="small text-muted">${sid}</div>
-    </div>
-  </div>
-  <div class="small text-muted">${dt}</div>
-</li>`;
-      })
-      .join("");
+  const turnoutDate = (iso, includeDate = true) => {
+    const date = new Date(iso);
+    if (!Number.isFinite(date.getTime())) return "";
+    return new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila", ...(includeDate ? { month: "short", day: "numeric" } : {}),
+      hour: "numeric", minute: "2-digit", hour12: true,
+    }).format(date);
   };
 
+  const renderTurnout = (turnout, metrics) => {
+    const total = Number(metrics.total_voters) || 0;
+    const cast = Number(metrics.total_cast_votes) || 0;
+    const percent = total ? Math.min(100, Math.max(0, cast / total * 100)) : 0;
+    setText(document.getElementById("turnoutPercent"), `${percent.toFixed(1)}%`);
+    setText(document.getElementById("turnoutSummary"), `${fmt(cast)} ballots cast / ${fmt(total)} registered voters`);
+    const progress = document.getElementById("turnoutProgress");
+    progress?.setAttribute("aria-valuenow", percent.toFixed(1));
+    const fill = document.getElementById("turnoutProgressFill");
+    if (fill) fill.style.width = `${percent}%`;
+
+    const list = document.getElementById("turnoutActivityList");
+    const empty = document.getElementById("turnoutActivityEmpty");
+    const chart = document.getElementById("turnoutChart");
+    const table = document.getElementById("turnoutTableBody");
+    if (!list || !empty || !chart || !table) return;
+    list.replaceChildren();
+    table.replaceChildren();
+    const activity = Array.isArray(turnout?.activity) ? turnout.activity : [];
+    activity.forEach((item) => {
+      const count = Number(item.count);
+      const period = turnoutDate(item.period_start);
+      if (!Number.isInteger(count) || count < 5 || !period) return;
+      const row = document.createElement("li");
+      const icon = document.createElement("i");
+      icon.className = "bi bi-check2-circle activity-icon";
+      icon.setAttribute("aria-hidden", "true");
+      const text = document.createElement("div");
+      const title = document.createElement("strong");
+      title.textContent = `${fmt(count)} voters cast ballots across campus`;
+      const detail = document.createElement("span");
+      detail.textContent = `${period} - ${turnoutDate(new Date(new Date(item.period_start).getTime() + 3600000), false)} / Completed hour`;
+      text.append(title, detail);
+      row.append(icon, text);
+      list.append(row);
+    });
+    empty.hidden = list.childElementCount > 0;
+    empty.textContent = turnout
+      ? "No publishable activity yet. Completed hours with fewer than five votes are withheld."
+      : "Hourly turnout is temporarily unavailable. Election totals are shown above.";
+    const hourly = Array.isArray(turnout?.hourly) ? turnout.hourly.slice(-24) : [];
+    if (!hourly.length) {
+      chart.textContent = "Hourly turnout is temporarily unavailable.";
+      return;
+    }
+    // Only coarse, numeric buckets enter the SVG. No ballot or voter fields are read.
+    const values = hourly.map((item) => {
+      if (item.withheld || item.count === null) return null;
+      const count = Number(item.count);
+      return Number.isInteger(count) && (count === 0 || count >= 5) ? count : null;
+    });
+    const max = Math.ceil(Math.max(8, ...values.filter((value) => value !== null)) / 4) * 4;
+    const x = (i) => 45 + i * 675 / Math.max(1, hourly.length - 1);
+    const y = (value) => 200 - value / max * 160;
+    let svg = '<svg viewBox="0 0 760 250" role="img" aria-label="Hourly turnout for the last 24 completed hours. Withheld counts appear as gaps; view hourly totals below for details.">';
+    for (let tick = 0; tick <= 4; tick++) {
+      const value = max * tick / 4;
+      svg += `<line x1="45" x2="720" y1="${y(value)}" y2="${y(value)}" class="chart-grid"/><text x="35" y="${y(value) + 4}" text-anchor="end">${Number(value.toFixed(1))}</text>`;
+    }
+    let path = "";
+    values.forEach((value, i) => {
+      if (value === null) { if (path) svg += `<path d="${path}" class="chart-line"/>`; path = ""; }
+      else { path += `${path ? " L" : "M"}${x(i)} ${y(value)}`; }
+    });
+    if (path) svg += `<path d="${path}" class="chart-line"/>`;
+    hourly.forEach((item, i) => {
+      const value = values[i];
+      if (value !== null) svg += `<circle cx="${x(i)}" cy="${y(value)}" r="3" class="chart-point"/>`;
+      if (i % 5 === 0 || i === hourly.length - 1) {
+        // Date formatting produces a fixed locale label rather than server-provided HTML.
+        svg += `<text x="${x(i)}" y="230" text-anchor="middle">${turnoutDate(item.hour, false)}</text>`;
+      }
+      const row = document.createElement("tr");
+      const hour = document.createElement("th");
+      hour.scope = "row"; hour.textContent = turnoutDate(item.hour);
+      const count = document.createElement("td");
+      count.textContent = value === null ? "Withheld" : fmt(value);
+      row.append(hour, count); table.append(row);
+    });
+    chart.innerHTML = svg + '</svg>';
+  };
+
+  let dashboardLoading = false;
   const loadDashboard = async () => {
+    if (dashboardLoading || document.hidden) return;
+    dashboardLoading = true;
     try {
       const res = await fetch("/api/admin/dashboard/", {
         method: "GET",
         headers: { Accept: "application/json" },
         credentials: "same-origin",
+        cache: "no-store",
       });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok || !data.ok) return;
+      if (!res.ok || !data.ok) throw new Error("Dashboard unavailable");
 
       const m = data.metrics || {};
       setText(kpiCandidates, fmt(m.total_candidates));
@@ -557,13 +616,21 @@ document.addEventListener("DOMContentLoaded", function () {
       setElectionTexts(e);
       setElectionScheduleDetails(e);
       startCountdown({ start_at: e.start_at, end_at: e.end_at });
-      renderRecentVotes(data.recent_votes);
+      renderTurnout(data.turnout, m);
+      setText(document.getElementById("dashboardUpdateStatus"), data.turnout
+        ? `Updated ${turnoutDate(new Date(), false)} / Hourly data through ${turnoutDate(data.turnout.through)}`
+        : "Election totals updated. Hourly turnout is temporarily unavailable.");
     } catch (e) {
-      // ignore
+      setText(document.getElementById("dashboardUpdateStatus"), "Unable to refresh. Previously loaded data may be out of date; retrying automatically.");
+      setText(document.getElementById("turnoutActivityEmpty"), "Activity is unavailable while the dashboard reconnects.");
+    } finally {
+      dashboardLoading = false;
     }
   };
 
   void loadDashboard();
+  setInterval(loadDashboard, 15000);
+  document.addEventListener("visibilitychange", () => { if (!document.hidden) void loadDashboard(); });
 
   const input = document.getElementById("candidateSearch");
   const btn = document.getElementById("candidateSearchBtn");
@@ -603,7 +670,7 @@ document.addEventListener("DOMContentLoaded", function () {
       .map((item) => {
         const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(" ");
         const photo = item.photo_url && item.photo_url.startsWith("http") ? item.photo_url : placeholder;
-        return `\n<a href="#" class="list-group-item list-group-item-action" data-id="${item.id}">\n  <div class="d-flex align-items-center gap-2">\n    <img src="${photo}" alt="" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">\n    <div class="flex-grow-1">\n      <div class="d-flex w-100 justify-content-between">\n        <strong>${name}</strong>\n        <small>${item.student_id || ""}</small>\n      </div>\n      <div class="small text-muted">${item.position || ""}${item.organization ? " • " + item.organization : ""}</div>\n    </div>\n  </div>\n</a>`;
+        return `\n<a href="#" class="list-group-item list-group-item-action" data-id="${item.id}">\n  <div class="d-flex align-items-center gap-2">\n    <img src="${photo}" alt="" class="rounded-circle border" style="width:40px;height:40px;object-fit:cover;">\n    <div class="flex-grow-1">\n      <div class="d-flex w-100 justify-content-between">\n        <strong>${name}</strong>\n        <small>${item.student_id || ""}</small>\n      </div>\n      <div class="small text-muted">${item.position || ""}${item.organization ? " â€¢ " + item.organization : ""}</div>\n    </div>\n  </div>\n</a>`;
       })
       .join("");
 

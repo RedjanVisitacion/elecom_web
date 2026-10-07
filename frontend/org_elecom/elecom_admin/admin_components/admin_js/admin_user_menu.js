@@ -761,6 +761,9 @@
       bells.forEach((el) => {
         if (!mount.contains(el)) el.remove();
       });
+      if (document.body.classList.contains("dashboard-page") && networkBadge) {
+        mount.querySelector(".top-navbar-actions")?.prepend(networkBadge);
+      }
     }
 
     let netRefreshTimer = null;

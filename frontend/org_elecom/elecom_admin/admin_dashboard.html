@@ -20,8 +20,9 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261007-sidebar-persistence">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261007-private-turnout">
 </head>
-<body class="theme-elecom">
+<body class="theme-elecom dashboard-page">
 
     <!-- Sidebar Overlay for Mobile -->
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -216,15 +217,12 @@
                 </div>
             </div>
 
-            <!-- Two Column Layout (50/50 on lg+) -->
-            <div class="row g-3 align-items-stretch">
-                <!-- Left Column: KPIs (2x2) -->
-                <div class="col-12 col-lg-6 d-flex flex-column">
-                    <div class="row g-3">
-                        <div class="col-12 col-sm-6">
+            <section class="dashboard-overview" aria-label="Election overview">
+                <div class="row g-3 dashboard-stats">
+                        <div class="col-12 col-sm-6 col-xl-3">
                             <div class="card shadow-sm border-0 h-100">
                                 <div class="card-body d-flex align-items-center">
-                                    <div class="me-3 text-primary">
+                                    <div class="stat-icon me-3 text-primary">
                                         <i class="bi bi-people-fill" style="font-size: 2rem;"></i>
                                     </div>
                                     <div>
@@ -234,10 +232,10 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 col-sm-6">
+                        <div class="col-12 col-sm-6 col-xl-3">
                             <div class="card shadow-sm border-0 h-100 dashboard-action-card" id="totalVotersCard" role="button" tabindex="0" aria-label="Open voters management">
                                 <div class="card-body d-flex align-items-center">
-                                    <div class="me-3 text-success">
+                                    <div class="stat-icon me-3 text-success">
                                         <i class="bi bi-person-vcard-fill" style="font-size: 2rem;"></i>
                                     </div>
                                     <div>
@@ -247,10 +245,10 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 col-sm-6">
+                        <div class="col-12 col-sm-6 col-xl-3">
                             <div class="card shadow-sm border-0 h-100">
                                 <div class="card-body d-flex align-items-center">
-                                    <div class="me-3 text-danger">
+                                    <div class="stat-icon me-3 text-danger">
                                         <i class="bi bi-check2-square" style="font-size: 2rem;"></i>
                                     </div>
                                     <div>
@@ -260,10 +258,10 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col-12 col-sm-6">
+                        <div class="col-12 col-sm-6 col-xl-3">
                             <div class="card shadow-sm border-0 h-100">
                                 <div class="card-body d-flex align-items-center">
-                                    <div class="me-3 text-secondary">
+                                    <div class="stat-icon me-3 text-secondary">
                                         <i class="bi bi-hourglass-split" style="font-size: 2rem;"></i>
                                     </div>
                                     <div>
@@ -274,47 +272,49 @@
                             </div>
                         </div>
                     </div>
-
-                    <div class="row g-3 mt-3 flex-grow-1">
-                        <div class="col-12 col-md-6">
-                            <div class="card shadow-sm border-0" style="max-height:320px;">
-                                <div class="card-body d-flex flex-column" style="overflow:hidden;">
-                                    <h5 class="mb-3 flex-shrink-0">Recent Voting History</h5>
-                                    <div class="text-muted" id="recentVotesEmpty">No votes have been cast yet.</div>
-                                    <div style="overflow-y: auto; flex: 1; display:none;" id="recentVotesScroll">
-                                        <ul class="list-group list-group-flush" id="recentVotesList"></ul>
-                                    </div>
+                <div class="dashboard-grid">
+                    <div class="dashboard-primary">
+                        <section class="card turnout-card" aria-labelledby="turnoutTitle">
+                            <div class="card-body">
+                                <div class="overview-card-heading">
+                                    <div><span class="overview-eyebrow">PARTICIPATION</span><h2 id="turnoutTitle">Voter turnout</h2></div>
+                                    <span class="overview-tag">Last 24 completed hours</span>
                                 </div>
-                            </div>
-                        </div>
-                        <div class="col-12 col-md-6">
-                            <div class="card shadow-sm border-0 h-100">
-                                <div class="card-body">
-                                    <div class="d-flex align-items-center justify-content-between mb-2">
-                                        <h5 class="mb-0">Voting Window</h5>
-                                    </div>
-                                    <div class="small" id="vwInfo" style="display:none;">
-                                        <div class="text-muted">Start: <span id="vwStartText"></span></div>
-                                        <div class="text-muted">End: <span id="vwEndText"></span></div>
-                                        <div class="text-muted">Status: <span id="vwStatusText"></span></div>
-                                    </div>
+                                <div class="turnout-summary">
+                                    <strong id="turnoutPercent">--</strong>
+                                    <div><span>of registered voters have voted</span><p id="turnoutSummary">Loading election totals...</p></div>
                                 </div>
+                                <div class="turnout-progress" role="progressbar" aria-label="Overall voter turnout" aria-valuemin="0" aria-valuemax="100" id="turnoutProgress"><div id="turnoutProgressFill"></div></div>
+                                <p class="chart-caption">Hourly ballots cast / Philippine time</p>
+                                <div id="turnoutChart" class="turnout-chart"><p class="overview-empty">Loading hourly turnout...</p></div>
+                                <details class="turnout-table"><summary>View hourly totals</summary><table><caption>Completed hourly turnout, Philippine time</caption><thead><tr><th scope="col">Hour</th><th scope="col">Votes</th></tr></thead><tbody id="turnoutTableBody"></tbody></table></details>
+                                <p class="privacy-note"><i class="bi bi-shield-check" aria-hidden="true"></i> Completed hours only. Counts below five are withheld; gaps do not mean zero.</p>
                             </div>
-                        </div>
+                        </section>
+                        <section class="card activity-card" aria-labelledby="activityTitle">
+                            <div class="card-body">
+                                <div class="overview-card-heading"><div><span class="overview-eyebrow">CAMPUS ACTIVITY</span><h2 id="activityTitle">Live Turnout Activity Stream</h2></div><span class="overview-tag"><span class="activity-dot"></span>Auto refresh</span></div>
+                                <p class="overview-meta">Grouped campus updates. No voter identities, ballot references, or individual vote times.</p>
+                                <p id="turnoutActivityEmpty" class="overview-empty">Loading turnout activity...</p>
+                                <ul id="turnoutActivityList" class="turnout-activity-list" aria-label="Grouped turnout activity"></ul>
+                                <p id="dashboardUpdateStatus" class="overview-meta" role="status">Waiting for the latest totals?</p>
+                            </div>
+                        </section>
                     </div>
-                </div>
-
-                <!-- Right Column: COMELEC Activities Calendar -->
-                <div class="col-12 col-lg-6 d-flex flex-column">
-                    <div class="card shadow-sm border-0 flex-grow-1">
-                        <div class="card-body d-flex flex-column" style="min-height:380px;">
+                    <aside class="dashboard-secondary" aria-label="Election schedule and activities">
+                        <section class="card window-card" aria-labelledby="windowTitle"><div class="card-body">
+                            <span class="overview-eyebrow">ELECTION SCHEDULE</span><h2 id="windowTitle">Voting window</h2>
+                            <div id="vwInfo" class="small" style="display:none;"><div class="text-muted">Start: <span id="vwStartText"></span></div><div class="text-muted">End: <span id="vwEndText"></span></div><div class="text-muted">Status: <span id="vwStatusText"></span></div></div>
+                        </div></section>
+                        <section class="card compact-calendar" aria-label="Calendar of Activities">
+<div class="card-body d-flex flex-column">
                             <!-- Header -->
                             <div class="d-flex align-items-center justify-content-between mb-2">
                                 <div class="d-flex align-items-center gap-2">
                                     <i class="bi bi-calendar3 text-info" style="font-size:1.4rem;"></i>
-                                    <div class="fw-semibold">Calendar of Activities</div>
+                                    <div class="fw-semibold">Activities</div>
                                 </div>
-                                <button type="button" class="btn btn-sm btn-warning fw-semibold px-3" id="btnNewCalEvent" style="font-size:0.8rem;">
+                                <button type="button" class="btn btn-sm btn-warning fw-semibold px-2" id="btnNewCalEvent" style="font-size:0.8rem;">
                                     <i class="bi bi-plus-lg me-1"></i>New event
                                 </button>
                             </div>
@@ -344,9 +344,10 @@
                                 <div id="calDayEventsList"></div>
                             </div>
                         </div>
-                    </div>
+                        </section>
+                    </aside>
                 </div>
-            </div>
+            </section>
         </div>
     </div>
 
@@ -366,7 +367,7 @@
                             Activity type <span class="text-danger">*</span>
                         </label>
                         <select class="form-select" id="calEventType">
-                            <option value="" disabled selected>� Select activity �</option>
+                            <option value="" disabled selected>ï¿½ Select activity ï¿½</option>
                             <optgroup label="Election Calendar (Article VII)">
                                 <option value="Dissemination of Election Information">Dissemination of Election Information</option>
                                 <option value="Filing of Certificates of Candidacy">Filing of Certificates of Candidacy</option>
@@ -392,11 +393,11 @@
                                 <option value="Release of Official Results">Release of Official Results</option>
                             </optgroup>
                             <optgroup label="Other">
-                                <option value="__custom__">Other (type your own�)</option>
+                                <option value="__custom__">Other (type your ownï¿½)</option>
                             </optgroup>
                         </select>
                     </div>
-                    <!-- Custom title � shown only when "Other" is selected -->
+                    <!-- Custom title ï¿½ shown only when "Other" is selected -->
                     <div class="mb-3 d-none" id="calCustomTitleWrap">
                         <label class="form-label fw-semibold" for="calEventTitle">
                             Custom title <span class="text-danger">*</span>
@@ -432,7 +433,7 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="calEventDescription">Description <span class="text-muted fw-normal">(optional)</span></label>
-                        <textarea class="form-control" id="calEventDescription" rows="3" placeholder="Additional details about this activity�"></textarea>
+                        <textarea class="form-control" id="calEventDescription" rows="3" placeholder="Additional details about this activityï¿½"></textarea>
                     </div>
 
                     <div class="mb-1">
@@ -534,8 +535,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261007-sidebar-persistence"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261002-activities-cal"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261007-turnout-header"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261007-private-turnout"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261002-tz-fix"></script>
 </body>
 </html>

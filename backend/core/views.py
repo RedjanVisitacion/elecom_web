@@ -43,7 +43,8 @@ from elecom_voting.models import (
     MobileTutorialState,
 )
 
-from .names import full_name as format_full_name, identity_row, normalize_middle_name
+from .names import identity_row, normalize_middle_name
+from .dashboard_turnout import load_dashboard_turnout
 
 from . import facepp_service
 from . import local_face_service
@@ -1932,8 +1933,6 @@ def admin_dashboard_api(request):
         vote_count_params,
         default=0,
     )
-    if not total_cast_votes:
-        total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM vote_items", default=0)
     total_not_voted = max(0, int(total_voters) - int(total_cast_votes))
 
     election = {
@@ -1970,39 +1969,14 @@ def admin_dashboard_api(request):
     except Exception:
         pass
 
-    recent_votes = []
+    turnout = None
     try:
-        recent_where = ""
-        recent_params: list[int] = []
-        recent_filter, recent_params = _current_vote_filter("v")
-        recent_where = f"WHERE {recent_filter}"
-        with connection.cursor() as cur:
-            cur.execute(
-                f"""
-                SELECT v.student_id AS sid, v.created_at AS voted_at,
-                       s.first_name, s.middle_name, s.last_name
-                FROM votes v
-                LEFT JOIN student s ON s.id_number::text = v.student_id::text
-                {recent_where}
-                ORDER BY v.created_at DESC
-                LIMIT 10
-                """,
-                recent_params,
-            )
-            rows = cur.fetchall()
-        for sid, voted_at, first_name, middle_name, last_name in rows:
-            full_name = format_full_name(first_name, middle_name, last_name)
-            recent_votes.append(
-                {
-                    "student_id": str(sid) if sid is not None else "",
-                    "name": full_name or (str(sid) if sid is not None else ""),
-                    "voted_at": voted_at.isoformat() if voted_at else None,
-                }
-            )
+        turnout_filter, turnout_params = _current_vote_filter("v")
+        turnout = load_dashboard_turnout(connection, turnout_filter, turnout_params, timezone.now())
     except Exception:
-        recent_votes = []
+        logger.exception("Failed to load aggregate dashboard turnout")
 
-    return JsonResponse(
+    response = JsonResponse(
         {
             "ok": True,
             "metrics": {
@@ -2012,9 +1986,12 @@ def admin_dashboard_api(request):
                 "total_not_voted": int(total_not_voted),
             },
             "election": election,
-            "recent_votes": recent_votes,
+            "turnout": turnout,
         }
     )
+
+    response["Cache-Control"] = "no-store"
+    return response
 
 
 @require_http_methods(["GET"])
