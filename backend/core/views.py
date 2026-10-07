@@ -28,6 +28,7 @@ from django.db import connection, transaction
 from django.middleware.csrf import get_token
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.cache import never_cache
 
 from django.conf import settings
 from django.apps import apps
@@ -8987,6 +8988,38 @@ def admin_voters_update_api(request):
         return JsonResponse({"ok": False, "error": "Failed to update voter."}, status=500)
 
 
+def _admin_results_release_gate(election_id):
+    """Fail closed before querying any tallies; use the mobile results schedule."""
+    now = timezone.now()
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                "SELECT id, start_at, end_at, results_at FROM vote_windows WHERE id = %s LIMIT 1",
+                [election_id],
+            )
+            row = cur.fetchone()
+        if not row:
+            message = "No election results are available."
+            results_at = None
+        else:
+            _, end_at, results_at = _vote_window_times_aware(*row[1:])
+            if results_at and end_at and now > end_at and now >= results_at:
+                return None
+            message = "Results will be available after voting closes and the scheduled result time is reached."
+            if not results_at:
+                message = "Results are not yet scheduled."
+        response = JsonResponse({
+            "ok": True, "published": False, "election_id": election_id,
+            "results_at": results_at.isoformat() if results_at else None,
+            "server_now": now.isoformat(), "message": message,
+        })
+    except Exception:
+        response = JsonResponse({"ok": False, "error": "Unable to verify result availability."}, status=503)
+    response["Cache-Control"] = "no-store, private"
+    return response
+
+
+@never_cache
 @require_http_methods(["GET"])
 def admin_results_api(request):
     forbidden = _require_admin(request)
@@ -8995,12 +9028,18 @@ def admin_results_api(request):
 
     _ensure_votes_tables()
     requested_election_id = _parse_election_id_from_request(request, {"election_id": request.GET.get("election_id")})
+    requested_election_id = requested_election_id or _active_election_id()
+    locked = _admin_results_release_gate(requested_election_id)
+    if locked is not None:
+        return locked
     election_where, election_params = _current_election_filter("c", requested_election_id)
     vote_filter, vote_params = _current_vote_filter("v", requested_election_id)
     vote_where = f"WHERE {vote_filter}"
 
     try:
         with connection.cursor() as cur:
+            cur.execute(f"SELECT COUNT(*) FROM votes v {vote_where}", vote_params)
+            total_votes_cast = int(cur.fetchone()[0] or 0)
             cur.execute(
                 f"""
                 SELECT c.id,
@@ -9038,7 +9077,7 @@ def admin_results_api(request):
 
     if not candidates:
         return JsonResponse(
-            {"ok": True, "org_totals": {}, "position_totals": {}, "grouped": []}
+            {"ok": True, "published": True, "total_votes_cast": total_votes_cast, "org_totals": {}, "position_totals": {}, "grouped": []}
         )
 
     usg_order = [
@@ -9170,6 +9209,8 @@ def admin_results_api(request):
     return JsonResponse(
         {
             "ok": True,
+            "published": True,
+            "total_votes_cast": total_votes_cast,
             "org_totals": org_totals,
             "position_totals": position_totals,
             "grouped": grouped_out,
@@ -10255,6 +10296,7 @@ def admin_elections_api(request):
         return JsonResponse({"ok": False, "error": message}, status=500)
 
 
+@never_cache
 @require_http_methods(["GET"])
 def admin_reports_summary_api(request):
     forbidden = _require_admin(request)
@@ -10270,6 +10312,19 @@ def admin_reports_summary_api(request):
         request,
         {"election_id": request.GET.get("election_id")},
     )
+    if all_elections:
+        try:
+            with connection.cursor() as cur:
+                cur.execute("SELECT id FROM vote_windows")
+                report_election_ids = [row[0] for row in cur.fetchall()]
+        except Exception:
+            return JsonResponse({"ok": False, "error": "Unable to verify result availability."}, status=503)
+    else:
+        report_election_ids = [requested_election_id or _active_election_id()]
+    for report_election_id in report_election_ids:
+        locked = _admin_results_release_gate(report_election_id)
+        if locked is not None:
+            return JsonResponse({"ok": False, "error": "Result reports are unavailable until all selected elections reach their scheduled result time."}, status=403)
     if all_elections:
         vote_filter, vote_filter_params = "1=1", []
     else:

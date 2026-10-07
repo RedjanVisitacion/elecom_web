@@ -22,7 +22,6 @@ document.addEventListener('DOMContentLoaded', function(){
 
   const resultsEmpty = document.getElementById('resultsEmpty');
   const resultsContainer = document.getElementById('resultsContainer');
-  const positionSummary = document.getElementById('positionSummary');
   const analyticsGrid = document.getElementById('analyticsGrid');
   const orgFilterTabs = document.getElementById('orgFilterTabs');
   const orgLegendGrid = document.getElementById('orgLegendGrid');
@@ -66,7 +65,6 @@ document.addEventListener('DOMContentLoaded', function(){
   let normalizedOrgs = [];
   const collapsedOrgs = new Set();
   let orgPieChart = null;
-  let posBarChart = null;
 
   function collapseAllOrgsByDefault() {
     collapsedOrgs.clear();
@@ -148,24 +146,6 @@ document.addEventListener('DOMContentLoaded', function(){
     return normalized;
   }
 
-  function shortPositionName(position) {
-    const normalized = normalizePosition(position).toUpperCase();
-    const labels = {
-      PRESIDENT: 'President',
-      'VICE PRESIDENT': 'Vice Pres.',
-      'GENERAL SECRETARY': 'Gen. Sec.',
-      'ASSOCIATE SECRETARY': 'Assoc. Sec.',
-      TREASURER: 'Treasurer',
-      AUDITOR: 'Auditor',
-      'PUBLIC INFORMATION OFFICER': 'PIO',
-      PIO: 'PIO',
-      'IT REPRESENTATIVE': 'IT Rep.',
-      'BSIT REPRESENTATIVE': 'BSIT Rep.',
-      'BTLED REPRESENTATIVE': 'BTLED Rep.',
-      'BFPT REPRESENTATIVE': 'BFPT Rep.',
-    };
-    return labels[normalized] || normalizePosition(position);
-  }
 
   function orgLogoUrl(org) {
     const normalized = normalizeOrg(org);
@@ -252,15 +232,15 @@ document.addEventListener('DOMContentLoaded', function(){
     }
 
     const orgCanvas = document.getElementById('orgPie');
-    if (orgCanvas) {
+    if (orgCanvas && typeof Chart !== 'undefined') {
       if (orgPieChart) orgPieChart.destroy();
       orgPieChart = new Chart(orgCanvas, {
         type: 'doughnut',
         data: {
-          labels: orgLabels,
+          labels: totalVotes ? orgLabels : ['No votes yet'],
           datasets: [{
-            data: orgValues.length ? orgValues : [1],
-            backgroundColor: orgLabels.length ? orgLabels.map(label => ORG_COLORS[label] || '#6b7280') : ['#d1d5db'],
+            data: totalVotes ? orgValues : [1],
+            backgroundColor: totalVotes ? orgLabels.map(label => ORG_COLORS[label] || '#6b7280') : ['#d1d5db'],
             borderWidth: 0,
             cutout: '72%',
           }],
@@ -273,166 +253,37 @@ document.addEventListener('DOMContentLoaded', function(){
       });
     }
 
-    const positionTotals = new Map();
-    orgs.forEach(org => {
-      org.positions.forEach(pos => {
-        positionTotals.set(pos.position, (positionTotals.get(pos.position) || 0) + pos.total_votes);
-      });
-    });
-
-    const positions = Array.from(positionTotals.entries())
-      .sort((a, b) => {
-        const ka = positionSortKey('USG', a[0]);
-        const kb = positionSortKey('USG', b[0]);
-        if (ka[0] !== kb[0]) return ka[0] - kb[0];
-        return ka[1].localeCompare(kb[1]);
-      });
-
-    const posCanvas = document.getElementById('posBar');
-    if (posCanvas) {
-      if (posBarChart) posBarChart.destroy();
-      posBarChart = new Chart(posCanvas, {
-        type: 'bar',
-        data: {
-          labels: positions.map(([name]) => shortPositionName(name)),
-          datasets: [{
-            label: 'Votes',
-            data: positions.map(([, value]) => value),
-            backgroundColor: '#111827',
-            borderColor: '#111827',
-            borderWidth: 1,
-            borderRadius: 2,
-          }],
-        },
-        options: {
-          responsive: true,
-          maintainAspectRatio: false,
-          scales: {
-            x: {
-              grid: { color: 'rgba(17,24,39,0.08)' },
-              ticks: { color: '#4b5563', maxRotation: 45, autoSkip: false },
-            },
-            y: {
-              beginAtZero: true,
-              precision: 0,
-              grid: { color: 'rgba(17,24,39,0.10)' },
-              ticks: { color: '#4b5563' },
-            },
-          },
-          plugins: {
-            legend: { display: false },
-            tooltip: {
-              backgroundColor: '#030712',
-              borderColor: '#22c55e',
-              borderWidth: 1,
-              titleColor: '#f9fafb',
-              bodyColor: '#d1d5db',
-              callbacks: {
-                title: (items) => positions[items[0]?.dataIndex]?.[0] || '',
-              },
-            },
-          },
-        },
-      });
-    }
   }
 
-  function renderAnalytics(orgs) {
+  function renderAnalytics(orgs, ballotsCast) {
     if (!analyticsGrid) return;
-    const allPositions = orgs.flatMap(org => org.positions.map(pos => ({ ...pos, org: org.organization })));
-    const totalVotes = orgs.reduce((sum, org) => sum + org.total_votes, 0);
-    const most = allPositions.slice().sort((a, b) => b.total_votes - a.total_votes)[0];
-    const least = allPositions.slice().sort((a, b) => a.total_votes - b.total_votes)[0];
-    const skipped = allPositions.filter(pos => Number(pos.total_votes || 0) === 0).length;
-    const totalCandidates = allPositions.reduce((sum, pos) => sum + pos.candidates.length, 0);
-    const avgVotes = allPositions.length ? totalVotes / allPositions.length : 0;
-
-    analyticsGrid.innerHTML = `
-      <div class="analytics-card">
-        <div class="analytics-icon"><i class="bi bi-people-fill"></i></div>
-        <div>
-          <div class="analytics-label">Total Vote Marks</div>
-          <div class="analytics-value">${totalVotes.toLocaleString()}</div>
-        </div>
-      </div>
-      <div class="analytics-card">
-        <div class="analytics-icon"><i class="bi bi-person-badge"></i></div>
-        <div>
-          <div class="analytics-label">Candidates</div>
-          <div class="analytics-value">${totalCandidates.toLocaleString()}</div>
-        </div>
-      </div>
-      <div class="analytics-card">
-        <div class="analytics-icon"><i class="bi bi-check2-square"></i></div>
-        <div>
-          <div class="analytics-label">Position Participation</div>
-          <div class="analytics-line"><span>Most Voted</span><strong>${esc(most ? `${orgDisplayName(most.org)} · ${most.position}` : 'Not enough data yet')}</strong></div>
-          <div class="analytics-line"><span>Least Voted</span><strong>${esc(least ? `${orgDisplayName(least.org)} · ${least.position}` : 'Not enough data yet')}</strong></div>
-          <div class="analytics-line"><span>Skipped Positions</span><strong>${skipped} (${allPositions.length ? ((skipped / allPositions.length) * 100).toFixed(1) : '0.0'}%)</strong></div>
-        </div>
-      </div>
-      <div class="analytics-card">
-        <div class="analytics-icon"><i class="bi bi-activity"></i></div>
-        <div>
-          <div class="analytics-label">Voting Trend</div>
-          <div class="analytics-value">${avgVotes.toFixed(1)}</div>
-          <div class="analytics-muted">average vote marks per position</div>
-        </div>
-      </div>
-    `;
-  }
-
-  function renderTabs(orgs) {
-    if (!orgFilterTabs) return;
-    const tabs = ['ALL', ...orgs.map(org => org.organization)];
-    orgFilterTabs.innerHTML = tabs.map(tab => `
-      <button type="button" class="org-filter-btn ${activeOrg === tab ? 'active' : ''}" data-org-filter="${esc(tab)}" title="${esc(tab === 'ALL' ? 'All Organizations' : orgDisplayName(tab))}">${esc(tab === 'ALL' ? 'All' : orgShortName(tab))}</button>
+    const totalCandidates = orgs.reduce((sum, org) => sum + org.positions.reduce((count, pos) => count + pos.candidates.length, 0), 0);
+    const highest = Math.max(0, ...orgs.map(org => org.total_votes));
+    const leaders = highest ? orgs.filter(org => org.total_votes === highest).map(org => orgShortName(org.organization)).join(' / ') : 'No votes yet';
+    const metrics = [
+      ['Total Votes Cast', Number(ballotsCast || 0).toLocaleString(), 'Ballots submitted', 'bi-check2-square'],
+      ['Total Candidates', totalCandidates.toLocaleString(), 'Across all organizations', 'bi-person-badge'],
+      ['Leading Organization', leaders, highest ? `${highest.toLocaleString()} vote marks${orgs.filter(org => org.total_votes === highest).length > 1 ? ' (tied)' : ''}` : 'Based on vote marks', 'bi-flag'],
+    ];
+    analyticsGrid.innerHTML = metrics.map(([label, value, note, icon]) => `
+      <div class="analytics-card"><div class="analytics-icon"><i class="bi ${icon}" aria-hidden="true"></i></div>
+      <div><div class="analytics-label">${esc(label)}</div><div class="analytics-value">${esc(value)}</div><div class="analytics-muted">${esc(note)}</div></div></div>
     `).join('');
   }
 
-  function renderPositionSummary(orgs) {
-    if (!positionSummary) return;
-    const shown = activeOrg === 'ALL' ? orgs : orgs.filter(org => org.organization === activeOrg);
-    const positionTotals = new Map();
-    shown.forEach(org => {
-      org.positions.forEach(pos => {
-        positionTotals.set(pos.position, (positionTotals.get(pos.position) || 0) + pos.total_votes);
-      });
-    });
-    const rows = Array.from(positionTotals.entries())
-      .sort((a, b) => {
-        const ka = positionSortKey('USG', a[0]);
-        const kb = positionSortKey('USG', b[0]);
-        if (ka[0] !== kb[0]) return ka[0] - kb[0];
-        return ka[1].localeCompare(kb[1]);
-      });
-    const max = Math.max(1, ...rows.map(([, votes]) => votes));
-    positionSummary.innerHTML = `
-      <section class="results-panel mb-4">
-        <div class="panel-title">Votes by Position</div>
-        <div class="position-summary-list">
-          ${rows.map(([position, votes]) => {
-            const pct = max > 0 ? (votes / max) * 100 : 0;
-            return `
-              <div class="position-summary-item">
-                <div class="position-summary-row"><strong>${esc(position)}</strong><span>${Number(votes || 0).toLocaleString()} votes</span></div>
-                <div class="summary-track"><div class="summary-fill" style="width:${pct}%"></div></div>
-              </div>
-            `;
-          }).join('') || '<div class="text-muted">No position data.</div>'}
-        </div>
-      </section>
-    `;
+  function renderTabs() {
+    if (!orgFilterTabs) return;
+    const tabs = ['ALL', ...ORG_ORDER];
+    orgFilterTabs.innerHTML = tabs.map(tab => `
+      <button type="button" class="org-filter-btn ${activeOrg === tab ? 'active' : ''}" data-org-filter="${esc(tab)}" aria-pressed="${activeOrg === tab}" title="${esc(tab === 'ALL' ? 'All Organizations' : orgDisplayName(tab))}">${esc(tab === 'ALL' ? 'ALL' : orgShortName(tab))}</button>
+    `).join('');
   }
 
-  function candidateRow(candidate, totalPositionVotes, rank, positionName) {
+  function candidateRow(candidate, totalPositionVotes, rank) {
     const name = candidate.name || candidate.student_id || 'Unknown';
     const photo = candidate.photo_url && String(candidate.photo_url).startsWith('http') ? candidate.photo_url : '';
     const votes = Number(candidate.votes || 0);
-    const isRepresentative = String(positionName || candidate.position || '').toUpperCase().includes('REPRESENTATIVE');
-    const pct = isRepresentative
-      ? (votes > 0 ? 100 : 0)
-      : (totalPositionVotes > 0 ? (votes / totalPositionVotes) * 100 : 0);
+    const pct = totalPositionVotes > 0 ? (votes / totalPositionVotes) * 100 : 0;
     const isWinner = rank === 1 && votes > 0;
     const avatar = photo
       ? `<img src="${esc(photo)}" class="result-candidate-avatar" alt="">`
@@ -457,17 +308,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function renderResults() {
     if (!resultsContainer) return;
+    renderTabs();
     const shown = activeOrg === 'ALL' ? normalizedOrgs : normalizedOrgs.filter(org => org.organization === activeOrg);
     if (!shown.length) {
+      if (resultsEmpty) resultsEmpty.textContent = 'No candidates or votes data.';
       if (resultsEmpty) resultsEmpty.style.display = 'block';
       resultsContainer.innerHTML = '';
-      renderPositionSummary([]);
       return;
     }
 
     if (resultsEmpty) resultsEmpty.style.display = 'none';
-    renderTabs(normalizedOrgs);
-    renderPositionSummary(normalizedOrgs);
 
     resultsContainer.innerHTML = shown.map(org => `
       <section class="result-org-card result-org-${esc(org.organization.toLowerCase())}">
@@ -488,7 +338,7 @@ document.addEventListener('DOMContentLoaded', function(){
               <div class="result-position-block">
                 <div class="result-position-title">${esc(pos.position)}</div>
                 <div class="result-candidate-list">
-                  ${pos.candidates.map((candidate, index) => candidateRow(candidate, totalPositionVotes, index + 1, pos.position)).join('')}
+                  ${pos.candidates.map(candidate => candidateRow(candidate, totalPositionVotes, pos.candidates.findIndex(item => Number(item.votes || 0) === Number(candidate.votes || 0)) + 1)).join('')}
                 </div>
               </div>
             `;
@@ -515,7 +365,21 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
+  let loadVersion = 0;
   async function loadResults(){
+    const version = ++loadVersion;
+    const resultsData = document.getElementById('resultsData');
+    if (resultsData) resultsData.hidden = true;
+    document.getElementById('resultsStatus').textContent = 'LOCKED';
+    if (resultsEmpty) {
+      resultsEmpty.style.display = 'block';
+      resultsEmpty.textContent = 'Checking result availability...';
+    }
+    normalizedOrgs = [];
+    orgPieChart?.destroy();
+    orgPieChart = null;
+    if (resultsContainer) resultsContainer.innerHTML = '';
+
     try {
       const url = new URL('/api/admin/results/', window.location.origin);
       const electionId = routeElectionId();
@@ -523,25 +387,54 @@ document.addEventListener('DOMContentLoaded', function(){
       await loadElectionChoices(electionId);
       const res = await fetch(url.toString(), { credentials: 'same-origin', cache: 'no-store' });
       const data = await res.json();
-      if (!data || !data.ok) {
+      if (version !== loadVersion) return;
+      if (!res.ok || !data || !data.ok || data.published !== true) {
+        if (resultsEmpty) resultsEmpty.textContent = data.message || data.error || 'Results are unavailable.';
+        if (resultsSubtitle) resultsSubtitle.textContent = 'Results are locked until the scheduled release time';
         if (resultsEmpty) resultsEmpty.style.display = 'block';
         return;
       }
 
+      if (resultsData) resultsData.hidden = false;
+      document.getElementById('resultsStatus').textContent = 'LIVE';
       normalizedOrgs = toOrgFirst(data.grouped || []);
       collapseAllOrgsByDefault();
       if (resultsSubtitle) {
         resultsSubtitle.textContent = electionId
           ? `Previewing archived election #${electionId}`
-          : 'Real-time tally from ELECOM database';
+          : 'Published election results';
       }
-      renderCharts(normalizedOrgs);
-      renderAnalytics(normalizedOrgs);
+      if (!document.getElementById('analyticsPanel').hidden) renderCharts(normalizedOrgs);
+      renderAnalytics(normalizedOrgs, data.total_votes_cast);
       renderResults();
     } catch (e) {
+      if (version !== loadVersion) return;
+      if (resultsData) resultsData.hidden = true;
+      if (resultsEmpty) resultsEmpty.textContent = 'Unable to load results. Please try again.';
       if (resultsEmpty) resultsEmpty.style.display = 'block';
     }
   }
+
+  const viewTabs = Array.from(document.querySelectorAll('[data-results-tab]'));
+  function selectView(tab) {
+    viewTabs.forEach(button => {
+      const selected = button === tab;
+      button.setAttribute('aria-selected', String(selected));
+      button.tabIndex = selected ? 0 : -1;
+      document.getElementById(button.dataset.resultsTab).hidden = !selected;
+    });
+    if (tab.dataset.resultsTab === 'analyticsPanel') renderCharts(normalizedOrgs);
+  }
+  viewTabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => selectView(tab));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? viewTabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + viewTabs.length) % viewTabs.length;
+      viewTabs[next].focus();
+      selectView(viewTabs[next]);
+    });
+  });
 
   orgFilterTabs?.addEventListener('click', (event) => {
     const btn = event.target.closest('[data-org-filter]');

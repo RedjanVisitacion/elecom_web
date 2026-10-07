@@ -681,3 +681,47 @@
     text-align:right;
   }
 }
+
+/* Results views share one compact header; only the selected panel occupies space. */
+.results-page-body [hidden] { display: none !important; }
+.results-page-body .content-area { padding: 20px 24px; }
+.results-title-block { margin-bottom: 16px; align-items: center; }
+.results-heading { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.results-heading .market-pill { font-size: .7rem; padding: 5px 9px; }
+.results-title-block h2 { font-size: clamp(1.4rem, 2vw, 1.9rem); }
+.results-title-block p, .result-helper, .analytics-muted { color: #4a5568; }
+.results-view-tabs { display: flex; gap: 4px; border-bottom: 1px solid #d9dde4; margin-bottom: 16px; }
+.results-view-tabs button { border: 0; border-bottom: 3px solid transparent; background: transparent; padding: 10px 16px; font-weight: 700; color: #4a5568; }
+.results-view-tabs button[aria-selected="true"] { color: #0d1b3e; border-bottom-color: #0d1b3e; }
+.results-view-tabs button:focus-visible, .org-filter-btn:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.org-filter-tabs { padding-bottom: 8px; gap: 6px; }
+.org-filter-btn { border-radius: 999px; min-width: 64px; padding: 8px 14px; white-space: nowrap; }
+.result-helper { font-size: .8rem; margin-bottom: 12px; }
+.result-org-card { padding: 14px 18px; margin-bottom: 10px; border-radius: 12px; }
+.result-org-head { padding-top: 4px; padding-bottom: 4px; margin-bottom: 0; }
+.result-org-title { font-size: 1rem; }
+.result-org-votes { font-size: .8rem; }
+.result-position-list:not([hidden]) { margin-top: 14px; }
+.analytics-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 14px; gap: 12px; }
+.analytics-card { padding: 16px; min-width: 0; }
+.analytics-value { font-size: 1.6rem; overflow-wrap: anywhere; }
+.analytics-muted { font-size: .78rem; margin-top: 4px; }
+.results-distribution { padding: 18px; }
+.results-distribution h3 { margin: 0; }
+.distribution-ring { height: clamp(180px, 30vh, 260px); max-width: 320px; margin: 12px auto; }
+.org-legend-grid { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
+.org-legend-item { padding: 6px 10px; gap: 8px; font-size: .8rem; }
+.org-legend-item strong { font-size: .8rem; }
+.org-legend-item span:last-child { margin-left: 8px; }
+@media (max-width: 700px) {
+  .results-page-body .content-area { padding: 14px 12px; }
+  .results-title-block { align-items: stretch; flex-direction: column; gap: 10px; }
+  .result-election-picker { min-width: 0; width: 100%; }
+  .analytics-grid { grid-template-columns: 1fr; gap: 8px; }
+  .analytics-card { padding: 10px 12px; }
+  .result-org-card { padding: 12px; }
+  .result-candidate-row { grid-template-columns: 24px 32px minmax(0, 1fr) auto; gap: 6px; }
+  .rank-pill { display: flex; width: 24px; height: 24px; font-size: .75rem; }
+  .result-candidate-avatar { display: block; width: 32px; height: 32px; }
+  .result-vote-count { min-width: 40px; }
+}
