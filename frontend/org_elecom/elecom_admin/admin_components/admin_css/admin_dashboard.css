@@ -1164,15 +1164,18 @@ textarea.form-control { min-height: 120px; resize: vertical; }
   transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 @media (min-width: 993px) {
-  .sidebar.collapsed { width: var(--sidebar-mini-width); }
-  body.sidebar-collapsed .main-content { margin-left: var(--sidebar-mini-width); }
-  .sidebar.collapsed .sidebar-header { padding: 12px 0; }
-  .sidebar.collapsed .sidebar-header-content { flex-direction: column; gap: 10px; }
-  .sidebar.collapsed .logo-container { justify-content: center; }
-  .sidebar.collapsed .wordmark,
-  .sidebar.collapsed .nav-link > span,
-  .sidebar.collapsed .chevron,
-  .sidebar.collapsed .nav-section-label {
+  /* Restore saved geometry before the sidebar exists or its controller runs. */
+  html.sidebar-is-collapsed #sidebar,
+  html.sidebar-is-collapsed .main-content { transition: none; }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) { width: var(--sidebar-mini-width); }
+  :is(body.sidebar-collapsed, html.sidebar-is-collapsed) .main-content { margin-left: var(--sidebar-mini-width); }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .sidebar-header { padding: 12px 0; }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .sidebar-header-content { flex-direction: column; gap: 10px; }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .logo-container { justify-content: center; }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .wordmark,
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .nav-link > span,
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .chevron,
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .nav-section-label {
     width: 0;
     max-width: 0;
     opacity: 0;
@@ -1181,18 +1184,18 @@ textarea.form-control { min-height: 120px; resize: vertical; }
     margin: 0 !important;
     padding: 0;
   }
-  .sidebar.collapsed .sidebar-menu .collapse,
-  .sidebar.collapsed .sidebar-menu .collapsing { display: none; }
-  .sidebar.collapsed .nav-link {
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .sidebar-menu .collapse,
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .sidebar-menu .collapsing { display: none; }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .nav-link {
     justify-content: center;
     padding: 10px 0;
     margin: 2px 8px;
     min-height: 44px;
     border-left-width: 0;
   }
-  .sidebar.collapsed .nav-link.active { box-shadow: inset 3px 0 var(--yellow); }
-  .sidebar.collapsed .nav-link > i,
-  .sidebar.collapsed .nav-link > svg { margin-right: 0 !important; }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .nav-link.active { box-shadow: inset 3px 0 var(--yellow); }
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .nav-link > i,
+  :is(#sidebar.collapsed, html.sidebar-is-collapsed #sidebar) .nav-link > svg { margin-right: 0 !important; }
 }
 @media (max-width: 992px) {
   .sidebar .sidebar-header-content { gap: 6px; }

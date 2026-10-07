@@ -1,10 +1,17 @@
 (function () {
   const initCollapsibleSidebar = () => {
     const sidebar = document.getElementById("sidebar");
-    const toggle = document.getElementById("sidebarCollapseToggle");
+    const toggle = document.getElementById("toggle-btn") || document.getElementById("sidebarCollapseToggle");
     if (!sidebar || !toggle || toggle.dataset.initialized) return;
     toggle.dataset.initialized = "true";
     const mobile = window.matchMedia("(max-width: 992px)");
+    const storageKey = "sidebarCollapsed";
+    let preferredCollapsed = document.documentElement.classList.contains("sidebar-is-collapsed");
+    try {
+      preferredCollapsed = localStorage.getItem(storageKey) === "true";
+    } catch (e) {
+      // Keep navigation usable when browser storage is unavailable.
+    }
 
     const setCollapsed = (collapsed) => {
       sidebar.classList.toggle("collapsed", collapsed);
@@ -28,7 +35,13 @@
         document.getElementById("menuToggle")?.focus();
         return;
       }
-      setCollapsed(!sidebar.classList.contains("collapsed"));
+      preferredCollapsed = !sidebar.classList.contains("collapsed");
+      setCollapsed(preferredCollapsed);
+      try {
+        localStorage.setItem(storageKey, String(preferredCollapsed));
+      } catch (e) {
+        // The toggle still works when storage is unavailable.
+      }
     });
     // Expand first so the existing Candidates submenu stays usable in mini mode.
     sidebar.addEventListener("click", (event) => {
@@ -37,13 +50,16 @@
       }
     }, true);
     const syncViewport = () => {
-      if (mobile.matches) setCollapsed(false);
-      toggle.setAttribute("aria-label", mobile.matches ? "Close navigation" : "Collapse navigation");
-      toggle.title = mobile.matches ? "Close navigation" : "Collapse navigation";
+      setCollapsed(!mobile.matches && preferredCollapsed);
+      if (mobile.matches) {
+        toggle.setAttribute("aria-label", "Close navigation");
+        toggle.title = "Close navigation";
+      }
     };
     mobile.addEventListener("change", syncViewport);
-    setCollapsed(false);
     syncViewport();
+    // Hand off the pre-render helper to the actual sidebar and body classes.
+    document.documentElement.classList.remove("sidebar-is-collapsed");
   };
 
   if (document.readyState === "loading") {
