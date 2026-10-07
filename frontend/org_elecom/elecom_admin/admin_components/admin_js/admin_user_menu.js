@@ -1,4 +1,57 @@
 (function () {
+  const initCollapsibleSidebar = () => {
+    const sidebar = document.getElementById("sidebar");
+    const toggle = document.getElementById("sidebarCollapseToggle");
+    if (!sidebar || !toggle || toggle.dataset.initialized) return;
+    toggle.dataset.initialized = "true";
+    const mobile = window.matchMedia("(max-width: 992px)");
+
+    const setCollapsed = (collapsed) => {
+      sidebar.classList.toggle("collapsed", collapsed);
+      document.body.classList.toggle("sidebar-collapsed", collapsed);
+      toggle.setAttribute("aria-expanded", String(!collapsed));
+      toggle.setAttribute("aria-label", collapsed ? "Expand navigation" : "Collapse navigation");
+      toggle.title = collapsed ? "Expand navigation" : "Collapse navigation";
+      sidebar.querySelectorAll(".nav-link").forEach((link) => {
+        const label = link.querySelector("span");
+        const name = (label ? label.textContent : link.textContent).trim();
+        link.setAttribute("aria-label", name);
+        if (collapsed) link.title = name;
+        else link.removeAttribute("title");
+      });
+    };
+
+    toggle.addEventListener("click", () => {
+      if (mobile.matches) {
+        sidebar.classList.remove("active");
+        document.getElementById("sidebarOverlay")?.classList.remove("active");
+        document.getElementById("menuToggle")?.focus();
+        return;
+      }
+      setCollapsed(!sidebar.classList.contains("collapsed"));
+    });
+    // Expand first so the existing Candidates submenu stays usable in mini mode.
+    sidebar.addEventListener("click", (event) => {
+      if (sidebar.classList.contains("collapsed") && event.target.closest('[data-bs-toggle="collapse"]')) {
+        setCollapsed(false);
+      }
+    }, true);
+    const syncViewport = () => {
+      if (mobile.matches) setCollapsed(false);
+      toggle.setAttribute("aria-label", mobile.matches ? "Close navigation" : "Collapse navigation");
+      toggle.title = mobile.matches ? "Close navigation" : "Collapse navigation";
+    };
+    mobile.addEventListener("change", syncViewport);
+    setCollapsed(false);
+    syncViewport();
+  };
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initCollapsibleSidebar);
+  } else {
+    initCollapsibleSidebar();
+  }
+
   const API_PROFILE = "/api/account/profile/";
   const API_ADMIN_ALERTS = "/api/admin/notifications/alerts/";
   const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
