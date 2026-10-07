@@ -1,87 +1,158 @@
-/* ELECOM command desk: participation first, schedule alongside. */
-.dashboard-page { --overview-slate: #4a5568; --overview-ink: #2d3748; }
-.dashboard-overview { margin-top: 20px; }
-.dashboard-stats { margin-bottom: 22px; }
+/* Fixed ELECOM dashboard. Header positioning remains in the shared stylesheet. */
+html.dashboard-viewport, body.dashboard-page { height: 100vh; height: 100dvh; overflow: hidden; }
+body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: #2d3748; }
+.dashboard-page .main-content {
+  height: 100vh; height: 100dvh; min-height: 0; overflow: hidden;
+  display: grid; grid-template-rows: auto minmax(0, 1fr);
+}
+.dashboard-page .content-area {
+  height: calc(100vh - var(--dashboard-header-height, var(--topbar-height)));
+  height: calc(100dvh - var(--dashboard-header-height, var(--topbar-height)));
+  min-height: 0; overflow: hidden; padding: 12px 20px;
+  display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px;
+}
+.dashboard-page .election-banner { min-width: 0; }
+.dashboard-page .election-banner .card-body { padding: 10px 16px !important; }
+.dashboard-page .election-banner-layout { flex-wrap: nowrap !important; gap: 12px !important; }
+.dashboard-page .election-banner-layout > div:first-child { min-width: 0; }
+.dashboard-page .election-banner .fw-semibold.fs-5 { font-size: 16px !important; }
+.dashboard-page .election-banner .opacity-75 { font-size: 12px; }
+.dashboard-page .election-banner .small.mt-2 { margin-top: 3px !important; font-size: 11px; }
+.dashboard-page .election-countdown { gap: 8px !important; flex-shrink: 0; }
+.dashboard-page .election-banner .text-center { min-width: 44px; padding: 6px 8px; border-radius: 8px; }
+.dashboard-page .election-banner .text-center .fw-bold { font-size: 24px !important; }
+.dashboard-page .election-banner .text-center .small { font-size: 10px; }
+.dashboard-page .election-banner .btn-light { padding: 8px 12px; font-size: 12px; }
+.dashboard-overview { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; min-height: 0; margin: 0; }
+.dashboard-stats { --bs-gutter-x: 12px; --bs-gutter-y: 0; margin-top: 0; margin-bottom: 0; }
+.dashboard-stats > div { width: 25%; flex: 0 0 25%; }
 .dashboard-page .dashboard-stats .card::before { content: none; }
-.dashboard-page .dashboard-stats .card { min-height: 116px; }
-.dashboard-page .dashboard-stats .card-body { gap: 4px; }
+.dashboard-page .dashboard-stats .card { min-height: 0; }
+.dashboard-page .dashboard-stats .card-body { padding: 12px !important; gap: 2px; }
+.dashboard-page .dashboard-stats .card-body .h3 { font-size: 26px !important; }
+.dashboard-page .dashboard-stats .small.text-muted { font-weight: 600 !important; letter-spacing: .02em; font-size: 10px !important; }
 .dashboard-page .stat-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 48px; height: 48px; flex: 0 0 48px; border-radius: 50%;
-  background: #eaf0ff;
+  width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; background: #eaf0ff; margin-right: 10px !important;
 }
 .dashboard-page .stat-icon.text-success { background: #e6f5ec; }
 .dashboard-page .stat-icon.text-danger { background: #fff5d9; }
 .dashboard-page .stat-icon.text-secondary { background: #fff0e7; }
-.dashboard-page .stat-icon i { font-size: 23px !important; }
+.dashboard-page .stat-icon i { font-size: 20px !important; }
 .dashboard-page .stat-icon.text-success i { color: #187548 !important; }
 .dashboard-page .stat-icon.text-danger i { color: #956c00 !important; }
 .dashboard-page .stat-icon.text-secondary i { color: #aa4b12 !important; }
-.dashboard-page .card-body .small.text-muted,
-.dashboard-page #vwInfo .text-muted { color: var(--overview-slate) !important; }
-.dashboard-page .dashboard-stats .small.text-muted { font-weight: 600 !important; letter-spacing: .03em; }
-.dashboard-grid { display: grid; grid-template-columns: minmax(0, 1fr) 310px; gap: 22px; align-items: start; }
-.dashboard-primary, .dashboard-secondary { display: flex; flex-direction: column; gap: 22px; min-width: 0; }
-.dashboard-page .dashboard-grid .card { border: 1px solid #dce4ef; box-shadow: 0 2px 6px rgba(13,27,62,.04); }
+.dashboard-page .card-body .small.text-muted, .dashboard-page #vwInfo .text-muted { color: var(--overview-slate) !important; }
+.dashboard-grid { display: grid; grid-template-columns: minmax(0, 65fr) minmax(0, 35fr); gap: 12px; min-height: 0; }
+.dashboard-primary, .dashboard-secondary { min-height: 0; min-width: 0; }
+.dashboard-primary { display: flex; }
+.dashboard-secondary { display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 10px; }
+.dashboard-page .dashboard-grid .card { min-height: 0; min-width: 0; border: 1px solid #dce4ef; box-shadow: 0 2px 6px rgba(13,27,62,.04); overflow: hidden; }
 .dashboard-page .dashboard-grid .card:hover { transform: none; }
-.dashboard-page .dashboard-grid .card-body { padding: 24px !important; }
-.dashboard-page .dashboard-grid h2 { font-size: 18px; font-weight: 750; letter-spacing: -.3px; color: #0d1b3e; margin: 4px 0 12px; }
-.overview-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.dashboard-page .dashboard-grid .card-body { padding: 12px 16px !important; min-height: 0; }
+.dashboard-page .dashboard-grid h2 { font-size: 16px; font-weight: 750; letter-spacing: -.3px; color: #0d1b3e; margin: 2px 0 8px; }
+.turnout-card { width: 100%; height: 100%; }
+.dashboard-page .turnout-card .card-body { display: flex; flex-direction: column; overflow: hidden; }
+.overview-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; flex-shrink: 0; }
 .overview-card-heading h2 { margin-bottom: 0 !important; }
-.overview-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .12em; color: var(--overview-slate); }
-.overview-tag { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; font-weight: 600; color: var(--overview-ink); background: #f0f4f8; border-radius: 6px; padding: 6px 9px; white-space: nowrap; }
-.activity-dot { width: 6px; height: 6px; border-radius: 50%; background: #187548; }
-.turnout-summary { display: flex; align-items: center; gap: 16px; margin: 20px 0 16px; }
-.turnout-summary > strong { font-size: clamp(32px, 3.5vw, 44px); letter-spacing: -1.5px; color: #0d1b3e; line-height: 1.1; }
-.turnout-summary span { color: var(--overview-ink); font-size: 13px; font-weight: 600; }
-.turnout-summary p { margin: 4px 0 0; color: var(--overview-slate); font-size: 12px; }
-.turnout-progress { background: #e8eef5; border-radius: 8px; height: 8px; overflow: hidden; margin-bottom: 24px; }
+.overview-eyebrow { font-size: 9px; font-weight: 700; letter-spacing: .1em; color: var(--overview-slate); }
+.overview-tag { font-size: 10px; font-weight: 600; color: var(--overview-ink); background: #f0f4f8; border-radius: 6px; padding: 5px 7px; }
+.turnout-summary { display: flex; align-items: center; gap: 12px; margin: 4px 0 8px; flex-shrink: 0; }
+.turnout-summary > strong { font-size: 30px; letter-spacing: -1px; color: #0d1b3e; line-height: 1.1; }
+.turnout-summary span { color: var(--overview-ink); font-size: 11px; font-weight: 600; }
+.turnout-summary p { margin: 2px 0 0; color: var(--overview-slate); font-size: 11px; }
+.turnout-progress { background: #e8eef5; border-radius: 8px; height: 5px; flex-shrink: 0; overflow: hidden; margin-bottom: 8px; }
 .turnout-progress > div { background: #234bc1; height: 100%; width: 0; transition: width .3s ease; }
-.chart-caption { font-size: 12px; font-weight: 600; color: var(--overview-slate); margin-bottom: 8px; }
-.turnout-chart { min-height: 200px; color: var(--overview-slate); }
-.turnout-chart svg { display: block; width: 100%; height: auto; overflow: visible; }
-.turnout-chart text { fill: var(--overview-slate); font-size: 11px; }
+.chart-caption { font-size: 10px; font-weight: 600; color: var(--overview-slate); margin: 0 0 4px; flex-shrink: 0; }
+.turnout-chart { flex: 1 1 0; min-height: 0; position: relative; color: var(--overview-slate); font-size: 12px; }
+.turnout-chart svg { position: absolute; inset: 0; display: block; width: 100%; height: 100%; }
+.turnout-chart text { fill: var(--overview-slate); font-size: 10px; }
 .chart-grid { stroke: #e3e9f0; stroke-width: 1; }
 .chart-line { fill: none; stroke: #234bc1; stroke-width: 2.5; stroke-linejoin: round; }
 .chart-point { fill: #234bc1; }
-.privacy-note { display: flex; gap: 8px; align-items: baseline; font-size: 11px; line-height: 1.6; color: var(--overview-slate); margin: 14px 0 0; }
+.turnout-totals-button { flex-shrink: 0; align-self: flex-start; border: 0; background: none; color: #234bc1; font-size: 11px; padding: 3px 0; cursor: pointer; }
+.turnout-totals-button:hover { text-decoration: underline; }
+.turnout-totals-button:focus-visible { outline: 2px solid #234bc1; outline-offset: 2px; }
+.privacy-note { display: flex; gap: 6px; flex-shrink: 0; align-items: baseline; font-size: 10px; line-height: 1.4; color: var(--overview-slate); margin: 4px 0 0; }
 .privacy-note i { color: #187548; }
-.overview-meta { font-size: 12px; line-height: 1.6; color: var(--overview-slate); margin-bottom: 12px; }
-#dashboardUpdateStatus { border-top: 1px solid #e3e9f0; padding-top: 12px; margin: 16px 0 0; }
-.overview-empty { padding: 24px 0; font-size: 13px; color: var(--overview-slate); line-height: 1.6; }
-.turnout-activity-list { list-style: none; padding: 0; margin: 0; }
-.turnout-activity-list li { display: flex; align-items: center; gap: 12px; padding: 14px 0; border-bottom: 1px solid #edf1f5; }
-.turnout-activity-list li:last-child { border-bottom: 0; }
-.activity-icon { display: grid; place-items: center; width: 34px; height: 34px; flex: 0 0 34px; background: #e6f5ec; color: #187548; border-radius: 50%; }
-.turnout-activity-list strong { display: block; color: var(--overview-ink); font-size: 13px; font-weight: 600; }
-.turnout-activity-list span { display: block; color: var(--overview-slate); font-size: 12px; margin-top: 4px; }
-.turnout-table summary { font-size: 12px; color: #234bc1; cursor: pointer; padding: 8px 0; }
+.chart-status { flex-shrink: 0; font-size: 10px; color: #994b12; margin: 4px 0; }
+.overview-empty { padding: 12px 0; font-size: 12px; color: var(--overview-slate); }
 .turnout-table table { width: 100%; font-size: 12px; color: var(--overview-ink); }
 .turnout-table th, .turnout-table td { padding: 7px; border-bottom: 1px solid #e3e9f0; }
 .turnout-table caption { color: var(--overview-slate); }
-.dashboard-page #vwInfo .text-muted { padding: 7px 0; line-height: 1.6; }
+.dashboard-page #vwInfo .text-muted { display: grid; grid-template-columns: 40px minmax(0, 1fr); gap: 6px; padding: 3px 0; font-size: 11px !important; line-height: 1.4; }
 .dashboard-page #vwInfo .text-muted::before { display: none; }
-.dashboard-page #vwInfo span { display: block; color: var(--overview-ink); font-weight: 600; }
-.dashboard-page .compact-calendar .card-body { padding: 18px !important; }
-.dashboard-page .compact-calendar #activitiesCalendarGrid { font-size: 11px; }
-.dashboard-page .compact-calendar #activitiesCalendarGrid th { color: var(--overview-slate); }
-.dashboard-page .compact-calendar .acal-day { height: 32px; }
-.dashboard-page .compact-calendar .cal-event-chip-meta,
-.dashboard-page .compact-calendar .cal-event-del { color: var(--overview-slate); }
+.dashboard-page #vwInfo span { color: var(--overview-ink); font-weight: 600; }
+.dashboard-page .compact-calendar { position: relative; }
+.dashboard-page .compact-calendar .card-body { height: 100%; padding: 10px 12px !important; overflow: hidden; }
+.dashboard-page .compact-calendar .mb-2 { margin-bottom: 4px !important; flex-shrink: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid { min-height: 0; font-size: 10px; overflow: hidden; }
+.dashboard-page #activitiesCalendarGrid table { height: 100%; }
+.dashboard-page #activitiesCalendarGrid th { color: var(--overview-slate); font-size: 10px; padding: 2px; }
+.dashboard-page #activitiesCalendarGrid th { white-space: nowrap; }
+.dashboard-page #activitiesCalendarGrid td { padding: 1px; }
+.dashboard-page .compact-calendar .acal-day { height: clamp(16px, 3vh, 28px); width: 26px; line-height: clamp(16px, 3vh, 28px); font-size: 10px; }
+.dashboard-page .compact-calendar #calDayEvents { position: absolute; inset: 62px 10px 10px; margin: 0 !important; padding: 10px; background: #fff; border: 1px solid #dce4ef; border-radius: 8px; box-shadow: 0 4px 14px #0d1b3e14; z-index: 2; overflow: hidden; }
+.dashboard-page .compact-calendar #calDayEventsList { max-height: calc(100% - 28px); overflow-y: auto; }
+.dashboard-page .compact-calendar .cal-event-chip-meta, .dashboard-page .compact-calendar .cal-event-del { color: var(--overview-slate); }
+/* Let each week share the available height rather than forcing fixed day cells. */
+.dashboard-page #activitiesCalendarGrid table { display: grid; grid-template-rows: 18px minmax(0, 1fr); min-height: 0; }
+.dashboard-page #activitiesCalendarGrid tbody { display: grid; grid-auto-rows: minmax(0, 1fr); min-height: 0; }
+.dashboard-page #activitiesCalendarGrid tr { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); min-height: 0; }
+.dashboard-page #activitiesCalendarGrid td { display: flex; align-items: center; justify-content: center; min-height: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day { display: inline-flex; align-items: center; justify-content: center; height: 100%; max-height: 26px; line-height: 1; }
+/* Existing header rules, unchanged. */
 .dashboard-page #userMenuMount { margin-left: auto; }
 .dashboard-page .system-status-badge { font-size: 11px; padding: 5px 9px; }
-@media (max-width: 1199px) { .dashboard-grid { grid-template-columns: minmax(0, 1fr) 280px; gap: 16px; } }
-@media (max-width: 1050px) {
-  .dashboard-grid { grid-template-columns: minmax(0, 1fr); }
-  .dashboard-secondary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (max-width: 800px) {
+  .dashboard-page .content-area { padding: 8px 10px; gap: 8px; }
+  .dashboard-page .election-banner .card-body { padding: 8px 10px !important; }
+  .dashboard-page .election-banner-layout { gap: 6px !important; }
+  .dashboard-page .election-countdown { gap: 4px !important; }
+  .dashboard-page .election-banner .text-center { min-width: 30px; padding: 4px; }
+  .dashboard-page .election-banner .text-center .fw-bold { font-size: 20px !important; }
+  .dashboard-page .election-banner .opacity-75 { display: none; }
+  .dashboard-page .stat-icon { width: 30px; height: 30px; flex-basis: 30px; margin-right: 6px !important; }
+  .dashboard-page .dashboard-stats .card-body { padding: 8px !important; }
+  .dashboard-page .dashboard-stats .small.text-muted { font-size: 9px !important; }
+  .dashboard-page .dashboard-stats .card-body .h3 { font-size: 22px !important; }
+  .dashboard-grid { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 8px; }
+  .dashboard-page .dashboard-grid .card-body { padding: 10px !important; }
+  .overview-card-heading { flex-wrap: wrap; margin-bottom: 4px; }
+  .turnout-summary { flex-wrap: wrap; gap: 4px; }
 }
 @media (max-width: 600px) {
-  .dashboard-secondary { display: flex; }
-  .dashboard-page .dashboard-grid .card-body { padding: 18px !important; }
-  .overview-card-heading { align-items: flex-start; flex-direction: column; }
-  .turnout-summary { align-items: flex-start; flex-direction: column; gap: 8px; }
+  .dashboard-stats > div { width: 50%; flex-basis: 50%; }
+  .dashboard-stats { --bs-gutter-y: 6px; margin-top: -6px; }
+  .dashboard-page .election-banner-layout { display: grid !important; grid-template-columns: minmax(0, 1fr) auto; }
+  .dashboard-page .election-banner-layout > div:first-child { grid-column: 1 / -1; }
+  .dashboard-page .election-banner .fw-semibold.fs-5 { font-size: 14px !important; }
+  .dashboard-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .dashboard-page .dashboard-grid h2 { font-size: 13px; }
+  .overview-tag { font-size: 9px; padding: 3px 4px; }
+  .dashboard-page #vwInfo .text-muted { display: block; font-size: 10px !important; }
+  .dashboard-page #vwInfo span { display: block; }
+  .dashboard-page .compact-calendar .card-body { padding: 6px !important; }
+  .dashboard-page .compact-calendar .fw-semibold { font-size: 10px; }
+  .dashboard-page .compact-calendar #btnNewCalEvent { font-size: 10px !important; padding: 3px !important; }
+  .dashboard-page #calMonthLabel { min-width: 0 !important; font-size: 10px; }
+  .dashboard-page .compact-calendar .acal-day { width: 18px; height: 18px; line-height: 18px; font-size: 9px; }
+  .dashboard-page #activitiesCalendarGrid th { font-size: 9px; padding: 1px; }
+  .turnout-summary > strong { font-size: 24px; }
+  .turnout-summary span, .turnout-summary p { font-size: 10px; }
+  .privacy-note { font-size: 9px; }
+  /* Existing mobile header rules, unchanged. */
   .dashboard-page .system-status-badge .status-text { display: none; }
   .dashboard-page .system-status-badge { padding: 8px; }
-  .turnout-chart { min-height: 140px; }
+}
+@media (max-height: 650px) and (min-width: 801px) {
+  .dashboard-page .content-area { padding-top: 8px; padding-bottom: 8px; gap: 8px; }
+  .dashboard-page .election-banner .card-body { padding-top: 6px !important; padding-bottom: 6px !important; }
+  .dashboard-page .dashboard-stats .card-body { padding: 8px 12px !important; }
+  .dashboard-page .dashboard-grid .card-body { padding: 8px 12px !important; }
+  .overview-eyebrow { display: none; }
+  .turnout-summary > strong { font-size: 24px; }
+  .turnout-summary { margin-top: 0; }
+  .dashboard-page .compact-calendar .acal-day { height: 20px; line-height: 20px; }
 }
 @media (prefers-reduced-motion: reduce) { .turnout-progress > div { transition: none; } }

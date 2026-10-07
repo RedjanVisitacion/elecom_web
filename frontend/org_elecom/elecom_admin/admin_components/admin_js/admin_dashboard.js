@@ -215,7 +215,7 @@ document.addEventListener("DOMContentLoaded", function () {
       hour: "2-digit",
       minute: "2-digit",
     });
-    return `${datePart} â€” ${timePart}`;
+    return `${datePart} / ${timePart}`;
   };
 
   const dateOnlyKey = (d) => {
@@ -520,35 +520,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const fill = document.getElementById("turnoutProgressFill");
     if (fill) fill.style.width = `${percent}%`;
 
-    const list = document.getElementById("turnoutActivityList");
-    const empty = document.getElementById("turnoutActivityEmpty");
     const chart = document.getElementById("turnoutChart");
     const table = document.getElementById("turnoutTableBody");
-    if (!list || !empty || !chart || !table) return;
-    list.replaceChildren();
+    if (!chart || !table) return;
     table.replaceChildren();
-    const activity = Array.isArray(turnout?.activity) ? turnout.activity : [];
-    activity.forEach((item) => {
-      const count = Number(item.count);
-      const period = turnoutDate(item.period_start);
-      if (!Number.isInteger(count) || count < 5 || !period) return;
-      const row = document.createElement("li");
-      const icon = document.createElement("i");
-      icon.className = "bi bi-check2-circle activity-icon";
-      icon.setAttribute("aria-hidden", "true");
-      const text = document.createElement("div");
-      const title = document.createElement("strong");
-      title.textContent = `${fmt(count)} voters cast ballots across campus`;
-      const detail = document.createElement("span");
-      detail.textContent = `${period} - ${turnoutDate(new Date(new Date(item.period_start).getTime() + 3600000), false)} / Completed hour`;
-      text.append(title, detail);
-      row.append(icon, text);
-      list.append(row);
-    });
-    empty.hidden = list.childElementCount > 0;
-    empty.textContent = turnout
-      ? "No publishable activity yet. Completed hours with fewer than five votes are withheld."
-      : "Hourly turnout is temporarily unavailable. Election totals are shown above.";
     const hourly = Array.isArray(turnout?.hourly) ? turnout.hourly.slice(-24) : [];
     if (!hourly.length) {
       chart.textContent = "Hourly turnout is temporarily unavailable.";
@@ -561,12 +536,18 @@ document.addEventListener("DOMContentLoaded", function () {
       return Number.isInteger(count) && (count === 0 || count >= 5) ? count : null;
     });
     const max = Math.ceil(Math.max(8, ...values.filter((value) => value !== null)) / 4) * 4;
-    const x = (i) => 45 + i * 675 / Math.max(1, hourly.length - 1);
-    const y = (value) => 200 - value / max * 160;
-    let svg = '<svg viewBox="0 0 760 250" role="img" aria-label="Hourly turnout for the last 24 completed hours. Withheld counts appear as gaps; view hourly totals below for details.">';
+    const width = Math.max(180, chart.clientWidth);
+    const height = Math.max(70, chart.clientHeight);
+    const left = width < 300 ? 24 : 40;
+    const right = width - 24;
+    const bottom = height - 24;
+    const x = (i) => left + i * (right - left) / Math.max(1, hourly.length - 1);
+    const y = (value) => bottom - value / max * (bottom - 12);
+    const labelStep = width < 300 ? Math.max(1, hourly.length - 1) : Math.ceil(hourly.length / (width < 400 ? 3 : 5));
+    let svg = `<svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Hourly turnout for the last 24 completed hours. Withheld counts appear as gaps; open hourly totals for details.">`;
     for (let tick = 0; tick <= 4; tick++) {
       const value = max * tick / 4;
-      svg += `<line x1="45" x2="720" y1="${y(value)}" y2="${y(value)}" class="chart-grid"/><text x="35" y="${y(value) + 4}" text-anchor="end">${Number(value.toFixed(1))}</text>`;
+      svg += `<line x1="${left}" x2="${right}" y1="${y(value)}" y2="${y(value)}" class="chart-grid"/><text x="${left - 8}" y="${y(value) + 4}" text-anchor="end">${Number(value.toFixed(1))}</text>`;
     }
     let path = "";
     values.forEach((value, i) => {
@@ -577,9 +558,9 @@ document.addEventListener("DOMContentLoaded", function () {
     hourly.forEach((item, i) => {
       const value = values[i];
       if (value !== null) svg += `<circle cx="${x(i)}" cy="${y(value)}" r="3" class="chart-point"/>`;
-      if (i % 5 === 0 || i === hourly.length - 1) {
+      if (i % labelStep === 0 || i === hourly.length - 1) {
         // Date formatting produces a fixed locale label rather than server-provided HTML.
-        svg += `<text x="${x(i)}" y="230" text-anchor="middle">${turnoutDate(item.hour, false)}</text>`;
+        svg += `<text x="${x(i)}" y="${height - 6}" text-anchor="middle">${turnoutDate(item.hour, false)}</text>`;
       }
       const row = document.createElement("tr");
       const hour = document.createElement("th");
@@ -592,6 +573,8 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   let dashboardLoading = false;
+  let lastTurnout = null;
+  let lastMetrics = null;
   const loadDashboard = async () => {
     if (dashboardLoading || document.hidden) return;
     dashboardLoading = true;
@@ -616,17 +599,42 @@ document.addEventListener("DOMContentLoaded", function () {
       setElectionTexts(e);
       setElectionScheduleDetails(e);
       startCountdown({ start_at: e.start_at, end_at: e.end_at });
-      renderTurnout(data.turnout, m);
-      setText(document.getElementById("dashboardUpdateStatus"), data.turnout
-        ? `Updated ${turnoutDate(new Date(), false)} / Hourly data through ${turnoutDate(data.turnout.through)}`
-        : "Election totals updated. Hourly turnout is temporarily unavailable.");
+      lastTurnout = data.turnout;
+      lastMetrics = m;
+      renderTurnout(lastTurnout, lastMetrics);
+      const status = document.getElementById("turnoutChartStatus");
+      if (status) status.hidden = true;
     } catch (e) {
-      setText(document.getElementById("dashboardUpdateStatus"), "Unable to refresh. Previously loaded data may be out of date; retrying automatically.");
-      setText(document.getElementById("turnoutActivityEmpty"), "Activity is unavailable while the dashboard reconnects.");
+      const status = document.getElementById("turnoutChartStatus");
+      if (status) {
+        status.textContent = "Refresh unavailable. Previously loaded totals may be out of date.";
+        status.hidden = false;
+      }
     } finally {
       dashboardLoading = false;
     }
   };
+
+  // Read header geometry without changing its layout or controls.
+  const topNav = document.querySelector(".top-navbar");
+  const syncHeaderHeight = () => {
+    if (topNav) document.body.style.setProperty("--dashboard-header-height", `${topNav.getBoundingClientRect().height}px`);
+  };
+  syncHeaderHeight();
+  let chartResizeFrame = null;
+  if (typeof ResizeObserver !== "undefined") {
+    const observer = new ResizeObserver(() => {
+      syncHeaderHeight();
+      if (chartResizeFrame !== null) cancelAnimationFrame(chartResizeFrame);
+      chartResizeFrame = requestAnimationFrame(() => {
+        chartResizeFrame = null;
+        if (lastMetrics) renderTurnout(lastTurnout, lastMetrics);
+      });
+    });
+    if (topNav) observer.observe(topNav);
+    const chart = document.getElementById("turnoutChart");
+    if (chart) observer.observe(chart);
+  }
 
   void loadDashboard();
   setInterval(loadDashboard, 15000);

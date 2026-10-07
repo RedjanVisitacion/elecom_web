@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="dashboard-viewport">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261007-sidebar-persistence">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261007-private-turnout">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261007-single-screen">
 </head>
 <body class="theme-elecom dashboard-page">
 
@@ -180,10 +180,10 @@
         <!-- Content Area -->
         <div class="content-area">
             <!-- Election Countdown -->
-            <div class="mb-3">
-                <div class="card shadow-sm border-0" style="background: linear-gradient(135deg, rgba(29, 78, 216, 0.75) 0%, rgba(250, 204, 21, 0.75) 100%); color: #fff;">
+            <div class="election-banner">
+                <div class="card shadow-sm border-0 election-hero-card" style="background: linear-gradient(135deg, rgba(29, 78, 216, 0.75) 0%, rgba(250, 204, 21, 0.75) 100%); color: #fff;">
                     <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div class="d-flex justify-content-between align-items-center flex-wrap gap-3 election-banner-layout">
                             <div>
                                 <div class="fw-semibold fs-5">USTP-OROQUIETA Election</div>
                                 <div class="opacity-75">General Election to legislative assembly</div>
@@ -191,7 +191,7 @@
                                     <span id="electionHelperText">Set the election schedule in Election Management.</span>
                                 </div>
                             </div>
-                            <div class="d-flex align-items-center gap-3">
+                            <div class="d-flex align-items-center gap-3 election-countdown">
                                 <div class="text-center">
                                     <div id="ec_days" class="fs-3 fw-bold">00</div>
                                     <div class="small">days</div>
@@ -287,17 +287,9 @@
                                 <div class="turnout-progress" role="progressbar" aria-label="Overall voter turnout" aria-valuemin="0" aria-valuemax="100" id="turnoutProgress"><div id="turnoutProgressFill"></div></div>
                                 <p class="chart-caption">Hourly ballots cast / Philippine time</p>
                                 <div id="turnoutChart" class="turnout-chart"><p class="overview-empty">Loading hourly turnout...</p></div>
-                                <details class="turnout-table"><summary>View hourly totals</summary><table><caption>Completed hourly turnout, Philippine time</caption><thead><tr><th scope="col">Hour</th><th scope="col">Votes</th></tr></thead><tbody id="turnoutTableBody"></tbody></table></details>
+                                <button type="button" class="turnout-totals-button" data-bs-toggle="modal" data-bs-target="#turnoutTotalsModal">View hourly totals</button>
+                                <p id="turnoutChartStatus" class="chart-status" role="status" hidden></p>
                                 <p class="privacy-note"><i class="bi bi-shield-check" aria-hidden="true"></i> Completed hours only. Counts below five are withheld; gaps do not mean zero.</p>
-                            </div>
-                        </section>
-                        <section class="card activity-card" aria-labelledby="activityTitle">
-                            <div class="card-body">
-                                <div class="overview-card-heading"><div><span class="overview-eyebrow">CAMPUS ACTIVITY</span><h2 id="activityTitle">Live Turnout Activity Stream</h2></div><span class="overview-tag"><span class="activity-dot"></span>Auto refresh</span></div>
-                                <p class="overview-meta">Grouped campus updates. No voter identities, ballot references, or individual vote times.</p>
-                                <p id="turnoutActivityEmpty" class="overview-empty">Loading turnout activity...</p>
-                                <ul id="turnoutActivityList" class="turnout-activity-list" aria-label="Grouped turnout activity"></ul>
-                                <p id="dashboardUpdateStatus" class="overview-meta" role="status">Waiting for the latest totals?</p>
                             </div>
                         </section>
                     </div>
@@ -348,6 +340,16 @@
                     </aside>
                 </div>
             </section>
+        </div>
+    </div>
+
+    <!-- Detailed totals are outside the fixed dashboard grid. -->
+    <div class="modal fade" id="turnoutTotalsModal" tabindex="-1" aria-labelledby="turnoutTotalsTitle" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header"><h5 class="modal-title" id="turnoutTotalsTitle">Hourly turnout totals</h5><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+                <div class="modal-body turnout-table"><table><caption>Completed hourly turnout, Philippine time</caption><thead><tr><th scope="col">Hour</th><th scope="col">Votes</th></tr></thead><tbody id="turnoutTableBody"></tbody></table></div>
+            </div>
         </div>
     </div>
 
@@ -536,7 +538,7 @@
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261007-turnout-header"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261007-private-turnout"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261007-single-screen"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261002-tz-fix"></script>
 </body>
 </html>
