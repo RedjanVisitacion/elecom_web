@@ -9042,6 +9042,19 @@ def admin_results_api(request):
             total_votes_cast = int(cur.fetchone()[0] or 0)
             cur.execute(
                 f"""
+                SELECT UPPER(TRIM(c.organization)), UPPER(TRIM(c.position)),
+                       COUNT(DISTINCT v.id)
+                FROM vote_items vi
+                JOIN votes v ON v.id = vi.vote_id
+                JOIN candidates_registration c ON c.id = vi.candidate_id
+                WHERE {vote_filter} AND {election_where}
+                GROUP BY UPPER(TRIM(c.organization)), UPPER(TRIM(c.position))
+                """,
+                vote_params + election_params,
+            )
+            position_ballots = {(org, pos): int(count) for org, pos, count in cur.fetchall()}
+            cur.execute(
+                f"""
                 SELECT c.id,
                        c.student_id,
                        c.first_name,
@@ -9058,7 +9071,7 @@ def admin_results_api(request):
                        COALESCE(vv.cnt, 0) AS votes
                 FROM candidates_registration c
                 LEFT JOIN (
-                    SELECT vi.candidate_id AS cid, COUNT(*) AS cnt
+                    SELECT vi.candidate_id AS cid, COUNT(DISTINCT v.id) AS cnt
                     FROM vote_items vi
                     JOIN votes v ON v.id = vi.vote_id
                     {vote_where}
@@ -9168,10 +9181,13 @@ def admin_results_api(request):
                 )
 
                 total_pos_votes = sum(int(x.get("votes") or 0) for x in arr_sorted) or 0
+                seats = _party_position_limit(org, pos)
+                ballots_cast = position_ballots.get((org.strip().upper(), pos.strip().upper()), 0)
                 cand_out = []
                 for x in arr_sorted:
                     votes = int(x.get("votes") or 0)
-                    pct = round((votes / total_pos_votes) * 100, 1) if total_pos_votes else 0.0
+                    denominator = ballots_cast if seats > 1 else total_pos_votes
+                    pct = round((votes / denominator) * 100, 1) if denominator else 0.0
                     name = " ".join(
                         [
                             p
@@ -9193,7 +9209,10 @@ def admin_results_api(request):
                         }
                     )
 
-                pos_out.append({"position": pos, "candidates": cand_out})
+                pos_out.append({
+                    "position": pos, "candidates": cand_out,
+                    "seats": seats, "max_votes": seats, "ballots_cast": ballots_cast,
+                })
 
             org_out.append({"organization": org, "positions": pos_out})
 

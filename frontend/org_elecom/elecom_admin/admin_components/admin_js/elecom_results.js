@@ -174,9 +174,12 @@ document.addEventListener('DOMContentLoaded', function(){
         (orgBlock.positions || []).forEach((posBlock) => {
           const posName = normalizePosition(posBlock.position);
           if (!orgData.positions.has(posName)) {
-            orgData.positions.set(posName, { position: posName, total_votes: 0, candidates: [] });
+            orgData.positions.set(posName, { position: posName, total_votes: 0, seats: Number(posBlock.seats || 1), ballots_cast: Number(posBlock.ballots_cast || 0), candidates: [] });
           }
           const posData = orgData.positions.get(posName);
+          // Each party block carries the same position-wide ballot denominator.
+          posData.seats = Math.max(posData.seats, Number(posBlock.seats || 1));
+          posData.ballots_cast = Math.max(posData.ballots_cast, Number(posBlock.ballots_cast || 0));
 
           (posBlock.candidates || []).forEach((candidate) => {
             const votes = Number(candidate.votes || 0);
@@ -279,28 +282,42 @@ document.addEventListener('DOMContentLoaded', function(){
     `).join('');
   }
 
-  function candidateRow(candidate, totalPositionVotes, rank) {
+  function candidateStanding(candidate, position) {
+    const votes = Number(candidate.votes || 0);
+    if (!votes) return '';
+    const higher = position.candidates.filter(item => Number(item.votes || 0) > votes).length;
+    const equal = position.candidates.filter(item => Number(item.votes || 0) === votes).length;
+    if (higher >= position.seats) return '';
+    return higher + equal > position.seats ? 'tie' : 'leading';
+  }
+
+  function candidateRow(candidate, position, rank) {
     const name = candidate.name || candidate.student_id || 'Unknown';
     const photo = candidate.photo_url && String(candidate.photo_url).startsWith('http') ? candidate.photo_url : '';
     const votes = Number(candidate.votes || 0);
-    const pct = totalPositionVotes > 0 ? (votes / totalPositionVotes) * 100 : 0;
-    const isWinner = rank === 1 && votes > 0;
+    const multiSeat = position.seats > 1;
+    const denominator = multiSeat ? position.ballots_cast : position.total_votes;
+    const pct = denominator > 0 ? (votes / denominator) * 100 : 0;
+    const standing = candidateStanding(candidate, position);
+    const status = standing === 'tie' ? 'Tied for final seat' : standing === 'leading' ? (multiSeat ? `Leading / Top ${position.seats}` : 'Leading') : '';
+    const party = candidate.partyName || 'Independent';
+    const runningMate = multiSeat && party.toUpperCase() !== 'INDEPENDENT' && position.candidates.filter(item => item.partyName === party).length > 1;
     const avatar = photo
       ? `<img src="${esc(photo)}" class="result-candidate-avatar" alt="">`
       : `<div class="result-candidate-avatar placeholder"><i class="bi bi-person"></i></div>`;
 
     return `
-      <div class="result-candidate-row ${isWinner ? 'is-winner' : ''}">
-        <div class="rank-pill">${rank}</div>
+      <div class="result-candidate-row ${standing === 'leading' ? 'is-leading' : ''}">
+        <div class="rank-pill" ${multiSeat ? 'aria-hidden="true"' : ''}>${multiSeat ? '<i class="bi bi-people" aria-hidden="true"></i>' : rank}</div>
         ${avatar}
         <div class="result-candidate-info">
-          <div class="result-candidate-name">${esc(name)}</div>
-          <div class="result-candidate-meta">${esc(candidate.partyName || 'Independent')}</div>
-          <div class="result-track"><div class="result-fill" style="width:${pct}%"></div></div>
+          <div class="result-candidate-heading"><div class="result-candidate-name">${esc(name)}</div>${status ? `<span class="candidate-status ${standing}">${esc(status)}</span>` : ''}</div>
+          <div class="result-candidate-meta"><span class="result-party-tag">${esc(party)}</span>${runningMate ? '<span class="running-mate-note">Running mates</span>' : ''}</div>
+          <div class="result-track"><div class="result-fill" style="width:${Math.min(100, pct)}%"></div></div>
         </div>
         <div class="result-vote-count">
           <strong>${votes.toLocaleString()}</strong>
-          <span>${pct.toFixed(1)}%</span>
+          <span title="${multiSeat ? `${votes} votes / ${position.ballots_cast} ballots selecting this position` : 'Share of votes for this position'}">${pct.toFixed(1)}%</span>
         </div>
       </div>
     `;
@@ -333,12 +350,12 @@ document.addEventListener('DOMContentLoaded', function(){
         </button>
         <div class="result-position-list" ${collapsedOrgs.has(org.organization) ? 'hidden' : ''}>
           ${org.positions.map(pos => {
-            const totalPositionVotes = pos.candidates.reduce((sum, c) => sum + Number(c.votes || 0), 0);
             return `
               <div class="result-position-block">
-                <div class="result-position-title">${esc(pos.position)}</div>
+                <div class="result-position-heading"><div class="result-position-title">${esc(pos.position)}</div><span class="position-seat-badge">${pos.seats} ${pos.seats > 1 ? 'Seats Available' : 'Seat Available'}</span></div>
+                ${pos.seats > 1 ? `<p class="position-support-note">Vote for up to ${pos.seats} ? ${pos.ballots_cast.toLocaleString()} ballots selecting this position ? percentages show voter support</p>` : ''}
                 <div class="result-candidate-list">
-                  ${pos.candidates.map(candidate => candidateRow(candidate, totalPositionVotes, pos.candidates.findIndex(item => Number(item.votes || 0) === Number(candidate.votes || 0)) + 1)).join('')}
+                  ${pos.candidates.map(candidate => candidateRow(candidate, pos, pos.candidates.findIndex(item => Number(item.votes || 0) === Number(candidate.votes || 0)) + 1)).join('')}
                 </div>
               </div>
             `;

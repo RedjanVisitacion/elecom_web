@@ -24,7 +24,7 @@ class ResultsReleaseTests(unittest.TestCase):
         }
         tree = ast.parse(Path(__file__).with_name("views.py").read_text(encoding="utf-8"))
         functions = [node for node in tree.body if isinstance(node, ast.FunctionDef)
-                     and node.name in {"_admin_results_release_gate", "admin_results_api"}]
+                     and node.name in {"_admin_results_release_gate", "admin_results_api", "_party_position_limit"}]
         for node in functions:
             node.decorator_list = []
         exec(compile(ast.Module(body=functions, type_ignores=[]), "views.py", "exec"), self.environment)
@@ -61,6 +61,54 @@ class ResultsReleaseTests(unittest.TestCase):
         self.assertFalse(response["published"])
         self.assertEqual(self.cursor.execute.call_count, 1)
         self.assertNotIn("vote_items", self.cursor.execute.call_args.args[0])
+
+    def published_result(self, organization="USG", position="BSIT Representative", ballot_count=1):
+        self.cursor.fetchone.side_effect = [
+            (7, self.now - timedelta(days=1), self.now - timedelta(seconds=1), self.now),
+            (ballot_count,),
+        ]
+        self.cursor.fetchall.side_effect = [
+            [(organization, position.upper(), ballot_count)],
+            [(1, "One", organization, position, "UNITE", 1),
+             (2, "Two", organization, position, "UNITE", 1),
+             (3, "Three", organization, position, "OTHER", 0)],
+        ]
+        self.cursor.description = [(name,) for name in ("id", "first_name", "organization", "position", "party_name", "votes")]
+        self.environment.update({
+            "_current_election_filter": lambda *args: ("c.election_id = %s", [7]),
+            "_current_vote_filter": lambda *args: ("v.election_id = %s", [7]),
+            "identity_row": lambda cols, row: dict(zip(cols, row)),
+        })
+        return self.environment["admin_results_api"](SimpleNamespace(GET={}))
+
+    def test_two_running_mates_selected_on_one_ballot_both_have_full_support(self):
+        data = self.published_result()
+        position = next(group for group in data["grouped"] if group["party_name"] == "UNITE")["organizations"][0]["positions"][0]
+        self.assertEqual(position["seats"], 2)
+        self.assertEqual(position["max_votes"], 2)
+        self.assertEqual(position["ballots_cast"], 1)
+        self.assertEqual([c["percent_in_position"] for c in position["candidates"]], [100.0, 100.0])
+        other = next(group for group in data["grouped"] if group["party_name"] == "OTHER")["organizations"][0]["positions"][0]
+        self.assertEqual(other["ballots_cast"], 1)
+        sql, params = self.cursor.execute.call_args_list[2].args
+        self.assertIn("COUNT(DISTINCT v.id)", sql)
+        self.assertIn("v.election_id = %s", sql)
+        self.assertIn("c.election_id = %s", sql)
+        self.assertNotIn("party_name", sql)
+        self.assertEqual(params, [7, 7])
+
+    def test_multi_seat_support_uses_ballots_not_candidate_sum(self):
+        data = self.published_result(ballot_count=4)
+        position = next(group for group in data["grouped"] if group["party_name"] == "UNITE")["organizations"][0]["positions"][0]
+        self.assertEqual([c["percent_in_position"] for c in position["candidates"]], [25.0, 25.0])
+
+    def test_capacity_matches_existing_ballot_rules(self):
+        capacity = self.environment["_party_position_limit"]
+        self.assertEqual(capacity("USG", "BSIT Representative"), 2)
+        self.assertEqual(capacity("USG", "BTLED Representative"), 2)
+        self.assertEqual(capacity("USG", "BFPT Representative"), 2)
+        self.assertEqual(capacity("USG", "President"), 1)
+        self.assertEqual(capacity("PAFE", "President"), 1)
 
 
 if __name__ == "__main__":
