@@ -350,3 +350,57 @@
 .election-info-label { display: block; color: #2d3748; font-size: .75rem; font-weight: 700; margin-bottom: 2px; }
 .election-confirmation { margin-top: 4px; padding-top: 14px; border-top: 1px solid #e5eaf2; }
 .election-confirmation .input-group { width: 100%; }
+
+/* Fill the viewport; history owns its scrolling instead of the page. */
+html.election-viewport, .election-management-page { height: 100%; overflow: hidden; }
+html.election-viewport { --election-header-height: var(--topbar-height, 70px); }
+.election-management-page .main-content { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+.election-management-page .top-navbar { flex: 0 0 auto; }
+.election-management-page .elections-shell { height: calc(100vh - var(--election-header-height)); height: calc(100dvh - var(--election-header-height)); min-height: 0; flex: 1 1 auto; overflow: hidden; display: flex; flex-direction: column; padding: 12px 20px; gap: 12px; }
+.elections-hero { flex: 0 0 auto; padding: 1rem 1.25rem; margin: 0; }
+.elections-hero h1 { font-size: clamp(1.3rem, 2vw, 1.8rem); }
+.elections-hero p { font-size: .85rem; line-height: 1.35; }
+.elections-shell > .alert { flex: 0 0 auto; margin: 0; padding: 8px 12px; font-size: .8rem; }
+.elections-grid { flex: 1 1 0; min-height: 0; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); align-items: stretch; }
+.election-card { min-width: 0; min-height: 0; padding: 16px; overflow: hidden; }
+.election-form { display: flex; flex-direction: column; }
+.section-head { flex: 0 0 auto; margin-bottom: 12px; }
+.section-head h2 { font-size: 1.15rem; }
+.section-head p { font-size: .8rem; }
+.election-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; }
+.election-form .form-label { margin-bottom: 4px; font-size: .8rem; }
+.election-form .form-control, .election-form .form-select { min-height: 36px; padding: .5rem .75rem !important; font-size: .85rem !important; }
+.election-confirmation { padding-top: 10px; margin-top: 0; }
+.election-confirmation .btn { min-height: 36px; }
+.election-form-actions { flex: 0 0 auto; margin-top: 12px; }
+.election-form-actions .btn { min-height: 38px; font-size: .85rem; }
+.elections-list { flex: 1 1 0; min-height: 0; max-height: none; overflow-y: auto; align-content: start; overscroll-behavior: contain; }
+.election-row { padding: 12px; gap: 10px; }
+.election-title { margin-bottom: 8px; }
+.election-info { font-size: .8rem; }
+.election-info-grid { gap: 6px 10px; }
+.election-stats { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top: 8px; }
+.election-stat { padding: 6px 8px; }
+.election-actions { gap: 6px; }
+.election-actions .btn { min-height: 34px; font-size: .78rem; padding: 0 10px; }
+.election-mobile-views { display: none; }
+@media (max-height: 650px) {
+  .election-card { padding: 12px; }
+  .section-head { margin-bottom: 8px; }
+  .election-fields { gap: 8px 12px; }
+  .election-form .form-control, .election-form .form-select { min-height: 30px; padding: 5px 10px !important; font-size: .8rem !important; line-height: 1.25; }
+  .election-confirmation { padding-top: 6px; }
+  .election-form-actions { margin-top: 8px; }
+  .elections-list-card .section-head p { display: none; }
+}
+@media (max-width: 900px) {
+  .election-management-page .elections-shell { padding: 10px 12px; gap: 8px; }
+  .election-mobile-views { display: flex; flex: 0 0 auto; gap: 6px; }
+  .election-mobile-views button { flex: 1; border: 1px solid #d8dee8; border-radius: 8px; padding: 6px 8px; color: #334155; background: white; font-size: .8rem; font-weight: 700; }
+  .election-mobile-views button[aria-pressed="true"] { color: white; background: #0d1b3e; border-color: #0d1b3e; }
+  .elections-grid { grid-template-columns: minmax(0, 1fr); }
+  .elections-grid[data-view="form"] .elections-list-card, .elections-grid[data-view="history"] .election-form { display: none; }
+  .election-form-actions { flex-direction: row; }
+  .election-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .election-actions .btn { width: auto; }
+}

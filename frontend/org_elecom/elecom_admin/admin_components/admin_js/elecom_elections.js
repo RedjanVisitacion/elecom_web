@@ -33,6 +33,20 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   });
 
+  const header = document.querySelector('.top-navbar');
+  function measureHeader() {
+    if (header) document.documentElement.style.setProperty('--election-header-height', `${header.getBoundingClientRect().height}px`);
+  }
+  measureHeader();
+  if (header && typeof ResizeObserver !== 'undefined') new ResizeObserver(measureHeader).observe(header);
+  const viewButtons = Array.from(document.querySelectorAll('[data-election-view]'));
+  function selectElectionView(view) {
+    const grid = document.querySelector('.elections-grid');
+    if (grid) grid.dataset.view = view;
+    viewButtons.forEach(button => button.setAttribute('aria-pressed', String(button.dataset.electionView === view)));
+  }
+  viewButtons.forEach(button => button.addEventListener('click', () => selectElectionView(button.dataset.electionView)));
+
   const listEl = document.getElementById('electionsList');
   const alertEl = document.getElementById('electionAlert');
   const form = document.getElementById('newElectionForm');
@@ -40,7 +54,6 @@ document.addEventListener('DOMContentLoaded', function(){
   const cancelEditBtn = document.getElementById('cancelEditElectionBtn');
   const editingElectionId = document.getElementById('editingElectionId');
   const formTitle = document.getElementById('electionFormTitle');
-  const formHint = document.getElementById('electionFormHint');
   let loadedElections = [];
 
   // Populate School Year dropdown: past 2 years up to next 5 years, always relative to today
@@ -123,11 +136,6 @@ document.addEventListener('DOMContentLoaded', function(){
     const isEditing = !!election;
     if (editingElectionId) editingElectionId.value = isEditing ? election.id : '';
     if (formTitle) formTitle.textContent = isEditing ? 'Edit Election Schedule' : 'Create New Election';
-    if (formHint) {
-      formHint.textContent = isEditing
-        ? 'Update the date and time for this election without creating a new record.'
-        : 'The newest election becomes the active election. Old records stay archived.';
-    }
     if (cancelEditBtn) cancelEditBtn.classList.toggle('d-none', !isEditing);
     if (createBtn) {
       createBtn.innerHTML = isEditing
@@ -161,7 +169,8 @@ document.addEventListener('DOMContentLoaded', function(){
     if (noteEl) noteEl.value = election.note || '';
     document.getElementById('electionPassword').value = '';
     setFormMode(election);
-    form?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    selectElectionView('form');
+    document.getElementById('electionStart')?.focus({ preventScroll: true });
   }
 
   function rowHtml(election) {
