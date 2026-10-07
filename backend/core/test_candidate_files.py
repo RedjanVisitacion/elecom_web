@@ -4,6 +4,7 @@ from pathlib import Path
 from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
+from core.names import identity_row
 
 
 class CandidateFilesTests(unittest.TestCase):
@@ -19,6 +20,7 @@ class CandidateFilesTests(unittest.TestCase):
         context.__enter__ = Mock(return_value=self.cursor)
         context.__exit__ = Mock(return_value=False)
         self.namespace = {
+            'identity_row': identity_row,
             '_require_admin': Mock(return_value=None),
             '_current_election_id': lambda: 9,
             '_ensure_candidate_applications_table': Mock(),

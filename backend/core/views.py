@@ -43,6 +43,8 @@ from elecom_voting.models import (
     MobileTutorialState,
 )
 
+from .names import full_name as format_full_name, identity_row, normalize_middle_name
+
 from . import facepp_service
 from . import local_face_service
 from .cloudinary_upload import upload_enrollment_image_bytes, upload_image_bytes, upload_raw_bytes, read_candidate_document
@@ -872,7 +874,7 @@ def account_profile_api(request):
             row = cur.fetchone()
             if row:
                 cols = [c[0] for c in cur.description]
-                user_row = dict(zip(cols, row))
+                user_row = identity_row(cols, row)
     except Exception as e:
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -894,7 +896,7 @@ def account_profile_api(request):
             row = cur.fetchone()
             if row:
                 cols = [c[0] for c in cur.description]
-                student_row = dict(zip(cols, row))
+                student_row = identity_row(cols, row)
     except Exception:
         student_row = None
 
@@ -1989,7 +1991,7 @@ def admin_dashboard_api(request):
             )
             rows = cur.fetchall()
         for sid, voted_at, first_name, middle_name, last_name in rows:
-            full_name = " ".join([p for p in [first_name, middle_name, last_name] if p])
+            full_name = format_full_name(first_name, middle_name, last_name)
             recent_votes.append(
                 {
                     "student_id": str(sid) if sid is not None else "",
@@ -2168,7 +2170,7 @@ def candidates_search_api(request):
                 election_params + [like, like, like, like, like, like, like, like],
             )
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            rows = [identity_row(cols, r) for r in cur.fetchall()]
         return JsonResponse({"ok": True, "candidates": rows})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
@@ -2206,7 +2208,7 @@ def candidates_list_api(request):
                 [eligible_orgs] + election_params,
             )
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            rows = [identity_row(cols, r) for r in cur.fetchall()]
         out = []
         for r in rows:
             org_u = (r.get("organization") or "").upper()
@@ -2249,7 +2251,7 @@ def candidates_all_api(request):
                 election_params,
             )
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            rows = [identity_row(cols, r) for r in cur.fetchall()]
         return JsonResponse({"ok": True, "candidates": rows})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
@@ -2347,7 +2349,7 @@ def vote_receipt_api(request):
                 [vote_id],
             )
             cols = [c[0] for c in cur.description]
-            vote_items = [dict(zip(cols, r)) for r in cur.fetchall()]
+            vote_items = [identity_row(cols, r) for r in cur.fetchall()]
             
             # Build selections dictionary
             selections = {}
@@ -2491,7 +2493,7 @@ def eligible_ballot_api(request):
                 [eligible_orgs] + election_params,
             )
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            rows = [identity_row(cols, r) for r in cur.fetchall()]
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load ballot."}, status=500)
 
@@ -7367,7 +7369,7 @@ def candidate_application_status_api(request):
             if not row:
                 return JsonResponse({"ok": True, "application": None})
             cols = [c[0] for c in cur.description]
-            app = dict(zip(cols, row))
+            app = identity_row(cols, row)
             official_candidate_id = _official_candidate_id_for_application(cur, app)
             if str(app.get("status") or "").strip().lower() == "approved":
                 if official_candidate_id is None:
@@ -7531,7 +7533,7 @@ def candidate_application_submit_api(request):
         return JsonResponse({"ok": False, "error": "You can only file for your own student account."}, status=403)
 
     first_name = str(request.POST.get("first_name") or "").strip()
-    middle_name = str(request.POST.get("middle_name") or "").strip()
+    middle_name = normalize_middle_name(request.POST.get("middle_name"))
     last_name = str(request.POST.get("last_name") or "").strip()
     organization = str(request.POST.get("organization") or "").strip()
     position = str(request.POST.get("position") or "").strip()
@@ -7577,7 +7579,7 @@ def candidate_application_submit_api(request):
             existing = cur.fetchone()
             if existing:
                 existing_cols = [c[0] for c in cur.description]
-                existing_app = dict(zip(existing_cols, existing))
+                existing_app = identity_row(existing_cols, existing)
                 existing_status = str(existing_app.get("status") or "pending").lower()
             else:
                 existing_app = None
@@ -7733,7 +7735,7 @@ def candidate_application_submit_api(request):
             )
             row = cur.fetchone()
             cols = [c[0] for c in cur.description]
-            app = dict(zip(cols, row))
+            app = identity_row(cols, row)
             app_id = int(app["id"])
 
         _insert_user_notification_for_student(
@@ -7805,7 +7807,7 @@ def admin_candidate_applications_list_api(request):
                 params,
             )
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            rows = [identity_row(cols, r) for r in cur.fetchall()]
         for row in rows:
             for key in ("reviewed_at", "created_at", "requirements_submitted_at"):
                 if row.get(key):
@@ -7859,7 +7861,7 @@ def admin_candidate_application_decision_api(request):
                 if not row:
                     return JsonResponse({"ok": False, "error": "Application not found."}, status=404)
                 cols = [c[0] for c in cur.description]
-                app = dict(zip(cols, row))
+                app = identity_row(cols, row)
                 current_status = str(app.get("status") or "").strip().lower()
                 if current_status not in {"pending", "requirements_review"}:
                     return JsonResponse({"ok": False, "error": "Application was already reviewed."}, status=409)
@@ -8188,7 +8190,7 @@ def admin_candidates_files_api(request):
                 ORDER BY id DESC
             """, [election_id])
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+            rows = [identity_row(cols, row) for row in cur.fetchall()]
             cur.execute("""
                 SELECT c.id, c.election_id, 'registration' AS source, c.student_id, c.first_name, c.middle_name, c.last_name,
                        c.organization, c.position, 'registered' AS status, c.created_at,
@@ -8207,7 +8209,7 @@ def admin_candidates_files_api(request):
                 ORDER BY c.last_name, c.first_name, c.id
             """, [election_id])
             cols = [c[0] for c in cur.description]
-            rows.extend(dict(zip(cols, row)) for row in cur.fetchall())
+            rows.extend(identity_row(cols, row) for row in cur.fetchall())
             cur.execute("SELECT candidate_id, kind, file_url FROM admin_candidate_documents")
             overrides = {(row[0], row[1]): row[2] for row in cur.fetchall()}
         for row in rows:
@@ -8261,7 +8263,7 @@ def admin_candidates_list_api(request):
         with connection.cursor() as cur:
             cur.execute(sql, params)
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, r)) for r in cur.fetchall()]
+            rows = [identity_row(cols, r) for r in cur.fetchall()]
         return JsonResponse({"ok": True, "candidates": rows})
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load candidates."}, status=500)
@@ -8295,7 +8297,7 @@ def admin_candidates_detail_api(request):
             if not row:
                 return JsonResponse({"ok": False, "error": "Not found."}, status=404)
             cols = [c[0] for c in cur.description]
-            candidate = dict(zip(cols, row))
+            candidate = identity_row(cols, row)
         return JsonResponse({"ok": True, "candidate": candidate})
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load candidate."}, status=500)
@@ -8319,7 +8321,7 @@ def admin_candidates_update_api(request):
 
     fields = {
         "first_name": (payload.get("first_name") or "").strip(),
-        "middle_name": (payload.get("middle_name") or "").strip() or None,
+        "middle_name": normalize_middle_name(payload.get("middle_name")) or None,
         "last_name": (payload.get("last_name") or "").strip(),
         "organization": (payload.get("organization") or "").strip(),
         "position": (payload.get("position") or "").strip(),
@@ -8391,7 +8393,7 @@ def admin_candidates_create_api(request):
 
     student_id = str(payload.get("student_id") or "").strip()
     first_name = str(payload.get("first_name") or "").strip()
-    middle_name = str(payload.get("middle_name") or "").strip() or None
+    middle_name = normalize_middle_name(payload.get("middle_name")) or None
     last_name = str(payload.get("last_name") or "").strip()
     organization = str(payload.get("organization") or "").strip()
     position = str(payload.get("position") or "").strip()
@@ -8600,7 +8602,7 @@ def _upsert_voter_row(cur, payload: dict) -> str:
         return err
 
     first_name = str(payload.get("first_name") or "").strip()
-    middle_name = str(payload.get("middle_name") or "").strip()
+    middle_name = normalize_middle_name(payload.get("middle_name"))
     last_name = str(payload.get("last_name") or "").strip()
     course = str(payload.get("course") or payload.get("department") or "").strip()
     year = _safe_int_or_none(payload.get("year") or payload.get("year_level"))
@@ -8779,7 +8781,7 @@ def admin_voters_list_api(request):
                 params,
             )
             cols = [c[0] for c in cur.description]
-            rows = [dict(zip(cols, row)) for row in cur.fetchall()]
+            rows = [identity_row(cols, row) for row in cur.fetchall()]
 
         for row in rows:
             row["id_number"] = str(row.get("id_number") or "")
@@ -9053,7 +9055,7 @@ def admin_results_api(request):
                 vote_params + election_params,
             )
             cols = [c[0] for c in cur.description]
-            candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
+            candidates = [identity_row(cols, r) for r in cur.fetchall()]
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load results."}, status=500)
 
@@ -9383,7 +9385,7 @@ def user_results_api(request):
                 vote_params + election_params,
             )
             cols = [c[0] for c in cur.description]
-            candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
+            candidates = [identity_row(cols, r) for r in cur.fetchall()]
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load results."}, status=500)
 
@@ -10392,7 +10394,7 @@ def admin_reports_summary_api(request):
                 vote_params + election_params,
             )
             cols = [c[0] for c in cur.description]
-            candidates = [dict(zip(cols, r)) for r in cur.fetchall()]
+            candidates = [identity_row(cols, r) for r in cur.fetchall()]
     except Exception:
         candidates = []
 

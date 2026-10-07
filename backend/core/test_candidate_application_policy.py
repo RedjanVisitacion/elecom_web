@@ -3,6 +3,7 @@ import ast
 from pathlib import Path
 import unittest
 from types import SimpleNamespace
+from core.names import identity_row, normalize_middle_name
 
 source = Path(__file__).with_name('views.py').read_text(encoding='utf-8-sig')
 module = ast.parse(source)
@@ -11,7 +12,7 @@ names = {'_candidate_application_can_file_again', '_candidate_application_json',
 functions = [node for node in module.body if isinstance(node, ast.FunctionDef) and node.name in names]
 for function in functions:
     function.decorator_list = []
-namespace = {}
+namespace = {'identity_row': identity_row, 'normalize_middle_name': normalize_middle_name}
 exec(compile(ast.Module(body=functions, type_ignores=[]), '<candidate policy>', 'exec'), namespace)
 can_file_again = namespace['_candidate_application_can_file_again']
 serialize = namespace['_candidate_application_json']
