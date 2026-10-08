@@ -94,6 +94,18 @@
           <p id="cocElection" class="text-muted">Loading current election…</p>
           <p class="text-muted">The academic year and COMELEC chairperson are shared by USG and department forms. Edit either side and save once to apply to both. The sworn date and USTP Oroquieta Campus are filled when the initial filing is approved. Issued COCs keep their saved details.</p>
           <p id="cocNotice" role="status" aria-live="polite"></p>
+          <section class="card border-0 shadow-sm mb-4"><div class="card-body p-4">
+            <h2 class="h5">COMELEC chairperson signature</h2>
+            <p class="text-muted small">Draw here or upload a PNG signature. Shared by both forms. It is placed over the chairperson name only after final candidate approval.</p>
+            <canvas id="chairSignaturePad" width="900" height="180" aria-label="Draw COMELEC chairperson signature" style="display:block;width:100%;height:180px;touch-action:none;border:1px solid #dee2e6;border-radius:8px;background:#fff"></canvas>
+            <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+              <label for="chairSignatureUpload" class="btn btn-outline-secondary mb-0">Upload PNG signature</label>
+              <input id="chairSignatureUpload" type="file" accept="image/png,.png" class="visually-hidden">
+              <button id="chairSignatureClear" type="button" class="btn btn-outline-secondary">Clear signature</button>
+              <span id="chairSignatureStatus" class="small text-muted" role="status">No signature selected.</span>
+            </div>
+            <p class="small text-muted mt-2 mb-0">Use “Save for both forms” below to save the signature. The live previews show its placement for final approval.</p>
+          </div></section>
           <div class="row g-4">
 <div class="col-lg-6"><section class="card border-0 shadow-sm"><div class="card-body p-4">
       <h2 class="h5">USG Certificate of Candidacy</h2><p class="text-muted small">University Student Government</p>
@@ -136,5 +148,5 @@
 </div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261008-developer-password1"></script>
-<script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_certificate_of_candidacy.js?v=20261009-coc-shared4"></script>
+<script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_certificate_of_candidacy.js?v=20261009-coc-signature5"></script>
 </body></html>

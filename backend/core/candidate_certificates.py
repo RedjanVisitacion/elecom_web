@@ -84,8 +84,10 @@ def save_certificate(cur, application_id, student_id, certificate, template_vers
 
 def certificate_summary(application_id):
     with connection.cursor() as cur:
-        cur.execute('''SELECT COALESCE(i.sha256, c.sha256) FROM candidate_application_certificates c
+        cur.execute('''SELECT COALESCE(f.sha256, i.sha256, c.sha256) FROM candidate_application_certificates c
+                       JOIN candidate_applications a ON a.id = c.application_id
                        LEFT JOIN candidate_certificate_issuances i ON i.application_id = c.application_id
+                       LEFT JOIN candidate_certificate_finalizations f ON f.application_id = c.application_id AND a.status = 'approved'
                        WHERE c.application_id = %s''', [application_id])
         row = cur.fetchone()
     return {
@@ -125,10 +127,11 @@ def candidate_certificate_api(request, application_id):
                                  'certificate_sha256': certificate['sha256']})
         with connection.cursor() as cur:
             cur.execute("""
-                SELECT COALESCE(i.pdf_bytes, c.pdf_bytes), COALESCE(i.sha256, c.sha256)
+                SELECT COALESCE(f.pdf_bytes, i.pdf_bytes, c.pdf_bytes), COALESCE(f.sha256, i.sha256, c.sha256)
                 FROM candidate_application_certificates c
                 JOIN candidate_applications a ON a.id = c.application_id
                 LEFT JOIN candidate_certificate_issuances i ON i.application_id = c.application_id
+                       LEFT JOIN candidate_certificate_finalizations f ON f.application_id = c.application_id AND a.status = 'approved'
                 WHERE a.id = %s AND (a.student_id = %s OR %s)
             """, [application_id, student_id, is_admin])
             row = cur.fetchone()

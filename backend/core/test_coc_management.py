@@ -101,8 +101,8 @@ class CocManagementTests(unittest.TestCase):
             result = coc.settings_response(request, 3)
         self.assertEqual(result.status_code, 200)
         values = cur.execute.call_args_list[0].args[1]
-        self.assertEqual(values, [3, 'usg', 2025, 2026, CONFIG['chairperson_name'], 'admin',
-                                  3, 'department', 2025, 2026, CONFIG['chairperson_name'], 'admin'])
+        self.assertEqual(values, [3, 'usg', 2025, 2026, CONFIG['chairperson_name'], 'admin', None,
+                                  3, 'department', 2025, 2026, CONFIG['chairperson_name'], 'admin', None, False])
         data = json.loads(result.content)
         self.assertEqual(data['forms']['usg'], data['forms']['department'])
 

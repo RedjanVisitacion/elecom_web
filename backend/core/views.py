@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .coc_chairperson_signatures import finalize_certificate
 from .coc_management import settings_response, template_response, issue_certificate
 from .candidate_certificates import (ensure_certificate_table, read_certificate_upload, save_certificate, certificate_summary)
 from datetime import timezone as dt_timezone
@@ -7798,7 +7799,7 @@ def candidate_certificate_settings_api(request):
         return JsonResponse({"ok": False, "error": "Could not load certificate settings. Run the database migrations."}, status=500)
 
 
-@require_http_methods(["GET"])
+@require_http_methods(["GET", "POST"])
 def admin_candidate_certificate_template_api(request, kind):
     forbidden = _require_admin(request)
     if forbidden:
@@ -8005,6 +8006,11 @@ def admin_candidate_application_decision_api(request):
                             },
                             status=409,
                         )
+
+                try:
+                    finalize_certificate(cur, app)
+                except ValueError as error:
+                    return JsonResponse({"ok": False, "error": str(error)}, status=409)
 
                 cur.execute(
                     """

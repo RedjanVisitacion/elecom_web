@@ -1,4 +1,6 @@
 """Election-scoped COC settings and immutable initial-approval editions."""
+import base64
+from .coc_chairperson_signatures import decode_signature, read_signature, overlay_signature
 import hashlib
 import io
 import json
@@ -79,19 +81,25 @@ def settings_response(request, election_id):
                 if not isinstance(payload, dict):
                     raise ValueError('Enter valid certificate settings.')
                 kind, start, end, chair = validate_settings(payload)
+                signature_supplied = 'chairperson_signature_base64' in payload
+                signature = decode_signature(payload.get('chairperson_signature_base64'))
                 cur.execute('''INSERT INTO candidate_certificate_settings
-                    (election_id, form_kind, academic_year_start, academic_year_end, chairperson_name, updated_by)
-                    VALUES (%s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s)
+                    (election_id, form_kind, academic_year_start, academic_year_end, chairperson_name, updated_by, chairperson_signature_bytes)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (election_id, form_kind) DO UPDATE SET
                         academic_year_start = EXCLUDED.academic_year_start,
                         academic_year_end = EXCLUDED.academic_year_end,
                         chairperson_name = EXCLUDED.chairperson_name,
+                        chairperson_signature_bytes = CASE WHEN %s THEN EXCLUDED.chairperson_signature_bytes
+                            ELSE candidate_certificate_settings.chairperson_signature_bytes END,
                         updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP''',
-                    [election_id or 0, 'usg', start, end, chair, request.session['student_id'],
-                     election_id or 0, 'department', start, end, chair, request.session['student_id']])
+                    [election_id or 0, 'usg', start, end, chair, request.session['student_id'], signature,
+                     election_id or 0, 'department', start, end, chair, request.session['student_id'], signature, signature_supplied])
             shared = read_settings(cur, election_id, 'usg')
             forms = {kind: shared for kind in ('usg', 'department')}
+            signature, _ = read_signature(cur, election_id) if is_admin else (None, None)
         response = JsonResponse({'ok': True, 'election_id': election_id, 'forms': forms,
+                                 'chairperson_signature_base64': base64.b64encode(signature).decode() if signature and is_admin else None,
                                  'date_source': 'initial_approval', 'csrf_token': get_token(request) if is_admin else None})
         response['Cache-Control'] = 'private, no-store'
         return response
@@ -178,11 +186,22 @@ def issue_certificate(cur, application, approved_at=None):
 def template_response(request, election_id, kind):
     if kind not in {'usg', 'department'}:
         return JsonResponse({'ok': False, 'error': 'Template not found.'}, status=404)
-    if request.GET.get('draft') == '1':
+    signature = None
+    if getattr(request, 'method', 'GET') == 'POST':
+        try:
+            params = json.loads(request.body)
+            if not isinstance(params, dict):
+                raise ValueError('Invalid draft preview.')
+            signature = decode_signature(params.get('chairperson_signature_base64'))
+        except (ValueError, UnicodeDecodeError) as error:
+            return JsonResponse({'ok': False, 'error': str(error)}, status=400)
+    else:
+        params = request.GET
+    if getattr(request, 'method', 'GET') == 'POST' or params.get('draft') == '1':
         # Draft rendering is read-only and never updates settings or issued COCs.
-        start = str(request.GET.get('academic_year_start') or '').strip()
-        end = str(request.GET.get('academic_year_end') or '').strip()
-        chair = str(request.GET.get('chairperson_name') or '').strip()
+        start = str(params.get('academic_year_start') or '').strip()
+        end = str(params.get('academic_year_end') or '').strip()
+        chair = str(params.get('chairperson_name') or '').strip()
         if len(chair) > 120 or any(ord(char) < 32 for char in chair):
             return JsonResponse({'ok': False, 'error': 'Use a chairperson name of up to 120 characters.'}, status=400)
         year = '____ - ____'
@@ -201,6 +220,8 @@ def template_response(request, election_id, kind):
     filename = 'department_certificate_of_candidacy.pdf' if kind == 'department' else 'certificate_of_candidacy.pdf'
     source = Path(settings.BASE_DIR) / 'core' / 'forms' / filename
     raw = decorate_pdf(source.read_bytes(), config)
+    if signature:
+        raw = overlay_signature(raw, signature)
     response = HttpResponse(raw, content_type='application/pdf')
     response['Content-Disposition'] = f'inline; filename="{kind}_certificate_of_candidacy.pdf"'
     response['Cache-Control'] = 'private, no-store'
