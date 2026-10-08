@@ -14,7 +14,7 @@ from core import developer_options as api
 class DeveloperUsersTests(unittest.TestCase):
     def setUp(self):
         self.cursor = Mock()
-        self.cursor.fetchone.return_value = (1,)
+        self.cursor.fetchone.return_value = ('student', 'other')
         self.connection = patch.object(api, 'connection', SimpleNamespace(cursor=lambda: nullcontext(self.cursor)))
         self.connection.start()
         self.addCleanup(self.connection.stop)
@@ -99,7 +99,7 @@ class DeveloperUsersTests(unittest.TestCase):
     def test_remove_admin_returns_account_to_student(self):
         self.request.method = 'POST'
         self.request.body = b'{"id":7,"role":"student"}'
-        self.cursor.fetchone.side_effect = [('admin',), (2,)]
+        self.cursor.fetchone.side_effect = [('admin', 'other'), (2,)]
         with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
             self.assertEqual(self.result()[0], 200)
         self.assertEqual(self.cursor.execute.call_args.args[1], ['student', 7])
@@ -107,10 +107,32 @@ class DeveloperUsersTests(unittest.TestCase):
     def test_last_admin_cannot_be_removed(self):
         self.request.method = 'POST'
         self.request.body = b'{"id":7,"role":"student"}'
-        self.cursor.fetchone.side_effect = [('admin',), (1,)]
+        self.cursor.fetchone.side_effect = [('admin', 'other'), (1,)]
         with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
             self.assertEqual(self.result()[0], 409)
         self.assertFalse(any('UPDATE users' in call.args[0] for call in self.cursor.execute.call_args_list))
+
+    def test_another_admin_cannot_demote_developer_even_after_password_verification(self):
+        self.request.method = 'POST'
+        self.request.body = b'{"id":7,"role":"student"}'
+        self.cursor.fetchone.return_value = ('admin', api.settings.DEVELOPER_STUDENT_ID)
+        with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
+            self.assertEqual(self.result()[0], 403)
+        self.assertFalse(any('UPDATE users' in call.args[0] for call in self.cursor.execute.call_args_list))
+
+    def test_developer_can_demote_self_when_another_admin_exists(self):
+        self.request.session['student_id'] = api.settings.DEVELOPER_STUDENT_ID
+        self.request.method = 'POST'
+        self.request.body = b'{"id":7,"role":"student"}'
+        self.cursor.fetchone.side_effect = [('admin', api.settings.DEVELOPER_STUDENT_ID), (2,)]
+        with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
+            self.assertEqual(self.result()[0], 200)
+        self.assertEqual(self.cursor.execute.call_args.args[1], ['student', 7])
+
+    def test_developer_row_is_protected_for_other_admins(self):
+        self.cursor.fetchall.return_value = [(7, api.settings.DEVELOPER_STUDENT_ID, 'Developer', '', '', '', 'admin')]
+        with patch.object(api, '_developer_admin', return_value=None):
+            self.assertFalse(self.result()[1]['users'][0]['can_remove_admin'])
 
     def test_stale_admin_session_loses_privileges_on_next_request(self):
         from core.middleware import RefreshAdminRoleMiddleware

@@ -87,6 +87,9 @@ def developer_users_api(request):
             """, [like, (page - 1) * 100])
             rows = cur.fetchall()
         users = [dict(zip(('id', 'student_id', 'first_name', 'middle_name', 'last_name', 'email', 'role'), row)) for row in rows[:100]]
+        for user in users:
+            user['can_remove_admin'] = (str(user['student_id']) != settings.DEVELOPER_STUDENT_ID
+                                       or str(request.session.get('student_id')) == settings.DEVELOPER_STUDENT_ID)
         return JsonResponse({"ok": True, "users": users, "page": page, "has_more": len(rows) > 100, "csrf_token": get_token(request)})
     try:
         data = json.loads(request.body)
@@ -103,10 +106,13 @@ def developer_users_api(request):
             denied = _developer_admin(request)
             if denied is not None:
                 return denied
-            cur.execute("SELECT role FROM users WHERE id = %s FOR UPDATE", [user_id])
+            cur.execute("SELECT role, student_id FROM users WHERE id = %s FOR UPDATE", [user_id])
             target = cur.fetchone()
             if target is None:
                 return JsonResponse({"ok": False, "error": "Account not found."}, status=404)
+            if (role != 'admin' and str(target[1]) == settings.DEVELOPER_STUDENT_ID
+                    and str(request.session.get('student_id')) != settings.DEVELOPER_STUDENT_ID):
+                return JsonResponse({"ok": False, "error": "Only the developer can remove their own admin role."}, status=403)
             if role == 'student' and str(target[0]).strip().lower() == 'admin':
                 cur.execute("SELECT COUNT(*) FROM users WHERE LOWER(TRIM(role)) = 'admin'")
                 if cur.fetchone()[0] <= 1:

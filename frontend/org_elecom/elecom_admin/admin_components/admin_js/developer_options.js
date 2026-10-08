@@ -27,6 +27,7 @@
           const isAdmin = String(user.role).trim().toLowerCase() === 'admin';
           const button = document.createElement('button'); button.type = 'button';
           button.className = `btn btn-outline-${isAdmin ? 'danger' : 'primary'} btn-sm`; button.textContent = isAdmin ? 'Remove admin' : 'Make admin';
+          if (isAdmin && user.can_remove_admin === false) { button.disabled = true; button.textContent = 'Protected developer'; }
           button.addEventListener('click', async () => {
             if (busy || !window.confirm(`${isAdmin ? 'Remove admin access from' : 'Grant full admin access to'} ${name || user.student_id || user.id}?`)) return;
             busy = true; button.disabled = true; controls();

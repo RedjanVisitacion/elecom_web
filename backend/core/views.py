@@ -8628,6 +8628,11 @@ def _upsert_voter_row(cur, payload: dict) -> str:
     email = str(payload.get("email") or "").strip()
     phone = str(payload.get("phone_number") or payload.get("phone") or "").strip()
     role = str(payload.get("role") or "student").strip() or "student"
+    # Voter imports must not revoke administrator privileges. Use Developer Options.
+    cur.execute("SELECT role FROM users WHERE student_id::text = %s FOR UPDATE", [id_number])
+    existing_user = cur.fetchone()
+    if existing_user and str(existing_user[0] or '').strip().lower() == 'admin':
+        role = 'admin'
     position = str(payload.get("position") or "").strip() or None
     photo_url = str(payload.get("photo_url") or "").strip() or None
 
