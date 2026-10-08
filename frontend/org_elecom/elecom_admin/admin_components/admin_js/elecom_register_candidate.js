@@ -269,7 +269,6 @@ document.addEventListener("DOMContentLoaded", () => {
         const reviewingRequirements = app.status === "requirements_review";
         const requirementLinks = reviewingRequirements
           ? [
-              ["2x2 Picture", app.requirements_photo_url, "requirements_photo"],
               ["Certificate of Enrollment", app.enrollment_certificate_url, "enrollment_certificate"],
               ["Grades - Last 2 Semesters", app.grades_url, "grades"],
               ["Good Moral Certificate", app.good_moral_url, "good_moral"],

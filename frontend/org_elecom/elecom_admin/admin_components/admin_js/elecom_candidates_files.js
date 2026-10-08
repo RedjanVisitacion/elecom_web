@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const orgs = ['USG', 'PAFE', 'SITE', 'AFPROTECHS'];
-  const documents = [['2x2 Picture', 'requirements_photo_url', 'bi-file-earmark-image'], ['Certificate of Enrollment', 'enrollment_certificate_url', 'bi-file-earmark-text'], ['Grade Card', 'grades_url', 'bi-file-earmark-text'], ['Good Moral Certificate', 'good_moral_url', 'bi-file-earmark-text']];
+  const documents = [['Certificate of Enrollment', 'enrollment_certificate_url', 'bi-file-earmark-text'], ['Grade Card', 'grades_url', 'bi-file-earmark-text'], ['Good Moral Certificate', 'good_moral_url', 'bi-file-earmark-text']];
   const grid = document.getElementById('filesGrid');
   const search = document.getElementById('filesSearch');
   const status = document.getElementById('filesStatus');

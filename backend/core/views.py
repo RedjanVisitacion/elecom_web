@@ -1594,7 +1594,7 @@ def admin_app_rating_notifications_api(request):
                     "candidate_requirements_review" if final_review else "candidate_initial_review",
                     "action",
                     f"Supporting documents ready: {candidate_name}" if final_review else f"New candidate filing: {candidate_name}",
-                    f"{student_id} - {org} {position}. " + ("Review the four documents for final approval." if final_review else "Review the initial application.") + f" Filing #{app_id}.",
+                    f"{student_id} - {org} {position}. " + ("Review the three supporting documents for final approval." if final_review else "Review the initial application.") + f" Filing #{app_id}.",
                     submitted or created if final_review else created,
                     "bi-file-earmark-check" if final_review else "bi-person-check",
                     "/static/org_elecom/elecom_admin/elecom_register_candidate.html#pendingFilingsCollapse",
@@ -7463,7 +7463,6 @@ def candidate_application_requirements_api(request):
             complete = all(
                 str(value or "").strip()
                 for value in (
-                    updates.get("requirements_photo_url", photo_url),
                     updates.get("enrollment_certificate_url", enrollment_url),
                     updates.get("grades_url", grades_url),
                     updates.get("good_moral_url", good_moral_url),
@@ -7936,13 +7935,12 @@ def admin_candidate_application_decision_api(request):
                         title="Candidate filing initially approved",
                         body=(
                             f"Your filing for {app.get('position') or 'candidate'} passed the initial review. "
-                            "Please upload your 2x2 picture and required PDF documents."
+                            "Please upload your enrollment certificate, grades, and good moral certificate as PDFs."
                         ),
                     )
                     return JsonResponse({"ok": True, "status": "requirements_pending"})
 
                 required_documents = (
-                    app.get("requirements_photo_url"),
                     app.get("enrollment_certificate_url"),
                     app.get("grades_url"),
                     app.get("good_moral_url"),
@@ -8165,11 +8163,9 @@ def admin_candidate_document_api(request):
                     # Only follow-up stages change; final decisions stay intact.
                     cur.execute("""
                         UPDATE candidate_applications SET
-                          status = CASE WHEN requirements_photo_url IS NOT NULL
-                            AND enrollment_certificate_url IS NOT NULL AND grades_url IS NOT NULL
+                          status = CASE WHEN enrollment_certificate_url IS NOT NULL AND grades_url IS NOT NULL
                             AND good_moral_url IS NOT NULL THEN 'requirements_review' ELSE 'requirements_pending' END,
-                          requirements_submitted_at = CASE WHEN requirements_photo_url IS NOT NULL
-                            AND enrollment_certificate_url IS NOT NULL AND grades_url IS NOT NULL
+                          requirements_submitted_at = CASE WHEN enrollment_certificate_url IS NOT NULL AND grades_url IS NOT NULL
                             AND good_moral_url IS NOT NULL THEN COALESCE(requirements_submitted_at, CURRENT_TIMESTAMP)
                             ELSE requirements_submitted_at END
                         WHERE id = %s AND status IN ('requirements_pending', 'requirements_review')
