@@ -173,10 +173,26 @@ def issue_certificate(cur, application, approved_at=None):
 def template_response(request, election_id, kind):
     if kind not in {'usg', 'department'}:
         return JsonResponse({'ok': False, 'error': 'Template not found.'}, status=404)
-    with connection.cursor() as cur:
-        config = read_settings(cur, election_id, kind)
-    if config is None:
-        return JsonResponse({'ok': False, 'error': 'Save the academic year and chairperson first.'}, status=409)
+    if request.GET.get('draft') == '1':
+        # Draft rendering is read-only and never updates settings or issued COCs.
+        start = str(request.GET.get('academic_year_start') or '').strip()
+        end = str(request.GET.get('academic_year_end') or '').strip()
+        chair = str(request.GET.get('chairperson_name') or '').strip()
+        if len(chair) > 120 or any(ord(char) < 32 for char in chair):
+            return JsonResponse({'ok': False, 'error': 'Use a chairperson name of up to 120 characters.'}, status=400)
+        year = '____ - ____'
+        if start or end:
+            if not (start.isascii() and end.isascii() and start.isdigit() and end.isdigit()
+                    and len(start) == len(end) == 4 and 1900 <= int(start) <= 2200
+                    and int(end) == int(start) + 1):
+                return JsonResponse({'ok': False, 'error': 'Enter two consecutive academic years.'}, status=400)
+            year = f'{start} - {end}'
+        config = {'academic_year': year, 'chairperson_name': chair}
+    else:
+        with connection.cursor() as cur:
+            config = read_settings(cur, election_id, kind)
+        if config is None:
+            return JsonResponse({'ok': False, 'error': 'Save the academic year and chairperson first.'}, status=409)
     filename = 'department_certificate_of_candidacy.pdf' if kind == 'department' else 'certificate_of_candidacy.pdf'
     source = Path(settings.BASE_DIR) / 'core' / 'forms' / filename
     raw = decorate_pdf(source.read_bytes(), config)

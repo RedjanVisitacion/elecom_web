@@ -94,6 +94,34 @@ class CocManagementTests(unittest.TestCase):
         self.assertEqual(result.status_code, 200)
         self.assertEqual(cur.execute.call_args_list[0].args[1], [3, 'usg', 2025, 2026, 'Maria PeÃ±a', 'admin'])
 
+    def test_draft_preview_uses_unsaved_values_without_database_access(self):
+        request = SimpleNamespace(GET={'draft': '1', 'academic_year_start': '2027',
+                                      'academic_year_end': '2028', 'chairperson_name': 'Draft Chair'})
+        with patch.object(coc, 'connection') as connection:
+            response = coc.template_response(request, 3, 'usg')
+            connection.cursor.assert_not_called()
+        self.assertEqual(response.status_code, 200)
+        text = PdfReader(io.BytesIO(response.content)).pages[0].extract_text()
+        self.assertIn('Academic Year 2027 - 2028', text)
+        self.assertIn('Draft Chair', text)
+        self.assertNotIn('day of October year 2026', text)
+
+    def test_blank_draft_previews_both_templates_before_settings_are_saved(self):
+        for kind in ('usg', 'department'):
+            with self.subTest(kind=kind), patch.object(coc, 'connection') as connection:
+                response = coc.template_response(SimpleNamespace(GET={'draft': '1'}), 3, kind)
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response['Content-Type'], 'application/pdf')
+                connection.cursor.assert_not_called()
+
+    def test_invalid_draft_year_and_overlong_chair_are_rejected(self):
+        for fields in ({'academic_year_start': '2027', 'academic_year_end': '2029'},
+                       {'chairperson_name': 'x' * 121}):
+            with self.subTest(fields=fields), patch.object(coc, 'connection') as connection:
+                response = coc.template_response(SimpleNamespace(GET={'draft': '1', **fields}), 3, 'usg')
+                self.assertEqual(response.status_code, 400)
+                connection.cursor.assert_not_called()
+
     def test_admin_settings_and_template_routes_reject_non_admin(self):
         module = ast.parse(Path(__file__).with_name('views.py').read_text(encoding='utf-8-sig'))
         functions = [n for n in module.body if isinstance(n, ast.FunctionDef) and n.name in {'candidate_certificate_settings_api', 'admin_candidate_certificate_template_api'}]
