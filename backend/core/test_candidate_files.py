@@ -26,6 +26,7 @@ class CandidateFilesTests(unittest.TestCase):
             '_ensure_candidate_applications_table': Mock(),
             '_ensure_election_scoped_tables': Mock(),
             '_ensure_admin_candidate_documents_table': Mock(),
+            'ensure_certificate_table': Mock(),
             'get_token': lambda request: 'csrf',
             'connection': SimpleNamespace(cursor=lambda: context),
             'logger': Mock(),
@@ -38,6 +39,17 @@ class CandidateFilesTests(unittest.TestCase):
 
     def call(self, query=None):
         return self.namespace['admin_candidates_files_api'](SimpleNamespace(GET=query or {}))
+
+    def test_certificate_availability_matches_each_application(self):
+        self.cursor.description = [('id',), ('source',), ('certificate_available',)]
+        self.cursor.fetchall.side_effect = [[(1, 'application', True), (2, 'application', False)], [(3, 'registration', False)], []]
+        result = self.call()
+        self.assertTrue(result.data['ok'])
+        self.assertEqual([row['certificate_available'] for row in result.data['candidates']], [True, False, False])
+        sql = self.cursor.execute.call_args_list[0].args[0]
+        self.assertIn('coc.application_id = a.id', sql)
+        self.assertIn('EXISTS (SELECT 1 FROM candidate_application_certificates', sql)
+        self.assertIn('FALSE AS certificate_available', self.cursor.execute.call_args_list[1].args[0])
 
     def test_non_admin_cannot_read_files(self):
         denied = object()
@@ -110,6 +122,7 @@ class CandidateDocumentTests(unittest.TestCase):
             '_ensure_candidate_applications_table': Mock(),
             '_ensure_election_scoped_tables': Mock(),
             '_ensure_admin_candidate_documents_table': Mock(),
+            'ensure_certificate_table': Mock(),
             'connection': SimpleNamespace(cursor=lambda: nullcontext(self.cursor)),
             'transaction': SimpleNamespace(atomic=nullcontext),
             'secrets': SimpleNamespace(token_hex=lambda count: 'unique'),

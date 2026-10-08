@@ -1,7 +1,7 @@
 (() => {
   'use strict';
   const orgs = ['USG', 'PAFE', 'SITE', 'AFPROTECHS'];
-  const documents = [['Certificate of Enrollment', 'enrollment_certificate_url', 'bi-file-earmark-text'], ['Grade Card', 'grades_url', 'bi-file-earmark-text'], ['Good Moral Certificate', 'good_moral_url', 'bi-file-earmark-text']];
+  const documents = [['Certificate of Candidacy', 'certificate_available', 'bi-file-earmark-pdf'], ['Certificate of Enrollment', 'enrollment_certificate_url', 'bi-file-earmark-text'], ['Grade Card', 'grades_url', 'bi-file-earmark-text'], ['Good Moral Certificate', 'good_moral_url', 'bi-file-earmark-text']];
   const grid = document.getElementById('filesGrid');
   const search = document.getElementById('filesSearch');
   const status = document.getElementById('filesStatus');
@@ -54,6 +54,7 @@
         open.addEventListener('click', () => openPreview(kind, label));
         open.className = 'files-control'; open.textContent = 'Open'; open.setAttribute('aria-label', `Open ${label}`); actions.append(open);
       }
+      if (kind === 'certificate') { el.append(actions); grid.append(el); return; }
       const upload = document.createElement('button'); upload.type = 'button'; upload.className = 'files-control';
       upload.textContent = href ? 'Replace' : 'Upload'; upload.disabled = saving;
       upload.setAttribute('aria-label', `${upload.textContent} ${label}`);
@@ -90,8 +91,11 @@
     if (candidate) {
       for (const [label, key, icon] of documents) {
         if (!label.toLowerCase().includes(query)) continue;
-        const href = candidate[key] ? url(candidate[key]) : '';
-        items.push({ label, detail: href ? 'Open file ↗' : 'Not submitted', icon, href, missing: !href, kind: key.replace(/_url$/, '') });
+        const isCertificate = key === 'certificate_available';
+        const href = isCertificate
+          ? (candidate.source === 'application' && candidate[key] === true ? `/api/admin/candidate-applications/${encodeURIComponent(candidate.id)}/certificate/` : '')
+          : (candidate[key] ? url(candidate[key]) : '');
+        items.push({ label, detail: href ? 'Open file ↗' : 'Not submitted', icon, href, missing: !href, kind: isCertificate ? 'certificate' : key.replace(/_url$/, '') });
       }
     } else if (org || query) {
       rows.filter(row => (!org || group(row) === org) && `${name(row)} ${row.student_id} ${row.position} ${group(row)}`.toLowerCase().includes(query))
@@ -184,7 +188,10 @@
     previewBody.append(message); previewModal.show();
     const params = new URLSearchParams({ id: candidate.id, source: candidate.source, election_id: candidate.election_id || '', kind });
     try {
-      const response = await fetch(`/api/admin/candidates/document/preview/?${params}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
+      const previewEndpoint = kind === 'certificate'
+        ? `/api/admin/candidate-applications/${encodeURIComponent(candidate.id)}/certificate/`
+        : `/api/admin/candidates/document/preview/?${params}`;
+      const response = await fetch(previewEndpoint, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
       const type = response.headers.get('content-type') || '';
       if (!response.ok) {
         const data = type.includes('application/json') ? await response.json() : null;

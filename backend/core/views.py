@@ -8204,6 +8204,7 @@ def admin_candidates_files_api(request):
         _ensure_candidate_applications_table()
         _ensure_election_scoped_tables()
         _ensure_admin_candidate_documents_table()
+        ensure_certificate_table()
         application_where, application_params = _current_election_filter("a", election_id)
         registration_where, registration_params = _current_election_filter("c", election_id)
         with connection.cursor() as cur:
@@ -8212,7 +8213,9 @@ def admin_candidates_files_api(request):
                        a.organization, a.position,
                        CASE WHEN a.status = 'approved' AND c.id IS NULL THEN 'removed' ELSE a.status END AS status,
                        a.created_at, a.requirements_photo_url,
-                       a.enrollment_certificate_url, a.grades_url, a.good_moral_url
+                       a.enrollment_certificate_url, a.grades_url, a.good_moral_url,
+                       EXISTS (SELECT 1 FROM candidate_application_certificates coc
+                               WHERE coc.application_id = a.id) AS certificate_available
                 FROM candidate_applications a
                 LEFT JOIN LATERAL (
                     SELECT r.id FROM candidates_registration r
@@ -8241,7 +8244,7 @@ def admin_candidates_files_api(request):
                        c.organization, c.position, 'registered' AS status, c.created_at,
                        c.photo_url AS requirements_photo_url,
                        NULL AS enrollment_certificate_url, NULL AS grades_url,
-                       NULL AS good_moral_url
+                       NULL AS good_moral_url, FALSE AS certificate_available
                 FROM candidates_registration c
                 WHERE {registration_where}
                   AND NOT EXISTS (
