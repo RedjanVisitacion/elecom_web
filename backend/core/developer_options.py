@@ -4,18 +4,47 @@ import logging
 from datetime import timedelta
 
 from django.db import connection, transaction
+from django.conf import settings
 from django.http import JsonResponse
 from django.middleware.csrf import get_token
 from django.utils import timezone
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 
 logger = logging.getLogger(__name__)
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def developer_verify_password_api(request):
+    from .views import _require_admin, _verify_password
+    denied = _require_admin(request)
+    if denied is not None:
+        return denied
+    request.session.pop('developer_access_verified_at', None)
+    request.session.pop('developer_verified_account', None)
+    try:
+        password = json.loads(request.body).get('password')
+        if not isinstance(password, str) or not password:
+            raise ValueError
+    except (ValueError, TypeError, AttributeError, UnicodeDecodeError):
+        return JsonResponse({'ok': False, 'error': 'Developer password is required.'}, status=400)
+    with connection.cursor() as cur:
+        cur.execute("SELECT password_hash FROM users WHERE student_id::text = %s AND LOWER(TRIM(role)) = 'admin' ORDER BY id LIMIT 1",
+                    [settings.DEVELOPER_STUDENT_ID])
+        row = cur.fetchone()
+    if row is None or not _verify_password(str(row[0] or ''), password):
+        return JsonResponse({'ok': False, 'error': 'Incorrect developer password.'}, status=401)
+    request.session['developer_access_verified_at'] = timezone.now().isoformat()
+    request.session['developer_verified_account'] = settings.DEVELOPER_STUDENT_ID
+    return JsonResponse({'ok': True})
 
 def _developer_admin(request):
     from .views import _require_admin
     denied = _require_admin(request)
     if denied is not None:
         return denied
+    if request.session.get('developer_verified_account') != settings.DEVELOPER_STUDENT_ID:
+        return JsonResponse({'ok': False, 'error': 'Verify the developer password to access Developer Options.'}, status=403)
     try:
         verified = timezone.datetime.fromisoformat(request.session.get("developer_access_verified_at", ""))
         age = timezone.now() - verified

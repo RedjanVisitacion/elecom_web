@@ -113,6 +113,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = 'core.urls'
+DEVELOPER_STUDENT_ID = os.getenv('DEVELOPER_STUDENT_ID', '2023304637').strip()
 
 TEMPLATES = [
     {

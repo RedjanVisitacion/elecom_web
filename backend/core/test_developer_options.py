@@ -19,7 +19,7 @@ class DeveloperUsersTests(unittest.TestCase):
         self.connection.start()
         self.addCleanup(self.connection.stop)
         self.request = SimpleNamespace(method='GET', GET={}, session={'role': 'admin', 'student_id': 'admin',
-            'developer_access_verified_at': timezone.now().isoformat()}, META={})
+            'developer_access_verified_at': timezone.now().isoformat(), 'developer_verified_account': api.settings.DEVELOPER_STUDENT_ID}, META={})
 
     def result(self):
         response = api.developer_users_api(self.request)
@@ -35,6 +35,31 @@ class DeveloperUsersTests(unittest.TestCase):
         self.cursor.fetchone.return_value = None
         with patch.dict('sys.modules', {'core.views': SimpleNamespace(_require_admin=lambda request: None)}):
             self.assertEqual(self.result()[0], 403)
+
+    def test_other_admin_password_is_rejected(self):
+        self.request.method = 'POST'
+        self.request.body = b'{"password":"other-admin-password"}'
+        self.cursor.fetchone.return_value = ('developer-hash',)
+        verify = Mock(return_value=False)
+        with patch.dict('sys.modules', {'core.views': SimpleNamespace(_require_admin=lambda request: None, _verify_password=verify)}):
+            self.assertEqual(api.developer_verify_password_api(self.request).status_code, 401)
+        self.assertEqual(self.cursor.execute.call_args.args[1], [api.settings.DEVELOPER_STUDENT_ID])
+        verify.assert_called_once_with('developer-hash', 'other-admin-password')
+        self.assertNotIn('developer_access_verified_at', self.request.session)
+
+    def test_developer_password_unlocks_for_logged_in_admin(self):
+        self.request.method = 'POST'
+        self.request.body = b'{"password":"developer-password"}'
+        self.cursor.fetchone.return_value = ('developer-hash',)
+        with patch.dict('sys.modules', {'core.views': SimpleNamespace(_require_admin=lambda request: None, _verify_password=lambda stored, provided: provided == 'developer-password')}):
+            self.assertEqual(api.developer_verify_password_api(self.request).status_code, 200)
+        self.assertEqual(self.request.session['developer_verified_account'], api.settings.DEVELOPER_STUDENT_ID)
+
+    def test_legacy_admin_password_verification_does_not_unlock_developer_tools(self):
+        self.request.session.pop('developer_verified_account')
+        with patch.dict('sys.modules', {'core.views': SimpleNamespace(_require_admin=lambda request: None)}):
+            self.assertEqual(self.result()[0], 403)
+        self.cursor.execute.assert_not_called()
 
     def test_list_includes_admins_without_password_hashes_and_paginates(self):
         self.cursor.fetchall.return_value = [(i, str(i), 'Name', '', 'Last', 'mail', 'admin') for i in range(101)]

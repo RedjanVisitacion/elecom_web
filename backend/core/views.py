@@ -296,6 +296,11 @@ def _serve_admin_static_page(request, page: str):
         return forbidden
 
     page = _normalize_admin_page_name(page)
+    if page == 'elecom_reset.html':
+        from .developer_options import _developer_admin
+        forbidden = _developer_admin(request)
+        if forbidden is not None:
+            return forbidden
     root = Path(settings.BASE_DIR).parent / "frontend" / "org_elecom" / "elecom_admin"
     page_path = (root / page).resolve()
     if root.resolve() not in page_path.parents or not page_path.exists():
@@ -4885,6 +4890,11 @@ def admin_secure_page_view(request, token):
         )
 
     page = _normalize_admin_page_name(data.get("page") or "admin_dashboard.html")
+    if page == 'elecom_reset.html':
+        from .developer_options import _developer_admin
+        forbidden = _developer_admin(request)
+        if forbidden is not None:
+            return forbidden
 
     root = Path(settings.BASE_DIR).parent / "frontend" / "org_elecom" / "elecom_admin"
     page_path = (root / page).resolve()
@@ -5058,7 +5068,6 @@ def admin_verify_password_api(request):
             return JsonResponse({"ok": False, "error": "Incorrect admin password."}, status=401)
 
         request.session["voters_access_verified_at"] = timezone.now().isoformat()
-        request.session["developer_access_verified_at"] = timezone.now().isoformat()
         request.session.modified = True
         return JsonResponse({"ok": True})
     except Exception as e:
@@ -10511,7 +10520,8 @@ def admin_reports_summary_api(request):
 
 @require_http_methods(["GET"])
 def admin_reset_status_api(request):
-    forbidden = _require_admin(request)
+    from .developer_options import _developer_admin
+    forbidden = _developer_admin(request)
     if forbidden:
         return forbidden
 
@@ -10542,7 +10552,8 @@ def admin_reset_status_api(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def admin_reset_votes_api(request):
-    forbidden = _require_admin(request)
+    from .developer_options import _developer_admin
+    forbidden = _developer_admin(request)
     if forbidden:
         return forbidden
 
@@ -10617,7 +10628,8 @@ def admin_reset_votes_api(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def admin_reset_notifications_api(request):
-    forbidden = _require_admin(request)
+    from .developer_options import _developer_admin
+    forbidden = _developer_admin(request)
     if forbidden:
         return forbidden
 

@@ -71,7 +71,7 @@
   const API_PROFILE = "/api/account/profile/";
   const API_ADMIN_ALERTS = "/api/admin/notifications/alerts/";
   const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
-  const API_ADMIN_VERIFY_PASSWORD = "/api/admin/verify-password/";
+  const API_ADMIN_VERIFY_PASSWORD = "/api/admin/developer/verify-password/";
   const ADMIN_ALERT_SEEN_KEY = "elecom_admin_seen_alert_ids";
   const ADMIN_HASH_KEY = "elecom_admin_page_hash";
   const ADMIN_ROUTE_PREFIX = "/g/";
@@ -392,11 +392,11 @@
 <div class="admin-password-modal-backdrop" id="adminPasswordModal" hidden>
   <div class="admin-password-modal" role="dialog" aria-modal="true" aria-labelledby="adminPasswordTitle">
     <div class="admin-password-head">
-      <h2 id="adminPasswordTitle">Admin Password Required</h2>
+      <h2 id="adminPasswordTitle">Developer Password Required</h2>
       <button type="button" class="admin-password-close" id="adminPasswordClose" aria-label="Close"><i class="bi bi-x-lg"></i></button>
     </div>
     <form class="admin-password-body" id="adminPasswordForm">
-      <p>Enter your admin password to open Developer Options.</p>
+      <p>Enter the developer account password to open Developer Options.</p>
       <label for="adminPasswordInput">Password</label>
       <input type="password" id="adminPasswordInput" autocomplete="current-password">
       <div class="admin-password-error" id="adminPasswordError" role="alert"></div>
@@ -892,7 +892,7 @@
       e.preventDefault();
       const password = (adminPasswordInput && adminPasswordInput.value ? adminPasswordInput.value : "").trim();
       if (!password) {
-        if (adminPasswordError) adminPasswordError.textContent = "Enter your admin password.";
+        if (adminPasswordError) adminPasswordError.textContent = "Enter the developer password.";
         adminPasswordInput?.focus();
         return;
       }
@@ -903,7 +903,7 @@
       try {
         const ok = await verifyAdminPassword(password);
         if (!ok) {
-          if (adminPasswordError) adminPasswordError.textContent = "Incorrect admin password.";
+          if (adminPasswordError) adminPasswordError.textContent = "Incorrect developer password.";
           adminPasswordInput?.focus();
           return;
         }
