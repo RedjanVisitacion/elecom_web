@@ -5,6 +5,21 @@ document.addEventListener('DOMContentLoaded', () => {
   const previews = new Map(forms.map(form => [form, { timer: null, controller: null, url: '', revision: 0 }]));
   let csrf = '';
   function message(text, error = false) { notice.textContent = text; notice.className = error ? 'text-danger' : 'text-success'; }
+  function updateYear(form, selected) {
+    const slider = form.elements.academic_year_start;
+    const current = new Date().getFullYear();
+    const year = Number(selected || slider.value || current);
+    if (selected !== undefined) {
+      slider.min = Math.max(1900, Math.min(current - 15, year));
+      slider.max = Math.min(2200, Math.max(current + 15, year));
+    }
+    slider.value = year;
+    form.elements.academic_year_end.value = year + 1;
+    slider.setAttribute('aria-valuetext', `${year} to ${year + 1}`);
+    form.querySelector('[data-year-label]').textContent = `${year} - ${year + 1}`;
+    form.querySelector('[data-year-min]').textContent = slider.min;
+    form.querySelector('[data-year-max]').textContent = slider.max;
+  }
   function values(form) {
     return { form_kind: form.dataset.cocForm,
       academic_year_start: form.elements.academic_year_start.value,
@@ -58,8 +73,7 @@ document.addEventListener('DOMContentLoaded', () => {
       document.getElementById('cocElection').textContent = data.election_id ? `Settings for current election #${data.election_id}` : 'No current election. Settings are saved for filings without an election.';
       for (const form of forms) {
         const config = data.forms?.[form.dataset.cocForm];
-        form.elements.academic_year_start.value = config?.academic_year_start || '';
-        form.elements.academic_year_end.value = config?.academic_year_end || '';
+        updateYear(form, config?.academic_year_start || new Date().getFullYear());
         form.elements.chairperson_name.value = config?.chairperson_name || '';
       }
       message('');
@@ -72,9 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
   for (const form of forms) {
+    updateYear(form, new Date().getFullYear());
     form.elements.academic_year_start.addEventListener('input', () => {
-      const start = Number(form.elements.academic_year_start.value);
-      if (start >= 1900 && start <= 2200) form.elements.academic_year_end.value = start + 1;
+      updateYear(form);
     });
     form.addEventListener('input', () => schedulePreview(form));
     form.addEventListener('submit', async event => {

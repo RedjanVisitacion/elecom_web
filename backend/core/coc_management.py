@@ -133,12 +133,14 @@ def decorate_pdf(raw, config, approved_at=None):
          589.18 if department else 565.51, 126.5 if department else 107.2, erase=True)
     text(config['chairperson_name'], 350 if department else 365,
          746 if department else 791, 172 if department else 185, center=True, erase=True)
+    sworn_date = '________ day of __________ year _______'
     if approved_at:
         date = approved_at.astimezone(ZoneInfo('Asia/Manila')).date()
-        line = (f'SUBSCRIBED AND SWORN to me before this {date.day} day of {date.strftime("%B")} '
-                f'year {date.year}, at Oroquieta City, with the affiant'
-                + (' exhibiting' if not department else ''))
-        text(line, 36, 688.54 if department else 691.99, 539, size=9.5 if department else 9, erase=True)
+        sworn_date = f'{date.day} day of {date.strftime("%B")} year {date.year}'
+    line = (f'SUBSCRIBED AND SWORN to me before this {sworn_date}, '
+            'at USTP Oroquieta Campus, with the affiant'
+            + (' exhibiting' if not department else ''))
+    text(line, 36, 688.54 if department else 691.99, 539, size=9.5 if department else 9, erase=True)
     canvas.save()
     page.merge_page(PdfReader(io.BytesIO(overlay.getvalue())).pages[0])
     output = io.BytesIO()

@@ -92,14 +92,20 @@
         <div class="content-area">
           <h1 class="h4 mb-2">Certificate of Candidacy</h1>
           <p id="cocElection" class="text-muted">Loading current election…</p>
-          <p class="text-muted">Set the academic year and COMELEC chairperson for each form. The sworn date and Oroquieta City are filled when the initial filing is approved. Issued COCs keep their saved details.</p>
+          <p class="text-muted">Set the academic year and COMELEC chairperson for each form. The sworn date and USTP Oroquieta Campus are filled when the initial filing is approved. Issued COCs keep their saved details.</p>
           <p id="cocNotice" role="status" aria-live="polite"></p>
           <div class="row g-4">
 <div class="col-lg-6"><section class="card border-0 shadow-sm"><div class="card-body p-4">
       <h2 class="h5">USG Certificate of Candidacy</h2><p class="text-muted small">University Student Government</p>
       <form data-coc-form="usg">
-        <div class="row g-3 mb-3"><div class="col-6"><label for="usgStart" class="form-label">Academic year start</label><input id="usgStart" name="academic_year_start" type="number" min="1900" max="2200" placeholder="2025" class="form-control" required></div>
-        <div class="col-6"><label for="usgEnd" class="form-label">Academic year end</label><input id="usgEnd" name="academic_year_end" type="number" min="1901" max="2201" placeholder="2026" class="form-control" required></div></div>
+        <div class="mb-3">
+          <label for="usgStart" class="form-label">Academic year</label>
+          <output data-year-label for="usgStart" class="d-block fw-semibold mb-2" aria-live="polite"></output>
+          <input id="usgStart" name="academic_year_start" type="range" min="1900" max="2200" step="1" class="form-range" aria-describedby="usgYearHelp">
+          <input name="academic_year_end" type="hidden">
+          <div class="d-flex justify-content-between text-muted small"><span data-year-min></span><span data-year-max></span></div>
+          <div id="usgYearHelp" class="form-text">Drag to select the start year. The end year follows automatically.</div>
+        </div>
         <div class="mb-3"><label for="usgChair" class="form-label">COMELEC chairperson full name</label><input id="usgChair" name="chairperson_name" maxlength="120" class="form-control" required><div class="form-text">Printed above “COMELEC Chairperson”.</div></div>
         <div class="d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary" disabled>Save settings</button></div>
       <div class="mt-4 border-top pt-3">
@@ -111,8 +117,14 @@
 <div class="col-lg-6"><section class="card border-0 shadow-sm"><div class="card-body p-4">
       <h2 class="h5">Department Certificate of Candidacy</h2><p class="text-muted small">SITE, PAFE, and AFPROTECHS</p>
       <form data-coc-form="department">
-        <div class="row g-3 mb-3"><div class="col-6"><label for="departmentStart" class="form-label">Academic year start</label><input id="departmentStart" name="academic_year_start" type="number" min="1900" max="2200" placeholder="2025" class="form-control" required></div>
-        <div class="col-6"><label for="departmentEnd" class="form-label">Academic year end</label><input id="departmentEnd" name="academic_year_end" type="number" min="1901" max="2201" placeholder="2026" class="form-control" required></div></div>
+        <div class="mb-3">
+          <label for="departmentStart" class="form-label">Academic year</label>
+          <output data-year-label for="departmentStart" class="d-block fw-semibold mb-2" aria-live="polite"></output>
+          <input id="departmentStart" name="academic_year_start" type="range" min="1900" max="2200" step="1" class="form-range" aria-describedby="departmentYearHelp">
+          <input name="academic_year_end" type="hidden">
+          <div class="d-flex justify-content-between text-muted small"><span data-year-min></span><span data-year-max></span></div>
+          <div id="departmentYearHelp" class="form-text">Drag to select the start year. The end year follows automatically.</div>
+        </div>
         <div class="mb-3"><label for="departmentChair" class="form-label">COMELEC chairperson full name</label><input id="departmentChair" name="chairperson_name" maxlength="120" class="form-control" required><div class="form-text">Printed above “COMELEC Chairperson”.</div></div>
         <div class="d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary" disabled>Save settings</button></div>
       <div class="mt-4 border-top pt-3">
@@ -124,5 +136,5 @@
 </div></div></div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261008-developer-password1"></script>
-<script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_certificate_of_candidacy.js?v=20261009-coc-live2"></script>
+<script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_certificate_of_candidacy.js?v=20261009-coc-year-slider3"></script>
 </body></html>

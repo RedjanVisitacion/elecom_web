@@ -40,7 +40,7 @@ class CocManagementTests(unittest.TestCase):
                 text = PdfReader(io.BytesIO(issued)).pages[0].extract_text()
                 self.assertIn('Academic Year 2025 - 2026', text)
                 self.assertIn('Maria PeÃ±a', text)
-                self.assertIn('this 9 day of October year 2026, at Oroquieta City', text)
+                self.assertIn('this 9 day of October year 2026, at USTP Oroquieta Campus', text)
                 self.assertEqual(original, (FORMS / filename).read_bytes())
                 self.assertEqual(PdfReader(io.BytesIO(original)).pages[0].mediabox, PdfReader(io.BytesIO(issued)).pages[0].mediabox)
 
@@ -49,6 +49,7 @@ class CocManagementTests(unittest.TestCase):
         text = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
         self.assertIn('Academic Year 2025 - 2026', text)
         self.assertNotIn('day of October year 2026', text)
+        self.assertIn('at USTP Oroquieta Campus', text)
 
     def test_approval_saves_separate_immutable_pdf_and_settings_snapshot(self):
         cur = Mock()
