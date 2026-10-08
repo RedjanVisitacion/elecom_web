@@ -324,7 +324,7 @@
     return `
 <div class="top-navbar-actions">
   <div class="admin-notif-wrap" id="adminNotifWrap">
-  <button type="button" class="admin-hidden-notif-action" id="adminHiddenNotifButton" aria-label="Open reset votes"></button>
+  <button type="button" class="admin-hidden-notif-action" id="adminHiddenNotifButton" aria-label="Open developer options"></button>
   <a href="/static/org_elecom/elecom_admin/search_results.html" class="admin-search-btn notif-bell" title="Search candidates" aria-label="Search candidates">
     <i class="bi bi-search"></i>
   </a>
@@ -396,7 +396,7 @@
       <button type="button" class="admin-password-close" id="adminPasswordClose" aria-label="Close"><i class="bi bi-x-lg"></i></button>
     </div>
     <form class="admin-password-body" id="adminPasswordForm">
-      <p>Enter your admin password to open Reset Votes.</p>
+      <p>Enter your admin password to open Developer Options.</p>
       <label for="adminPasswordInput">Password</label>
       <input type="password" id="adminPasswordInput" autocomplete="current-password">
       <div class="admin-password-error" id="adminPasswordError" role="alert"></div>
