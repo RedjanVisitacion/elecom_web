@@ -63,6 +63,8 @@ class CandidateRefilingPolicyTests(unittest.TestCase):
             _current_election_id=lambda: 1,
             _ensure_election_scoped_tables=lambda: None,
             _ensure_candidate_applications_table=lambda: None,
+            read_certificate_upload=lambda request: None,
+            ensure_certificate_table=lambda: None,
             JsonResponse=lambda data, status=200: SimpleNamespace(data=data, status_code=status),
             settings=SimpleNamespace(DEBUG=True),
         )

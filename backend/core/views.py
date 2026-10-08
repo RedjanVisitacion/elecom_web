@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from .candidate_certificates import (ensure_certificate_table, read_certificate_upload, save_certificate, certificate_summary)
 from datetime import timezone as dt_timezone
 from zoneinfo import ZoneInfo
 
@@ -5202,6 +5204,8 @@ def _postgres_identifier(name: str) -> str:
 
 
 def _postgres_literal(value) -> str:
+    if isinstance(value, dict):
+        value = json.dumps(value)
     if value is None:
         return "NULL"
     with connection.cursor() as cur:
@@ -7354,6 +7358,7 @@ def candidate_application_status_api(request):
 
     try:
         _ensure_candidate_applications_table()
+        ensure_certificate_table()
         _ensure_election_scoped_tables()
         election_id = _current_election_id() or None
         with connection.cursor() as cur:
@@ -7375,13 +7380,13 @@ def candidate_application_status_api(request):
             )
             row = cur.fetchone()
             if not row:
-                return JsonResponse({"ok": True, "application": None})
+                return JsonResponse({"ok": True, "application": None, "certificate_storage_ready": True})
             cols = [c[0] for c in cur.description]
             app = identity_row(cols, row)
             official_candidate_id = _official_candidate_id_for_application(cur, app)
             if str(app.get("status") or "").strip().lower() == "approved":
                 if official_candidate_id is None:
-                    return JsonResponse({"ok": True, "application": None})
+                    return JsonResponse({"ok": True, "application": None, "certificate_storage_ready": True})
                 app["official_candidate_id"] = official_candidate_id
             if str(app.get("candidate_type") or "").strip().lower() == "political party":
                 party_code, _ = _sync_party_security_code(
@@ -7391,7 +7396,8 @@ def candidate_application_status_api(request):
                 )
                 if party_code:
                     app["party_code"] = party_code
-        return JsonResponse({"ok": True, "application": _candidate_application_json(app)})
+        app.update(certificate_summary(app["id"]))
+        return JsonResponse({"ok": True, "application": _candidate_application_json(app), "certificate_storage_ready": True})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -7565,9 +7571,14 @@ def candidate_application_submit_api(request):
     if candidate_type.lower() == "political party" and not party_name:
         return JsonResponse({"ok": False, "error": "Party name is required."}, status=400)
     try:
+        certificate = read_certificate_upload(request)
+    except ValueError as exc:
+        return JsonResponse({"ok": False, "error": str(exc)}, status=400)
+    try:
         election_id = _current_election_id() or None
         _ensure_election_scoped_tables()
         _ensure_candidate_applications_table()
+        ensure_certificate_table()
         party_code_hash = None
         generated_party_code = None
         with connection.cursor() as cur:
@@ -7705,7 +7716,7 @@ def candidate_application_submit_api(request):
                 request, "party_logo", "elecom/candidate_applications/party_logos"
             )
 
-        with connection.cursor() as cur:
+        with transaction.atomic(), connection.cursor() as cur:
             cur.execute(
                 """
                 INSERT INTO candidate_applications (
@@ -7745,6 +7756,8 @@ def candidate_application_submit_api(request):
             cols = [c[0] for c in cur.description]
             app = identity_row(cols, row)
             app_id = int(app["id"])
+            app["certificate_available"] = save_certificate(cur, app_id, student_id, certificate)
+            app["certificate_sha256"] = certificate["sha256"] if certificate else None
 
         _insert_user_notification_for_student(
             student_id=student_id,

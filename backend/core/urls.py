@@ -1,3 +1,4 @@
+from .candidate_certificates import candidate_certificate_api
 from .candidate_push import register_push_token_api, unregister_push_token_api
 from .developer_options import developer_users_api, developer_verify_password_api
 from django.contrib import admin
@@ -107,6 +108,8 @@ def home_redirect(request):
     return redirect('/login/')
 
 urlpatterns = [
+    path('api/mobile/candidate-applications/<int:application_id>/certificate/', candidate_certificate_api, name='mobile_candidate_certificate_api'),
+    path('api/admin/candidate-applications/<int:application_id>/certificate/', candidate_certificate_api, name='admin_candidate_certificate_api'),
     path('api/admin/candidates/document/preview/', admin_candidate_document_preview_api, name='admin_candidate_document_preview_api'),
     path('api/admin/candidates/document/', admin_candidate_document_api, name='admin_candidate_document_api'),
     path('api/admin/candidates/files/', admin_candidates_files_api, name='admin_candidates_files_api'),
