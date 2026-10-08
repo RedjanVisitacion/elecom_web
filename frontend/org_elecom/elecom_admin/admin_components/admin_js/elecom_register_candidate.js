@@ -291,6 +291,10 @@ document.addEventListener("DOMContentLoaded", () => {
               </div>
               <div class="small mt-2">${escapeHtml(app.platform || "")}</div>
               ${reviewingRequirements ? `<div class="small fw-semibold mt-3 mb-2">Submitted follow-up requirements</div><div class="d-flex flex-wrap gap-2">${requirementLinks}</div>` : ""}
+              <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
+                <button type="button" class="btn btn-outline-primary btn-sm" data-app-preview="certificate" data-app-id="${escapeHtml(app.id)}" data-candidate-name="${escapeHtml(candidateName(app))}" ${app.certificate_available === true ? "" : "disabled"}>View COC</button>
+                ${app.certificate_available === true ? "" : '<span class="small text-muted">No COC saved for this filing.</span>'}
+              </div>
               <div class="d-flex flex-wrap gap-2 justify-content-end mt-3">
                 <button type="button" class="btn btn-outline-danger btn-sm" data-app-decision="reject" data-app-id="${escapeHtml(app.id)}">Reject</button>
                 <button type="button" class="btn btn-primary btn-sm" data-app-decision="approve" data-app-id="${escapeHtml(app.id)}" data-app-stage="${reviewingRequirements ? "final" : "initial"}">${reviewingRequirements ? "Approve & Publish" : "Approve Initial Filing"}</button>
@@ -415,7 +419,10 @@ document.addEventListener("DOMContentLoaded", () => {
     previewBody.append(message); previewModal.show();
     const params = new URLSearchParams({ id: selected.id, source: 'application', election_id: selected.election_id || '', kind });
     try {
-      const response = await fetch(`/api/admin/candidates/document/preview/?${params}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
+      const previewEndpoint = kind === 'certificate'
+        ? `/api/admin/candidate-applications/${encodeURIComponent(selected.id)}/certificate/`
+        : `/api/admin/candidates/document/preview/?${params}`;
+      const response = await fetch(previewEndpoint, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
       const type = response.headers.get('content-type') || '';
       if (!response.ok) {
         const data = type.includes('application/json') ? await response.json() : null;

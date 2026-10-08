@@ -7796,6 +7796,7 @@ def admin_candidate_applications_list_api(request):
     try:
         _ensure_candidate_applications_table()
         _ensure_election_scoped_tables()
+        ensure_certificate_table()
         election_id = _current_election_id() or None
         where_parts = ["COALESCE(election_id, 0) = COALESCE(%s, 0)"]
         params = [election_id]
@@ -7819,7 +7820,10 @@ def admin_candidate_applications_list_api(request):
                        candidate_type, party_name, photo_url, party_logo_url,
                        status, reviewed_by, reviewed_at, rejection_reason, created_at,
                        requirements_photo_url, enrollment_certificate_url, grades_url,
-                       good_moral_url, requirements_submitted_at
+                       good_moral_url, requirements_submitted_at,
+                       EXISTS (SELECT 1 FROM candidate_application_certificates coc
+                               WHERE coc.application_id = candidate_applications.id)
+                           AS certificate_available
                 FROM candidate_applications
                 WHERE {' AND '.join(where_parts)}
                 ORDER BY created_at DESC, id DESC
