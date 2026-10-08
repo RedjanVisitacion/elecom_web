@@ -17,7 +17,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261008-reset-hover1">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reset.css">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reset.css?v=20261008-developer-cards1">
 </head>
 <body class="theme-elecom">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -91,10 +91,14 @@
         <div class="content-area">
             <h1 class="h4 mb-2 fw-bold"><i class="bi bi-code-slash me-2"></i>Developer Options</h1>
             <p class="text-muted mb-4">Administrative tools for development and testing.</p>
+            <div class="row g-3 mb-4">
+                <div class="col-md-6"><button type="button" class="card p-4 w-100 text-start border" data-developer-panel="resetPanel"><span class="h5"><i class="bi bi-arrow-counterclockwise me-2"></i>Reset Votes</span><span class="text-muted small">Clear vote records and notifications.</span></button></div>
+                <div class="col-md-6"><button type="button" class="card p-4 w-100 text-start border" data-developer-panel="usersPanel"><span class="h5"><i class="bi bi-people me-2"></i>User Management</span><span class="text-muted small">Browse all accounts and grant admin access.</span></button></div>
+            </div>
             <div class="alert alert-success" id="successAlert" role="alert" style="display:none;"></div>
             <div class="alert alert-danger" id="errorAlert" role="alert" style="display:none;"></div>
 
-            <div class="card p-4 border-0 reset-card">
+            <div id="resetPanel" class="card p-4 border-0 reset-card" hidden>
                 <h2 class="h5 mb-4 fw-bold"><i class="bi bi-arrow-counterclockwise me-2"></i>Reset Votes</h2>
                 
                 <div class="alert alert-warning" role="alert">
@@ -139,11 +143,20 @@
                     <div id="resetStatus" class="small mt-3" style="display:none;"></div>
                 </div>
             </div>
+            <section id="usersPanel" class="card p-4 border-0" hidden>
+                <h2 class="h5 fw-bold">User Management</h2>
+                <p class="text-muted small">Promoted accounts can sign in to the web admin portal after signing out and signing in again.</p>
+                <form id="developerUserSearch" class="d-flex gap-2 mb-3"><input id="developerUserQuery" class="form-control" type="search" placeholder="Search name, student ID, email, or role" aria-label="Search users"><button class="btn btn-primary" type="submit">Search</button></form>
+                <p id="developerUsersStatus" class="small" role="status"></p>
+                <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody id="developerUsersRows"></tbody></table></div>
+                <div class="d-flex gap-2"><button id="developerUsersPrevious" type="button" class="btn btn-outline-secondary btn-sm">Previous</button><button id="developerUsersNext" type="button" class="btn btn-outline-secondary btn-sm">Next</button></div>
+            </section>
         </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261008-developer-options1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reset.js?v=20260519-reset-notifications"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/developer_options.js?v=20261008-users1"></script>
 </body>
 </html>

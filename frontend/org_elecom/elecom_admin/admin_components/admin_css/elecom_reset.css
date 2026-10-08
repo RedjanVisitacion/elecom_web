@@ -1,1 +1,3 @@
 .reset-count-badge{font-variant-numeric:tabular-nums;}
+/* Bootstrap cards must respect the Developer Options panel selection. */
+#resetPanel[hidden], #usersPanel[hidden] { display: none !important; }

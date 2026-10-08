@@ -1,4 +1,5 @@
 from .candidate_push import register_push_token_api, unregister_push_token_api
+from .developer_options import developer_users_api
 from django.contrib import admin
 from django.urls import path
 from django.shortcuts import redirect
@@ -157,6 +158,7 @@ urlpatterns = [
     path('api/admin/page-token/', admin_page_token_api, name='admin_page_token_api'),
     path('api/user/page-token/', student_page_token_api, name='student_page_token_api'),
     path('api/admin/verify-password/', admin_verify_password_api, name='admin_verify_password_api'),
+    path('api/admin/developer/users/', developer_users_api, name='developer_users_api'),
     path('api/admin/results/', admin_results_api, name='admin_results_api'),
     path('api/results/', user_results_api, name='user_results_api'),
     path('api/results/analytics/', results_analytics_api, name='results_analytics_api'),

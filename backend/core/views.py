@@ -5058,6 +5058,7 @@ def admin_verify_password_api(request):
             return JsonResponse({"ok": False, "error": "Incorrect admin password."}, status=401)
 
         request.session["voters_access_verified_at"] = timezone.now().isoformat()
+        request.session["developer_access_verified_at"] = timezone.now().isoformat()
         request.session.modified = True
         return JsonResponse({"ok": True})
     except Exception as e:
