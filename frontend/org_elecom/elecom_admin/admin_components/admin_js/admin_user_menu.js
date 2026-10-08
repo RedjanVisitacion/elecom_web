@@ -876,7 +876,7 @@
     });
 
     if (adminHiddenNotifButton) {
-      adminHiddenNotifButton.addEventListener("click", (e) => {
+      adminHiddenNotifButton.addEventListener("dblclick", (e) => {
         e.preventDefault();
         setAdminPasswordModalOpen(true);
       });

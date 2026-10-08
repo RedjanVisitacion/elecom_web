@@ -365,7 +365,7 @@ body {
   border: 0; padding: 0;
   margin-right: 2px;
   background: transparent;
-  opacity: 0; cursor: pointer;
+  opacity: 0; cursor: default;
 }
 .top-navbar .admin-hidden-notif-action:focus-visible {
   opacity: 1;
