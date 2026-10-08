@@ -102,7 +102,7 @@ def finalize_certificate(cur, application, approved_at=None):
         return  # Older filings without a COC retain their existing review flow.
     signature, chair = read_signature(cur, application.get('election_id'))
     if not signature:
-        raise ValueError('Save the COMELEC chairperson signature in COC Management before final approval.')
+        raise ValueError('Save the ELECOM chairperson signature in COC Management before final approval.')
     snapshot = source[1]
     if isinstance(snapshot, str):
         snapshot = json.loads(snapshot)
