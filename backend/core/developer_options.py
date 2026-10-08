@@ -62,15 +62,28 @@ def developer_users_api(request):
     try:
         data = json.loads(request.body)
         user_id = int(data['id'])
-        if data.get('role') != 'admin' or user_id <= 0:
+        role = data.get('role')
+        if role not in {'admin', 'student'} or user_id <= 0:
             raise ValueError
     except (ValueError, TypeError, KeyError, AttributeError, UnicodeDecodeError):
-        return JsonResponse({"ok": False, "error": "Select a valid account to promote to admin."}, status=400)
+        return JsonResponse({"ok": False, "error": "Select a valid account and role."}, status=400)
     with transaction.atomic():
         with connection.cursor() as cur:
-            cur.execute("SELECT id FROM users WHERE id = %s FOR UPDATE", [user_id])
-            if cur.fetchone() is None:
+            # Serialize role changes, including other user-management endpoints.
+            cur.execute("LOCK TABLE users IN SHARE ROW EXCLUSIVE MODE")
+            denied = _developer_admin(request)
+            if denied is not None:
+                return denied
+            cur.execute("SELECT role FROM users WHERE id = %s FOR UPDATE", [user_id])
+            target = cur.fetchone()
+            if target is None:
                 return JsonResponse({"ok": False, "error": "Account not found."}, status=404)
-            cur.execute("UPDATE users SET role = 'admin' WHERE id = %s", [user_id])
-    logger.info("Admin %s promoted user %s to admin", request.session.get("student_id"), user_id)
-    return JsonResponse({"ok": True, "message": "Account is now an admin. Sign out and sign in again to access the admin dashboard."})
+            if role == 'student' and str(target[0]).strip().lower() == 'admin':
+                cur.execute("SELECT COUNT(*) FROM users WHERE LOWER(TRIM(role)) = 'admin'")
+                if cur.fetchone()[0] <= 1:
+                    return JsonResponse({"ok": False, "error": "The last administrator cannot be removed."}, status=409)
+            cur.execute("UPDATE users SET role = %s WHERE id = %s", [role, user_id])
+    logger.info("Admin %s changed user %s role to %s", request.session.get("student_id"), user_id, role)
+    message = ("Account is now an admin. Sign out and sign in again to access the admin dashboard."
+               if role == 'admin' else "Admin access removed. This account is now a student.")
+    return JsonResponse({"ok": True, "message": message})

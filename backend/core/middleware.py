@@ -1,11 +1,33 @@
 import logging
 import time
+from django.db import connection
 
 
 logger = logging.getLogger(__name__)
 
 _LAST_TABLE_CHECK = 0.0
 _CHECK_INTERVAL_SECONDS = 60.0
+
+
+class RefreshAdminRoleMiddleware:
+    """Revoke stale administrator sessions after a database role change."""
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if str(request.session.get('role') or '').lower() == 'admin':
+            identity = str(request.session.get('student_id') or '')
+            with connection.cursor() as cur:
+                cur.execute("""SELECT role FROM users WHERE student_id::text = %s OR id::text = %s
+                               ORDER BY CASE WHEN student_id::text = %s THEN 0 ELSE 1 END, id DESC LIMIT 1""",
+                            [identity, identity, identity])
+                row = cur.fetchone() if identity else None
+            role = str(row[0] or '').strip().lower() if row else ''
+            if role != 'admin':
+                request.session['role'] = role
+                request.session.pop('developer_access_verified_at', None)
+                request.session.pop('voters_access_verified_at', None)
+        return self.get_response(request)
 
 
 class EnsureSystemTablesMiddleware:

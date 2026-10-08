@@ -53,7 +53,7 @@ class DeveloperUsersTests(unittest.TestCase):
         self.request.body = b'{"id":7,"role":"admin"}'
         with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
             self.assertEqual(self.result()[0], 200)
-        self.assertEqual(self.cursor.execute.call_args.args, ("UPDATE users SET role = 'admin' WHERE id = %s", [7]))
+        self.assertEqual(self.cursor.execute.call_args.args, ("UPDATE users SET role = %s WHERE id = %s", ['admin', 7]))
 
     def test_unknown_account_is_not_updated(self):
         self.cursor.fetchone.return_value = None
@@ -61,12 +61,38 @@ class DeveloperUsersTests(unittest.TestCase):
         self.request.body = b'{"id":7,"role":"admin"}'
         with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
             self.assertEqual(self.result()[0], 404)
-        self.assertEqual(self.cursor.execute.call_count, 1)
+        self.assertEqual(self.cursor.execute.call_count, 2)
 
     def test_invalid_role_or_payload_cannot_change_accounts(self):
         self.request.method = 'POST'
         with patch.object(api, '_developer_admin', return_value=None):
-            for payload in (b'[]', b'null', b'{"id":7,"role":"student"}', b'{"id":0,"role":"admin"}'):
+            for payload in (b'[]', b'null', b'{"id":7,"role":"owner"}', b'{"id":0,"role":"admin"}'):
                 self.request.body = payload
                 self.assertEqual(self.result()[0], 400)
         self.cursor.execute.assert_not_called()
+
+    def test_remove_admin_returns_account_to_student(self):
+        self.request.method = 'POST'
+        self.request.body = b'{"id":7,"role":"student"}'
+        self.cursor.fetchone.side_effect = [('admin',), (2,)]
+        with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
+            self.assertEqual(self.result()[0], 200)
+        self.assertEqual(self.cursor.execute.call_args.args[1], ['student', 7])
+
+    def test_last_admin_cannot_be_removed(self):
+        self.request.method = 'POST'
+        self.request.body = b'{"id":7,"role":"student"}'
+        self.cursor.fetchone.side_effect = [('admin',), (1,)]
+        with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
+            self.assertEqual(self.result()[0], 409)
+        self.assertFalse(any('UPDATE users' in call.args[0] for call in self.cursor.execute.call_args_list))
+
+    def test_stale_admin_session_loses_privileges_on_next_request(self):
+        from core.middleware import RefreshAdminRoleMiddleware
+        self.cursor.fetchone.return_value = ('student',)
+        observed = []
+        middleware = RefreshAdminRoleMiddleware(lambda request: observed.append(request.session['role']))
+        with patch('core.middleware.connection', SimpleNamespace(cursor=lambda: nullcontext(self.cursor))):
+            middleware(self.request)
+        self.assertEqual(observed, ['student'])
+        self.assertNotIn('developer_access_verified_at', self.request.session)

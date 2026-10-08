@@ -23,14 +23,15 @@
           const td = document.createElement('td'); td.textContent = text; tr.append(td);
         }
         const action = document.createElement('td');
-        if (String(user.role).trim().toLowerCase() !== 'admin') {
+        {
+          const isAdmin = String(user.role).trim().toLowerCase() === 'admin';
           const button = document.createElement('button'); button.type = 'button';
-          button.className = 'btn btn-outline-primary btn-sm'; button.textContent = 'Make admin';
+          button.className = `btn btn-outline-${isAdmin ? 'danger' : 'primary'} btn-sm`; button.textContent = isAdmin ? 'Remove admin' : 'Make admin';
           button.addEventListener('click', async () => {
-            if (busy || !window.confirm(`Grant full admin access to ${name || user.student_id || user.id}?`)) return;
+            if (busy || !window.confirm(`${isAdmin ? 'Remove admin access from' : 'Grant full admin access to'} ${name || user.student_id || user.id}?`)) return;
             busy = true; button.disabled = true; controls();
             try {
-              const response = await fetch('/api/admin/developer/users/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify({ id: user.id, role: 'admin' }) });
+              const response = await fetch('/api/admin/developer/users/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify({ id: user.id, role: isAdmin ? 'student' : 'admin' }) });
               const result = await response.json();
               if (!response.ok || !result.ok) throw new Error(result.error || 'Unable to update role.');
               busy = false; await load(); status.textContent = result.message;
@@ -38,7 +39,7 @@
             finally { busy = false; button.disabled = false; controls(); }
           });
           action.append(button);
-        } else { action.textContent = 'Administrator'; }
+        }
         tr.append(action); rows.append(tr);
       }
       status.textContent = data.users.length ? `Page ${page} · ${data.users.length} accounts` : 'No matching accounts.';
