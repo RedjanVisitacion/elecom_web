@@ -500,126 +500,16 @@ document.addEventListener("DOMContentLoaded", function () {
     return num.toLocaleString();
   };
 
-  const turnoutDate = (iso, includeDate = true) => {
-    const date = new Date(iso);
-    if (!Number.isFinite(date.getTime())) return "";
-    return new Intl.DateTimeFormat("en-PH", {
-      timeZone: "Asia/Manila", ...(includeDate ? { month: "short", day: "numeric" } : {}),
-      hour: "numeric", minute: "2-digit", hour12: true,
-    }).format(date);
-  };
-
-  let turnoutChartInstance = null;
-  const renderTurnout = (turnout, metrics) => {
-    const total = Number(metrics.total_voters) || 0;
-    const cast = Number(metrics.total_cast_votes) || 0;
+  const renderTurnout = (metrics) => {
+    const total = Math.max(0, Number(metrics.total_voters) || 0);
+    const cast = Math.max(0, Number(metrics.total_cast_votes) || 0);
     const percent = total ? Math.min(100, Math.max(0, cast / total * 100)) : 0;
     setText(document.getElementById("turnoutPercent"), `${percent.toFixed(1)}%`);
-    setText(document.getElementById("turnoutSummary"), `${fmt(cast)} ballots cast / ${fmt(total)} registered voters`);
+    setText(document.getElementById("turnoutSummary"), `${fmt(cast)} voted / ${fmt(total)} total voters`);
     const progress = document.getElementById("turnoutProgress");
     progress?.setAttribute("aria-valuenow", percent.toFixed(1));
-    const fill = document.getElementById("turnoutProgressFill");
-    if (fill) fill.style.width = `${percent}%`;
-
-    const canvas = document.getElementById("turnoutCanvas");
-    const message = document.getElementById("turnoutChartEmpty");
-    const table = document.getElementById("turnoutTableBody");
-    if (!canvas || !message || !table) return;
-    table.replaceChildren();
-    const hourly = Array.isArray(turnout?.hourly) ? turnout.hourly.slice(-24) : [];
-    // Keep withheld buckets as null: never connect or fill across privacy gaps.
-    const values = hourly.map((item) => {
-      if (item.withheld || item.count === null) return null;
-      const count = Number(item.count);
-      return Number.isInteger(count) && (count === 0 || count >= 5) ? count : null;
-    });
-    hourly.forEach((item, i) => {
-      const row = document.createElement("tr");
-      const hour = document.createElement("th");
-      hour.scope = "row"; hour.textContent = turnoutDate(item.hour);
-      const count = document.createElement("td");
-      count.textContent = values[i] === null ? "Withheld" : fmt(values[i]);
-      row.append(hour, count); table.append(row);
-    });
-    if (!hourly.length || typeof window.Chart !== "function") {
-      turnoutChartInstance?.destroy();
-      turnoutChartInstance = null;
-      canvas.hidden = true;
-      message.hidden = false;
-      message.textContent = hourly.length
-        ? "Chart unavailable. Open View hourly totals to see the data."
-        : "Hourly turnout is temporarily unavailable.";
-      return;
-    }
-    canvas.hidden = false;
-    const hasPublishedVotes = values.some((value) => value !== null && value > 0);
-    message.hidden = hasPublishedVotes;
-    message.textContent = "Published hourly turnout will appear here as voting progresses.";
-    const labels = hourly.map((item) => turnoutDate(item.hour, false));
-    if (turnoutChartInstance) {
-      turnoutChartInstance.data.labels = labels;
-      turnoutChartInstance.data.datasets[0].data = values;
-      turnoutChartInstance.update("none");
-      return;
-    }
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    turnoutChartInstance = new window.Chart(canvas, {
-      type: "line",
-      data: {
-        labels,
-        datasets: [{
-          label: "Votes cast", data: values,
-          borderColor: "#0d1b3e", borderWidth: 2.5,
-          tension: 0.4, fill: "origin", spanGaps: false,
-          backgroundColor: ({ chart }) => {
-            const area = chart.chartArea;
-            if (!area) return "rgba(13, 27, 62, 0.05)";
-            const gradient = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
-            gradient.addColorStop(0, "rgba(13, 27, 62, 0.20)");
-            gradient.addColorStop(1, "rgba(13, 27, 62, 0)");
-            return gradient;
-          },
-          pointRadius: (context) => context.raw > 0 ? 2.5 : 0,
-          pointBackgroundColor: "#fff", pointBorderColor: "#0d1b3e", pointBorderWidth: 2,
-          pointHoverRadius: 5, pointHoverBorderWidth: 2, pointHitRadius: 14,
-        }],
-      },
-      options: {
-        responsive: true, maintainAspectRatio: false, resizeDelay: 50,
-        animation: reducedMotion ? false : { duration: 300 },
-        interaction: { mode: "index", intersect: false },
-        layout: { padding: { top: 12, right: 10, bottom: 4 } },
-        font: { family: "Inter, system-ui, sans-serif", size: 11 },
-        onResize: (chart, size) => {
-          chart.options.scales.x.ticks.maxTicksLimit = size.width < 300 ? 2 : size.width < 500 ? 4 : 6;
-        },
-        plugins: {
-          legend: { display: false },
-          tooltip: {
-            backgroundColor: "#0d1b3e", titleColor: "#fff", bodyColor: "#fff",
-            padding: 12, cornerRadius: 10, displayColors: false, caretPadding: 8,
-            titleFont: { family: "Inter, system-ui, sans-serif", size: 11, weight: "600" },
-            bodyFont: { family: "Inter, system-ui, sans-serif", size: 12 },
-            filter: (item) => item.raw !== null,
-            callbacks: {
-              title: (items) => items.length ? items[0].label + " / Completed hour" : "",
-              label: (item) => `${item.label}: ${fmt(item.parsed.y)} votes cast`,
-            },
-          },
-        },
-        scales: {
-          x: {
-            grid: { display: false }, border: { display: false },
-            ticks: { color: "#4a5568", font: { size: 10 }, maxRotation: 0, autoSkip: true, maxTicksLimit: 6 },
-          },
-          y: {
-            beginAtZero: true, min: 0, suggestedMax: 8,
-            grid: { color: "#e9edf4", drawTicks: false }, border: { display: false },
-            ticks: { color: "#4a5568", font: { size: 10 }, padding: 8, precision: 0, maxTicksLimit: 5 },
-          },
-        },
-      },
-    });
+    progress?.setAttribute("aria-valuetext", `${percent.toFixed(1)} percent turnout; ${fmt(cast)} voted out of ${fmt(total)} total voters`);
+    document.getElementById("turnoutProgressFill")?.setAttribute("width", String(percent * 10));
   };
 
   let dashboardLoading = false;
@@ -647,7 +537,7 @@ document.addEventListener("DOMContentLoaded", function () {
       setElectionTexts(e);
       setElectionScheduleDetails(e);
       startCountdown({ start_at: e.start_at, end_at: e.end_at });
-      renderTurnout(data.turnout, m);
+      renderTurnout(m);
       const status = document.getElementById("turnoutChartStatus");
       if (status) status.hidden = true;
     } catch (e) {
