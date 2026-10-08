@@ -28,8 +28,8 @@ CREATE TABLE IF NOT EXISTS candidate_application_certificates (
 
 
 def ensure_certificate_table():
-    with connection.cursor() as cur:
-        cur.execute(SCHEMA_SQL)
+    from .candidate_filing_schema import ensure_candidate_filing_schema
+    ensure_candidate_filing_schema()
 
 
 def read_certificate_upload(request, require_signature=True):

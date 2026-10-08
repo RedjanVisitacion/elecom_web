@@ -143,7 +143,7 @@ document.addEventListener('DOMContentLoaded', () => {
   async function load() {
     try {
       const response = await fetch(endpoint, { credentials: 'same-origin', cache: 'no-store' });
-      const data = await response.json();
+      const data = await response.json().catch(() => { throw new Error('The server could not load COC settings. Check Gunicorn logs and repair the filing database schema.'); });
       if (!response.ok || !data.ok) throw new Error(data.error || 'Could not load certificate settings.');
       csrf = data.csrf_token || ''; signatureLoaded = true;
       if (signatureRevision === 0 && data.chairperson_signature_base64) {
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
           headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf },
           body: JSON.stringify(values(form)),
         });
-        const data = await response.json();
+        const data = await response.json().catch(() => { throw new Error('The server could not load COC settings. Check Gunicorn logs and repair the filing database schema.'); });
         if (!response.ok || !data.ok) throw new Error(data.error || 'Could not save certificate settings.');
         csrf = data.csrf_token || csrf;
         message('Certificate settings saved for USG and department forms.');

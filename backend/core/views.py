@@ -7793,6 +7793,7 @@ def candidate_certificate_settings_api(request):
         if forbidden:
             return forbidden
     try:
+        ensure_certificate_table()
         return settings_response(request, _current_election_id() or None)
     except Exception:
         logger.exception("Failed to manage COC settings")
@@ -7805,6 +7806,7 @@ def admin_candidate_certificate_template_api(request, kind):
     if forbidden:
         return forbidden
     try:
+        ensure_certificate_table()
         return template_response(request, _current_election_id() or None, kind)
     except Exception:
         logger.exception("Failed to preview COC template")
