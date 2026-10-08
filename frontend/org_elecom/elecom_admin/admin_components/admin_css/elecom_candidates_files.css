@@ -3,7 +3,7 @@
 .files-page .content-area > h1 { color:#1e293b; margin-bottom:4px!important; }
 .files-page .content-area > p { font-size:13px; margin-bottom:14px; }
 .files-explorer .card-body { padding:16px; }
-.files-toolbar { display:flex; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid #e5e7eb; }
+.files-toolbar { display:flex; flex-wrap:wrap; align-items:center; gap:12px; padding-bottom:12px; border-bottom:1px solid #e5e7eb; }
 .files-navigation { display:flex; align-items:center; gap:10px; min-width:0; flex:1 1 210px; }
 .files-control,.files-icon { height:34px; border:1px solid #dfe3e9; border-radius:6px; background:#fff; color:#374151; font-size:12px; }
 .files-control { padding:0 9px; }
@@ -16,12 +16,13 @@
 #filesBreadcrumb button { border:0; background:transparent; color:#334155; padding:3px 0; font-size:inherit; text-align:left; }
 #filesBreadcrumb button:hover { color:#102653; text-decoration:underline; }
 #filesBreadcrumb span { color:#1e293b; }
-.files-search-group { display:flex; align-items:center; flex:1.2 1 280px; min-width:220px; }
-.files-search-wrap { display:flex; align-items:center; gap:8px; border:1px solid #dfe3e9; border-radius:6px 0 0 6px; height:34px; padding:0 9px; min-width:100px; flex:1; color:#6b7280; }
+.files-search-group { display:flex; flex-wrap:wrap; gap:8px; align-items:center; flex:1.2 1 540px; min-width:0; }
+.files-search-wrap { display:flex; align-items:center; gap:8px; border:1px solid #dfe3e9; border-radius:6px; height:34px; padding:0 9px; min-width:160px; flex:1 1 180px; color:#6b7280; }
 .files-search-wrap:focus-within { border-color:#7f96b9; }
 #filesSearch { border:0; outline:0; background:transparent; font-size:12px; width:100%; min-width:0; color:#1e293b; }
-.files-election { max-width:145px; border-radius:0 6px 6px 0; margin-left:-1px; }
-.files-actions { display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.files-election { width:145px; flex:0 0 145px; }
+#filesScope { width:175px; flex:0 0 175px; }
+.files-actions { display:flex; flex-wrap:wrap; align-items:center; gap:6px; flex-shrink:0; max-width:100%; }
 #filesSort { max-width:158px; }
 .files-view-toggle { display:flex; padding:2px; border:1px solid #dfe3e9; border-radius:7px; background:#fafbfc; }
 .files-view-toggle .files-icon { height:28px; width:30px; border:0; background:transparent; }

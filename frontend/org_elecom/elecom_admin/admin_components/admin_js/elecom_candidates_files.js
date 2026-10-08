@@ -84,6 +84,8 @@
     if (candidate) { crumbs.append(' / '); const span = document.createElement('span'); span.textContent = name(candidate); crumbs.append(span); }
     if (loading) { status.textContent = 'Loading candidate files…'; return; }
     const query = search.value.trim().toLowerCase();
+    search.placeholder = candidate ? 'Search documents...' : org ? 'Search candidates in this organization...' : 'Search candidates or organizations...';
+    search.setAttribute('aria-label', search.placeholder.replace('...', ''));
     const items = [];
     if (candidate) {
       for (const [label, key, icon] of documents) {
@@ -91,11 +93,11 @@
         const href = candidate[key] ? url(candidate[key]) : '';
         items.push({ label, detail: href ? 'Open file ↗' : 'Not submitted', icon, href, missing: !href, kind: key.replace(/_url$/, '') });
       }
-    } else if (org) {
-      rows.filter(row => group(row) === org && `${name(row)} ${row.student_id} ${row.position}`.toLowerCase().includes(query))
+    } else if (org || query) {
+      rows.filter(row => (!org || group(row) === org) && `${name(row)} ${row.student_id} ${row.position} ${group(row)}`.toLowerCase().includes(query))
         .sort((a, b) => name(a).localeCompare(name(b))).forEach(row => {
           const count = documents.filter(([, key]) => row[key] && url(row[key])).length;
-          items.push({ label: name(row), detail: `${row.student_id} · ${row.position} · ${count}/4 files · ${row.status}`, date: timestamp(row.created_at), metadata: [['ID', String(row.student_id)], ['Role', row.position || '?'], ['Files', `${count}/4 submitted`], ['Status', String(row.status || '').replaceAll('_', ' ')]], icon: 'bi-folder-fill', action: () => navigate(org, row) });
+          items.push({ label: name(row), detail: `${row.student_id} · ${row.position} · ${count}/4 files · ${row.status}`, date: timestamp(row.created_at), metadata: [['ID', String(row.student_id)], ['Role', row.position || '?'], ['Files', `${count}/4 submitted`], ['Status', String(row.status || '').replaceAll('_', ' ')]], icon: 'bi-folder-fill', action: () => navigate(group(row), row) });
         });
     } else {
       [...new Set([...orgs, ...rows.map(group)])].filter(label => label.toLowerCase().includes(query)).forEach(label => {
