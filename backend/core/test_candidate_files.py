@@ -22,7 +22,7 @@ class CandidateFilesTests(unittest.TestCase):
         self.namespace = {
             'identity_row': identity_row,
             '_require_admin': Mock(return_value=None),
-            '_current_election_id': lambda: 9,
+            '_active_election_id': lambda: 9,
             '_ensure_candidate_applications_table': Mock(),
             '_ensure_election_scoped_tables': Mock(),
             '_ensure_admin_candidate_documents_table': Mock(),
@@ -32,6 +32,9 @@ class CandidateFilesTests(unittest.TestCase):
             'JsonResponse': lambda data, status=200: SimpleNamespace(data=data, status_code=status),
         }
         exec(compile(ast.Module(body=[function], type_ignores=[]), '<candidate files>', 'exec'), self.namespace)
+        scope_function = next(node for node in module.body if isinstance(node, ast.FunctionDef)
+                              and node.name == '_current_election_filter')
+        exec(compile(ast.Module(body=[scope_function], type_ignores=[]), '<election filter>', 'exec'), self.namespace)
 
     def call(self, query=None):
         return self.namespace['admin_candidates_files_api'](SimpleNamespace(GET=query or {}))
@@ -49,11 +52,35 @@ class CandidateFilesTests(unittest.TestCase):
             self.assertTrue(result.data['ok'])
             self.assertEqual(len(result.data['candidates']), 2)
             self.assertEqual(result.data['election_id'], expected)
-            for call in self.cursor.execute.call_args_list[:2]:
-                self.assertEqual(call.args[1], [expected])
+            for index, call in enumerate(self.cursor.execute.call_args_list[:2]):
+                self.assertEqual(call.args[1], [expected, 'registered'] if index == 0 else [expected])
                 self.assertIn('election_id', call.args[0])
-                self.assertNotIn('LIMIT ', call.args[0])
+                self.assertIn('election_id IS NULL AND NOT EXISTS', call.args[0])
             self.assertIn('NOT EXISTS', self.cursor.execute.call_args_list[1].args[0])
+
+    def test_registered_view_requires_registration_and_latest_approved_filing(self):
+        self.assertTrue(self.call().data['ok'])
+        sql = self.cursor.execute.call_args_list[0].args[0]
+        self.assertIn("a.status = 'approved' AND c.id IS NOT NULL", sql)
+        self.assertIn('newer.id > a.id', sql)
+        manual_sql = self.cursor.execute.call_args_list[1].args[0]
+        self.assertIn("a.status = 'approved'", manual_sql)
+
+    def test_history_preserves_filings_and_labels_removed_registrations(self):
+        self.assertTrue(self.call({'view': 'history'}).data['ok'])
+        sql, params = self.cursor.execute.call_args_list[0].args
+        self.assertEqual(params, [9, 'history'])
+        self.assertIn("THEN 'removed' ELSE a.status", sql)
+
+    def test_no_current_election_uses_same_unrestricted_scope_as_search(self):
+        self.namespace['_active_election_id'] = lambda: None
+        self.assertTrue(self.call().data['ok'])
+        self.assertIn('WHERE 1=1', self.cursor.execute.call_args_list[0].args[0])
+        self.assertEqual(self.cursor.execute.call_args_list[0].args[1], ['registered'])
+
+    def test_invalid_view_is_rejected(self):
+        self.assertEqual(self.call({'view': 'unknown'}).status_code, 400)
+        self.cursor.execute.assert_not_called()
 
     def test_invalid_scope_is_rejected(self):
         for value in ('bad', '0', '-3'):

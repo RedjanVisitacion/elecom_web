@@ -8153,8 +8153,11 @@ def admin_candidates_files_api(request):
     if forbidden:
         return forbidden
     raw_election = request.GET.get("election_id")
+    view = request.GET.get("view", "registered")
+    if view not in {"registered", "history"}:
+        return JsonResponse({"ok": False, "error": "Invalid files view."}, status=400)
     try:
-        election_id = int(raw_election) if raw_election else (_current_election_id() or None)
+        election_id = int(raw_election) if raw_election else _active_election_id()
         if raw_election and election_id <= 0:
             raise ValueError
     except (TypeError, ValueError):
@@ -8163,34 +8166,56 @@ def admin_candidates_files_api(request):
         _ensure_candidate_applications_table()
         _ensure_election_scoped_tables()
         _ensure_admin_candidate_documents_table()
+        application_where, application_params = _current_election_filter("a", election_id)
+        registration_where, registration_params = _current_election_filter("c", election_id)
         with connection.cursor() as cur:
-            cur.execute("""
-                SELECT id, election_id, 'application' AS source, student_id, first_name, middle_name, last_name,
-                       organization, position, status, created_at, requirements_photo_url,
-                       enrollment_certificate_url, grades_url, good_moral_url
-                FROM candidate_applications
-                WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-                ORDER BY id DESC
-            """, [election_id])
+            cur.execute(f"""
+                SELECT a.id, a.election_id, 'application' AS source, a.student_id, a.first_name, a.middle_name, a.last_name,
+                       a.organization, a.position,
+                       CASE WHEN a.status = 'approved' AND c.id IS NULL THEN 'removed' ELSE a.status END AS status,
+                       a.created_at, a.requirements_photo_url,
+                       a.enrollment_certificate_url, a.grades_url, a.good_moral_url
+                FROM candidate_applications a
+                LEFT JOIN LATERAL (
+                    SELECT r.id FROM candidates_registration r
+                    WHERE COALESCE(r.election_id, 0) = COALESCE(a.election_id, 0)
+                      AND r.student_id::text = a.student_id::text
+                      AND UPPER(TRIM(r.organization)) = UPPER(TRIM(a.organization))
+                      AND r.position = a.position
+                    ORDER BY r.id DESC LIMIT 1
+                ) c ON TRUE
+                WHERE {application_where}
+                  AND (%s = 'history' OR (a.status = 'approved' AND c.id IS NOT NULL
+                    AND NOT EXISTS (
+                      SELECT 1 FROM candidate_applications newer
+                      WHERE COALESCE(newer.election_id, 0) = COALESCE(a.election_id, 0)
+                        AND newer.student_id::text = a.student_id::text
+                        AND UPPER(TRIM(newer.organization)) = UPPER(TRIM(a.organization))
+                        AND newer.position = a.position AND newer.status = 'approved'
+                        AND newer.id > a.id
+                    )))
+                ORDER BY a.id DESC
+            """, application_params + [view])
             cols = [c[0] for c in cur.description]
             rows = [identity_row(cols, row) for row in cur.fetchall()]
-            cur.execute("""
+            cur.execute(f"""
                 SELECT c.id, c.election_id, 'registration' AS source, c.student_id, c.first_name, c.middle_name, c.last_name,
                        c.organization, c.position, 'registered' AS status, c.created_at,
                        c.photo_url AS requirements_photo_url,
                        NULL AS enrollment_certificate_url, NULL AS grades_url,
                        NULL AS good_moral_url
                 FROM candidates_registration c
-                WHERE COALESCE(c.election_id, 0) = COALESCE(%s, 0)
+                WHERE {registration_where}
                   AND NOT EXISTS (
                     SELECT 1 FROM candidate_applications a
                     WHERE COALESCE(a.election_id, 0) = COALESCE(c.election_id, 0)
                       AND a.student_id::text = c.student_id::text
-                      AND UPPER(a.organization) = UPPER(c.organization)
+                      AND UPPER(TRIM(a.organization)) = UPPER(TRIM(c.organization))
                       AND a.position = c.position
+                      AND a.status = 'approved'
                   )
                 ORDER BY c.last_name, c.first_name, c.id
-            """, [election_id])
+            """, registration_params)
             cols = [c[0] for c in cur.description]
             rows.extend(identity_row(cols, row) for row in cur.fetchall())
             cur.execute("SELECT candidate_id, kind, file_url FROM admin_candidate_documents")

@@ -6,6 +6,7 @@
   const search = document.getElementById('filesSearch');
   const status = document.getElementById('filesStatus');
   const election = document.getElementById('filesElection');
+  const scope = document.getElementById('filesScope');
   let rows = [], org = '', candidate = null, generation = 0, loading = false, csrfToken = '', saving = false;
   const name = row => [row.first_name, row.middle_name, row.last_name].filter(Boolean).join(' ') || String(row.student_id);
   const group = row => {
@@ -122,6 +123,7 @@
     if (!silent) { loading = true; render(); }
     try {
       const params = new URLSearchParams(); if (election.value) params.set('election_id', election.value);
+      params.set('view', scope.value);
       const res = await fetch(`/api/admin/candidates/files/?${params}`, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
       const data = await res.json();
       if (!res.ok || !data.ok) throw new Error(data.error || 'Unable to load candidate files.');
@@ -264,6 +266,7 @@
     if ([...sort.options].some(option => option.value === saved.sort)) sort.value = saved.sort;
   } catch (_) { /* Use default browser view. */ }
   election.addEventListener('change', () => { org = ''; candidate = null; load(); });
+  scope.addEventListener('change', () => { org = ''; candidate = null; load(); });
   document.getElementById('filesBack').addEventListener('click', () => navigate(candidate ? org : ''));
   document.getElementById('filesRefresh').addEventListener('click', () => load());
   async function init() {
