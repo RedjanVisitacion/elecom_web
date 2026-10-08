@@ -56,7 +56,7 @@ class CocManagementTests(unittest.TestCase):
         original = (FORMS / 'certificate_of_candidacy.pdf').read_bytes()
         cur.fetchone.side_effect = [None, (original,), (2025, 2026, 'Maria PeÃ±a')]
         coc.issue_certificate(cur, {'id': 7, 'election_id': 3, 'organization': 'USG'}, APPROVED)
-        self.assertEqual(cur.execute.call_args_list[2].args[1], [3, 'usg'])
+        self.assertEqual(cur.execute.call_args_list[2].args[1], [3])
         sql, values = cur.execute.call_args.args
         self.assertIn('candidate_certificate_issuances', sql)
         self.assertIn('ON CONFLICT (application_id) DO NOTHING', sql)
@@ -80,20 +80,31 @@ class CocManagementTests(unittest.TestCase):
         coc.issue_certificate(cur, {'id': 7}, APPROVED)
         self.assertEqual(cur.execute.call_count, 2)
 
+    def test_saved_usg_settings_are_shared_when_loading_department(self):
+        cur = Mock(); cur.fetchone.return_value = (2025, 2026, CONFIG['chairperson_name'])
+        self.assertEqual(coc.read_settings(cur, 3, 'department'), CONFIG)
+        sql, values = cur.execute.call_args.args
+        self.assertEqual(values, [3])
+        self.assertIn("WHEN form_kind = 'usg' THEN 0", sql)
+
     def test_student_cannot_update_settings(self):
         request = SimpleNamespace(method='POST', session={'role': 'student', 'student_id': 'student'})
         with patch.object(coc, 'connection') as connection:
             self.assertEqual(coc.settings_response(request, 3).status_code, 403)
             connection.cursor.assert_not_called()
 
-    def test_settings_save_is_scoped_to_election_and_form(self):
+    def test_settings_save_updates_both_forms_atomically_in_the_same_election(self):
         cur = Mock(); cur.fetchone.side_effect = [(2025, 2026, 'Maria PeÃ±a'), None]
         request = SimpleNamespace(method='POST', session={'role': 'admin', 'student_id': 'admin'},
                                   body=json.dumps({'form_kind': 'usg', **CONFIG}).encode())
         with patch.object(coc, 'connection', SimpleNamespace(cursor=lambda: nullcontext(cur))), patch.object(coc, 'get_token', return_value='csrf'):
             result = coc.settings_response(request, 3)
         self.assertEqual(result.status_code, 200)
-        self.assertEqual(cur.execute.call_args_list[0].args[1], [3, 'usg', 2025, 2026, 'Maria PeÃ±a', 'admin'])
+        values = cur.execute.call_args_list[0].args[1]
+        self.assertEqual(values, [3, 'usg', 2025, 2026, CONFIG['chairperson_name'], 'admin',
+                                  3, 'department', 2025, 2026, CONFIG['chairperson_name'], 'admin'])
+        data = json.loads(result.content)
+        self.assertEqual(data['forms']['usg'], data['forms']['department'])
 
     def test_draft_preview_uses_unsaved_values_without_database_access(self):
         request = SimpleNamespace(GET={'draft': '1', 'academic_year_start': '2027',

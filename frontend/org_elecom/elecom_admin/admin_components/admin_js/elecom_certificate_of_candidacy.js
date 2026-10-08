@@ -90,7 +90,15 @@ document.addEventListener('DOMContentLoaded', () => {
     form.elements.academic_year_start.addEventListener('input', () => {
       updateYear(form);
     });
-    form.addEventListener('input', () => schedulePreview(form));
+    form.addEventListener('input', () => {
+      for (const other of forms) {
+        if (other !== form) {
+          updateYear(other, form.elements.academic_year_start.value);
+          other.elements.chairperson_name.value = form.elements.chairperson_name.value;
+        }
+        schedulePreview(other);
+      }
+    });
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (!form.reportValidity()) return;
@@ -104,7 +112,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const data = await response.json();
         if (!response.ok || !data.ok) throw new Error(data.error || 'Could not save certificate settings.');
         csrf = data.csrf_token || csrf;
-        message(`${form.dataset.cocForm === 'usg' ? 'USG' : 'Department'} certificate settings saved.`);
+        message('Certificate settings saved for USG and department forms.');
       } catch (error) { message(error.message, true); }
       finally { for (const other of forms) other.querySelector('[type=submit]').disabled = false; }
     });

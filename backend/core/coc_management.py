@@ -40,8 +40,9 @@ def form_kind(organization):
 
 def read_settings(cur, election_id, kind):
     cur.execute('''SELECT academic_year_start, academic_year_end, chairperson_name
-                   FROM candidate_certificate_settings WHERE election_id = %s AND form_kind = %s''',
-                [election_id or 0, kind])
+                   FROM candidate_certificate_settings WHERE election_id = %s
+                   ORDER BY CASE WHEN form_kind = 'usg' THEN 0 ELSE 1 END LIMIT 1''',
+                [election_id or 0])
     row = cur.fetchone()
     return ({'academic_year_start': row[0], 'academic_year_end': row[1],
              'academic_year': f'{row[0]} - {row[1]}', 'chairperson_name': row[2]}
@@ -80,14 +81,16 @@ def settings_response(request, election_id):
                 kind, start, end, chair = validate_settings(payload)
                 cur.execute('''INSERT INTO candidate_certificate_settings
                     (election_id, form_kind, academic_year_start, academic_year_end, chairperson_name, updated_by)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                    VALUES (%s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s)
                     ON CONFLICT (election_id, form_kind) DO UPDATE SET
                         academic_year_start = EXCLUDED.academic_year_start,
                         academic_year_end = EXCLUDED.academic_year_end,
                         chairperson_name = EXCLUDED.chairperson_name,
                         updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP''',
-                    [election_id or 0, kind, start, end, chair, request.session['student_id']])
-            forms = {kind: read_settings(cur, election_id, kind) for kind in ('usg', 'department')}
+                    [election_id or 0, 'usg', start, end, chair, request.session['student_id'],
+                     election_id or 0, 'department', start, end, chair, request.session['student_id']])
+            shared = read_settings(cur, election_id, 'usg')
+            forms = {kind: shared for kind in ('usg', 'department')}
         response = JsonResponse({'ok': True, 'election_id': election_id, 'forms': forms,
                                  'date_source': 'initial_approval', 'csrf_token': get_token(request) if is_admin else None})
         response['Cache-Control'] = 'private, no-store'
