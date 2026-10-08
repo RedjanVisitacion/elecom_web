@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from .coc_management import settings_response, template_response, issue_certificate
 from .candidate_certificates import (ensure_certificate_table, read_certificate_upload, save_certificate, certificate_summary)
 from datetime import timezone as dt_timezone
 from zoneinfo import ZoneInfo
@@ -244,6 +245,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "elecom_election_date.html",
     "elecom_candidates.html",
     "elecom_candidates_files.html",
+    "elecom_certificate_of_candidacy.html",
     "elecom_voters.html",
     "elecom_results.html",
     "elecom_reset.html",
@@ -7781,6 +7783,33 @@ def candidate_application_submit_api(request):
         return JsonResponse({"ok": False, "error": "Failed to submit candidate application."}, status=500)
 
 
+@require_http_methods(["GET", "POST"])
+def candidate_certificate_settings_api(request):
+    if not str(request.session.get("student_id") or "").strip():
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    if request.path.startswith("/api/admin/") or request.method == "POST":
+        forbidden = _require_admin(request)
+        if forbidden:
+            return forbidden
+    try:
+        return settings_response(request, _current_election_id() or None)
+    except Exception:
+        logger.exception("Failed to manage COC settings")
+        return JsonResponse({"ok": False, "error": "Could not load certificate settings. Run the database migrations."}, status=500)
+
+
+@require_http_methods(["GET"])
+def admin_candidate_certificate_template_api(request, kind):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+    try:
+        return template_response(request, _current_election_id() or None, kind)
+    except Exception:
+        logger.exception("Failed to preview COC template")
+        return JsonResponse({"ok": False, "error": "Could not prepare the template. Check the server PDF dependencies and migrations."}, status=500)
+
+
 @require_http_methods(["GET"])
 def admin_candidate_applications_list_api(request):
     forbidden = _require_admin(request)
@@ -7917,6 +7946,10 @@ def admin_candidate_application_decision_api(request):
                     return JsonResponse({"ok": True, "status": "rejected"})
 
                 if current_status == "pending":
+                    try:
+                        issue_certificate(cur, app)
+                    except ValueError as error:
+                        return JsonResponse({"ok": False, "error": str(error)}, status=409)
                     cur.execute(
                         """
                         UPDATE candidate_applications

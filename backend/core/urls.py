@@ -11,6 +11,8 @@ from .views import (
     admin_candidates_detail_api,
     admin_candidates_list_api,
     admin_candidates_files_api,
+    candidate_certificate_settings_api,
+    admin_candidate_certificate_template_api,
     admin_candidate_document_api,
     admin_candidate_document_preview_api,
     admin_candidates_update_api,
@@ -108,6 +110,9 @@ def home_redirect(request):
     return redirect('/login/')
 
 urlpatterns = [
+    path('api/admin/certificate-of-candidacy/settings/', candidate_certificate_settings_api, name='admin_coc_settings'),
+    path('api/mobile/certificate-of-candidacy/settings/', candidate_certificate_settings_api, name='mobile_coc_settings'),
+    path('api/admin/certificate-of-candidacy/template/<str:kind>/', admin_candidate_certificate_template_api, name='admin_coc_template'),
     path('api/mobile/candidate-applications/<int:application_id>/certificate/', candidate_certificate_api, name='mobile_candidate_certificate_api'),
     path('api/admin/candidate-applications/<int:application_id>/certificate/', candidate_certificate_api, name='admin_candidate_certificate_api'),
     path('api/admin/candidates/document/preview/', admin_candidate_document_preview_api, name='admin_candidate_document_preview_api'),

@@ -55,7 +55,7 @@ def read_certificate_upload(request, require_signature=True):
         'student_id', 'first_name', 'middle_name', 'last_name', 'organization',
         'position', 'program', 'year_section', 'platform', 'candidate_type',
         'party_name', 'curriculum_program', 'major', 'gender', 'date_of_birth',
-        'age', 'contact_number', 'email', 'address',
+        'age', 'contact_number', 'email', 'address', 'academic_year', 'chairperson_name',
         *[f'affiliation_{i}_{suffix}' for i in range(3)
           for suffix in ('organization', 'years', 'position')],
     ]
@@ -84,8 +84,9 @@ def save_certificate(cur, application_id, student_id, certificate, template_vers
 
 def certificate_summary(application_id):
     with connection.cursor() as cur:
-        cur.execute('SELECT sha256 FROM candidate_application_certificates WHERE application_id = %s',
-                    [application_id])
+        cur.execute('''SELECT COALESCE(i.sha256, c.sha256) FROM candidate_application_certificates c
+                       LEFT JOIN candidate_certificate_issuances i ON i.application_id = c.application_id
+                       WHERE c.application_id = %s''', [application_id])
         row = cur.fetchone()
     return {
         'certificate_available': bool(row),
@@ -124,9 +125,10 @@ def candidate_certificate_api(request, application_id):
                                  'certificate_sha256': certificate['sha256']})
         with connection.cursor() as cur:
             cur.execute("""
-                SELECT c.pdf_bytes, c.sha256
+                SELECT COALESCE(i.pdf_bytes, c.pdf_bytes), COALESCE(i.sha256, c.sha256)
                 FROM candidate_application_certificates c
                 JOIN candidate_applications a ON a.id = c.application_id
+                LEFT JOIN candidate_certificate_issuances i ON i.application_id = c.application_id
                 WHERE a.id = %s AND (a.student_id = %s OR %s)
             """, [application_id, student_id, is_admin])
             row = cur.fetchone()
