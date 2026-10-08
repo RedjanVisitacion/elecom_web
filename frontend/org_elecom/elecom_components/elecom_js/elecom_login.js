@@ -531,7 +531,9 @@
       if (formStatus) formStatus.textContent = "Signing in…";
 
       try {
-        const res = await fetch(`${API_BASE}/login/`, {
+        const downloadLink = document.getElementById('voterAppDownload');
+        if (downloadLink) { downloadLink.hidden = true; downloadLink.removeAttribute('href'); }
+        const res = await fetch(`${API_BASE}/api/admin/auth/login/`, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
@@ -543,7 +545,19 @@
         if (!res.ok || !data.ok) {
           const msg = data.error || "Invalid credentials.";
           if (formStatus) formStatus.textContent = msg;
-          setFieldError(password, passwordError, msg);
+          if (data.code === 'ADMIN_WEB_ONLY') {
+            try {
+              const downloadUrl = new URL(data.apk_url);
+              if (downloadLink && downloadUrl.protocol === 'https:') {
+                downloadLink.href = downloadUrl.href; downloadLink.hidden = false;
+              }
+            } catch (_) { /* The app download link has not been configured. */ }
+          } else { setFieldError(password, passwordError, msg); }
+          return;
+        }
+
+        if (String(data.role || '').trim().toLowerCase() !== 'admin') {
+          if (formStatus) formStatus.textContent = 'This web portal is for administrators only. Please download the ELECOM app to sign in as a voter.';
           return;
         }
 

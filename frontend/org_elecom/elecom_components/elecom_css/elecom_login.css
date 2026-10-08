@@ -1721,3 +1721,4 @@ body {
     margin-top: 0;
   }
 }
+#voterAppDownload[hidden] { display: none !important; }

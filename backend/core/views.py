@@ -782,7 +782,7 @@ def _verify_password(stored: str, provided: str) -> bool:
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
-def login_view(request):
+def login_view(request, admin_only=False):
     if request.method == "GET":
         return render(request, "elecom_login.html")
 
@@ -812,6 +812,15 @@ def login_view(request):
     if not _verify_password(user.password_hash, password):
         return JsonResponse({"ok": False, "error": "Invalid credentials."}, status=401)
 
+    role = str(user.role or '').strip().lower()
+    # Browser sign-in is admin-only; retain the shared endpoint for released mobile clients.
+    if (admin_only or request.headers.get('Sec-Fetch-Site') is not None) and role != 'admin':
+        return JsonResponse({
+            'ok': False, 'code': 'ADMIN_WEB_ONLY',
+            'error': 'This web portal is for administrators only. Please download the ELECOM app to sign in as a voter.',
+            'apk_url': str(getattr(settings, 'APP_UPDATE_APK_URL', '') or '').strip(),
+        }, status=403)
+
     # Notifications and mobile APIs key off this string; fall back to users.id when student_id is empty
     # (some admin rows only have id + role).
     session_student_id = (user.student_id or "").strip()
@@ -819,7 +828,7 @@ def login_view(request):
         session_student_id = str(int(user.id))
 
     request.session["student_id"] = session_student_id
-    request.session["role"] = user.role
+    request.session["role"] = role
     if str(user.role or "").strip().lower() == "student":
         try:
             with connection.cursor() as cur:
@@ -835,7 +844,13 @@ def login_view(request):
         except Exception:
             logger.exception("Failed to mark student account as opened.")
 
-    return JsonResponse({"ok": True, "student_id": session_student_id, "role": user.role})
+    return JsonResponse({"ok": True, "student_id": session_student_id, "role": role})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def admin_login_api(request):
+    return login_view(request, admin_only=True)
 
 
 @require_http_methods(["GET"])

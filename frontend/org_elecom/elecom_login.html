@@ -18,7 +18,7 @@
       rel="stylesheet"
       href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
     />
-    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20260907-sms-method" />
+    <link rel="stylesheet" href="{% static 'org_elecom/elecom_components/elecom_css/elecom_login.css' %}?v=20261008-admin-only1" />
   </head>
   <body>
     <main class="login-shell" aria-label="USTP Oroquieta ELECOM login">
@@ -89,6 +89,7 @@
             </button>
             <a class="forgot-inline forgot-inline--below" href="#" id="forgotPassword">Forgot Password?</a>
             <p class="status" id="formStatus" role="status" aria-live="polite"></p>
+            <a id="voterAppDownload" class="forgot-inline" hidden target="_blank" rel="noopener noreferrer">Download the ELECOM app</a>
           </form>
 
           <footer class="login-footer">© 2026 USTP Oroquieta Electoral Commission</footer>
@@ -284,6 +285,6 @@
       </section>
     </div>
 
-    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20260907-sms-method"></script>
+    <script src="{% static 'org_elecom/elecom_components/elecom_js/elecom_login.js' %}?v=20261008-admin-only1"></script>
   </body>
 </html>

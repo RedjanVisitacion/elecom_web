@@ -96,6 +96,7 @@ from .views import (
     user_notifications_delete_api,
     mobile_tutorial_state_api,
     login_view,
+    admin_login_api,
     terms_conditions_view,
     admin_calendar_events_api,
     admin_calendar_event_delete_api,
@@ -124,6 +125,7 @@ urlpatterns = [
     path("backup/delete/<int:backup_id>/", admin_backup_delete_api, name="admin_backup_delete_api"),
     path('admin/', admin.site.urls),
     path('login/', login_view, name='login'), # Access at 127.0.0.1:8000/login/
+    path('api/admin/auth/login/', admin_login_api, name='admin_login_api'),
     path('terms-and-conditions/', terms_conditions_view, name='terms_conditions'),
     path('api/admin/dashboard/', admin_dashboard_api, name='admin_dashboard_api'),
     path('api/election/window/', election_window_api, name='election_window_api'),
