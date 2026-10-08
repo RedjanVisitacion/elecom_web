@@ -22,7 +22,7 @@ class Cursor:
         self.queries = []
     def __enter__(self): return self
     def __exit__(self, *args): pass
-    def execute(self, sql, params): self.queries.append((sql, params))
+    def execute(self, sql, params=None): self.queries.append((sql, params))
     def fetchone(self): return self.row
     def fetchall(self): return [(token,) for token in self.tokens]
 
@@ -40,6 +40,22 @@ class PushTests(unittest.TestCase):
 
     def request(self, student="student", token="device"):
         return SimpleNamespace(session={"student_id": student}, body=json.dumps({"token": token}).encode())
+
+    def test_auto_creation_matches_migration_and_can_be_repeated(self):
+        ns["ensure_candidate_push_tables"]()
+        ns["ensure_candidate_push_tables"]()
+        sql = self.cursor.queries[0][0]
+        self.assertEqual(sql, self.cursor.queries[1][0])
+        migration = Path(__file__).parents[1] / "elecom_voting" / "migrations" / "0017_candidate_push_notifications.py"
+        tree = ast.parse(migration.read_text())
+        migration_sql = next(
+            kw.value.value for node in ast.walk(tree) if isinstance(node, ast.Call)
+            for kw in node.keywords if kw.arg == "sql"
+        )
+        self.assertEqual(" ".join(sql.split()), " ".join(migration_sql.split()))
+        self.assertNotIn("DROP TABLE", sql)
+        self.assertEqual(sql.count("CREATE TABLE IF NOT EXISTS"), 2)
+        self.assertEqual(sql.count("CREATE INDEX IF NOT EXISTS"), 2)
 
     def test_register_requires_authenticated_account(self):
         result = ns["register_push_token_api"](self.request(student=""))

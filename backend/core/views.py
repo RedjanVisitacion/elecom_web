@@ -88,6 +88,8 @@ def _ensure_all_system_tables() -> None:
     This protects accidental table drops by recreating missing structures. It does
     not recover deleted data; use Backup & Restore for that.
     """
+    from .candidate_push import ensure_candidate_push_tables
+
     _ensure_django_model_tables()
     _ensure_auth_identity_tables()
     _ensure_election_scoped_tables()
@@ -103,6 +105,9 @@ def _ensure_all_system_tables() -> None:
     _ensure_user_notifications_table()
     _ensure_election_broadcast_state_table()
     _ensure_candidate_applications_table()
+    _ensure_admin_candidate_documents_table()
+    _ensure_calendar_events_table()
+    ensure_candidate_push_tables()
     with connection.cursor() as cur:
         _ensure_network_authorization_tables(cur)
 

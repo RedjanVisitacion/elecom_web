@@ -12,6 +12,32 @@ from django.views.decorators.http import require_http_methods
 logger = logging.getLogger(__name__)
 
 
+def ensure_candidate_push_tables():
+    """Restore missing push tables without deleting existing notifications or tokens."""
+    with connection.cursor() as cur:
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS mobile_push_tokens (
+                token TEXT PRIMARY KEY,
+                student_id VARCHAR(64) NOT NULL,
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+            );
+            CREATE INDEX IF NOT EXISTS mobile_push_tokens_student_idx
+                ON mobile_push_tokens(student_id);
+            CREATE TABLE IF NOT EXISTS candidate_push_outbox (
+                notification_id BIGINT PRIMARY KEY,
+                student_id VARCHAR(64) NOT NULL,
+                title TEXT NOT NULL,
+                body TEXT NOT NULL,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                sent_at TIMESTAMPTZ NULL,
+                delivered_tokens TEXT[] NOT NULL DEFAULT ARRAY[]::TEXT[],
+                attempts INTEGER NOT NULL DEFAULT 0
+            );
+            CREATE INDEX IF NOT EXISTS candidate_push_outbox_pending_idx
+                ON candidate_push_outbox(created_at) WHERE sent_at IS NULL;
+        """)
+
+
 def _token_request(request):
     student = str(request.session.get("student_id") or "").strip()
     if not student:
