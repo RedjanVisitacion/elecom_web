@@ -9,8 +9,8 @@ document.addEventListener('DOMContentLoaded', () => {
   let pdfLibraryPromise;
   function pdfLibrary() {
     if (!pdfLibraryPromise) {
-      pdfLibraryPromise = import('/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.min.mjs').then(lib => {
-        lib.GlobalWorkerOptions.workerSrc = '/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.worker.min.mjs';
+      pdfLibraryPromise = import('/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.min.js').then(lib => {
+        lib.GlobalWorkerOptions.workerSrc = '/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.worker.min.js';
         return lib;
       }).catch(error => { pdfLibraryPromise = null; throw error; });
     }
