@@ -140,8 +140,25 @@ def decorate_pdf(raw, config, approved_at=None):
         else:
             canvas.drawString(x, height - top, value)
 
-    text('Academic Year ' + config['academic_year'], 185.66 if department else 205.37,
-         589.18 if department else 565.51, 126.5 if department else 107.2, erase=True)
+    if department:
+        # The printed department comma starts at x=312.65. Replacing only
+        # the 126.5-point year slot leaves a gap before that fixed comma.
+        # Replace the full tail of this line so punctuation follows the year
+        # naturally, without changing the candidate-position line below it.
+        prefix = 'Academic Year '
+        year = config['academic_year'].strip()
+        inline = prefix + year + ', and I do hereby declare my intention and desire to be'
+        x, top, available = 185.66, 589.18, 390.34
+        text(inline, x, top, available, erase=True)
+        size = min(10, 10 * available / stringWidth(inline, 'Times-Roman', 10))
+        underline_start = x + stringWidth(prefix, 'Times-Roman', size)
+        underline_end = underline_start + stringWidth(year, 'Times-Roman', size)
+        canvas.setLineWidth(0.4)
+        canvas.line(underline_start, height - top - 1.2,
+                    underline_end, height - top - 1.2)
+    else:
+        text('Academic Year ' + config['academic_year'], 205.37,
+             565.51, 107.2, erase=True)
     text(config['chairperson_name'], 350 if department else 365,
          746 if department else 791, 172 if department else 185, center=True, erase=True)
     sworn_date = '________ day of __________ year _______'

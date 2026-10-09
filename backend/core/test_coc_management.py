@@ -44,6 +44,35 @@ class CocManagementTests(unittest.TestCase):
                 self.assertEqual(original, (FORMS / filename).read_bytes())
                 self.assertEqual(PdfReader(io.BytesIO(original)).pages[0].mediabox, PdfReader(io.BytesIO(issued)).pages[0].mediabox)
 
+    def test_department_year_and_comma_are_one_inline_run(self):
+        from pypdf.generic import ContentStream
+        from reportlab.pdfbase.pdfmetrics import stringWidth
+
+        original = (FORMS / 'department_certificate_of_candidacy.pdf').read_bytes()
+        for year in ('2026 - 2027', '1900 - 1901', '2199 - 2200', '____ - ____'):
+            with self.subTest(year=year):
+                pdf = coc.decorate_pdf(original, {**CONFIG, 'academic_year': year})
+                page = PdfReader(io.BytesIO(pdf)).pages[0]
+                runs = []
+                page.extract_text(visitor_text=lambda value, cm, tm, font, size:
+                                  runs.append((value, tm, size)))
+                expected = f'Academic Year {year}, and I do hereby declare my intention and desire to be'
+                matching = [(value, tm, size) for value, tm, size in runs
+                            if value.strip() == expected]
+                self.assertEqual(len(matching), 1)
+                _, tm, size = matching[0]
+                self.assertAlmostEqual(tm[4], 185.66)
+                self.assertAlmostEqual(tm[5], 202.82)
+                self.assertLessEqual(tm[4] + stringWidth(expected, 'Times-Roman', size), 576.01)
+                # The underline ends at the final year digit, before the comma.
+                operations = ContentStream(page.get_contents(), page.pdf).operations
+                move = next(args for args, op in reversed(operations) if op == b'm')
+                line = next(args for args, op in reversed(operations) if op == b'l')
+                start = 185.66 + stringWidth('Academic Year ', 'Times-Roman', size)
+                self.assertAlmostEqual(float(move[0]), start, places=4)
+                self.assertAlmostEqual(float(line[0]), start + stringWidth(year, 'Times-Roman', size), places=4)
+        self.assertEqual(original, (FORMS / 'department_certificate_of_candidacy.pdf').read_bytes())
+
     def test_pending_preview_does_not_invent_approval_date(self):
         pdf = coc.decorate_pdf((FORMS / 'certificate_of_candidacy.pdf').read_bytes(), CONFIG)
         text = PdfReader(io.BytesIO(pdf)).pages[0].extract_text()
