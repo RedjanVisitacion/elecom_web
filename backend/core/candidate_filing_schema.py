@@ -48,6 +48,10 @@ CHILDREN = ('candidate_application_certificates', 'candidate_certificate_issuanc
             'candidate_certificate_finalizations')
 FINAL_SQL = """
 ALTER TABLE candidate_certificate_settings ADD COLUMN IF NOT EXISTS chairperson_signature_bytes BYTEA NULL;
+ALTER TABLE candidate_certificate_settings ADD COLUMN IF NOT EXISTS name_is_bold BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE candidate_certificate_settings ADD COLUMN IF NOT EXISTS name_is_italic BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE candidate_certificate_settings ADD COLUMN IF NOT EXISTS year_is_bold BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE candidate_certificate_settings ADD COLUMN IF NOT EXISTS year_is_italic BOOLEAN NOT NULL DEFAULT FALSE;
 CREATE TABLE IF NOT EXISTS candidate_certificate_finalizations (
  application_id INTEGER PRIMARY KEY REFERENCES candidate_applications(id) ON DELETE RESTRICT,
  pdf_bytes BYTEA NOT NULL, sha256 VARCHAR(64) NOT NULL, signature_bytes BYTEA NOT NULL,
@@ -64,13 +68,16 @@ def ensure_candidate_filing_schema(force=False):
             cur.execute("""SELECT EXISTS (SELECT 1 FROM information_schema.columns
                 WHERE table_schema='public' AND table_name='candidate_certificate_settings'
                 AND column_name='chairperson_signature_bytes'),
+                (SELECT COUNT(*) FROM information_schema.columns
+                 WHERE table_schema='public' AND table_name='candidate_certificate_settings'
+                 AND column_name IN ('name_is_bold', 'name_is_italic', 'year_is_bold', 'year_is_italic')),
                 (SELECT COUNT(DISTINCT conrelid) FROM pg_constraint WHERE contype='f'
                  AND confrelid='public.candidate_applications'::regclass
                  AND conrelid IN ('public.candidate_application_certificates'::regclass,
                    'public.candidate_certificate_issuances'::regclass,
                    'public.candidate_certificate_finalizations'::regclass))""")
-            signature, references = cur.fetchone()
-            if signature and references == 3:
+            signature, formatting_columns, references = cur.fetchone()
+            if signature and formatting_columns == 4 and references == 3:
                 return False
     with transaction.atomic(), connection.cursor() as cur:
         cur.execute('SELECT pg_advisory_xact_lock(20261009, 1101)')

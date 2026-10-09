@@ -109,7 +109,7 @@ class ChairpersonSignatureTests(unittest.TestCase):
             response = coc.settings_response(request, 3)
         self.assertEqual(response.status_code, 200)
         values = cur.execute.call_args_list[0].args[1]
-        self.assertEqual(values[6], normalized); self.assertEqual(values[13], normalized)
+        self.assertEqual(values[6], normalized); self.assertEqual(values[17], normalized)
         self.assertTrue(values[-1])
 
     def test_download_only_selects_final_copy_for_approved_owner_or_admin(self):

@@ -38,6 +38,28 @@ document.addEventListener('DOMContentLoaded', () => {
       else modalDownload.removeAttribute('href');
     }
   }
+  const formatting = { name_is_bold: false, name_is_italic: false, year_is_bold: false, year_is_italic: false };
+  function updateFormattingControls() {
+    for (const group of document.querySelectorAll('[data-format-group]')) {
+      const field = group.dataset.formatGroup;
+      for (const button of group.querySelectorAll('[data-format]')) {
+        const style = button.dataset.format;
+        const active = style === 'normal' ? !formatting[field + '_is_bold'] && !formatting[field + '_is_italic'] : formatting[field + '_is_' + style];
+        button.setAttribute('aria-pressed', String(active));
+      }
+    }
+  }
+  for (const group of document.querySelectorAll('[data-format-group]')) {
+    group.addEventListener('click', event => {
+      const button = event.target.closest('[data-format]');
+      if (!button || document.getElementById('cocFields').disabled) return;
+      const field = group.dataset.formatGroup;
+      if (button.dataset.format === 'normal') { formatting[field + '_is_bold'] = false; formatting[field + '_is_italic'] = false; }
+      else { const key = field + '_is_' + button.dataset.format; formatting[key] = !formatting[key]; }
+      updateFormattingControls();
+      for (const panel of panels) schedulePreview(panel, true);
+    });
+  }
   let csrf = '';
   let signatureBase64 = '', signatureRevision = 0, signatureLoading = false, signatureLoaded = false;
   const signaturePad = document.getElementById('chairSignaturePad');
@@ -125,7 +147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     form.querySelector('[data-year-max]').textContent = slider.max;
   }
   function values(form) {
-    return { form_kind: form.dataset.cocForm,
+    return { form_kind: form.dataset.cocForm, ...formatting,
       academic_year_start: form.elements.academic_year_start.value,
       academic_year_end: form.elements.academic_year_end.value,
       chairperson_name: form.elements.chairperson_name.value.trim(),
@@ -202,6 +224,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const config = data.forms?.usg || data.forms?.department;
         updateYear(form, config?.academic_year_start || new Date().getFullYear());
         form.elements.chairperson_name.value = config?.chairperson_name || '';
+        for (const key of Object.keys(formatting)) formatting[key] = config?.[key] === true;
+        updateFormattingControls();
       }
       document.getElementById('cocFields').disabled = false;
       message('');

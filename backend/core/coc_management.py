@@ -20,6 +20,10 @@ CREATE TABLE IF NOT EXISTS candidate_certificate_settings (
     academic_year_start INTEGER NOT NULL CHECK (academic_year_start BETWEEN 1900 AND 2200),
     academic_year_end INTEGER NOT NULL CHECK (academic_year_end = academic_year_start + 1),
     chairperson_name VARCHAR(120) NOT NULL,
+    name_is_bold BOOLEAN NOT NULL DEFAULT FALSE,
+    name_is_italic BOOLEAN NOT NULL DEFAULT FALSE,
+    year_is_bold BOOLEAN NOT NULL DEFAULT FALSE,
+    year_is_italic BOOLEAN NOT NULL DEFAULT FALSE,
     updated_by VARCHAR(64) NOT NULL,
     updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (election_id, form_kind)
@@ -36,18 +40,43 @@ CREATE TABLE IF NOT EXISTS candidate_certificate_issuances (
 """
 
 
+FORMATTING_FIELDS = ('name_is_bold', 'name_is_italic', 'year_is_bold', 'year_is_italic')
+
+
+def formatting_flags(payload, query=False):
+    flags = {}
+    for key in FORMATTING_FIELDS:
+        value = payload.get(key, False)
+        if query and isinstance(value, str):
+            if value.lower() not in {'true', 'false', '1', '0'}:
+                raise ValueError('Formatting flags must be true or false.')
+            value = value.lower() in {'true', '1'}
+        if not isinstance(value, bool):
+            raise ValueError('Formatting flags must be true or false.')
+        flags[key] = value
+    return flags
+
+
+def formatting_font(config, field):
+    return {
+        (False, False): 'Times-Roman', (True, False): 'Times-Bold',
+        (False, True): 'Times-Italic', (True, True): 'Times-BoldItalic',
+    }[(config.get(field + '_is_bold', False), config.get(field + '_is_italic', False))]
+
+
 def form_kind(organization):
     return 'department' if str(organization or '').strip().upper() in {'SITE', 'PAFE', 'AFPRO', 'AFPROTECHS'} else 'usg'
 
 
 def read_settings(cur, election_id, kind):
-    cur.execute('''SELECT academic_year_start, academic_year_end, chairperson_name
+    cur.execute('''SELECT academic_year_start, academic_year_end, chairperson_name,
+                          name_is_bold, name_is_italic, year_is_bold, year_is_italic
                    FROM candidate_certificate_settings WHERE election_id = %s
                    ORDER BY CASE WHEN form_kind = 'usg' THEN 0 ELSE 1 END LIMIT 1''',
                 [election_id or 0])
     row = cur.fetchone()
     return ({'academic_year_start': row[0], 'academic_year_end': row[1],
-             'academic_year': f'{row[0]} - {row[1]}', 'chairperson_name': row[2]}
+             'academic_year': f'{row[0]} - {row[1]}', 'chairperson_name': row[2], **dict(zip(FORMATTING_FIELDS, row[3:]))}
             if row else None)
 
 
@@ -81,20 +110,27 @@ def settings_response(request, election_id):
                 if not isinstance(payload, dict):
                     raise ValueError('Enter valid certificate settings.')
                 kind, start, end, chair = validate_settings(payload)
+                formatting = formatting_flags(payload)
                 signature_supplied = 'chairperson_signature_base64' in payload
                 signature = decode_signature(payload.get('chairperson_signature_base64'))
                 cur.execute('''INSERT INTO candidate_certificate_settings
-                    (election_id, form_kind, academic_year_start, academic_year_end, chairperson_name, updated_by, chairperson_signature_bytes)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s), (%s, %s, %s, %s, %s, %s, %s)
+                    (election_id, form_kind, academic_year_start, academic_year_end, chairperson_name, updated_by, chairperson_signature_bytes,
+                     name_is_bold, name_is_italic, year_is_bold, year_is_italic)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s),
+                           (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                     ON CONFLICT (election_id, form_kind) DO UPDATE SET
                         academic_year_start = EXCLUDED.academic_year_start,
                         academic_year_end = EXCLUDED.academic_year_end,
                         chairperson_name = EXCLUDED.chairperson_name,
+                        name_is_bold = EXCLUDED.name_is_bold,
+                        name_is_italic = EXCLUDED.name_is_italic,
+                        year_is_bold = EXCLUDED.year_is_bold,
+                        year_is_italic = EXCLUDED.year_is_italic,
                         chairperson_signature_bytes = CASE WHEN %s THEN EXCLUDED.chairperson_signature_bytes
                             ELSE candidate_certificate_settings.chairperson_signature_bytes END,
                         updated_by = EXCLUDED.updated_by, updated_at = CURRENT_TIMESTAMP''',
-                    [election_id or 0, 'usg', start, end, chair, request.session['student_id'], signature,
-                     election_id or 0, 'department', start, end, chair, request.session['student_id'], signature, signature_supplied])
+                    [election_id or 0, 'usg', start, end, chair, request.session['student_id'], signature, *formatting.values(),
+                     election_id or 0, 'department', start, end, chair, request.session['student_id'], signature, *formatting.values(), signature_supplied])
             shared = read_settings(cur, election_id, 'usg')
             forms = {kind: shared for kind in ('usg', 'department')}
             signature, _ = read_signature(cur, election_id) if is_admin else (None, None)
@@ -126,12 +162,11 @@ def decorate_pdf(raw, config, approved_at=None):
     overlay = io.BytesIO()
     canvas = Canvas(overlay, pagesize=(width, height))
 
-    def text(value, x, top, available, size=10, center=False, erase=False):
+    def text(value, x, top, available, size=10, center=False, erase=False, font='Times-Roman'):
         if erase:
             canvas.setFillColorRGB(1, 1, 1)
             canvas.rect(x - 0.3, height - top - 2.4, available + 0.6, 11, fill=1, stroke=0)
         canvas.setFillColorRGB(0, 0, 0)
-        font = 'Times-Roman'
         measured = stringWidth(value, font, size)
         font_size = min(size, size * available / measured) if measured else size
         canvas.setFont(font, font_size)
@@ -140,27 +175,31 @@ def decorate_pdf(raw, config, approved_at=None):
         else:
             canvas.drawString(x, height - top, value)
 
-    if department:
-        # The printed department comma starts at x=312.65. Replacing only
-        # the 126.5-point year slot leaves a gap before that fixed comma.
-        # Replace the full tail of this line so punctuation follows the year
-        # naturally, without changing the candidate-position line below it.
-        prefix = 'Academic Year '
-        year = config['academic_year'].strip()
-        inline = prefix + year + ', and I do hereby declare my intention and desire to be'
-        x, top, available = 185.66, 589.18, 390.34
-        text(inline, x, top, available, erase=True)
-        size = min(10, 10 * available / stringWidth(inline, 'Times-Roman', 10))
-        underline_start = x + stringWidth(prefix, 'Times-Roman', size)
-        underline_end = underline_start + stringWidth(year, 'Times-Roman', size)
+    # Measure all inline segments together so year formatting cannot introduce
+    # a gap before the department comma or overlap the remaining paragraph.
+    prefix, year = 'Academic Year ', config['academic_year'].strip()
+    suffix = ', and I do hereby declare my intention and desire to be' if department else ''
+    x, top, available = (185.66, 589.18, 390.34) if department else (205.37, 565.51, 107.2)
+    year_font = formatting_font(config, 'year')
+    measured = (stringWidth(prefix + suffix, 'Times-Roman', 10)
+                + stringWidth(year, year_font, 10))
+    size = min(10, 10 * available / measured) if measured else 10
+    canvas.setFillColorRGB(1, 1, 1)
+    canvas.rect(x - 0.3, height - top - 2.4, available + 0.6, 11, fill=1, stroke=0)
+    canvas.setFillColorRGB(0, 0, 0)
+    canvas.setFont('Times-Roman', size)
+    canvas.drawString(x, height - top, prefix)
+    year_start = x + stringWidth(prefix, 'Times-Roman', size)
+    canvas.setFont(year_font, size)
+    canvas.drawString(year_start, height - top, year)
+    year_end = year_start + stringWidth(year, year_font, size)
+    if suffix:
+        canvas.setFont('Times-Roman', size)
+        canvas.drawString(year_end, height - top, suffix)
         canvas.setLineWidth(0.4)
-        canvas.line(underline_start, height - top - 1.2,
-                    underline_end, height - top - 1.2)
-    else:
-        text('Academic Year ' + config['academic_year'], 205.37,
-             565.51, 107.2, erase=True)
+        canvas.line(year_start, height - top - 1.2, year_end, height - top - 1.2)
     text(config['chairperson_name'], 350 if department else 365,
-         746 if department else 791, 172 if department else 185, center=True, erase=True)
+         746 if department else 791, 172 if department else 185, center=True, erase=True, font=formatting_font(config, 'name'))
     sworn_date = '________ day of __________ year _______'
     if approved_at:
         date = approved_at.astimezone(ZoneInfo('Asia/Manila')).date()
@@ -228,7 +267,11 @@ def template_response(request, election_id, kind):
                     and int(end) == int(start) + 1):
                 return JsonResponse({'ok': False, 'error': 'Enter two consecutive academic years.'}, status=400)
             year = f'{start} - {end}'
-        config = {'academic_year': year, 'chairperson_name': chair}
+        try:
+            formatting = formatting_flags(params, query=getattr(request, 'method', 'GET') != 'POST')
+        except ValueError as error:
+            return JsonResponse({'ok': False, 'error': str(error)}, status=400)
+        config = {'academic_year': year, 'chairperson_name': chair, **formatting}
     else:
         with connection.cursor() as cur:
             config = read_settings(cur, election_id, kind)
