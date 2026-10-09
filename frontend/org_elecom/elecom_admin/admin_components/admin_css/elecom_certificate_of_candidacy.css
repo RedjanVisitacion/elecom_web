@@ -66,3 +66,18 @@ html:has(.coc-page), body.coc-page { height: 100%; overflow: hidden; }
   .coc-preview-topbar { padding: 6px; }
   .coc-tabs { gap: 4px; }
 }
+
+/* Compact only the settings card; give remaining height to signature drawing. */
+.coc-settings .card-body { padding: 12px !important; }
+.coc-settings h2 { font-size: 16px; margin-bottom: 4px; flex: none; }
+.coc-settings .form-label, .coc-settings h3 { font-size: 12px; font-weight: 600; margin-bottom: 4px; }
+.coc-settings .coc-help { font-size: 11px; color: #64748b; }
+.coc-settings form, .coc-settings fieldset, .coc-settings .coc-fields { gap: 8px; }
+.coc-settings .coc-fields, .coc-settings .coc-save-row { flex: none; }
+.coc-settings .form-control { padding: 6px 10px !important; }
+.coc-settings .coc-signature { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+.coc-settings .coc-signature h3, .coc-settings .coc-signature p { flex: none; margin-bottom: 4px; }
+.coc-settings #chairSignaturePad { flex: 1; height: 210px; min-height: 60px; max-height: none; }
+.coc-settings .coc-signature-actions { flex: none; gap: 6px; margin: 6px 0 4px; }
+.coc-settings .coc-signature-actions .btn { padding: 4px 10px; font-size: 11px !important; }
+.coc-settings .coc-save-row { margin-top: 0; padding-top: 8px; }
