@@ -4,8 +4,13 @@ document.addEventListener('DOMContentLoaded', () => {
   const forms = [...document.querySelectorAll('[data-coc-form]')];
   const settingsForm = forms[0];
   const panels = [...document.querySelectorAll('[data-coc-preview]')];
-  const previews = new Map(panels.map(panel => [panel, { timer: null, controller: null, url: '', revision: 0, pdf: null, page: null, renderTask: null, renderRevision: 0, loadedRevision: 0, renderQueue: Promise.resolve() }]));
+  const previews = new Map(panels.map(panel => [panel, { timer: null, controller: null, url: '', revision: 0, pdf: null, page: null, renderTask: null, renderRevision: 0, loadedRevision: 0, mode: 'width', zoom: 1, renderQueue: Promise.resolve() }]));
   const download = document.getElementById('cocDownload');
+  const dialog = document.getElementById('cocViewerDialog');
+  const modalStage = document.getElementById('cocModalStage');
+  const modalDownload = document.getElementById('cocModalDownload');
+  const modalState = { mode: 'width', zoom: 1, revision: 0, task: null, queue: Promise.resolve() };
+  let modalPanel = null;
   let pdfLibraryPromise;
   function pdfLibrary() {
     if (!pdfLibraryPromise) {
@@ -26,6 +31,12 @@ document.addEventListener('DOMContentLoaded', () => {
       download.href = state.url;
       download.download = `${panel.dataset.cocPreview.toUpperCase()}_COC_Sample.pdf`;
     } else download.removeAttribute('href');
+    if (dialog.open) {
+      modalDownload.classList.toggle('disabled', !ready);
+      modalDownload.setAttribute('aria-disabled', String(!ready)); modalDownload.tabIndex = ready ? 0 : -1;
+      if (ready) { modalDownload.href = state.url; modalDownload.download = download.download; }
+      else modalDownload.removeAttribute('href');
+    }
   }
   let csrf = '';
   let signatureBase64 = '', signatureRevision = 0, signatureLoading = false, signatureLoaded = false;
@@ -162,6 +173,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.url) URL.revokeObjectURL(state.url);
       state.url = URL.createObjectURL(blob);
       await showDocument(panel);
+      if (dialog.open && modalPanel === panel) await showModal();
       if (previousPdf) await previousPdf.destroy();
       if (controller.signal.aborted || state.revision !== revision) return;
       state.loadedRevision = revision;
@@ -227,12 +239,13 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   window.addEventListener('pagehide', () => {
+    if (dialog.open) dialog.close();
     for (const state of previews.values()) {
       clearTimeout(state.timer); ++state.revision;
       if (state.controller) state.controller.abort();
       if (state.url) URL.revokeObjectURL(state.url);
       state.url = '';
-      ++state.renderRevision; if (state.renderTask) state.renderTask.cancel();
+      ++state.renderRevision; if (state.task) state.task.cancel();
       state.page = null; if (state.pdf) state.pdf.destroy(); state.pdf = null;
     }
   });
@@ -254,46 +267,92 @@ document.addEventListener('DOMContentLoaded', () => {
       selectTab(tabs[index]); tabs[index].focus();
     });
   }
+  function viewerControls(root, state, scale) {
+    root.querySelector('[data-viewer-scale]').textContent = `${Math.round(scale * 100)}%`;
+    for (const button of root.querySelectorAll('[data-viewer-fit]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.viewerFit === state.mode && state.zoom === 1));
+    }
+    root.querySelector('[data-viewer-zoom="-1"]').disabled = state.zoom <= .5;
+    root.querySelector('[data-viewer-zoom="1"]').disabled = state.zoom >= 3;
+  }
+  async function renderPage(page, stage, state, root, current) {
+    const base = page.getViewport({ scale: 1 });
+    // Reserve scrollbar space so switching to Fit Width does not resize repeatedly.
+    const width = (stage.clientWidth - 24) / base.width;
+    const fit = state.mode === 'width' ? width : Math.min(width, (stage.clientHeight - 24) / base.height);
+    const scale = fit * state.zoom;
+    if (scale <= 0) return;
+    const cssWidth = base.width * scale, cssHeight = base.height * scale;
+    stage.classList.toggle('is-fit-page', state.mode === 'page' && state.zoom === 1);
+    const ratio = Math.min(window.devicePixelRatio || 1, 2, Math.sqrt(16000000 / (cssWidth * cssHeight)));
+    const viewport = page.getViewport({ scale: scale * ratio });
+    const buffer = document.createElement('canvas');
+    buffer.width = Math.ceil(viewport.width); buffer.height = Math.ceil(viewport.height);
+    const task = page.render({ canvasContext: buffer.getContext('2d'), viewport });
+    state.task = task;
+    try {
+      await task.promise;
+      if (!current()) return;
+      const canvas = stage.querySelector('[data-preview-canvas]');
+      canvas.width = buffer.width; canvas.height = buffer.height;
+      canvas.style.width = `${cssWidth}px`; canvas.style.height = `${cssHeight}px`;
+      canvas.getContext('2d').drawImage(buffer, 0, 0); canvas.hidden = false;
+      viewerControls(root, state, scale);
+    } catch (error) { if (error.name !== 'RenderingCancelledException') throw error; }
+    finally { if (state.task === task) state.task = null; }
+  }
   function showDocument(panel) {
     const state = previews.get(panel);
     const revision = ++state.renderRevision;
-    if (state.renderTask) state.renderTask.cancel();
+    if (state.task) state.task.cancel();
     state.renderQueue = state.renderQueue.catch(() => {}).then(async () => {
       if (revision !== state.renderRevision || panel.hidden || !state.page) return;
-      const stage = panel.querySelector('.coc-document-stage');
-      const canvas = panel.querySelector('[data-preview-canvas]');
-      const base = state.page.getViewport({ scale: 1 });
-      const padding = 24;
-      const scale = Math.min((stage.clientWidth - padding) / base.width, (stage.clientHeight - padding) / base.height);
-      if (scale <= 0) return;
-      const ratio = Math.min(window.devicePixelRatio || 1, 2);
-      const viewport = state.page.getViewport({ scale: scale * ratio });
-      // Render off-screen so edits never expose a partially drawn certificate.
-      const buffer = document.createElement('canvas');
-      buffer.width = Math.ceil(viewport.width); buffer.height = Math.ceil(viewport.height);
-      const task = state.page.render({ canvasContext: buffer.getContext('2d'), viewport });
-      state.renderTask = task;
       try {
-        await task.promise;
-        if (revision !== state.renderRevision || panel.hidden) return;
-        canvas.width = buffer.width; canvas.height = buffer.height;
-        canvas.style.width = `${base.width * scale}px`; canvas.style.height = `${base.height * scale}px`;
-        canvas.getContext('2d').drawImage(buffer, 0, 0); canvas.hidden = false;
-      } catch (error) {
-        if (error.name !== 'RenderingCancelledException') {
-          panel.querySelector('[data-preview-status]').textContent = `Preview paused: ${error.message}`;
-          throw error;
-        }
-      } finally { if (state.renderTask === task) state.renderTask = null; }
+        await renderPage(state.page, panel.querySelector('.coc-document-stage'), state,
+          document.querySelector('.coc-preview-actions'), () => revision === state.renderRevision && !panel.hidden);
+      } catch (error) { panel.querySelector('[data-preview-status]').textContent = `Preview paused: ${error.message}`; throw error; }
     });
     return state.renderQueue;
   }
+  function showModal() {
+    const revision = ++modalState.revision;
+    if (modalState.task) modalState.task.cancel();
+    modalState.queue = modalState.queue.catch(() => {}).then(async () => {
+      const state = previews.get(modalPanel);
+      if (!dialog.open || revision !== modalState.revision || !state?.page) return;
+      await renderPage(state.page, modalStage, modalState, dialog,
+        () => dialog.open && revision === modalState.revision);
+    }).catch(error => { document.getElementById('cocModalStatus').textContent = `Preview paused: ${error.message}`; });
+    return modalState.queue;
+  }
+  function bindControls(root, getState, getStage, render) {
+    for (const button of root.querySelectorAll('[data-viewer-zoom], [data-viewer-fit]')) {
+      button.addEventListener('click', () => {
+        const state = getState();
+        if (button.dataset.viewerFit) { state.mode = button.dataset.viewerFit; state.zoom = 1; getStage().scrollTo(0, 0); }
+        else state.zoom = Math.min(3, Math.max(.5, state.zoom + Number(button.dataset.viewerZoom) * .25));
+        render().catch(() => {});
+      });
+    }
+  }
+  const activePanel = () => panels.find(panel => !panel.hidden);
+  bindControls(document.querySelector('.coc-preview-actions'), () => previews.get(activePanel()),
+    () => activePanel().querySelector('.coc-document-stage'), () => showDocument(activePanel()));
+  bindControls(dialog, () => modalState, () => modalStage, showModal);
+  document.getElementById('cocExpand').addEventListener('click', () => {
+    modalPanel = activePanel(); modalState.mode = 'width'; modalState.zoom = 1;
+    document.getElementById('cocViewerTitle').textContent = `${modalPanel.dataset.cocPreview === 'usg' ? 'USG' : 'Department'} COC Preview`;
+    document.getElementById('cocModalStatus').textContent = 'Draft sample. Download the PDF to print using your device PDF viewer.';
+    modalStage.querySelector('canvas').hidden = true;
+    dialog.showModal(); modalStage.scrollTo(0, 0); updateDownload(); showModal();
+  });
+  document.getElementById('cocViewerClose').addEventListener('click', () => dialog.close());
+  dialog.addEventListener('close', () => { ++modalState.revision; if (modalState.task) modalState.task.cancel(); modalPanel = null; });
   const resizeObserver = new ResizeObserver(() => {
     for (const panel of panels) if (!panel.hidden) showDocument(panel).catch(() => {});
+    if (dialog.open) showModal();
   });
   for (const panel of panels) resizeObserver.observe(panel.querySelector('.coc-document-stage'));
-  document.getElementById('cocFitPage').addEventListener('click', () => {
-    showDocument(panels.find(panel => !panel.hidden)).catch(() => {});
-  });
+  resizeObserver.observe(modalStage);
   load();
 });
