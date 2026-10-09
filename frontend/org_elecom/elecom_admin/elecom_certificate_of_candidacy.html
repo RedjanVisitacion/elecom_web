@@ -18,9 +18,9 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261008-reset-hover1">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_candidates_files.css?v=20261008-layout1">
-<link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_certificate_of_candidacy.css?v=20261009-global-tabs1">
+<link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_certificate_of_candidacy.css?v=20261009-viewport-split1">
 </head>
-<body class="theme-elecom candidates-page-body files-page">
+<body class="theme-elecom candidates-page-body files-page coc-page">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
@@ -90,65 +90,74 @@
             <div id="userMenuMount"></div>
         </nav>
 
-        <div class="content-area">
-          <h1 class="h4 mb-2">Certificate of Candidacy Management</h1>
-          <p id="cocElection" class="text-muted">Loading current election…</p>
-          <p class="coc-help">Shared settings apply to both forms. Issued certificates retain their saved details.</p>
-          <p id="cocNotice" role="status" aria-live="polite"></p>
-          <section class="card border-0 shadow-sm mb-4 coc-settings"><div class="card-body p-4">
-          <h2 class="h5">Global COC Settings</h2>
-<form data-coc-form="usg">
-<div class="coc-fields">
-        <div class="mb-3">
-          <label for="usgStart" class="form-label">Academic year</label>
-          <output data-year-label for="usgStart" class="d-block fw-semibold mb-2" aria-live="polite"></output>
-          <input id="usgStart" name="academic_year_start" type="range" min="1900" max="2200" step="1" class="form-range" aria-describedby="usgYearHelp">
-          <input name="academic_year_end" type="hidden">
-          <div class="d-flex justify-content-between text-muted small"><span data-year-min></span><span data-year-max></span></div>
-          <div id="usgYearHelp" class="form-text">Drag to select the start year. The end year follows automatically.</div>
-        </div>
-        <div class="mb-3"><label for="usgChair" class="form-label">ELECOM chairperson full name</label><input id="usgChair" name="chairperson_name" maxlength="120" class="form-control" required><div class="form-text">Printed above “ELECOM Chairperson”.</div></div>
-</div>
-            <h3 class="h6">ELECOM Chairperson Signature</h3>
-            <p class="text-muted small">Draw below or upload a PNG (up to 1 MB). Applied after final candidate approval.</p>
-            <canvas id="chairSignaturePad" width="900" height="160" aria-label="Draw ELECOM chairperson signature"></canvas>
-            <div class="d-flex flex-wrap gap-2 align-items-center mt-3">
-              <button id="chairSignatureUploadButton" type="button" class="btn btn-outline-secondary">Upload Signature</button>
-              <input id="chairSignatureUpload" type="file" accept="image/png,.png" class="visually-hidden">
-              <button id="chairSignatureClear" type="button" class="btn btn-outline-secondary">Clear Canvas</button>
-              <span id="chairSignatureStatus" class="small text-muted" role="status">No signature selected.</span>
-            </div>
-<div class="mt-4 pt-3 border-top">        <div class="d-flex flex-wrap gap-2"><button type="submit" class="btn btn-primary" disabled>Save COC Settings</button></div>
-</div></form></div></section>
-<section class="card border-0 shadow-sm coc-previews" aria-label="Certificate previews">
-<div class="coc-tabs" role="tablist" aria-label="Certificate type">
-<button id="usgTab" type="button" role="tab" aria-selected="true" aria-controls="usgPanel" data-preview-tab="usg">USG COC Preview</button>
-<button id="departmentTab" type="button" role="tab" aria-selected="false" aria-controls="departmentPanel" tabindex="-1" data-preview-tab="department">Department COC Preview</button>
-</div>
-<div id="usgPanel" role="tabpanel" aria-labelledby="usgTab" data-coc-preview="usg" >
-<div class="coc-preview-toolbar"><p data-preview-status class="coc-help mb-0" role="status" aria-live="polite">Loading draft preview...</p>
-<div class="d-flex flex-wrap align-items-center gap-2">
-<button type="button" data-zoom-out class="btn btn-outline-secondary btn-sm" aria-label="Zoom out" disabled>&minus;</button>
-<output data-zoom-label aria-live="polite">Fit width</output>
-<button type="button" data-zoom-in class="btn btn-outline-secondary btn-sm" aria-label="Zoom in" disabled>+</button>
-<button type="button" data-zoom-fit class="btn btn-outline-secondary btn-sm" disabled>Fit width</button>
-<a data-preview-download class="btn btn-outline-primary btn-sm disabled" aria-disabled="true" tabindex="-1">Print / Download Sample PDF</a>
-</div></div>
-<div class="coc-document-stage"><iframe data-preview-frame title="USG COC preview"></iframe></div>
-<p class="coc-help px-4 py-3 mb-0">Sample only. Download to print using your device's PDF viewer.</p>
-</div><div id="departmentPanel" role="tabpanel" aria-labelledby="departmentTab" data-coc-preview="department" hidden>
-<div class="coc-preview-toolbar"><p data-preview-status class="coc-help mb-0" role="status" aria-live="polite">Loading draft preview...</p>
-<div class="d-flex flex-wrap align-items-center gap-2">
-<button type="button" data-zoom-out class="btn btn-outline-secondary btn-sm" aria-label="Zoom out" disabled>&minus;</button>
-<output data-zoom-label aria-live="polite">Fit width</output>
-<button type="button" data-zoom-in class="btn btn-outline-secondary btn-sm" aria-label="Zoom in" disabled>+</button>
-<button type="button" data-zoom-fit class="btn btn-outline-secondary btn-sm" disabled>Fit width</button>
-<a data-preview-download class="btn btn-outline-primary btn-sm disabled" aria-disabled="true" tabindex="-1">Print / Download Sample PDF</a>
-</div></div>
-<div class="coc-document-stage"><iframe data-preview-frame title="DEPARTMENT COC preview"></iframe></div>
-<p class="coc-help px-4 py-3 mb-0">Sample only. Download to print using your device's PDF viewer.</p>
-</div></section></div></div>
+        <main class="content-area coc-workspace">
+          <header class="coc-page-heading">
+            <h1>Certificate of Candidacy Management</h1>
+            <p id="cocElection" class="coc-help">Loading current election...</p>
+          </header>
+          <div class="coc-split">
+            <section class="card coc-previews" aria-label="Certificate previews">
+              <div class="coc-preview-topbar">
+                <div class="coc-tabs" role="tablist" aria-label="Certificate type">
+                  <button id="usgTab" type="button" role="tab" aria-selected="true" aria-controls="usgPanel" data-preview-tab="usg">USG COC Preview</button>
+                  <button id="departmentTab" type="button" role="tab" aria-selected="false" aria-controls="departmentPanel" tabindex="-1" data-preview-tab="department">Department COC Preview</button>
+                </div>
+                <div class="coc-preview-actions">
+                  <button id="cocFitPage" type="button" class="btn btn-outline-secondary btn-sm">Fit Page</button>
+                  <a id="cocDownload" class="btn btn-outline-primary btn-sm disabled" aria-disabled="true" tabindex="-1">Print / Download PDF</a>
+                </div>
+              </div>
+              <div id="usgPanel" role="tabpanel" aria-labelledby="usgTab" data-coc-preview="usg">
+                <p data-preview-status class="coc-preview-status coc-help" role="status" aria-live="polite">Loading draft preview...</p>
+                <div class="coc-document-stage"><canvas data-preview-canvas role="img" aria-label="USG draft certificate preview" hidden></canvas></div>
+              </div>
+              <div id="departmentPanel" role="tabpanel" aria-labelledby="departmentTab" data-coc-preview="department" hidden>
+                <p data-preview-status class="coc-preview-status coc-help" role="status" aria-live="polite">Loading draft preview...</p>
+                <div class="coc-document-stage"><canvas data-preview-canvas role="img" aria-label="Department draft certificate preview" hidden></canvas></div>
+              </div>
+            </section>
+            <section class="card coc-settings" aria-labelledby="cocSettingsTitle">
+              <div class="card-body">
+                <h2 id="cocSettingsTitle">Global COC Settings</h2>
+                <p class="coc-help">Shared by both forms. Issued COCs keep their saved details.</p>
+                <form data-coc-form="usg">
+                  <fieldset id="cocFields" disabled>
+                    <div class="coc-fields">
+                      <div>
+                        <div class="coc-year-heading"><label for="usgStart" class="form-label">Academic year</label><output data-year-label for="usgStart" aria-live="polite"></output></div>
+                        <input id="usgStart" name="academic_year_start" type="range" min="1900" max="2200" step="1" class="form-range" aria-describedby="usgYearHelp">
+                        <input name="academic_year_end" type="hidden">
+                        <div class="coc-year-limits coc-help"><span data-year-min></span><span data-year-max></span></div>
+                        <p id="usgYearHelp" class="coc-help">End year updates automatically.</p>
+                      </div>
+                      <div>
+                        <label for="usgChair" class="form-label">ELECOM Chairperson Full Name</label>
+                        <input id="usgChair" name="chairperson_name" maxlength="120" class="form-control" required>
+                      </div>
+                    </div>
+                    <div class="coc-signature">
+                      <h3>Chairperson Signature</h3>
+                      <p class="coc-help">Draw or upload a PNG (up to 1 MB). Applied at final approval.</p>
+                      <canvas id="chairSignaturePad" width="900" height="160" aria-label="Draw ELECOM chairperson signature"></canvas>
+                      <div class="coc-signature-actions">
+                        <button id="chairSignatureUploadButton" type="button" class="btn btn-outline-secondary btn-sm">Upload Signature</button>
+                        <input id="chairSignatureUpload" type="file" accept="image/png,.png" class="visually-hidden" tabindex="-1" aria-label="Upload PNG signature">
+                        <button id="chairSignatureClear" type="button" class="btn btn-outline-secondary btn-sm">Clear</button>
+                      </div>
+                      <p id="chairSignatureStatus" class="coc-help" role="status">No signature selected.</p>
+                    </div>
+                    <div class="coc-save-row">
+                      <p id="cocNotice" role="status" aria-live="polite"></p>
+                      <button type="submit" class="btn btn-primary" disabled>Save COC Settings</button>
+                    </div>
+                  </fieldset>
+                </form>
+              </div>
+            </section>
+          </div>
+        </main>
+    </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261008-developer-password1"></script>
-<script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_certificate_of_candidacy.js?v=20261009-global-tabs1"></script>
+<script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_certificate_of_candidacy.js?v=20261009-viewport-split1"></script>
 </body></html>

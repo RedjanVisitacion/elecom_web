@@ -1,28 +1,58 @@
-.coc-settings .small, .coc-help, .coc-previews .small {
-  color: #526178;
-  font-size: .875rem;
-  line-height: 1.5;
-  text-transform: none !important;
-  letter-spacing: normal !important;
+/* Scoped to COC management; other admin pages keep their existing layout. */
+html:has(.coc-page), body.coc-page { height: 100%; overflow: hidden; }
+.coc-page .main-content { height: 100vh; height: 100dvh; min-height: 0; overflow: hidden; }
+.coc-page .top-navbar { flex: 0 0 var(--topbar-height, 58px); }
+.coc-page .coc-workspace {
+  height: calc(100vh - var(--topbar-height, 58px));
+  height: calc(100dvh - var(--topbar-height, 58px));
+  flex: 1; min-height: 0; overflow: hidden; padding: 14px 20px;
+  display: flex; flex-direction: column; gap: 12px;
 }
-.coc-settings, .coc-previews { border-radius: 14px; overflow: hidden; }
-#cocNotice:empty { display: none; }
-.coc-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
-#chairSignaturePad { display: block; width: 100%; height: 160px; max-height: 180px; touch-action: none; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: crosshair; }
-.coc-tabs { display: flex; padding: 0 24px; gap: 24px; border-bottom: 1px solid #dbe3ee; background: #fff; }
-.coc-tabs button { border: 0; border-bottom: 3px solid transparent; background: transparent; padding: 18px 4px; color: #526178; font-weight: 600; }
+.coc-page-heading { flex: none; }
+.coc-page-heading h1 { font-size: 1.35rem; margin: 0 0 4px; color: #1e293b; }
+.coc-help, .coc-preview-status { color: #526178; font-size: .78rem; line-height: 1.4; text-transform: none !important; letter-spacing: normal !important; }
+.coc-page-heading p { margin: 0; }
+.coc-split { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; flex: 1; min-height: 0; overflow: hidden; }
+.coc-previews, .coc-settings { min-width: 0; min-height: 0; border: 1px solid #dbe3ee; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 6px #10265308; }
+.coc-previews { display: flex; flex-direction: column; }
+.coc-preview-topbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 12px; padding: 8px 12px; border-bottom: 1px solid #dbe3ee; flex: none; }
+.coc-tabs, .coc-preview-actions { display: flex; align-items: center; gap: 8px; }
+.coc-tabs button { padding: 8px 4px; border: 0; border-bottom: 3px solid transparent; background: transparent; color: #526178; font-size: .78rem; font-weight: 600; }
 .coc-tabs button[aria-selected="true"] { color: #123582; border-bottom-color: #2563eb; }
-.coc-tabs button:hover { color: #123582; background: #f1f5f9; }
-.coc-tabs button:focus-visible { outline: 3px solid #2563eb; outline-offset: -3px; }
+.coc-tabs button:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.coc-page .btn-sm { font-size: .75rem; }
+.coc-previews [role="tabpanel"] { display: flex; flex-direction: column; flex: 1; min-height: 0; overflow: hidden; }
 .coc-previews [hidden] { display: none !important; }
-.coc-preview-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; padding: 20px 24px; }
-[data-zoom-label] { min-width: 65px; text-align: center; font-size: .875rem; }
-.coc-document-stage { padding: 20px; background: #273449; }
-.coc-document-stage iframe { display: block; width: 100%; height: clamp(480px, 78vh, 960px); border: 1px solid #cbd5e1; border-radius: 4px; background: #fff; }
-@media (max-width: 575.98px) {
-  .coc-fields { grid-template-columns: 1fr; gap: 0; }
-  .coc-tabs { padding: 0 12px; gap: 12px; }
-  .coc-tabs button { flex: 1; font-size: .875rem; }
-  .coc-preview-toolbar { padding: 16px; }
-  .coc-document-stage { padding: 8px; }
+.coc-preview-status { flex: none; margin: 0; padding: 6px 12px; }
+.coc-document-stage { display: flex; align-items: center; justify-content: center; flex: 1; min-height: 0; min-width: 0; overflow: hidden; padding: 12px; background: #273449; }
+[data-preview-canvas] { display: block; max-width: 100%; max-height: 100%; object-fit: contain; background: #fff; box-shadow: 0 2px 12px #0005; }
+.coc-settings .card-body { padding: 16px; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.coc-settings h2 { font-size: 1.1rem; margin: 0 0 6px; }
+.coc-settings h3 { font-size: .875rem; margin: 0 0 6px; }
+.coc-settings p { margin: 0 0 8px; }
+.coc-settings form, .coc-settings fieldset { display: flex; flex-direction: column; flex: 1; min-height: 0; gap: 12px; }
+.coc-fields { display: grid; gap: 12px; }
+.coc-settings .form-label { font-size: .8rem; font-weight: 600; margin-bottom: 5px; }
+.coc-settings .form-control { font-size: .85rem; padding: 7px 10px; }
+.coc-year-heading, .coc-year-limits { display: flex; justify-content: space-between; gap: 8px; }
+.coc-year-heading output { font-size: .85rem; font-weight: 600; white-space: nowrap; }
+.coc-settings .form-range { height: 20px; margin: 0; }
+.coc-signature { min-height: 0; }
+#chairSignaturePad { display: block; width: 100%; height: clamp(60px, 21vh, 160px); max-height: 160px; touch-action: none; border: 1px solid #cbd5e1; border-radius: 8px; background: #fff; cursor: crosshair; }
+.coc-signature-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 5px; }
+.coc-save-row { margin-top: auto; padding-top: 10px; border-top: 1px solid #e2e8f0; }
+#cocNotice { font-size: .78rem; line-height: 1.3; overflow-wrap: anywhere; }
+#cocNotice:empty { display: none; }
+.coc-save-row .btn { width: 100%; font-size: .85rem; }
+@media (max-height: 700px) {
+  .coc-page .coc-workspace { padding: 10px 14px; gap: 8px; }
+  .coc-settings .card-body { padding: 12px; }
+  .coc-settings form, .coc-settings fieldset, .coc-fields { gap: 8px; }
+  #chairSignaturePad { height: clamp(48px, 16vh, 110px); }
+}
+@media (max-width: 850px) {
+  .coc-split { grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr); gap: 8px; }
+  .coc-page .coc-workspace { padding: 8px; }
+  .coc-preview-topbar { padding: 6px; }
+  .coc-tabs { gap: 4px; }
 }

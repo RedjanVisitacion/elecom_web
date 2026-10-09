@@ -4,7 +4,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const forms = [...document.querySelectorAll('[data-coc-form]')];
   const settingsForm = forms[0];
   const panels = [...document.querySelectorAll('[data-coc-preview]')];
-  const previews = new Map(panels.map(panel => [panel, { timer: null, controller: null, url: '', revision: 0, zoom: null }]));
+  const previews = new Map(panels.map(panel => [panel, { timer: null, controller: null, url: '', revision: 0, pdf: null, page: null, renderTask: null, renderRevision: 0, loadedRevision: 0, renderQueue: Promise.resolve() }]));
+  const download = document.getElementById('cocDownload');
+  let pdfLibraryPromise;
+  function pdfLibrary() {
+    if (!pdfLibraryPromise) {
+      pdfLibraryPromise = import('/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.min.mjs').then(lib => {
+        lib.GlobalWorkerOptions.workerSrc = '/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.worker.min.mjs';
+        return lib;
+      }).catch(error => { pdfLibraryPromise = null; throw error; });
+    }
+    return pdfLibraryPromise;
+  }
+  function updateDownload() {
+    const panel = panels.find(item => !item.hidden);
+    const state = previews.get(panel);
+    const ready = state.url && state.loadedRevision === state.revision && !state.controller && !state.timer;
+    download.classList.toggle('disabled', !ready);
+    download.setAttribute('aria-disabled', String(!ready)); download.tabIndex = ready ? 0 : -1;
+    if (ready) {
+      download.href = state.url;
+      download.download = `${panel.dataset.cocPreview.toUpperCase()}_COC_Sample.pdf`;
+    } else download.removeAttribute('href');
+  }
   let csrf = '';
   let signatureBase64 = '', signatureRevision = 0, signatureLoading = false, signatureLoaded = false;
   const signaturePad = document.getElementById('chairSignaturePad');
@@ -35,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
       y: (event.clientY - rect.top) * signaturePad.height / rect.height };
   }
   signaturePad.addEventListener('pointerdown', event => {
-    if (drawing || (event.pointerType === 'mouse' && event.button !== 0)) return;
+    if (document.getElementById('cocFields').disabled || drawing || (event.pointerType === 'mouse' && event.button !== 0)) return;
     event.preventDefault(); ++signatureRevision; signatureLoading = false; drawing = true; activePointer = event.pointerId;
     signaturePad.setPointerCapture(event.pointerId);
     const p = point(event);
@@ -103,17 +125,16 @@ document.addEventListener('DOMContentLoaded', () => {
     clearTimeout(state.timer);
     if (state.controller) state.controller.abort();
     const revision = ++state.revision;
-    const download = panel.querySelector('[data-preview-download]');
-    download.removeAttribute('href'); download.classList.add('disabled');
-    download.setAttribute('aria-disabled', 'true'); download.tabIndex = -1;
+    state.timer = null;
     panel.querySelector('[data-preview-status]').textContent = 'Updating draft preview…';
-    state.timer = setTimeout(() => refreshPreview(panel, revision), immediate ? 0 : 350);
+    state.timer = setTimeout(() => { state.timer = null; refreshPreview(panel, revision); }, immediate ? 0 : 200);
+    updateDownload();
   }
   async function refreshPreview(panel, revision) {
     const state = previews.get(panel);
     const controller = new AbortController(); state.controller = controller;
     const status = panel.querySelector('[data-preview-status]');
-    const frame = panel.querySelector('[data-preview-frame]');
+    const frame = panel.querySelector('[data-preview-canvas]');
     const draft = { draft: '1', ...values(settingsForm), form_kind: panel.dataset.cocPreview };
     const { chairperson_signature_base64, ...query } = draft;
     const params = new URLSearchParams(query);
@@ -130,24 +151,29 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const blob = await response.blob();
       if (controller.signal.aborted || state.revision !== revision) return;
-      const nextUrl = URL.createObjectURL(blob);
-
+      const lib = await pdfLibrary();
+      const task = lib.getDocument({ data: new Uint8Array(await blob.arrayBuffer()), isEvalSupported: false });
+      const pdf = await task.promise;
+      if (controller.signal.aborted || state.revision !== revision) { await pdf.destroy(); return; }
+      const page = await pdf.getPage(1);
+      if (controller.signal.aborted || state.revision !== revision) { await pdf.destroy(); return; }
+      const previousPdf = state.pdf;
+      state.page = page; state.pdf = pdf;
       if (state.url) URL.revokeObjectURL(state.url);
-      state.url = nextUrl;
-      showDocument(panel);
-      const download = panel.querySelector('[data-preview-download]');
-      download.href = nextUrl; download.download = `${panel.dataset.cocPreview.toUpperCase()}_COC_Sample.pdf`;
-      download.classList.remove('disabled'); download.removeAttribute('aria-disabled'); download.removeAttribute('tabindex');
-      for (const button of panel.querySelectorAll('[data-zoom-in], [data-zoom-out], [data-zoom-fit]')) button.disabled = false;
+      state.url = URL.createObjectURL(blob);
+      await showDocument(panel);
+      if (previousPdf) await previousPdf.destroy();
+      if (controller.signal.aborted || state.revision !== revision) return;
+      state.loadedRevision = revision;
       status.textContent = 'Draft preview — save settings to apply these changes.';
-      status.className = 'small text-muted mb-2';
+      status.className = 'coc-preview-status coc-help';
     } catch (error) {
       if (error.name !== 'AbortError' && state.revision === revision) {
         status.textContent = `Preview paused: ${error.message}`;
-        status.className = 'small text-danger mb-2';
+        status.className = 'coc-preview-status coc-help text-danger';
       }
     } finally {
-      if (state.revision === revision) frame.setAttribute('aria-busy', 'false');
+      if (state.revision === revision) { frame.setAttribute('aria-busy', 'false'); state.controller = null; updateDownload(); }
     }
   }
   async function load() {
@@ -165,11 +191,12 @@ document.addEventListener('DOMContentLoaded', () => {
         updateYear(form, config?.academic_year_start || new Date().getFullYear());
         form.elements.chairperson_name.value = config?.chairperson_name || '';
       }
+      document.getElementById('cocFields').disabled = false;
       message('');
     } catch (error) { message(error.message, true); }
     finally {
       for (const form of forms) {
-        form.querySelector('[type=submit]').disabled = false;
+        form.querySelector('[type=submit]').disabled = document.getElementById('cocFields').disabled;
         for (const panel of panels) schedulePreview(panel, true);
       }
     }
@@ -205,6 +232,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.controller) state.controller.abort();
       if (state.url) URL.revokeObjectURL(state.url);
       state.url = '';
+      ++state.renderRevision; if (state.renderTask) state.renderTask.cancel();
+      state.page = null; if (state.pdf) state.pdf.destroy(); state.pdf = null;
     }
   });
   window.addEventListener('pageshow', event => { if (event.persisted) for (const panel of panels) schedulePreview(panel, true); });
@@ -213,6 +242,8 @@ document.addEventListener('DOMContentLoaded', () => {
   function selectTab(tab) {
     for (const item of tabs) { const active = item === tab; item.setAttribute('aria-selected', String(active)); item.tabIndex = active ? 0 : -1; }
     for (const panel of panels) panel.hidden = panel.dataset.cocPreview !== tab.dataset.previewTab;
+    updateDownload();
+    showDocument(panels.find(panel => !panel.hidden)).catch(() => {});
   }
   for (const tab of tabs) {
     tab.addEventListener('click', () => selectTab(tab));
@@ -224,17 +255,45 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
   function showDocument(panel) {
-    const state = previews.get(panel); if (!state.url) return;
-    panel.querySelector('[data-preview-frame]').src = `${state.url}#toolbar=0&navpanes=0&${state.zoom === null ? 'view=FitH' : `zoom=${state.zoom}`}`;
-    panel.querySelector('[data-zoom-label]').textContent = state.zoom === null ? 'Fit width' : `${state.zoom}%`;
+    const state = previews.get(panel);
+    const revision = ++state.renderRevision;
+    if (state.renderTask) state.renderTask.cancel();
+    state.renderQueue = state.renderQueue.catch(() => {}).then(async () => {
+      if (revision !== state.renderRevision || panel.hidden || !state.page) return;
+      const stage = panel.querySelector('.coc-document-stage');
+      const canvas = panel.querySelector('[data-preview-canvas]');
+      const base = state.page.getViewport({ scale: 1 });
+      const padding = 24;
+      const scale = Math.min((stage.clientWidth - padding) / base.width, (stage.clientHeight - padding) / base.height);
+      if (scale <= 0) return;
+      const ratio = Math.min(window.devicePixelRatio || 1, 2);
+      const viewport = state.page.getViewport({ scale: scale * ratio });
+      // Render off-screen so edits never expose a partially drawn certificate.
+      const buffer = document.createElement('canvas');
+      buffer.width = Math.ceil(viewport.width); buffer.height = Math.ceil(viewport.height);
+      const task = state.page.render({ canvasContext: buffer.getContext('2d'), viewport });
+      state.renderTask = task;
+      try {
+        await task.promise;
+        if (revision !== state.renderRevision || panel.hidden) return;
+        canvas.width = buffer.width; canvas.height = buffer.height;
+        canvas.style.width = `${base.width * scale}px`; canvas.style.height = `${base.height * scale}px`;
+        canvas.getContext('2d').drawImage(buffer, 0, 0); canvas.hidden = false;
+      } catch (error) {
+        if (error.name !== 'RenderingCancelledException') {
+          panel.querySelector('[data-preview-status]').textContent = `Preview paused: ${error.message}`;
+          throw error;
+        }
+      } finally { if (state.renderTask === task) state.renderTask = null; }
+    });
+    return state.renderQueue;
   }
-  for (const panel of panels) {
-    for (const [selector, change] of [['[data-zoom-in]', 25], ['[data-zoom-out]', -25], ['[data-zoom-fit]', 0]]) {
-      panel.querySelector(selector).addEventListener('click', () => {
-        const state = previews.get(panel); state.zoom = change ? Math.min(200, Math.max(50, (state.zoom ?? 100) + change)) : null;
-        showDocument(panel);
-      });
-    }
-  }
+  const resizeObserver = new ResizeObserver(() => {
+    for (const panel of panels) if (!panel.hidden) showDocument(panel).catch(() => {});
+  });
+  for (const panel of panels) resizeObserver.observe(panel.querySelector('.coc-document-stage'));
+  document.getElementById('cocFitPage').addEventListener('click', () => {
+    showDocument(panels.find(panel => !panel.hidden)).catch(() => {});
+  });
   load();
 });
