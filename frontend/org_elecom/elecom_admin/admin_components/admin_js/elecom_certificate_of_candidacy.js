@@ -2,14 +2,16 @@ document.addEventListener('DOMContentLoaded', () => {
   const endpoint = '/api/admin/certificate-of-candidacy/settings/';
   const notice = document.getElementById('cocNotice');
   const forms = [...document.querySelectorAll('[data-coc-form]')];
-  const previews = new Map(forms.map(form => [form, { timer: null, controller: null, url: '', revision: 0 }]));
+  const settingsForm = forms[0];
+  const panels = [...document.querySelectorAll('[data-coc-preview]')];
+  const previews = new Map(panels.map(panel => [panel, { timer: null, controller: null, url: '', revision: 0, zoom: null }]));
   let csrf = '';
   let signatureBase64 = '', signatureRevision = 0, signatureLoading = false, signatureLoaded = false;
   const signaturePad = document.getElementById('chairSignaturePad');
   const signatureContext = signaturePad.getContext('2d');
   const signatureStatus = document.getElementById('chairSignatureStatus');
   let drawing = false, activePointer = null;
-  function previewSignatures() { for (const form of forms) schedulePreview(form); }
+  function previewSignatures() { for (const panel of panels) schedulePreview(panel); }
   function setSignatureStatus(text) { signatureStatus.textContent = text; }
   function paintSignature(encoded, revision) {
     signatureLoading = true;
@@ -21,7 +23,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const width = img.width * scale, height = img.height * scale;
       signatureContext.drawImage(img, (signaturePad.width - width) / 2, (signaturePad.height - height) / 2, width, height);
       signatureBase64 = encoded; signatureLoading = false;
-      setSignatureStatus('Signature ready — save for both forms.');
+      setSignatureStatus('Signature ready — save COC settings.');
       previewSignatures();
     };
     img.onerror = () => { if (revision === signatureRevision) { signatureLoading = false; message('Use a valid PNG signature.', true); } };
@@ -50,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!drawing || event.pointerId !== activePointer) return;
     drawing = false; activePointer = null;
     signatureBase64 = signaturePad.toDataURL('image/png').split(',')[1];
-    setSignatureStatus('Signature ready — save for both forms.'); previewSignatures();
+    setSignatureStatus('Signature ready — save COC settings.'); previewSignatures();
   }
   signaturePad.addEventListener('pointerup', finishSignature);
   signaturePad.addEventListener('pointercancel', finishSignature);
@@ -59,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     ++signatureRevision; drawing = false; activePointer = null; signatureLoading = false;
     signatureContext.clearRect(0, 0, signaturePad.width, signaturePad.height);
     signatureBase64 = ''; document.getElementById('chairSignatureUpload').value = '';
-    setSignatureStatus('Signature cleared — save for both forms.'); previewSignatures();
+    setSignatureStatus('Signature cleared — save COC settings.'); previewSignatures();
   });
   document.getElementById('chairSignatureUpload').addEventListener('change', async event => {
     const file = event.target.files?.[0]; if (!file) return;
@@ -96,25 +98,28 @@ document.addEventListener('DOMContentLoaded', () => {
       chairperson_name: form.elements.chairperson_name.value.trim(),
       ...(signatureLoaded || signatureRevision > 0 ? { chairperson_signature_base64: signatureBase64 } : {}) };
   }
-  function schedulePreview(form, immediate = false) {
-    const state = previews.get(form);
+  function schedulePreview(panel, immediate = false) {
+    const state = previews.get(panel);
     clearTimeout(state.timer);
     if (state.controller) state.controller.abort();
     const revision = ++state.revision;
-    form.querySelector('[data-preview-status]').textContent = 'Updating draft preview…';
-    state.timer = setTimeout(() => refreshPreview(form, revision), immediate ? 0 : 350);
+    const download = panel.querySelector('[data-preview-download]');
+    download.removeAttribute('href'); download.classList.add('disabled');
+    download.setAttribute('aria-disabled', 'true'); download.tabIndex = -1;
+    panel.querySelector('[data-preview-status]').textContent = 'Updating draft preview…';
+    state.timer = setTimeout(() => refreshPreview(panel, revision), immediate ? 0 : 350);
   }
-  async function refreshPreview(form, revision) {
-    const state = previews.get(form);
+  async function refreshPreview(panel, revision) {
+    const state = previews.get(panel);
     const controller = new AbortController(); state.controller = controller;
-    const status = form.querySelector('[data-preview-status]');
-    const frame = form.querySelector('[data-preview-frame]');
-    const draft = { draft: '1', ...values(form) };
+    const status = panel.querySelector('[data-preview-status]');
+    const frame = panel.querySelector('[data-preview-frame]');
+    const draft = { draft: '1', ...values(settingsForm), form_kind: panel.dataset.cocPreview };
     const { chairperson_signature_base64, ...query } = draft;
     const params = new URLSearchParams(query);
     frame.setAttribute('aria-busy', 'true');
     try {
-      const previewUrl = `/api/admin/certificate-of-candidacy/template/${form.dataset.cocForm}/`;
+      const previewUrl = `/api/admin/certificate-of-candidacy/template/${panel.dataset.cocPreview}/`;
       const response = await fetch(signatureBase64 ? previewUrl : `${previewUrl}?${params}`, {
         credentials: 'same-origin', cache: 'no-store', signal: controller.signal,
         ...(signatureBase64 ? { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(draft) } : {}),
@@ -126,9 +131,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const blob = await response.blob();
       if (controller.signal.aborted || state.revision !== revision) return;
       const nextUrl = URL.createObjectURL(blob);
-      frame.src = `${nextUrl}#toolbar=0&navpanes=0&view=FitH`;
+
       if (state.url) URL.revokeObjectURL(state.url);
       state.url = nextUrl;
+      showDocument(panel);
+      const download = panel.querySelector('[data-preview-download]');
+      download.href = nextUrl; download.download = `${panel.dataset.cocPreview.toUpperCase()}_COC_Sample.pdf`;
+      download.classList.remove('disabled'); download.removeAttribute('aria-disabled'); download.removeAttribute('tabindex');
+      for (const button of panel.querySelectorAll('[data-zoom-in], [data-zoom-out], [data-zoom-fit]')) button.disabled = false;
       status.textContent = 'Draft preview — save settings to apply these changes.';
       status.className = 'small text-muted mb-2';
     } catch (error) {
@@ -151,7 +161,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       document.getElementById('cocElection').textContent = data.election_id ? `Settings for current election #${data.election_id}` : 'No current election. Settings are saved for filings without an election.';
       for (const form of forms) {
-        const config = data.forms?.[form.dataset.cocForm];
+        const config = data.forms?.usg || data.forms?.department;
         updateYear(form, config?.academic_year_start || new Date().getFullYear());
         form.elements.chairperson_name.value = config?.chairperson_name || '';
       }
@@ -160,7 +170,7 @@ document.addEventListener('DOMContentLoaded', () => {
     finally {
       for (const form of forms) {
         form.querySelector('[type=submit]').disabled = false;
-        schedulePreview(form, true);
+        for (const panel of panels) schedulePreview(panel, true);
       }
     }
   }
@@ -169,15 +179,7 @@ document.addEventListener('DOMContentLoaded', () => {
     form.elements.academic_year_start.addEventListener('input', () => {
       updateYear(form);
     });
-    form.addEventListener('input', () => {
-      for (const other of forms) {
-        if (other !== form) {
-          updateYear(other, form.elements.academic_year_start.value);
-          other.elements.chairperson_name.value = form.elements.chairperson_name.value;
-        }
-        schedulePreview(other);
-      }
-    });
+    form.addEventListener('input', previewSignatures);
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (signatureLoading || drawing) { message('Finish drawing or loading the signature before saving.', true); return; }
@@ -205,6 +207,34 @@ document.addEventListener('DOMContentLoaded', () => {
       state.url = '';
     }
   });
-  window.addEventListener('pageshow', event => { if (event.persisted) for (const form of forms) schedulePreview(form, true); });
+  window.addEventListener('pageshow', event => { if (event.persisted) for (const panel of panels) schedulePreview(panel, true); });
+  document.getElementById('chairSignatureUploadButton').addEventListener('click', () => document.getElementById('chairSignatureUpload').click());
+  const tabs = [...document.querySelectorAll('[data-preview-tab]')];
+  function selectTab(tab) {
+    for (const item of tabs) { const active = item === tab; item.setAttribute('aria-selected', String(active)); item.tabIndex = active ? 0 : -1; }
+    for (const panel of panels) panel.hidden = panel.dataset.cocPreview !== tab.dataset.previewTab;
+  }
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => selectTab(tab));
+    tab.addEventListener('keydown', event => {
+      if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+      event.preventDefault();
+      const index = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (tabs.indexOf(tab) + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
+      selectTab(tabs[index]); tabs[index].focus();
+    });
+  }
+  function showDocument(panel) {
+    const state = previews.get(panel); if (!state.url) return;
+    panel.querySelector('[data-preview-frame]').src = `${state.url}#toolbar=0&navpanes=0&${state.zoom === null ? 'view=FitH' : `zoom=${state.zoom}`}`;
+    panel.querySelector('[data-zoom-label]').textContent = state.zoom === null ? 'Fit width' : `${state.zoom}%`;
+  }
+  for (const panel of panels) {
+    for (const [selector, change] of [['[data-zoom-in]', 25], ['[data-zoom-out]', -25], ['[data-zoom-fit]', 0]]) {
+      panel.querySelector(selector).addEventListener('click', () => {
+        const state = previews.get(panel); state.zoom = change ? Math.min(200, Math.max(50, (state.zoom ?? 100) + change)) : null;
+        showDocument(panel);
+      });
+    }
+  }
   load();
 });
