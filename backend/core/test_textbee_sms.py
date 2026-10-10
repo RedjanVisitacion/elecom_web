@@ -33,6 +33,16 @@ class TextBeeTests(SimpleTestCase):
         self.assertEqual(request.get_header("Accept"), "application/json")
         self.assertEqual(send.call_count, 1)
 
+    @override_settings(TEXTBEE_SIM_SUBSCRIPTION_ID="")
+    @patch("core.textbee_sms.urllib.request.urlopen")
+    def test_default_sim_matches_website_send(self, send):
+        send.return_value = self.response({"data": {"success": True, "smsBatchId": "batch"}})
+        send_otp_sms("09171234567", "123456", 10)
+        payload = json.loads(send.call_args.args[0].data)
+        self.assertNotIn("simSubscriptionId", payload)
+        self.assertEqual(payload["deviceId"], "test-device")
+        self.assertEqual(payload["recipients"], ["+639171234567"])
+
     @patch("core.textbee_sms.urllib.request.urlopen")
     def test_no_queue_confirmation_fails(self, send):
         for body in ({"data": {"success": False}}, {"data": {"success": True}}, []):
