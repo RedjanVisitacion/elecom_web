@@ -26,7 +26,7 @@ The official backend REST API service and web administration portal for the **EL
 - [Production Deployment & Server Operations (Ubuntu)](#-production-deployment--server-operations-ubuntu)
 - [Shared Backend & API Contracts](#-shared-backend--api-contracts)
 - [Biometric Face Verification (InsightFace)](#-biometric-face-verification-insightface)
-- [SMS OTP Verification (SMS Chef Gateway)](#-sms-otp-verification-sms-chef-gateway)
+- [SMS OTP — TextBee gateway](#sms-otp--textbee-gateway-confirmed-working-2026-10-10)
 - [EleVote Live Chat & Admin Support System](#-elevote-live-chat--admin-support-system)
 - [Web Admin UI Rules & Design Consistency](#-web-admin-ui-rules--design-consistency)
 - [USTP-Oroquieta Omnibus Election Code Context](#-ustp-oroquieta-omnibus-election-code-context)
@@ -89,7 +89,7 @@ flowchart TD
         Postgres[("PostgreSQL Database (elecom_db)")]
         Cloudinary["Cloudinary (Candidate Photos & Logos)"]
         GroqCloud["Groq Cloud AI (EleVote Llama 3)"]
-        SMSChefGateway["SMS Chef Gateway (Realme RMX3261 Phone)"]
+        SMSChefGateway["TextBee Gateway (Realme RMX3261 Phone)"]
     end
 
     MobileApp -->|HTTPS / REST API| DNS
@@ -116,7 +116,7 @@ flowchart TD
 - **Secure Authentication & RBAC**: Session-based authentication for COMELEC admin officers and JWT / token authentication for students and voters.
 - **USTP-Oroquieta Election Code Compliance**: Enforces voter eligibility, candidate qualification, election timelines, non-partisan balloting, and tie-breaking protocols.
 - **Biometric Voter Verification (Local InsightFace)**: 512-dimensional ArcFace facial embeddings with ONNX Runtime. Ensures 1-student-1-face registration and live face verification before voting with zero external API fees.
-- **Hardware-Relayed SMS OTP**: Automated two-factor verification code dispatch via SMS Chef running on a dedicated Android phone gateway (Realme RMX3261).
+- **Hardware-Relayed SMS OTP**: Automated verification code dispatch via TextBee running on a dedicated Android phone gateway (Realme RMX3261).
 - **EleVote AI Live Chat & Admin Takeover**: Groq-powered AI support assistant that answers election guidelines instantly, with real-time COMELEC officer takeover and thread management.
 - **Campus Network Authorization**: Enforces voting exclusively from designated USTP campus Wi-Fi networks using LAN IP prefix and subnet filtering.
 - **Tamper-Evident SHA-256 Vote Ledger**: Cryptographic chaining of cast votes ensuring election immutability and verifiable vote receipts.
@@ -139,7 +139,7 @@ flowchart TD
 | **Biometrics** | InsightFace + ONNX Runtime + OpenCV | ArcFace model (`buffalo_sc`), `libgl1` required |
 | **AI Assistant** | Groq Python SDK 0.9+ | Fast LLM inference for voter questions |
 | **Image Hosting** | Cloudinary SDK 1.36+ | Candidate portraits, party logos, verification snapshots |
-| **SMS Relay** | SMS Chef REST Gateway | Direct Android SIM relay to Philippine carriers |
+| **SMS Relay** | TextBee REST Gateway | Direct Android SIM relay to Philippine carriers |
 | **Cryptography** | bcrypt 4.0+ | Password hashing for voter import |
 | **Frontend** | Vanilla JS, HTML5, CSS3 | No compilation needed; query versioning `?v=` |
 
@@ -227,9 +227,13 @@ The backend loads configuration from `F:\elecom_web\backend\.env` locally and `/
 | `CLOUDINARY_API_SECRET`| Yes | `your_api_secret` | Cloudinary API secret |
 | `GROQ_API_KEY` | Yes | `gsk_...` | Groq AI API key for EleVote chat |
 | `GROQ_MODEL` | No | `llama3-70b-8192` | Model identifier for EleVote responses |
-| `SMSCHEF_API_KEY` | Yes | `your_smschef_key` | SMS Chef cloud gateway API token |
-| `SMSCHEF_DEVICE_ID` | Yes | `cb723b0014acd1b3` | Dedicated Realme gateway device ID |
-| `SMSCHEF_SIM_SLOT` | No | `0` (SIM 1) | Active SIM slot index (0 = SIM 1) |
+| `SMS_PROVIDER` | Yes | `textbee` | Current SMS gateway selection |
+| `TEXTBEE_API_KEY` | Yes | Private key | TextBee authentication |
+| `TEXTBEE_DEVICE_ID` | Yes | Registered device ID | TextBee Android gateway |
+| `TEXTBEE_SIM_SUBSCRIPTION_ID` | No | Blank | Use the app default TM SIM |
+| `SMSCHEF_API_KEY` | No | Legacy private key | Explicit rollback only |
+| `SMSCHEF_DEVICE_ID` | No | Legacy device ID | Explicit rollback only |
+| `SMSCHEF_SIM_SLOT` | No | Legacy provider setting | Verify SMS Chef API mapping before rollback; not an Android subscription ID |
 | `EMAIL_BACKEND` | Yes | `django.core.mail.backends.smtp.EmailBackend` | Mail backend (console for testing) |
 | `EMAIL_HOST` | Yes | `smtp.gmail.com` | SMTP relay server |
 | `EMAIL_PORT` | Yes | `587` | SMTP port |
@@ -370,7 +374,7 @@ If setting up a new server or recovering from a wipe:
    ```
 
 3. **Create Production `.env` File (`/var/www/elecom/backend/.env`)**:
-   Populate with production Cloudinary, Groq, SMS Chef, and Email credentials.
+   Populate with production Cloudinary, Groq, TextBee, and Email credentials.
 
 4. **Initialize Database Schema & Admin**:
    ```bash
@@ -529,27 +533,82 @@ sequenceDiagram
 
 ---
 
-## 📱 SMS OTP Verification (SMS Chef Gateway)
+## SMS OTP — TextBee gateway (confirmed working 2026-10-10)
 
-ELECOM utilizes an Android hardware gateway to dispatch SMS verification codes directly through local telecom providers at zero per-message API cost.
+TextBee is the current SMS provider. SMS Chef is retained only for explicit rollback;
+do not restart diagnosis by switching SIM indexes or returning to SMS Chef.
 
-### Gateway Specifications
+### Ownership and configuration
 
-- **Relay Device**: Realme RMX3261 Android Smartphone
-- **Device ID**: `cb723b0014acd1b3`
-- **Active SIM Slot**: `0` (SIM 1)
-- **Gateway Service**: SMS Chef Cloud (`https://www.cloud.smschef.com/api/send/sms`)
+- Flutter requests OTP through `POST /api/mobile/auth/forgot-password/` with `method: "sms"`. Django owns SMS dispatch; never put gateway credentials in Flutter.
+- Backend source: `F:\elecom_web\backend`. Production: `/var/www/elecom/backend`. Local and server `.env` files are separate; Git does not deploy `.env`.
+- `_send_otp_sms` in `backend/core/views.py` selects `SMS_PROVIDER`. TextBee dispatch is in `backend/core/textbee_sms.py`; configuration is in `backend/core/settings.py`; tests are in `backend/core/test_textbee_sms.py`.
+- Configure the server with the following (never document actual API keys):
 
-### Implementation Details
+```dotenv
+SMS_PROVIDER=textbee
+TEXTBEE_API_KEY=<private TextBee key>
+TEXTBEE_DEVICE_ID=<registered TextBee device ID>
+TEXTBEE_SIM_SUBSCRIPTION_ID=
+```
 
-- **Handler**: `_send_otp_sms(phone, otp_code)` in `backend/core/views.py`.
-- **Phone Normalization**: Converts numbers automatically to international E.164 format:
-  - Input: `09308288544` -> Normalized: `+639308288544`.
-- **Diagnosis of Failure Codes**:
-  - `400 Invalid Parameters`: Missing or malformed `SMSCHEF_DEVICE_ID`.
-  - `400 Invalid phone number!`: Malformed recipient phone number format.
-  - `401 Invalid API secret`: Misconfigured `SMSCHEF_API_KEY`.
-  - HTTP 200 returned but no SMS sent: Verify `SMSCHEF_SIM_SLOT=0` on the server.
+- Known gateway: Realme RMX3261. The TextBee device ID is different from the old SMS Chef device ID; copy it from TextBee, never reuse the SMS Chef ID.
+- In the TextBee Android app: Gateway Enabled ON; Default SIM **TM (SIM 2), Android subscription ID 2**. TNT is subscription ID 1. TM has the user's active text plan; earlier failed attempts used TNT.
+- Leave `TEXTBEE_SIM_SUBSCRIPTION_ID` **blank** for this deployment. The backend omits `simSubscriptionId`, matching successful website sends and using the app's TM default. An explicit override is supported if deliberately required elsewhere.
+- Android subscription IDs are not SIM slot indexes and can change after SIM swaps. Never infer provider numbering from Android slot indexes. Older SMS Chef 0/1 instructions were inconsistent and must not be reused as facts.
+- Grant SMS/phone permissions, keep gateway internet connected, and allow background operation. A gateway enabled flag does not prove current connectivity; inspect heartbeat and message timestamps. Current configured send delay was 5 seconds.
+- TextBee's free plan screenshot showed 50 daily / 300 monthly usage limits; verify current plan before relying on those values. Unused quota was available during this incident; upgrading was not needed.
+
+### Verified API and message behavior
+
+- POST `https://api.textbee.dev/api/v1/gateway/send-sms`, JSON body with `deviceId`, `recipients: ["+639XXXXXXXXX"]`, and `message`. Optional `simSubscriptionId` must be numeric if present.
+- Headers: `x-api-key`, `Content-Type: application/json`, `Accept: application/json`, and **`User-Agent: ELECOM-Backend/1.0`**.
+- Python urllib's default User-Agent produced HTTP 403. A read-only `/gateway/stats` comparison using the same key returned 403 with the default identity and 200 with the explicit ELECOM identity. Preserve the explicit User-Agent; do not diagnose every 403 as an invalid key.
+- Philippine recipient normalization: `09XXXXXXXXX`, `9XXXXXXXXX`, or `639XXXXXXXXX` becomes `+639XXXXXXXXX`. A website test using `639...` without `+` failed; local `09...` and `+639...` worked. Keep the plus sign.
+- **Current successful OTP text:** `ELECOM code: {otp}. Valid for {expiry_minutes} minutes. Do not share.` Keep the code and actual expiry in the message; preserve leading zeroes in OTP strings.
+- The previous `Your ELECOM OTP is: ... Valid for ... Do not share this code.` repeatedly failed to appear on the target phone even when TextBee marked it delivered. A user-authorized API test (`ELECOM test code: 123456. This is a delivery test.`) arrived. After shortening the real OTP message and deploying it, the user confirmed **it works**.
+- Content-dependent delivery/filtering is plausible, but the exact carrier/handset cause was **not proven**. Do not claim a specific spam filter or carrier rule was established. Preserve the working wording unless a controlled test justifies a change.
+- Manual success alone does not establish the API failure's cause. Compare the same recipient, sender SIM, exact message text, and actual inbox receipt; a short generic manual test differs from an OTP.
+
+### Status interpretation and diagnostics
+
+- Require JSON `data.success == true` and a non-empty `data.smsBatchId` before accepting the queue request. No automatic SMS resend/fallback: it can create duplicates and invalidate older codes.
+- API acceptance means **queued**, not received. `dispatched` means pushed toward the gateway, not an Android send attempt. `sent` means carrier acceptance; `delivered` is the provider's carrier delivery report, not proof the user saw the message. The incident included delivered reports without visible inbox messages.
+- Read-only endpoints: `GET /gateway/stats`, `/gateway/devices/{deviceId}`, `/gateway/messages`, and `/gateway/devices/{deviceId}/sms-batch/{smsBatchId}` under the same API base.
+- Compare `requestedAt`, `dispatchedAt`, `pushReceivedAt`, `sendAttemptedAt`, `sentAt`, `deliveredAt`, `errorCode`, and gateway `lastHeartbeat`. Convert UTC to Asia/Singapore/Philippine time (UTC+8). Do not invent a delay from screenshots or mix different OTP attempts.
+- One authorized test stalled at `dispatched` with no phone acknowledgement and a heartbeat about 17 minutes old; the user subsequently confirmed receipt. This is evidence of intermittent gateway availability, not proof it caused all earlier missing OTPs.
+- Logs: `TextBee OTP queued | sim_subscription=default | batch_id=...`; rejection logs include HTTP status. Use `journalctl -u gunicorn --since "5 minutes ago" --no-pager | grep -i textbee` after a fresh request.
+- Read-only ADB inbox checks can distinguish Android receipt from Messages display; inspect only metadata or sanitized classification. Never print SMS bodies, OTPs, full recipient numbers, or API credentials into tool output.
+- Ask explicit permission before tools send any test SMS; use exactly the authorized recipient/count/content. Read-only status checks do not send messages. Do not silently resend a test because it is still pending.
+- Resend generates a new code and supersedes the prior code. Tell the user to use the newest code; delayed older SMS may arrive later.
+- Credentials were exposed in screenshots. Never copy their values into source, AGENTS.md, patches, or commits. Rotate exposed keys privately.
+
+### Deployment lessons
+
+- Backend-only changes need deployment and Gunicorn restart; no APK rebuild or database migration is required for this provider/message change. `systemctl is-active` returning `active` proves process health, not delivery.
+- Run terminal commands **one at a time**. Pasted commands repeatedly merged with shell prompts. In nano, `*` means unsaved: Ctrl+O, Enter, Ctrl+X.
+- After backend changes are committed and pushed, run on the server:
+
+```bash
+cd /var/www/elecom
+git pull origin main
+sudo systemctl restart gunicorn
+sudo systemctl is-active gunicorn
+```
+
+- A local patch is not automatically on the server. Upload with `scp` from Windows, then `git apply --check` and `git apply` on the server. Apply a patch **once**. If the committed Git pull already contains it, skip patch application. Reapplying a successful patch produces `patch does not apply`.
+- If a server patch blocks a Git pull, preserve only the changed gateway files with `git stash push -m "TextBee server patch backup" -- backend/core/textbee_sms.py backend/core/test_textbee_sms.py`, then pull. Do not restore the stash over equivalent committed fixes or discard unrelated work. `.env` is untouched by that scoped stash.
+- After SSH disconnects, a prompt such as `F:\elecom_web>` is Windows, not the server. Reconnect before running Linux deployment commands.
+- Confirm deployed wording with `grep -n 'ELECOM code:' /var/www/elecom/backend/core/textbee_sms.py`, then request one fresh OTP and verify actual target-phone receipt.
+
+### Validation and references
+
+- Focused tests: from `F:\elecom_web\backend`, run `.\venv\Scripts\python.exe -m unittest core.test_textbee_sms`. Six tests passed during this work, including explicit/default SIM payload, normalization, ASCII single-segment message, queue confirmation, config errors, and no retry on failure. Check current test count/output; this is a historical snapshot.
+- Local `manage.py check` was blocked by missing `numpy` imported by the face service, not a TextBee test failure. Do not report full Django checks as passed.
+- Setup document: `F:\elecom_web\docs\textbee-otp.md`.
+- Official API: https://textbee.dev/docs/sending-sms/sending-sms
+- SIM IDs: https://textbee.dev/docs/sending-sms/choosing-a-sim
+- Delivery states: https://textbee.dev/docs/sending-sms/delivery-status
 
 ---
 
