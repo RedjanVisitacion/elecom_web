@@ -25,7 +25,7 @@ def send_otp_sms(phone, otp, expiry_minutes):
     payload = {
         "deviceId": device,
         "recipients": ["+" + digits],
-        "message": f"Your ELECOM OTP is: {otp}. Valid for {expiry_minutes} minutes. Do not share this code.",
+        "message": f"ELECOM code: {otp}. Valid for {expiry_minutes} minutes. Do not share.",
     }
     subscription = str(getattr(settings, "TEXTBEE_SIM_SUBSCRIPTION_ID", "") or "").strip()
     if subscription:

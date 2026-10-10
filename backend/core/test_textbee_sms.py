@@ -27,6 +27,9 @@ class TextBeeTests(SimpleTestCase):
         request = send.call_args.args[0]
         payload = json.loads(request.data)
         self.assertEqual(payload["simSubscriptionId"], 2)
+        self.assertEqual(payload["message"], "ELECOM code: 123456. Valid for 10 minutes. Do not share.")
+        self.assertTrue(payload["message"].isascii())
+        self.assertLessEqual(len(payload["message"]), 160)
         self.assertEqual(payload["recipients"], ["+639171234567"])
         self.assertEqual(request.get_header("X-api-key"), "test-key")
         self.assertEqual(request.get_header("User-agent"), "ELECOM-Backend/1.0")
