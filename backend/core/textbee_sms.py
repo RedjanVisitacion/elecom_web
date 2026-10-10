@@ -39,7 +39,13 @@ def send_otp_sms(phone, otp, expiry_minutes):
     request = urllib.request.Request(
         "https://api.textbee.dev/api/v1/gateway/send-sms",
         data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json", "x-api-key": key},
+        # TextBee rejects Python's default urllib user agent with HTTP 403.
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "ELECOM-Backend/1.0",
+            "x-api-key": key,
+        },
         method="POST",
     )
     try:

@@ -29,6 +29,8 @@ class TextBeeTests(SimpleTestCase):
         self.assertEqual(payload["simSubscriptionId"], 2)
         self.assertEqual(payload["recipients"], ["+639171234567"])
         self.assertEqual(request.get_header("X-api-key"), "test-key")
+        self.assertEqual(request.get_header("User-agent"), "ELECOM-Backend/1.0")
+        self.assertEqual(request.get_header("Accept"), "application/json")
         self.assertEqual(send.call_count, 1)
 
     @patch("core.textbee_sms.urllib.request.urlopen")
