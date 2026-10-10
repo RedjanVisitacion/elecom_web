@@ -11235,7 +11235,13 @@ def _mask_phone(phone: str) -> str:
 
 
 def _send_otp_sms(phone: str, otp: str, expiry_minutes: int) -> None:
-    """Send OTP via SMS Chef API (uses own Android phone as gateway). Raises on failure."""
+    """Queue OTP through the configured Android SMS gateway. Raises on failure."""
+    provider = str(getattr(django_settings, "SMS_PROVIDER", "smschef")).strip().lower()
+    if provider == "textbee":
+        from .textbee_sms import send_otp_sms
+        return send_otp_sms(phone, otp, expiry_minutes)
+    if provider != "smschef":
+        raise RuntimeError("Unsupported SMS_PROVIDER configuration.")
     import urllib.request as _urllib_request
     import urllib.parse as _urllib_parse
     import json as _json

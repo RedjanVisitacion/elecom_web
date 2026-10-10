@@ -309,3 +309,10 @@ SMSCHEF_API_KEY = os.getenv("SMSCHEF_API_KEY", "")
 SMSCHEF_SIM_SLOT = int(os.getenv("SMSCHEF_SIM_SLOT", "1"))
 # Device ID from the SMS Chef app (Settings → Device Information → Device ID).
 SMSCHEF_DEVICE_ID = os.getenv("SMSCHEF_DEVICE_ID", "")
+
+# OTP gateway selection. Set SMS_PROVIDER=textbee to migrate from SMS Chef.
+SMS_PROVIDER = os.getenv("SMS_PROVIDER", "smschef").strip().lower()
+TEXTBEE_API_KEY = os.getenv("TEXTBEE_API_KEY", "")
+TEXTBEE_DEVICE_ID = os.getenv("TEXTBEE_DEVICE_ID", "")
+# Android subscription ID from the TextBee app, NOT a zero/one-based SIM slot.
+TEXTBEE_SIM_SUBSCRIPTION_ID = os.getenv("TEXTBEE_SIM_SUBSCRIPTION_ID", "")
