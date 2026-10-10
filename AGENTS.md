@@ -780,3 +780,10 @@ dart format --output=none --set-exit-if-changed .
 - This is a gallery of retained database image references, not a Cloudinary-wide asset crawler or a new upload archive. Overwritten profile/enrollment images and unsaved verification frames cannot be reconstructed. FaceVerificationLog retains match metadata, not a camera image URL. Do not claim the gallery contains every historical capture.
 - Focused checks: `python -m unittest core.test_developer_gallery core.test_developer_options` (19 passing tests during implementation) and `node --check` for the two developer scripts. Tests mock the DB; production image rendering/live PostgreSQL still need deployment verification.
 - Deploy web/backend changes, run collectstatic, restart Gunicorn, and refresh browser assets. No APK or migration is needed. Setup: `docs/developer-user-gallery.md` in the web repository.
+
+### Optional production deployment after git pull
+
+- User preference: after one-time setup, use only `git pull origin main` for normal web/backend updates.
+- `deploy/enable-pull-deploy.sh` installs the repo-local `core.hooksPath=deploy/hooks` on /var/www/elecom only. It refuses to replace an existing custom hooks path or post-merge hook.
+- `deploy/hooks/post-merge` collects static files, restarts Gunicorn, and checks service health after a successful merge. Deployment failures are printed; the source merge may already have completed. Do not claim success merely because Git pulled.
+- Setup is not active on the user's server until the scripts are deployed and `sh deploy/enable-pull-deploy.sh` runs there once. Hooks do not run on an already-up-to-date pull. Environment edits, migrations, and local-change conflicts still need their appropriate separate handling. See docs/pull-auto-deploy.md.

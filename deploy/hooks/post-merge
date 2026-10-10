@@ -1,0 +1,16 @@
+#!/bin/sh
+# Installed once by deploy/enable-pull-deploy.sh; called after successful Git merges.
+set -eu
+repo=$(git rev-parse --show-toplevel)
+if [ "$repo" != "/var/www/elecom" ]; then
+    echo "ELECOM auto-deploy skipped outside /var/www/elecom."
+    exit 0
+fi
+trap 'status=$?; if [ "$status" -ne 0 ]; then echo "ELECOM source updated, but deployment failed. Fix the error above before using the update." >&2; fi' EXIT
+cd "$repo"
+echo "ELECOM: collecting static files..."
+/var/www/elecom/venv/bin/python backend/manage.py collectstatic --noinput
+echo "ELECOM: restarting Gunicorn..."
+sudo systemctl restart gunicorn
+sudo systemctl is-active --quiet gunicorn
+echo "ELECOM update deployed; Gunicorn is active."
