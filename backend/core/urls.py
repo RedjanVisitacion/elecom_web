@@ -1,3 +1,4 @@
+from .developer_gallery import developer_gallery_api
 from .candidate_certificates import candidate_certificate_api
 from .candidate_push import register_push_token_api, unregister_push_token_api
 from .developer_options import developer_users_api, developer_verify_password_api
@@ -169,6 +170,7 @@ urlpatterns = [
     path('api/user/page-token/', student_page_token_api, name='student_page_token_api'),
     path('api/admin/verify-password/', admin_verify_password_api, name='admin_verify_password_api'),
     path('api/admin/developer/users/', developer_users_api, name='developer_users_api'),
+    path('api/admin/developer/gallery/', developer_gallery_api, name='developer_gallery_api'),
     path('api/admin/developer/verify-password/', developer_verify_password_api, name='developer_verify_password_api'),
     path('api/admin/results/', admin_results_api, name='admin_results_api'),
     path('api/results/', user_results_api, name='user_results_api'),

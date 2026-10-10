@@ -770,3 +770,13 @@ dart format --output=none --set-exit-if-changed .
 ### 5. Blank PDF Export from Reports
 - **Cause**: Exporting hidden DOM elements using html2pdf.
 - **Fix**: In `elecom_reports.js`, export directly from the visible preview canvas and ensure all candidate images are pre-loaded.
+
+## Developer Options ? User Gallery (2026-10-10)
+
+- Admin Developer Options lives in `frontend/org_elecom/elecom_admin/elecom_reset.html`. The User Gallery panel loads `admin_components/admin_js/developer_gallery.js`; its styles share `elecom_reset.css`. Bump referenced asset versions after changes.
+- GET `/api/admin/developer/gallery/` is implemented in `backend/core/developer_gallery.py` and registered in `core/urls.py`. It uses `_developer_admin`: existing admin authentication plus the 15-minute developer-password gate. Never expose this endpoint through mobile or remove that gate.
+- Gallery groups retained profile photos, face enrollments, candidate filing/follow-up photos, registered candidate photos, and party logo uploads by account name/student ID. Search is parameterized, users are alphabetically ordered, and pages contain 20 users. Refresh fetches current records; thumbnails load lazily and open a full-size Bootstrap modal.
+- Sources are a fixed table/column allowlist. Schema introspection skips optional tables/columns without creating or repairing them. URLs accept HTTP(S) only; data is rendered via textContent and private/no-store API responses. Never return embeddings, reusable chairperson signatures, OTPs, or credentials.
+- This is a gallery of retained database image references, not a Cloudinary-wide asset crawler or a new upload archive. Overwritten profile/enrollment images and unsaved verification frames cannot be reconstructed. FaceVerificationLog retains match metadata, not a camera image URL. Do not claim the gallery contains every historical capture.
+- Focused checks: `python -m unittest core.test_developer_gallery core.test_developer_options` (19 passing tests during implementation) and `node --check` for the two developer scripts. Tests mock the DB; production image rendering/live PostgreSQL still need deployment verification.
+- Deploy web/backend changes, run collectstatic, restart Gunicorn, and refresh browser assets. No APK or migration is needed. Setup: `docs/developer-user-gallery.md` in the web repository.

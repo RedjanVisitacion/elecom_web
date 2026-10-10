@@ -48,7 +48,7 @@
     finally { busy = false; controls(); }
   }
   document.querySelectorAll('[data-developer-panel]').forEach(button => button.addEventListener('click', () => {
-    for (const id of ['resetPanel', 'usersPanel']) document.getElementById(id).hidden = id !== button.dataset.developerPanel;
+    for (const id of ['resetPanel', 'usersPanel', 'galleryPanel']) document.getElementById(id).hidden = id !== button.dataset.developerPanel;
     if (button.dataset.developerPanel === 'usersPanel') load();
   }));
   document.getElementById('developerUserSearch').addEventListener('submit', event => { event.preventDefault(); if (!busy) { page = 1; load(); } });
