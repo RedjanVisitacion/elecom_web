@@ -27,7 +27,7 @@ document.addEventListener('DOMContentLoaded', function(){
   function syncReportRange(dates, _text, instance) {
     startEl.value = dates[0] ? instance.formatDate(dates[0], 'Y-m-d') : '';
     endEl.value = dates[1] ? instance.formatDate(dates[1], 'Y-m-d') : '';
-    validateDates();
+    if (dates.length !== 1) validateDates();
     updateSummaryPanel();
     scheduleSummaryEstimate();
   }
@@ -219,8 +219,12 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function showAlert(msg, type='danger') {
     if (alertBox) { alertBox.classList.add('d-none'); alertBox.textContent = ''; }
-    if (!msg) return;
     const element = document.getElementById('reportToast');
+    if (!msg) {
+      if (element.dataset.dateWarning === 'true') bootstrap.Toast.getInstance(element)?.hide();
+      return;
+    }
+    element.dataset.dateWarning = String(/end date|date range/i.test(msg));
     const error = type === 'danger';
     document.getElementById('reportToastTitle').textContent = error ? 'Please check report settings' : type === 'success' ? 'Report ready' : 'Generate Reports';
     document.getElementById('reportToastBody').textContent = String(msg);
@@ -228,7 +232,7 @@ document.addEventListener('DOMContentLoaded', function(){
     element.setAttribute('role', error ? 'alert' : 'status');
     element.setAttribute('aria-live', error ? 'assertive' : 'polite');
     bootstrap.Toast.getInstance(element)?.dispose();
-    new bootstrap.Toast(element, { autohide: !error, delay: 6000 }).show();
+    new bootstrap.Toast(element, { autohide: true, delay: 4000 }).show();
   }
 
   function validateDates(){
