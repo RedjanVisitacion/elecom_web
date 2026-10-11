@@ -236,3 +236,13 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 #calEventModal .cal-color-check { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; line-height: 1; pointer-events: none; }
 #calEventModal .cal-color-opt input:focus-visible + span { outline: 2px solid #0d1b3e; outline-offset: 3px; }
 .event-range-calendar.flatpickr-calendar { z-index: 1060; }
+
+/* The menu is outside the scrolling body but stays inside the modal focus trap. */
+#calEventModal .activity-type-toggle { text-align: left; white-space: normal; }
+#calEventModal .activity-type-menu { position: fixed; z-index: 1060; background: #fff; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 24px rgba(13,27,62,.16); overflow: hidden; }
+#calEventModal .activity-type-search-wrap { padding: 8px; }
+#calEventModal .activity-type-results { max-height: 220px; overflow-y: auto; overscroll-behavior: contain; }
+#calEventModal .activity-type-group { padding: 7px 12px; color: #64748b; font-size: 11px; font-weight: 700; background: #f8fafc; }
+#calEventModal .activity-type-option { display: block; width: 100%; border: 0; background: #fff; text-align: left; padding: 9px 12px; color: #0d1b3e; font-size: 13px; white-space: normal; }
+#calEventModal .activity-type-option:hover, #calEventModal .activity-type-option:focus-visible, #calEventModal .activity-type-option.active { background: #eff6ff; color: #1d4ed8; }
+#calEventModal .activity-type-empty { margin: 0; padding: 12px; color: #64748b; font-size: 13px; }

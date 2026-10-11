@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261011-range-pickers1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261011-search-activities1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 </head>
 <body class="theme-elecom dashboard-page">
@@ -297,10 +297,11 @@
                     <div class="alert alert-danger d-none" id="calEventError"></div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-semibold" for="calEventType">
+                        <label class="form-label fw-semibold" for="activityTypeToggle">
                             Activity type <span class="text-danger">*</span>
                         </label>
-                        <select class="form-select" id="calEventType">
+                        <button type="button" id="activityTypeToggle" class="form-select activity-type-toggle" aria-expanded="false" aria-controls="activityTypeMenu">Select activity</button>
+                        <select id="calEventType" hidden aria-hidden="true" tabindex="-1">
                             <option value="" disabled selected>Select activity</option>
                             <optgroup label="Election Calendar (Article VII)">
                                 <option value="Dissemination of Election Information">Dissemination of Election Information</option>
@@ -382,6 +383,13 @@
                             <label class="cal-color-opt" style="--c:#475569;" title="Slate"><input type="radio" name="calColor" value="#475569"><span></span></label>
                         </div>
                     </div>
+                </div>
+                <div id="activityTypeMenu" class="activity-type-menu" hidden>
+                    <div class="activity-type-search-wrap">
+                        <label class="visually-hidden" for="activityTypeSearch">Search activity</label>
+                        <input type="search" id="activityTypeSearch" class="form-control" placeholder="Search activity..." autocomplete="off">
+                    </div>
+                    <div id="activityTypeResults" class="activity-type-results" aria-label="Activity choices"></div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
@@ -474,6 +482,6 @@
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/dashboard_insights.js?v=20261011-visual-polish1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261011-visual-polish1"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261011-range-pickers1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261011-search-activities1"></script>
 </body>
 </html>

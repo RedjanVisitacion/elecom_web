@@ -325,6 +325,92 @@
     }
   });
 
+  const activityToggle = document.getElementById('activityTypeToggle');
+  const activityMenu = document.getElementById('activityTypeMenu');
+  const activitySearch = document.getElementById('activityTypeSearch');
+  const activityResults = document.getElementById('activityTypeResults');
+  const syncActivityLabel = () => {
+    activityToggle.textContent = typeSelect.selectedOptions[0]?.textContent || 'Select activity';
+  };
+  const closeActivityMenu = (restoreFocus = false) => {
+    activityMenu.hidden = true;
+    activityToggle.setAttribute('aria-expanded', 'false');
+    if (restoreFocus) activityToggle.focus();
+  };
+  const positionActivityMenu = () => {
+    const field = activityToggle.getBoundingClientRect();
+    const card = modalEl.querySelector('.modal-content').getBoundingClientRect();
+    const header = modalEl.querySelector('.modal-header').getBoundingClientRect();
+    const footer = modalEl.querySelector('.modal-footer').getBoundingClientRect();
+    const below = Math.max(0, Math.min(footer.top, window.innerHeight - 8) - field.bottom - 8);
+    const above = Math.max(0, field.top - Math.max(header.bottom, 8) - 8);
+    const useBelow = below >= Math.min(280, above);
+    const space = useBelow ? below : above;
+    const height = Math.min(280, space);
+    activityMenu.style.width = `${Math.min(field.width, card.width - 16)}px`;
+    activityMenu.style.left = `${Math.max(card.left + 8, Math.min(field.left, card.right - field.width - 8))}px`;
+    activityResults.style.maxHeight = `${Math.max(0, Math.min(220, height - 60))}px`;
+    activityMenu.style.top = `${useBelow ? field.bottom + 4 : field.top - height - 4}px`;
+  };
+  const renderActivityChoices = () => {
+    activityResults.replaceChildren();
+    const query = activitySearch.value.trim().toLowerCase();
+    let lastGroup = '';
+    for (const option of Array.from(typeSelect.options)) {
+      if (!option.value || !option.textContent.toLowerCase().includes(query)) continue;
+      const group = option.parentElement.label || '';
+      if (group && group !== lastGroup) {
+        const heading = document.createElement('div');
+        heading.className = 'activity-type-group'; heading.textContent = group;
+        activityResults.appendChild(heading); lastGroup = group;
+      }
+      const button = document.createElement('button');
+      button.type = 'button'; button.className = 'activity-type-option';
+      button.textContent = option.textContent;
+      button.classList.toggle('active', option.value === typeSelect.value);
+      button.setAttribute('aria-pressed', String(option.value === typeSelect.value));
+      button.addEventListener('click', () => {
+        typeSelect.value = option.value;
+        closeActivityMenu(true); syncActivityLabel();
+        typeSelect.dispatchEvent(new Event('change', { bubbles: true }));
+      });
+      activityResults.appendChild(button);
+    }
+    if (!activityResults.children.length) {
+      const empty = document.createElement('p'); empty.className = 'activity-type-empty';
+      empty.textContent = 'No matching activities.'; empty.setAttribute('role', 'status');
+      activityResults.appendChild(empty);
+    }
+    positionActivityMenu();
+  };
+  activityToggle.addEventListener('click', () => {
+    if (!activityMenu.hidden) { closeActivityMenu(); return; }
+    datePicker?.close(); activitySearch.value = ''; activityMenu.hidden = false;
+    activityToggle.setAttribute('aria-expanded', 'true');
+    renderActivityChoices(); activitySearch.focus();
+  });
+  activitySearch.addEventListener('input', renderActivityChoices);
+  activityMenu.addEventListener('keydown', (event) => {
+    const buttons = Array.from(activityResults.querySelectorAll('button'));
+    const index = buttons.indexOf(document.activeElement);
+    if (event.key === 'Escape') {
+      event.preventDefault(); event.stopPropagation(); closeActivityMenu(true);
+    } else if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+      event.preventDefault();
+      const next = event.key === 'ArrowDown' ? index + 1 : index < 0 ? buttons.length - 1 : index - 1;
+      (buttons[next] || activitySearch).focus();
+    } else if (event.key === 'Enter' && event.target === activitySearch && buttons[0]) {
+      event.preventDefault(); buttons[0].click();
+    }
+  });
+  document.addEventListener('pointerdown', (event) => {
+    if (!activityMenu.contains(event.target) && !activityToggle.contains(event.target)) closeActivityMenu();
+  });
+  modalEl.addEventListener('hide.bs.modal', () => closeActivityMenu());
+  modalEl.querySelector('.modal-body').addEventListener('scroll', () => closeActivityMenu());
+  window.addEventListener('resize', () => closeActivityMenu());
+  typeSelect.addEventListener('change', syncActivityLabel);
+
   const syncColorSelection = () => {
     if (!modalEl) return;
     modalEl.querySelectorAll('.cal-color-opt').forEach((swatch) => {
@@ -389,10 +475,12 @@
     }
     if (datePicker) datePicker.setDate([dateInput.value, endDateInput.value].filter(Boolean), false);
     else dateRangeInput.value = [dateInput.value, endDateInput.value].filter(Boolean).join(' to ');
+    closeActivityMenu();
+    syncActivityLabel();
     syncTimeRange();
     syncColorSelection();
     modal.show();
-    setTimeout(() => { if (typeSelect) typeSelect.focus(); }, 400);
+    setTimeout(() => { if (activityToggle) activityToggle.focus(); }, 400);
   };
 
   const showModalError = (msg) => {
@@ -429,7 +517,7 @@
     if (!title) {
       if (typeVal === "__custom__" || !typeVal) {
         showModalError("Please select an activity type.");
-        if (typeSelect) typeSelect.focus();
+        if (activityToggle) activityToggle.focus();
       } else {
         showModalError("Activity title is required.");
       }
