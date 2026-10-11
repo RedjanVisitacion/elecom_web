@@ -372,12 +372,12 @@
 .elecom-confirm-modal .modal-header{
   padding:16px 18px 10px;
   border-bottom:0;
-  background:#ffffff;
-  color:#111827;
+  background:#0d1b3e !important;
+  color:#ffffff;
 }
 
 .elecom-confirm-modal .modal-title{
-  color:#111827;
+  color:#ffffff !important;
   font-size:1.05rem;
   font-weight:800;
   letter-spacing:0;
@@ -432,8 +432,9 @@
 }
 
 .elecom-confirm-modal .btn-close{
-  opacity:0.72;
-  filter:none;
+  color:#ffffff !important;
+  opacity:1;
+  filter:brightness(0) invert(1);
 }
 
 .elecom-confirm-modal .btn-close:hover{
