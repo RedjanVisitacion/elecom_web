@@ -11654,8 +11654,8 @@ def _ensure_calendar_events_table():
 
 
 @csrf_exempt
-@require_http_methods(["GET", "POST"])
-def admin_calendar_events_api(request):
+@require_http_methods(["GET", "POST", "PUT"])
+def admin_calendar_events_api(request, event_id=None):
     """
     GET  /api/admin/calendar-events/?year=YYYY&month=MM  → list events for month (or all if no params)
     POST /api/admin/calendar-events/                     → create event
@@ -11709,6 +11709,9 @@ def admin_calendar_events_api(request):
             logger.exception("admin_calendar_events_api GET failed")
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
+    if request.method == "PUT" and event_id is None:
+        return JsonResponse({"ok": False, "error": "Event ID is required."}, status=400)
+
     # POST — create
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
@@ -11741,16 +11744,42 @@ def admin_calendar_events_api(request):
         except ValueError:
             return JsonResponse({"ok": False, "error": "Invalid end_date format (use YYYY-MM-DD)."}, status=400)
 
+    if len(title) > 255 or (location and len(location) > 255):
+        return JsonResponse({"ok": False, "error": "Title or location is too long."}, status=400)
+    if end_date and end_date < event_date:
+        return JsonResponse({"ok": False, "error": "End date cannot be before start date."}, status=400)
+    from datetime import time as _time
+    try:
+        for value in (start_time, end_time):
+            if value:
+                _time.fromisoformat(value)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Invalid time."}, status=400)
+    import re as _re
+    if not _re.fullmatch(r"#[0-9a-fA-F]{6}", color):
+        return JsonResponse({"ok": False, "error": "Invalid color."}, status=400)
     try:
         with connection.cursor() as cur:
-            cur.execute("""
-                INSERT INTO election_calendar_events
-                    (title, event_date, end_date, start_time, end_time, description, location, color)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
-                RETURNING id, title, event_date, end_date, description, location, color, created_at,
-                          start_time, end_time
-            """, [title, event_date, end_date, start_time, end_time, description, location, color])
-            row = cur.fetchone()
+            if event_id is not None:
+                cur.execute("""
+                    UPDATE election_calendar_events
+                    SET title=%s, event_date=%s, end_date=%s, start_time=%s, end_time=%s,
+                        description=%s, location=%s, color=%s WHERE id=%s
+                    RETURNING id, title, event_date, end_date, description, location, color, created_at,
+                              start_time, end_time
+                """, [title, event_date, end_date, start_time, end_time, description, location, color, event_id])
+                row = cur.fetchone()
+                if not row:
+                    return JsonResponse({"ok": False, "error": "Event not found."}, status=404)
+            else:
+                cur.execute("""
+                    INSERT INTO election_calendar_events
+                        (title, event_date, end_date, start_time, end_time, description, location, color)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                    RETURNING id, title, event_date, end_date, description, location, color, created_at,
+                              start_time, end_time
+                """, [title, event_date, end_date, start_time, end_time, description, location, color])
+                row = cur.fetchone()
 
         return JsonResponse({
             "ok": True,
@@ -11766,16 +11795,18 @@ def admin_calendar_events_api(request):
                 "start_time":  str(row[8]) if row[8] else None,
                 "end_time":    str(row[9]) if row[9] else None,
             },
-        }, status=201)
+        }, status=200 if event_id is not None else 201)
     except Exception as e:
         logger.exception("admin_calendar_events_api POST failed")
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
 @csrf_exempt
-@require_http_methods(["DELETE"])
+@require_http_methods(["DELETE", "PUT"])
 def admin_calendar_event_delete_api(request, event_id):
-    """DELETE /api/admin/calendar-events/<event_id>/"""
+    """Update or delete a calendar activity."""
+    if request.method == "PUT":
+        return admin_calendar_events_api(request, event_id=event_id)
     forbidden = _require_admin(request)
     if forbidden:
         return forbidden

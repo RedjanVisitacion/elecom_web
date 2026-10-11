@@ -40,6 +40,7 @@
   let allEvents  = [];               // events for current displayed month
   let selectedKey= null;             // "YYYY-MM-DD" of clicked day
   let modal      = null;
+  let editingEventId = null;
 
   /* ── Helpers ──────────────────────────────────────────────────────────── */
   const pad2 = (n) => String(n).padStart(2, "0");
@@ -85,9 +86,9 @@
     if (selectedKey) showDayEvents(selectedKey);
   };
 
-  const createEvent = async (payload) => {
-    const res  = await fetch("/api/admin/calendar-events/", {
-      method:  "POST",
+  const createEvent = async (payload, eventId = null) => {
+    const res  = await fetch(eventId ? `/api/admin/calendar-events/${eventId}/` : "/api/admin/calendar-events/", {
+      method: eventId ? "PUT" : "POST",
       headers: { "Content-Type": "application/json" },
       credentials: "same-origin",
       body: JSON.stringify(payload),
@@ -206,7 +207,7 @@
           : "";
         const meta = [
           timeStr ? `<i class="bi bi-clock me-1"></i>${timeStr}` : "",
-          ev.location ? `<i class="bi bi-geo-alt-fill me-1"></i>${ev.location}` : "",
+          ev.location ? `<i class="bi bi-geo-alt-fill me-1"></i>${escHtml(ev.location)}` : "",
           ev.end_date && ev.end_date !== ev.event_date ? `Until ${ev.end_date}` : "",
         ].filter(Boolean).join(" &bull; ");
 
@@ -218,12 +219,19 @@
               ${meta ? `<div class="cal-event-chip-meta">${meta}</div>` : ""}
               ${ev.description ? `<div class="cal-event-chip-meta mt-1">${escHtml(ev.description)}</div>` : ""}
             </div>
-            <button class="cal-event-del" data-id="${ev.id}" title="Delete event">
+            <button type="button" class="cal-event-edit btn btn-sm btn-link p-0" data-id="${ev.id}" title="Edit activity" aria-label="Edit activity"><i class="bi bi-pencil-square"></i></button>
+            <button type="button" class="cal-event-del" data-id="${ev.id}" title="Delete event" aria-label="Delete activity">
               <i class="bi bi-trash3"></i>
             </button>
           </div>`;
       }).join("");
 
+      dayEventsList.querySelectorAll(".cal-event-edit").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const event = allEvents.find((ev) => Number(ev.id) === Number(btn.dataset.id));
+          if (event) openModal(event.event_date, event);
+        });
+      });
       // Delete handlers
       dayEventsList.querySelectorAll(".cal-event-del").forEach((btn) => {
         btn.addEventListener("click", async () => {
@@ -265,10 +273,13 @@
       .replace(/"/g, "&quot;");
 
   /* ── Modal ────────────────────────────────────────────────────────────── */
-  const openModal = (prefillDate) => {
+  const openModal = (prefillDate, event = null) => {
+    if (saveBtn.disabled) return;
+    editingEventId = event ? event.id : null;
     if (!modalEl || !window.bootstrap) return;
     modal = modal || window.bootstrap.Modal.getOrCreateInstance(modalEl);
 
+    modalEl.querySelectorAll("[data-original-color]").forEach((input) => input.remove());
     // Reset form
     if (typeSelect) { typeSelect.value = ""; }
     if (customWrap) { customWrap.classList.add("d-none"); }
@@ -284,6 +295,28 @@
     if (firstColor) firstColor.checked = true;
     showModalError("");
 
+    modalEl.querySelector(".modal-title").textContent = event ? "Edit activity" : "New event";
+    if (event) {
+      const known = Array.from(typeSelect.options).some((option) => option.value === event.title);
+      typeSelect.value = known ? event.title : "__custom__";
+      customWrap.classList.toggle("d-none", known);
+      titleInput.value = event.title;
+      dateInput.value = event.event_date;
+      endDateInput.value = event.end_date || "";
+      startTimeInput.value = (event.start_time || "").slice(0, 5);
+      endTimeInput.value = (event.end_time || "").slice(0, 5);
+      locationInput.value = event.location || "";
+      descInput.value = event.description || "";
+      const colors = Array.from(modalEl.querySelectorAll('input[name="calColor"]'));
+      let match = colors.find((input) => input.value.toLowerCase() === (event.color || "").toLowerCase());
+      if (!match && event.color) {
+        match = document.createElement("input");
+        match.type = "radio"; match.name = "calColor"; match.value = event.color;
+        match.hidden = true; match.dataset.originalColor = "true";
+        modalEl.appendChild(match);
+      }
+      if (match) match.checked = true;
+    }
     modal.show();
     setTimeout(() => { if (typeSelect) typeSelect.focus(); }, 400);
   };
@@ -305,6 +338,7 @@
   };
 
   const saveNewEvent = async () => {
+    if (saveBtn.disabled) return;
     // Resolve title from dropdown or custom input
     const typeVal  = (typeSelect && typeSelect.value) || "";
     const customVal= (titleInput && titleInput.value || "").trim();
@@ -339,15 +373,13 @@
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Saving...';
 
     try {
-      await createEvent({ title, event_date: evDate, end_date: endDate, start_time: startTime, end_time: endTime, description: desc, location, color });
+      await createEvent({ title, event_date: evDate, end_date: endDate, start_time: startTime, end_time: endTime, description: desc, location, color }, editingEventId);
       modal.hide();
-      // If we created an event for the currently displayed month, reload
-      const evMonth = new Date(evDate + "T00:00:00").getMonth();
-      const evYear  = new Date(evDate + "T00:00:00").getFullYear();
-      if (evYear === curYear && evMonth === curMonth) {
-        selectedKey = evDate;
-        await loadEvents();
-      }
+      const savedDate = new Date(evDate + "T00:00:00");
+      curMonth = savedDate.getMonth();
+      curYear = savedDate.getFullYear();
+      selectedKey = evDate;
+      await loadEvents();
     } catch (e) {
       showModalError(e.message || "Failed to save event.");
     } finally {
@@ -420,7 +452,7 @@
     };
     dayEventsClose.addEventListener("click", closeDayEvents);
     dayEventsWrap?.addEventListener("keydown", (event) => {
-      if (event.key === "Escape") {
+      if (event.key === "Escape" && !modalEl.classList.contains("show")) {
         event.preventDefault();
         closeDayEvents();
       }
