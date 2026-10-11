@@ -7,8 +7,29 @@ document.addEventListener('DOMContentLoaded', () => {
   const shared = document.getElementById('sharedPartyLogo');
   const image = document.getElementById('sharedPartyLogoImage');
   const status = document.getElementById('partyPickerStatus');
-  let parties = [], requestVersion = 0;
+  const capacityStatus = document.getElementById('partyCapacityStatus');
+  const organization = form.elements.organization;
+  const position = form.elements.position;
+  let loadedOrganization = '', parties = [], requestVersion = 0;
   const selectedParty = () => parties.find(party => party.name === select.selectedOptions[0]?.dataset.partyName);
+  const updateCapacity = () => {
+    const political = document.getElementById('type_party').checked;
+    const party = political && loadedOrganization === organization.value ? selectedParty() : null;
+    for (const option of position.options) {
+      if (!option.value) continue;
+      option.dataset.baseLabel ||= option.textContent;
+      const slot = party?.positions?.[option.value];
+      const full = slot && slot.used >= slot.limit;
+      const eligible = !/representative/i.test(option.value) || (organization.value === 'USG' && option.value === `${form.elements.program.value} Representative`);
+      option.disabled = !eligible || !!full;
+      option.textContent = option.dataset.baseLabel + (full ? ` (Full: ${slot.used}/${slot.limit})` : '');
+    }
+    const slot = party?.positions?.[position.value];
+    const full = slot && slot.used >= slot.limit;
+    select.setCustomValidity(full ? 'This party position is full. Go Back to Candidate Info and choose another position, or select another party.' : '');
+    capacityStatus.classList.toggle('text-danger', !!full);
+    capacityStatus.textContent = slot ? `${party.name}: ${slot.used} of ${slot.limit} slots used for ${position.value} in ${organization.value}.${full ? ' This position is full; choose another position or party.' : ''}` : '';
+  };
   const sync = () => {
     const political = document.getElementById('type_party').checked;
     const party = selectedParty();
@@ -28,6 +49,7 @@ document.addEventListener('DOMContentLoaded', () => {
       image.src = logo;
     }
     else image.removeAttribute('src');
+    updateCapacity();
   };
   select.addEventListener('change', () => {
     name.value = '';
@@ -43,13 +65,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const load = async () => {
     const version = ++requestVersion;
     const previous = selectedParty()?.name;
+    const requestedOrganization = organization.value;
     status.textContent = 'Loading existing parties…';
     try {
-      const response = await fetch('/api/admin/candidates/parties/',{credentials:'same-origin'});
+      const response = await fetch(`/api/admin/candidates/parties/?organization=${encodeURIComponent(requestedOrganization)}`,{credentials:'same-origin'});
       const data = await response.json();
       if (!response.ok || !data.ok) throw new Error(data.error || 'Could not load existing parties.');
       if (version !== requestVersion) return;
       parties = data.parties;
+      loadedOrganization = requestedOrganization;
       const current = select.value;
       select.replaceChildren(new Option('Select an existing party or create a new one',''));
       parties.forEach((party,index) => {
@@ -65,6 +89,8 @@ document.addEventListener('DOMContentLoaded', () => {
     } catch(error) { if (version === requestVersion) status.textContent = `${error.message} Reopen this dropdown to retry.`; }
   };
   select.addEventListener('focus', load);
+  organization.addEventListener('change', () => {updateCapacity();load();});
+  position.addEventListener('change', updateCapacity);
   form.addEventListener('reset', () => queueMicrotask(() => {select.value='';sync();load();}));
   window.AdminCandidatePartyPicker = {sync};
   sync(); load();

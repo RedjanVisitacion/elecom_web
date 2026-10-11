@@ -337,7 +337,7 @@
                             <option value="">Select an existing party or create a new one</option>
                             <option value="new">Create new party</option>
                         </select>
-                        <div id="partyPickerStatus" class="form-text mb-2" aria-live="polite"></div>
+                        <div id="partyPickerStatus" class="form-text mb-2" aria-live="polite"></div><div id="partyCapacityStatus" class="form-text mb-2" aria-live="polite"></div>
                         <label class="form-label" for="party_name">Party name</label>
                         <input type="text" id="party_name" name="party_name" class="form-control">
                         <div class="form-text">New parties receive a security code. Existing parties use their shared logo; admins do not need to enter the code.</div>
@@ -469,7 +469,7 @@
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_coc.js?v=20261011-capture1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/candidate_memberships.js?v=20261011-year-separator2"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/candidate_registration_wizard.js?v=20261011-membership-controls1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_party_picker.js?v=20261011-party-picker1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_party_picker.js?v=20261011-party-capacity1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/candidate_camera.js?v=20261011-capture1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_register_candidate.js?v=20261011-party-picker1"></script>
 <div class="modal fade" id="adminCocPreviewModal" tabindex="-1" aria-labelledby="adminCocPreviewTitle" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="adminCocPreviewTitle">Certificate of Candidacy Preview</h5><button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body p-0"><iframe id="adminCocPreviewFrame" title="COC preview" style="width:100%;height:72vh;border:0;"></iframe></div></div></div></div>

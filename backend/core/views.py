@@ -7709,6 +7709,11 @@ def candidate_application_submit_api(request):
         with transaction.atomic(), connection.cursor() as cur:
             if party_key(party_name):
                 lock_party(cur, election_id, party_name)
+                used_slots = _party_slot_count(cur, election_id=election_id, party_name=party_name,
+                                               organization=organization, position=position)
+                limit = _party_position_limit(organization, position)
+                if used_slots >= limit:
+                    return JsonResponse({'ok': False, 'error': f'{party_name} already has {used_slots} of {limit} allowed candidate(s) for {position} in {organization}. Choose another position or party.'}, status=409)
                 existing = party_rows(cur, election_id, party_name)
                 if existing:
                     party_name = existing[0][0]
@@ -8016,6 +8021,13 @@ def admin_candidate_application_decision_api(request):
                     return JsonResponse({"ok": False, "error": str(error)}, status=409)
 
                 lock_party(cur, app.get('election_id'), app.get('party_name'))
+                if party_key(app.get('party_name')):
+                    used_slots = _party_slot_count(cur, election_id=app.get('election_id'),
+                        party_name=app.get('party_name'), organization=app.get('organization'),
+                        position=app.get('position'), exclude_application_id=app_id)
+                    limit = _party_position_limit(app.get('organization'), app.get('position'))
+                    if used_slots >= limit:
+                        return JsonResponse({'ok': False, 'error': f"{app.get('party_name')} already has the maximum allowed candidate(s) for {app.get('position')}."}, status=409)
                 app['party_logo_url'] = canonical_logo(cur, app.get('election_id'), app.get('party_name'), app.get('party_logo_url'))
                 share_logo(cur, app.get('election_id'), app.get('party_name'), app.get('party_logo_url'))
                 cur.execute(
@@ -8500,6 +8512,19 @@ def admin_candidate_parties_api(request):
         ) parties WHERE COALESCE(party_name,'')<>'' AND LOWER(party_name)<>'independent'
         ORDER BY party_name""", [election_id,election_id])
         names = [row[0] for row in cur.fetchall()]
+        organization = str(request.GET.get('organization') or '').strip().upper()
+        if organization == 'AFPRO':
+            organization = 'AFPROTECHS'
+        cur.execute("""SELECT LOWER(TRIM(party_name)), position, COUNT(*) FROM (
+            SELECT party_name, position FROM candidates_registration
+            WHERE COALESCE(election_id,0)=COALESCE(%s,0) AND organization=%s
+            UNION ALL SELECT party_name, position FROM candidate_applications
+            WHERE COALESCE(election_id,0)=COALESCE(%s,0) AND organization=%s
+              AND status IN ('pending','requirements_pending','requirements_review')
+        ) lineup GROUP BY LOWER(TRIM(party_name)),position""", [election_id,organization,election_id,organization])
+        counts = {(row[0],row[1]):int(row[2]) for row in cur.fetchall()}
+        positions = ['President','Vice President','General Secretary','Associate Secretary','Treasurer','Auditor',
+                     'Public Information Officer','BSIT Representative','BTLED Representative','BFPT Representative']
         seen = set()
         parties = []
         for name in names:
@@ -8509,7 +8534,9 @@ def admin_candidate_parties_api(request):
             seen.add(key)
             rows = party_rows(cur,election_id,name)
             canonical_name = rows[0][0] if rows else name
-            parties.append({'name': canonical_name, 'logo_url': canonical_logo(cur,election_id,name)})
+            parties.append({'name': canonical_name, 'logo_url': canonical_logo(cur,election_id,name),
+                            'positions': {position: {'used': counts.get((key,position),0),
+                                                     'limit': _party_position_limit(organization,position)} for position in positions}})
     response = JsonResponse({'ok': True, 'parties': parties})
     response['Cache-Control'] = 'private, no-store'
     return response
@@ -8670,6 +8697,11 @@ def admin_candidates_create_api(request):
             generated_party_code = None
             if party_key(party_name):
                 lock_party(cur, election_id, party_name)
+                used_slots = _party_slot_count(cur, election_id=election_id, party_name=party_name,
+                                               organization=organization, position=position)
+                limit = _party_position_limit(organization, position)
+                if used_slots >= limit:
+                    return JsonResponse({'ok': False, 'error': f'{party_name} already has {used_slots} of {limit} allowed candidate(s) for {position} in {organization}. Choose another position or party.'}, status=409)
                 existing = party_rows(cur, election_id, party_name)
                 if existing:
                     party_name = existing[0][0]
