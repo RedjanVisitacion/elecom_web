@@ -169,36 +169,42 @@ document.addEventListener("DOMContentLoaded", function () {
     electionStatus.textContent = status || "No schedule";
   };
 
+  const setHeroStatus = (label, active = false) => {
+    if (!electionHelperText) return;
+    electionHelperText.textContent = label;
+    electionHelperText.classList.toggle('is-active', active);
+  };
+
   const setElectionTexts = (election) => {
     if (!electionHelperText && !electionNoteText) return;
     const hasSchedule = !!(election && election.start_at && election.end_at);
     const status = (election && election.status) ? String(election.status) : "No schedule";
 
     if (!hasSchedule) {
-      if (electionHelperText) electionHelperText.textContent = "Create or update the election schedule in Election Management.";
+      setHeroStatus("NO ELECTION SCHEDULE");
       if (electionNoteText) electionNoteText.textContent = "No schedule set. Go to Election Management to configure.";
       return;
     }
 
     if (status === "Upcoming") {
-      if (electionHelperText) electionHelperText.textContent = "Election is upcoming. Countdown shows time until voting starts.";
+      setHeroStatus("ELECTION UPCOMING");
       if (electionNoteText) electionNoteText.textContent = "Voting has not started yet.";
       return;
     }
 
     if (status === "Active") {
-      if (electionHelperText) electionHelperText.textContent = "Election is active. Countdown shows time until voting ends.";
+      setHeroStatus("LIVE ELECTION ACTIVE", true);
       if (electionNoteText) electionNoteText.textContent = "Voting is currently open.";
       return;
     }
 
     if (status === "Closed") {
-      if (electionHelperText) electionHelperText.textContent = "Election is closed.";
+      setHeroStatus("ELECTION CLOSED");
       if (electionNoteText) electionNoteText.textContent = "Voting window ended.";
       return;
     }
 
-    if (electionHelperText) electionHelperText.textContent = "Election schedule is set.";
+    setHeroStatus("ELECTION SCHEDULED");
     if (electionNoteText) electionNoteText.textContent = "";
   };
 
@@ -489,12 +495,9 @@ document.addEventListener("DOMContentLoaded", function () {
       const diffSec = Math.max(0, Math.floor((target - now) / 1000));
       setCountdown(diffSec);
       if (electionHelperText && now >= start.getTime() && now < end.getTime()) {
-        const days = Math.floor(diffSec / 86400);
-        const hours = Math.floor(diffSec % 86400 / 3600);
-        const minutes = Math.floor(diffSec % 3600 / 60);
-        electionHelperText.textContent = `General Election is currently active. Polls close in ${pad2(days)}d ${pad2(hours)}h ${pad2(minutes)}m.`;
+        setHeroStatus("LIVE ELECTION ACTIVE", true);
       } else if (electionHelperText && now >= end.getTime()) {
-        electionHelperText.textContent = "General Election is closed. Polls have ended.";
+        setHeroStatus("ELECTION CLOSED");
       }
     };
 

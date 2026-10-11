@@ -28,12 +28,12 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 .dashboard-stats > div { width: 25%; flex: 0 0 25%; }
 .dashboard-page .dashboard-stats .card::before { content: none; }
 .dashboard-page .dashboard-stats .card { min-height: 0; }
-.dashboard-page .dashboard-stats .card-body { padding: 12px !important; gap: 2px; }
+.dashboard-page .dashboard-stats .card-body { padding: 12px !important; display: flex; align-items: center; gap: 12px; }
 .dashboard-page .dashboard-stats .card-body .h3 { font-size: 26px !important; }
 .dashboard-page .dashboard-stats .small.text-muted { font-weight: 600 !important; letter-spacing: .02em; font-size: 10px !important; }
 .dashboard-page .stat-icon {
   display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; background: #eaf0ff; margin-right: 10px !important;
+  width: 38px; height: 38px; flex: 0 0 38px; border-radius: 50%; background: #eaf0ff; margin-right: 0 !important;
 }
 .dashboard-page .stat-icon.text-success { background: #e6f5ec; }
 .dashboard-page .stat-icon.text-danger { background: #fff5d9; }
@@ -96,7 +96,7 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
   .dashboard-page .election-banner .text-center { min-width: 30px; padding: 4px; }
   .dashboard-page .election-banner .text-center .fw-bold { font-size: 20px !important; }
   .dashboard-page .election-banner .opacity-75 { display: none; }
-  .dashboard-page .stat-icon { width: 30px; height: 30px; flex-basis: 30px; margin-right: 6px !important; }
+  .dashboard-page .stat-icon { width: 30px; height: 30px; flex-basis: 30px; margin-right: 0 !important; }
   .dashboard-page .dashboard-stats .card-body { padding: 8px !important; }
   .dashboard-page .dashboard-stats .small.text-muted { font-size: 9px !important; }
   .dashboard-page .dashboard-stats .card-body .h3 { font-size: 22px !important; }
@@ -219,3 +219,8 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 .dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day:is(.is-today, .is-selected) { background: #0d1b3e !important; color: #fff !important; box-shadow: none; font-weight: 700; }
 .dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .dashboard-page .compact-calendar .acal-dot { bottom: -3px; width: 4px; height: 4px; }
+
+/* Election state badge: only an active voting window uses green. */
+.dashboard-page .election-state-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.1); color: #e2e8f0; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
+.dashboard-page .election-state-badge::before { content: ''; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: currentColor; }
+.dashboard-page .election-state-badge.is-active { background: rgba(34,197,94,.16); color: #86efac; }
