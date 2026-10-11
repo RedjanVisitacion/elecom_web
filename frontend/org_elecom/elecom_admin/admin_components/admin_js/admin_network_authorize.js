@@ -279,12 +279,11 @@ async function loadAccessLogs(silent = false) {
     const changed = JSON.stringify(accessLogs) !== JSON.stringify(nextLogs);
     accessLogs = nextLogs;
     if (!logsLoaded || changed) renderAccessLogs();
-    if (logsLoaded && changed) showNotification('Recent network access attempts have been updated.', 'info');
     logsLoaded = true;
   } catch (error) {
     // Retain the last successful rows; background failures retry next interval.
     if (!silent && !document.hidden && logsPageActive) {
-      showNotification(error.name === 'AbortError' ? 'Network logs request timed out. Retrying automatically.' : error.message, 'error');
+      document.getElementById('logPageStatus').textContent = 'Unable to load access attempts. Retrying automatically.';
     }
   } finally {
     clearTimeout(timeout);
@@ -360,10 +359,8 @@ function escapeHtml(value) {
 function showNotification(message, type = "info") {
   const element = document.getElementById('networkToast');
   const error = type === 'error';
-  // Keep an actionable error visible when background polling detects new logs.
-  if (type === 'info' && element.classList.contains('show') && element.dataset.type === 'error') return;
   element.dataset.type = type;
-  document.getElementById('networkToastTitle').textContent = error ? 'Please check Network Authorization' : type === 'success' ? 'Network settings updated' : 'Network access logs updated';
+  document.getElementById('networkToastTitle').textContent = error ? 'Please check Network Authorization' : type === 'success' ? 'Network settings updated' : 'Network Authorization';
   document.getElementById('networkToastBody').textContent = String(message || '');
   document.getElementById('networkToastIcon').className = `bi ${error ? 'bi-exclamation-circle-fill text-danger' : type === 'success' ? 'bi-check-circle-fill text-success' : 'bi-info-circle-fill text-primary'} me-2`;
   element.setAttribute('role', error ? 'alert' : 'status');
