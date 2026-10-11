@@ -258,8 +258,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     Array.from(positionSelect.options).forEach((opt) => {
       if (/Representative/i.test(opt.textContent)) {
-        opt.disabled = !isUSG;
-        if (!isUSG && positionSelect.value === opt.value) {
+        const allowed = isUSG && opt.value === `${programSelect?.value || ""} Representative`;
+        opt.disabled = !allowed;
+        opt.hidden = !allowed;
+        if (!allowed && positionSelect.value === opt.value) {
           positionSelect.value = "";
         }
       }

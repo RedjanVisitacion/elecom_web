@@ -1,4 +1,4 @@
-﻿"""Student lookup keeps personal autofill data behind the admin gate."""
+"""Student lookup keeps personal autofill data behind the admin gate."""
 import ast
 from pathlib import Path
 from contextlib import nullcontext
@@ -11,7 +11,7 @@ class StudentLookupTests(unittest.TestCase):
         node=next(n for n in ast.parse(Path(__file__).with_name('views.py').read_text(encoding='utf-8-sig')).body if isinstance(n,ast.FunctionDef) and n.name=='admin_candidate_students_api')
         node.decorator_list=[]
         cur=Mock();cur.fetchall.return_value=[('test-id','Test','','Student','BSIT','1','A','test@example.invalid','test-contact','')]
-        env=dict(_require_admin=Mock(return_value=forbidden),connection=SimpleNamespace(cursor=lambda:nullcontext(cur)),JsonResponse=lambda value:dict(value))
+        env=dict(__name__='core.views', _require_admin=Mock(return_value=forbidden),connection=SimpleNamespace(cursor=lambda:nullcontext(cur)),JsonResponse=lambda value:dict(value))
         exec(compile(ast.Module(body=[node],type_ignores=[]),'<student lookup>','exec'),env)
         return env['admin_candidate_students_api'],cur
 

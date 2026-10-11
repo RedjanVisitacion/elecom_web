@@ -4,6 +4,38 @@ document.addEventListener('DOMContentLoaded', () => {
   const results = document.getElementById('studentLookupResults');
   const photoInput = document.getElementById('candidate_photo');
   const profilePhoto = document.getElementById('selectedProfilePhoto');
+  const organizationSelect = form.elements.organization;
+  const programSelect = form.elements.program;
+  let accountProgram = '', allowedOrganizations = [];
+  programSelect.disabled = true;
+  const applyEligibility = () => {
+    for (const option of organizationSelect.options) {
+      if (option.value) {
+        const allowed = allowedOrganizations.includes(option.value.toUpperCase());
+        option.hidden = !allowed; option.disabled = !allowed;
+      }
+    }
+    if (!allowedOrganizations.includes(organizationSelect.value.toUpperCase())) organizationSelect.value = '';
+    organizationSelect.dispatchEvent(new Event('change'));
+    const ownRepresentative = `${accountProgram} Representative`;
+    for (const option of form.elements.position.options) {
+      if (/representative/i.test(option.value)) {
+        const allowed = organizationSelect.value === 'USG' && option.value === ownRepresentative;
+        option.hidden = !allowed; option.disabled = !allowed;
+        if (!allowed && form.elements.position.value === option.value) form.elements.position.value = '';
+      }
+    }
+  };
+  organizationSelect.addEventListener('change', () => {
+    const ownRepresentative = `${accountProgram} Representative`;
+    for (const option of form.elements.position.options) {
+      if (/representative/i.test(option.value)) {
+        const allowed = organizationSelect.value === 'USG' && option.value === ownRepresentative;
+        option.hidden = !allowed; option.disabled = !allowed;
+        if (!allowed && form.elements.position.value === option.value) form.elements.position.value = '';
+      }
+    }
+  });
   const canvas = document.getElementById('candidateSignature');
   const ctx = canvas.getContext('2d');
   ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
@@ -14,8 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const fill = (name,value) => { const el = form.elements.namedItem(name); if (el) el.value = value || ''; };
   const chooseStudent = (student) => {
+    accountProgram = student.program || '';
+    allowedOrganizations = student.allowed_organizations || [];
     for (const name of ['student_id','first_name','middle_name','last_name','program','email','contact_number']) fill(name,student[name]);
     form.elements.program.dispatchEvent(new Event('change'));
+    applyEligibility();
     const program = student.program || '';
     const section = student.section || '';
     const sectionCandidates = [section, `${program}-${section}`, `${program}-${student.year || ''}${section}`];
@@ -73,6 +108,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!photo || photo.size > 8*1024*1024) throw new Error('Select a candidate photo no larger than 8 MB.');
     const fields=Object.fromEntries(new FormData(form));
     for (const [key,value] of Object.entries(fields)) if (typeof value==='string' && !['party_code','coc_confirmed'].includes(key)) payload[key]=value;
+    payload.program=accountProgram;
     payload.admin_coc=true; payload.signature_base64=canvas.toDataURL('image/png').split(',')[1];
     const bitmap = await createImageBitmap(photo);
     const scale = Math.min(1,1024/Math.max(bitmap.width,bitmap.height));
@@ -102,8 +138,9 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.AdminCandidateCoc = {
     augment,
-    reset: () => {clear(); profilePhoto.value='';photoInput.required=true;search.value='';results.replaceChildren();document.getElementById('studentProfileSummary').textContent='';},
+    reset: () => {accountProgram='';allowedOrganizations=[];applyEligibility();clear(); profilePhoto.value='';photoInput.required=true;search.value='';results.replaceChildren();document.getElementById('studentProfileSummary').textContent='';},
     showCertificate: data => {const link=document.getElementById('registeredCocLink');if(data.certificate_url){link.href=data.certificate_url;link.classList.remove('d-none');}}
   };
+  applyEligibility();
   window.addEventListener('pagehide',()=>{controller?.abort();if(previewUrl)URL.revokeObjectURL(previewUrl);});
 });

@@ -8495,6 +8495,9 @@ def admin_candidate_coc_preview_api(request):
         payload = json.loads(request.body)
         if not isinstance(payload, dict):
             raise ValueError('Invalid COC fields.')
+        from .candidate_eligibility import validate_student_eligibility
+        with connection.cursor() as cur:
+            validate_student_eligibility(cur, payload)
         certificate = build_certificate(payload)
         ensure_certificate_table()
         with connection.cursor() as cur:
@@ -8531,6 +8534,10 @@ def admin_candidate_students_api(request):
         """, ['%'+query+'%', '%'+query+'%'])
         keys = ['student_id','first_name','middle_name','last_name','program','year','section','email','contact_number','photo_url']
         students = [dict(zip(keys,row)) for row in cur.fetchall()]
+    from .candidate_eligibility import normalize_program, allowed_organizations
+    for student in students:
+        student['program'] = normalize_program(student['program']) or student['program']
+        student['allowed_organizations'] = allowed_organizations(student['program'])
     response = JsonResponse({'ok': True, 'students': students})
     response['Cache-Control'] = 'private, no-store'
     return response
@@ -8595,9 +8602,8 @@ def admin_candidates_create_api(request):
                 raise ValueError('Create an active election before registering a candidate.')
         with transaction.atomic(), connection.cursor() as cur:
             if certificate:
-                cur.execute("SELECT student_id FROM users WHERE student_id::text=%s AND LOWER(COALESCE(role,''))='student'", [student_id])
-                if not cur.fetchone():
-                    raise ValueError('Select an existing student account to register this candidate.')
+                from .candidate_eligibility import validate_student_eligibility
+                validate_student_eligibility(cur, payload)
             if allow_existing:
                 cur.execute(
                     """
