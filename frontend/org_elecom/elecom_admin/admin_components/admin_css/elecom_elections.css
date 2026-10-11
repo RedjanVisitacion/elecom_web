@@ -407,7 +407,7 @@ html.election-viewport { --election-header-height: var(--topbar-height, 70px); }
 
 .election-form-actions .election-primary-cta {
   background: #0d1b3e; border: 1px solid #0d1b3e; color: #fff;
-  font-weight: 600; letter-spacing: .02em;
+  font-weight: 700; letter-spacing: .02em;
   transition: background-color .18s, box-shadow .18s;
 }
 .election-form-actions .election-primary-cta:hover:not(:disabled),

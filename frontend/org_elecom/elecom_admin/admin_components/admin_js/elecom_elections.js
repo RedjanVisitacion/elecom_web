@@ -1,33 +1,57 @@
 document.addEventListener('DOMContentLoaded', function(){
-  const schedulePickers = new Map();
-  for (const id of ['electionStart', 'electionEnd', 'electionResults']) {
-    const input = document.getElementById(id);
-    if (!input) continue;
-    if (window.flatpickr) {
-      const picker = window.flatpickr(input, {
-        enableTime: true, dateFormat: 'Y-m-d H:i',
-        altInput: true, altFormat: 'Y-m-d h:i K',
-        static: false, appendTo: document.body, disableMobile: true,
-        minuteIncrement: 1,
-      });
-      // Keep labels associated with the visible input rather than the hidden value.
-      picker.altInput.id = `${id}Display`;
-      document.querySelector(`label[for="${id}"]`)?.setAttribute('for', picker.altInput.id);
-      schedulePickers.set(id, picker);
-    } else {
-      input.placeholder = 'YYYY-MM-DD HH:mm';
+  const votingInput = document.getElementById('electionVotingRange');
+  const startInput = document.getElementById('electionStart');
+  const endInput = document.getElementById('electionEnd');
+  const resultsInput = document.getElementById('electionResults');
+  let votingPicker = null, resultsPicker = null;
+  const updateResultsMinimum = () => {
+    const end = endInput.value ? new Date(endInput.value) : null;
+    if (resultsPicker) {
+      resultsPicker.set('minDate', end);
+      if (end && resultsPicker.selectedDates[0] < end) resultsPicker.clear();
     }
-  }
-  const setScheduleValue = (id, value) => {
-    const normalized = (value || '').replace('T', ' ');
-    const picker = schedulePickers.get(id);
-    if (picker) picker.setDate(normalized, false, 'Y-m-d H:i');
-    else document.getElementById(id).value = normalized;
+    resultsInput.disabled = !end;
+    if (resultsPicker?.altInput) resultsPicker.altInput.disabled = !end;
   };
+  const syncVotingValues = (dates, _, picker) => {
+    startInput.value = dates[0] ? picker.formatDate(dates[0], 'Y-m-d\\TH:i') : '';
+    endInput.value = dates[1] ? picker.formatDate(dates[1], 'Y-m-d\\TH:i') : '';
+    updateResultsMinimum();
+  };
+  if (window.flatpickr) {
+    resultsPicker = window.flatpickr(resultsInput, {
+      enableTime: true, dateFormat: 'Y-m-d H:i', altInput: true,
+      altFormat: 'Y-m-d h:i K', time_24hr: false, minuteIncrement: 1,
+      static: false, appendTo: document.body, disableMobile: true,
+    });
+    resultsPicker.altInput.id = 'electionResultsDisplay';
+    document.querySelector('label[for="electionResults"]')?.setAttribute('for', resultsPicker.altInput.id);
+    votingPicker = window.flatpickr(votingInput, {
+      mode: 'range', enableTime: true, dateFormat: 'Y-m-d H:i K',
+      altInput: true, altFormat: 'Y-m-d h:i K', time_24hr: false,
+      static: false, appendTo: document.body, disableMobile: true, minuteIncrement: 1,
+      onChange: syncVotingValues,
+    });
+    votingPicker.altInput.id = 'electionVotingRangeDisplay';
+    votingPicker.altInput.setAttribute('aria-describedby', 'votingRangeHelp');
+    document.querySelector('label[for="electionVotingRange"]')?.setAttribute('for', votingPicker.altInput.id);
+  } else {
+    votingInput.placeholder = 'YYYY-MM-DD HH:mm to YYYY-MM-DD HH:mm';
+    resultsInput.placeholder = 'YYYY-MM-DD HH:mm';
+    votingInput.addEventListener('input', () => {
+      const match = votingInput.value.trim().match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) to (\d{4}-\d{2}-\d{2} \d{2}:\d{2})$/);
+      startInput.value = match ? match[1].replace(' ', 'T') : '';
+      endInput.value = match ? match[2].replace(' ', 'T') : '';
+      updateResultsMinimum();
+    });
+  }
   const scheduleValue = (id) => (document.getElementById(id)?.value || '').replace(' ', 'T');
+  const focusVotingRange = () => (votingPicker?.altInput || votingInput).focus({ preventScroll: true });
   document.getElementById('newElectionForm')?.addEventListener('reset', () => {
-    schedulePickers.forEach((picker) => picker.clear());
+    votingPicker?.clear(); resultsPicker?.clear(); startInput.value = ''; endInput.value = '';
+    updateResultsMinimum();
   });
+  updateResultsMinimum();
 
   const menuToggle = document.getElementById('menuToggle');
   const sidebar = document.getElementById('sidebar');
@@ -192,15 +216,19 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       syEl.value = syVal;
     }
-    setScheduleValue('electionStart', election.start_at_local);
-    setScheduleValue('electionEnd', election.end_at_local);
-    setScheduleValue('electionResults', election.results_at_local);
+    startInput.value = election.start_at_local || '';
+    endInput.value = election.end_at_local || '';
+    if (votingPicker) votingPicker.setDate([startInput.value, endInput.value].filter(Boolean), false, 'Y-m-d\\TH:i');
+    else votingInput.value = [startInput.value, endInput.value].filter(Boolean).map(value => value.replace('T', ' ')).join(' to ');
+    updateResultsMinimum();
+    if (resultsPicker) resultsPicker.setDate((election.results_at_local || '').replace('T', ' '), false, 'Y-m-d H:i');
+    else resultsInput.value = (election.results_at_local || '').replace('T', ' ');
     const noteEl = document.getElementById('electionNote');
     if (noteEl) noteEl.value = election.note || '';
     document.getElementById('electionPassword').value = '';
     setFormMode(election);
     selectElectionView('form');
-    (schedulePickers.get('electionStart')?.altInput || document.getElementById('electionStart'))?.focus({ preventScroll: true });
+    focusVotingRange();
   }
 
   function rowHtml(election) {
@@ -303,6 +331,14 @@ document.addEventListener('DOMContentLoaded', function(){
         note: document.getElementById('electionNote')?.value || '',
         admin_password: document.getElementById('electionPassword')?.value || '',
       };
+      const start = Date.parse(payload.start_at), end = Date.parse(payload.end_at);
+      if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
+        showAlert('Select a complete voting window with an end after the start.', 'danger'); focusVotingRange(); return;
+      }
+      if (payload.results_at && (!Number.isFinite(Date.parse(payload.results_at)) || Date.parse(payload.results_at) < end)) {
+        showAlert('Results release cannot be before voting ends.', 'danger');
+        (resultsPicker?.altInput || resultsInput).focus(); return;
+      }
       setLoading(true);
       try {
         const res = await fetch('/api/admin/elections/', {
