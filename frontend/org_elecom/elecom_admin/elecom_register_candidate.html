@@ -221,9 +221,16 @@
                         </div>
                     </div>
 
+                    <div class="col-12">
+                        <label class="form-label" for="studentLookup">Find student by name or Student ID</label>
+                        <input id="studentLookup" class="form-control" type="search" autocomplete="off" placeholder="Type at least two characters">
+                        <div id="studentLookupResults" class="list-group mt-2" style="max-height:220px;overflow-y:auto;" aria-live="polite"></div>
+                        <input type="hidden" id="selectedProfilePhoto">
+                        <div id="studentProfileSummary" class="form-text"></div>
+                    </div>
                     <div class="col-md-6">
                         <label class="form-label">Candidate student ID</label>
-                        <input type="text" name="student_id" class="form-control" required>
+                        <input type="text" name="student_id" class="form-control" readonly required>
                     </div>
                     <div class="col-md-6">
                         <label class="form-label">Organization</label>
@@ -299,9 +306,7 @@
                     <div class="col-md-6 party-fields d-none">
                         <label class="form-label">Party name</label>
                         <input type="text" id="party_name" name="party_name" class="form-control">
-                        <label class="form-label mt-2" for="registrationPartyCode">Party security code</label>
-                        <input type="password" id="registrationPartyCode" name="party_code" class="form-control" autocomplete="off">
-                        <div class="form-text">Optional for web admins. Existing parties use their shared logo.</div>
+                        <div class="form-text">New parties receive a security code. Existing parties use their shared logo; admins do not need to enter the code.</div>
                     </div>
                     <div class="col-md-6 party-fields d-none">
                         <label class="form-label">Upload Party Logo (optional)</label>
@@ -313,7 +318,19 @@
                         </label>
                     </div>
 
-                    <div class="col-12 d-flex justify-content-end">
+                    <div class="col-12"><hr><h6>Certificate of Candidacy</h6><p class="form-text">Complete the candidate details and signature, then preview the COC. Registration publishes the candidate directly.</p></div>
+<div class="col-md-6"><label class="form-label" for="coc_curriculum_program">Curriculum program</label><input id="coc_curriculum_program" name="curriculum_program" type="text" class="form-control" required></div>
+<div class="col-md-6"><label class="form-label" for="coc_major">Major (optional)</label><input id="coc_major" name="major" type="text" class="form-control"></div>
+<div class="col-md-6"><label class="form-label" for="coc_gender">Gender</label><input id="coc_gender" name="gender" type="text" class="form-control" required></div>
+<div class="col-md-6"><label class="form-label" for="coc_date_of_birth">Date of birth</label><input id="coc_date_of_birth" name="date_of_birth" type="date" class="form-control" required></div>
+<div class="col-md-6"><label class="form-label" for="coc_contact_number">Contact number</label><input id="coc_contact_number" name="contact_number" type="tel" class="form-control" required></div>
+<div class="col-md-6"><label class="form-label" for="coc_email">Email</label><input id="coc_email" name="email" type="email" class="form-control" required></div>
+<div class="col-md-6"><label class="form-label" for="coc_address">Address</label><input id="coc_address" name="address" type="text" class="form-control" required></div>
+<div class="col-12"><details><summary>Optional organization memberships (up to three)</summary><div class="row g-2 mt-1"><div class="col-md-4"><label class="form-label" for="affiliation_0_organization">Organization 1</label><input class="form-control" id="affiliation_0_organization" name="affiliation_0_organization"></div><div class="col-md-4"><label class="form-label" for="affiliation_0_years">Years (e.g. 2025-2026) 1</label><input class="form-control" id="affiliation_0_years" name="affiliation_0_years"></div><div class="col-md-4"><label class="form-label" for="affiliation_0_position">Position 1</label><input class="form-control" id="affiliation_0_position" name="affiliation_0_position"></div><div class="col-md-4"><label class="form-label" for="affiliation_1_organization">Organization 2</label><input class="form-control" id="affiliation_1_organization" name="affiliation_1_organization"></div><div class="col-md-4"><label class="form-label" for="affiliation_1_years">Years (e.g. 2025-2026) 2</label><input class="form-control" id="affiliation_1_years" name="affiliation_1_years"></div><div class="col-md-4"><label class="form-label" for="affiliation_1_position">Position 2</label><input class="form-control" id="affiliation_1_position" name="affiliation_1_position"></div><div class="col-md-4"><label class="form-label" for="affiliation_2_organization">Organization 3</label><input class="form-control" id="affiliation_2_organization" name="affiliation_2_organization"></div><div class="col-md-4"><label class="form-label" for="affiliation_2_years">Years (e.g. 2025-2026) 3</label><input class="form-control" id="affiliation_2_years" name="affiliation_2_years"></div><div class="col-md-4"><label class="form-label" for="affiliation_2_position">Position 3</label><input class="form-control" id="affiliation_2_position" name="affiliation_2_position"></div></div></details></div>
+<div class="col-12"><label class="form-label" for="candidateSignature">Candidate signature</label><canvas id="candidateSignature" width="680" height="180" tabindex="0" aria-label="Candidate signature pad" style="display:block;width:100%;max-width:680px;height:180px;background:white;border:1px solid #cbd5e1;border-radius:8px;touch-action:none;"></canvas><button id="clearCandidateSignature" type="button" class="btn btn-outline-secondary btn-sm mt-2">Clear signature</button><p class="form-text">The candidate signs here using a mouse, touch screen, or stylus.</p></div>
+<div class="col-12"><label class="form-check"><input name="coc_confirmed" type="checkbox" class="form-check-input" required> <span class="form-check-label">The candidate reviewed these details and provided this signature.</span></label></div>
+<div class="col-12"><button id="previewAdminCoc" type="button" class="btn btn-outline-primary">Preview Certificate of Candidacy</button><a id="registeredCocLink" class="btn btn-outline-success d-none ms-2" target="_blank" rel="noopener">View issued COC</a></div>
+<div class="col-12 d-flex justify-content-end">
                         <button id="submitBtn" type="submit" class="btn btn-primary">Submit</button>
                     </div>
                     </div>
@@ -368,7 +385,9 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_register_candidate.js?v=20261011-register-polish1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_coc.js?v=20261011-admin-coc1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_register_candidate.js?v=20261011-admin-coc1"></script>
+<div class="modal fade" id="adminCocPreviewModal" tabindex="-1" aria-labelledby="adminCocPreviewTitle" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="adminCocPreviewTitle">Certificate of Candidacy Preview</h5><button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body p-0"><iframe id="adminCocPreviewFrame" title="COC preview" style="width:100%;height:72vh;border:0;"></iframe></div></div></div></div>
 </body>
 </html>
 

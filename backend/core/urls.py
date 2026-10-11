@@ -8,6 +8,8 @@ from django.shortcuts import redirect
 from .views import (
     admin_candidates_bulk_delete_api,
     admin_candidates_create_api,
+    admin_candidate_students_api,
+    admin_candidate_coc_preview_api,
     admin_candidates_delete_api,
     admin_candidates_detail_api,
     admin_candidates_list_api,
@@ -156,6 +158,8 @@ urlpatterns = [
     path('api/admin/cloudinary/signature/', admin_cloudinary_signature_api, name='admin_cloudinary_signature_api'),
     path('api/admin/candidates/list/', admin_candidates_list_api, name='admin_candidates_list_api'),
     path('api/admin/candidates/detail/', admin_candidates_detail_api, name='admin_candidates_detail_api'),
+    path('api/admin/candidates/coc-preview/', admin_candidate_coc_preview_api, name='admin_candidate_coc_preview_api'),
+    path('api/admin/candidates/students/', admin_candidate_students_api, name='admin_candidate_students_api'),
     path('api/admin/candidates/create/', admin_candidates_create_api, name='admin_candidates_create_api'),
     path('api/admin/candidates/update/', admin_candidates_update_api, name='admin_candidates_update_api'),
     path('api/admin/candidates/delete/', admin_candidates_delete_api, name='admin_candidates_delete_api'),

@@ -541,19 +541,13 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!payload.party_logo_url) delete payload.party_logo_url;
 
         setLoading(true);
+        await window.AdminCandidateCoc.augment(payload);
 
         // Upload files if provided; file upload overrides manual URL fields
-        if (!photoFile || typeof photoFile !== "object" || photoFile.size <= 0) {
-          showAlert("error", "Candidate photo upload is required.");
-          return;
+        if (photoFile && typeof photoFile === "object" && photoFile.size > 0) {
+          payload.photo_url = await uploadToCloudinary({ file: photoFile, type: "candidate_photo" });
+          if (!payload.photo_url) throw new Error("Candidate photo upload failed.");
         }
-
-        const photoUrl = await uploadToCloudinary({ file: photoFile, type: "candidate_photo" });
-        if (!photoUrl) {
-          showAlert("error", "Candidate photo upload failed.");
-          return;
-        }
-        payload.photo_url = photoUrl;
 
         if (partyLogoFile && typeof partyLogoFile === "object" && partyLogoFile.size > 0) {
           const url = await uploadToCloudinary({ file: partyLogoFile, type: "party_logo" });
@@ -582,6 +576,8 @@ document.addEventListener("DOMContentLoaded", () => {
         showAlert("success", data.party_code ? `Candidate registered. New party security code: ${data.party_code}. Share it privately with authorized lineup members.` : `Candidate registered successfully.`);
         await loadApplications();
         form.reset();
+        window.AdminCandidateCoc.reset();
+        window.AdminCandidateCoc.showCertificate(data);
         refreshUploadLabels();
         populateYearSections();
         filterPositionsByOrg();

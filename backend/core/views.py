@@ -8485,6 +8485,59 @@ def admin_candidates_update_api(request):
 
 @csrf_exempt
 @require_http_methods(["POST"])
+def admin_candidate_coc_preview_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+    try:
+        from .admin_candidate_coc import build_certificate
+        from .coc_management import decorate_pdf, read_settings, form_kind
+        payload = json.loads(request.body)
+        if not isinstance(payload, dict):
+            raise ValueError('Invalid COC fields.')
+        certificate = build_certificate(payload)
+        ensure_certificate_table()
+        with connection.cursor() as cur:
+            config = read_settings(cur, _active_election_id(), form_kind(payload.get('organization')))
+        if not config:
+            raise ValueError('Save the academic year and chairperson in COC Management first.')
+        response = HttpResponse(decorate_pdf(certificate['pdf'],config), content_type='application/pdf')
+        response['Cache-Control'] = 'private, no-store'
+        return response
+    except (ValueError, TypeError) as error:
+        return JsonResponse({'ok': False, 'error': str(error)}, status=400)
+
+
+@require_http_methods(["GET"])
+def admin_candidate_students_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+    query = str(request.GET.get('q') or '').strip()[:100]
+    if len(query) < 2:
+        return JsonResponse({'ok': True, 'students': []})
+    with connection.cursor() as cur:
+        cur.execute("""
+            SELECT u.student_id::text, COALESCE(s.first_name,u.first_name,''),
+                   COALESCE(s.middle_name,u.middle_name,''), COALESCE(s.last_name,u.last_name,''),
+                   COALESCE(s.course,u.department,''), COALESCE(s.year,u.year_level)::text,
+                   COALESCE(s.section,u.section,''), COALESCE(s.email,u.email,''),
+                   COALESCE(s.phone_number,u.phone,''), COALESCE(u.photo_url,'')
+            FROM users u LEFT JOIN student s ON s.id_number::text=u.student_id::text
+            WHERE LOWER(COALESCE(u.role,''))='student'
+              AND (u.student_id::text ILIKE %s OR
+                   CONCAT_WS(' ',COALESCE(s.first_name,u.first_name),COALESCE(s.middle_name,u.middle_name),COALESCE(s.last_name,u.last_name)) ILIKE %s)
+            ORDER BY COALESCE(s.last_name,u.last_name),u.student_id LIMIT 15
+        """, ['%'+query+'%', '%'+query+'%'])
+        keys = ['student_id','first_name','middle_name','last_name','program','year','section','email','contact_number','photo_url']
+        students = [dict(zip(keys,row)) for row in cur.fetchall()]
+    response = JsonResponse({'ok': True, 'students': students})
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
 def admin_candidates_create_api(request):
     forbidden = _require_admin(request)
     if forbidden:
@@ -8533,7 +8586,18 @@ def admin_candidates_create_api(request):
         _ensure_election_scoped_tables()
         _ensure_candidate_applications_table()
         election_id = _active_election_id()
+        certificate = None
+        if payload.get('admin_coc') is True:
+            from .admin_candidate_coc import build_certificate
+            ensure_certificate_table()
+            certificate = build_certificate(payload)
+            if election_id is None:
+                raise ValueError('Create an active election before registering a candidate.')
         with transaction.atomic(), connection.cursor() as cur:
+            if certificate:
+                cur.execute("SELECT student_id FROM users WHERE student_id::text=%s AND LOWER(COALESCE(role,''))='student'", [student_id])
+                if not cur.fetchone():
+                    raise ValueError('Select an existing student account to register this candidate.')
             if allow_existing:
                 cur.execute(
                     """
@@ -8610,10 +8674,22 @@ def admin_candidates_create_api(request):
             )
             row = cur.fetchone()
             share_logo(cur, election_id, party_name, party_logo_url)
+            application_id = None
+            if certificate:
+                from .admin_candidate_coc import archive_direct_registration
+                archive_payload = {**payload, 'party_name': party_name, 'party_code': party_code,
+                                   'party_code_hash': party_code_hash, 'party_logo_url': party_logo_url}
+                application_id = archive_direct_registration(cur, archive_payload, election_id,
+                                                            request.session.get('student_id'), certificate)
         response = {'ok': True, 'id': int(row[0]) if row else None}
+        if application_id:
+            response['application_id'] = application_id
+            response['certificate_url'] = f'/api/admin/candidate-applications/{application_id}/certificate/'
         if generated_party_code:
             response['party_code'] = generated_party_code
         return JsonResponse(response)
+    except ValueError as e:
+        return JsonResponse({'ok': False, 'error': str(e)}, status=400)
     except Exception as e:
         msg = str(e) or "Failed to register candidate."
         if "ux_candidates_registration_student_position" in msg or "duplicate key" in msg.lower():
