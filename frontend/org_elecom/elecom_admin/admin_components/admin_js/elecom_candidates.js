@@ -246,12 +246,22 @@ document.addEventListener('DOMContentLoaded', function(){
     return cleaned;
   }
 
+  function candidateInitials(item) {
+    const first = String(item.first_name || '').trim();
+    const last = String(item.last_name || '').trim();
+    const parts = [first, last].filter(Boolean);
+    if (parts.length === 1) {
+      const words = parts[0].split(/\s+/);
+      if (words.length > 1) parts.push(words[words.length - 1]);
+    }
+    return parts.map(part => Array.from(part)[0]).join('').toUpperCase() || 'C';
+  }
   function cardTemplate(item){
     const name = [item.first_name, item.middle_name, item.last_name].filter(Boolean).join(' ');
     const hasPhoto = !!(item.photo_url && item.photo_url.startsWith('http'));
     const avatarHtml = hasPhoto
       ? `<img src="${escapeHtml(item.photo_url)}" class="rounded-circle border candidate-avatar-img" alt="">`
-      : `<div class="rounded-circle border d-flex align-items-center justify-content-center bg-light candidate-avatar-placeholder"><i class="bi bi-person fs-4 text-secondary"></i></div>`;
+      : `<div class="rounded-circle d-flex align-items-center justify-content-center candidate-avatar-placeholder" aria-hidden="true">${escapeHtml(candidateInitials(item))}</div>`;
     const partyLogo = item.party_logo_url && item.party_logo_url.startsWith('http')
       ? `<img src="${escapeHtml(item.party_logo_url)}" class="rounded-circle border candidate-party-logo" alt="">`
       : '';
@@ -268,14 +278,15 @@ document.addEventListener('DOMContentLoaded', function(){
           <div class="small text-muted">${escapeHtml(item.program || '')}${item.year_section ? ' · ' + escapeHtml(item.year_section) : ''}</div>
         </div>
         <div class="d-flex align-items-center gap-2">
-          <button class="btn btn-outline-primary btn-sm" data-action="edit" data-id="${item.id}"><i class="bi bi-pencil-square"></i></button>
-          <button class="btn btn-outline-danger btn-sm" data-action="delete" data-id="${item.id}" data-name="${escapeHtml(name || item.student_id)}"><i class="bi bi-person-dash"></i></button>
+          <button class="btn btn-outline-primary btn-sm" data-action="edit" data-bs-toggle="tooltip" title="Edit Candidate Details" aria-label="Edit Candidate Details" data-id="${item.id}"><i class="bi bi-pencil-square"></i></button>
+          <button class="btn btn-outline-danger btn-sm" data-action="delete" data-bs-toggle="tooltip" title="Unregister Candidate" aria-label="Unregister Candidate" data-id="${item.id}" data-name="${escapeHtml(name || item.student_id)}"><i class="bi bi-person-dash"></i></button>
         </div>
       </div>`;
   }
 
   function groupAndRender(list){
     if(!listEl || !listCount) return;
+    listEl.querySelectorAll('[data-bs-toggle=tooltip]').forEach(button => window.bootstrap?.Tooltip?.getInstance(button)?.dispose());
     if(!list || list.length===0){
       listEl.innerHTML='<div class="text-muted">No candidates found.</div>';
       listCount.textContent='0 candidate(s)';
@@ -349,6 +360,10 @@ document.addEventListener('DOMContentLoaded', function(){
     });
 
     listEl.innerHTML = html;
+    listEl.querySelectorAll('[data-bs-toggle=tooltip]').forEach(button => {
+      if (window.bootstrap?.Tooltip) window.bootstrap.Tooltip.getOrCreateInstance(button, { container: document.body, trigger: 'hover focus' });
+      button.addEventListener('click', () => window.bootstrap?.Tooltip?.getInstance(button)?.hide());
+    });
     listCount.textContent = `${list.length} candidate(s)`;
   }
 
