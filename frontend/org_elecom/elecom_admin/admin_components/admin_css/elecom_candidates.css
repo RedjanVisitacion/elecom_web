@@ -532,3 +532,6 @@
 .candidate-toolbar-actions { flex-wrap: wrap; }
 #orgFilterSelect { width: 220px; max-width: 100%; flex: 0 0 auto; }
 .org-accordion-card[hidden] { display: none !important; }
+
+.candidate-toolbar { padding-top: 16px; flex-wrap: wrap; }
+.candidate-toolbar-actions { min-width: 0; max-width: 100%; }

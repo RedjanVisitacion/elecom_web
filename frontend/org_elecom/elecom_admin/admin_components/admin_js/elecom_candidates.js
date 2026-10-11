@@ -291,6 +291,8 @@ document.addEventListener('DOMContentLoaded', function(){
   function applyOrgFilter() {
     if (!listEl) return;
     const selected = orgFilterSelect?.value || 'all';
+    if (selected === 'all') sessionStorage.removeItem('elecom_candidates_active_org');
+    else sessionStorage.setItem('elecom_candidates_active_org', selected === 'afprotechs' ? 'AFPRO' : selected.toUpperCase());
     listEl.querySelectorAll('.org-accordion-card').forEach(section => {
       section.hidden = selected !== 'all' && section.dataset.org !== selected;
       if (section.hidden) {
@@ -342,7 +344,7 @@ document.addEventListener('DOMContentLoaded', function(){
         <section class="candidate-org-section org-accordion-card" data-org="${org === 'AFPRO' ? 'afprotechs' : escapeHtml(org.toLowerCase())}">
           <button type="button" class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}" data-toggle-candidate-org="${escapeHtml(org)}" aria-expanded="false">
             <div class="candidate-org-title">
-              <img src="${escapeHtml(orgLogoUrl(org))}" alt="" class="candidate-org-logo">
+              <img src="${escapeHtml(orgLogoUrl(org))}" alt="" class="candidate-org-logo org-logo" onerror="this.onerror=null;this.src='/static/assets/elecom.png';">
               <span>${escapeHtml(orgDisplayName(org))}</span>
             </div>
             <span class="candidate-org-actions">
@@ -504,38 +506,11 @@ document.addEventListener('DOMContentLoaded', function(){
     // Store the active org persistently for export/other actions on this page
     sessionStorage.setItem('elecom_candidates_active_org', normalized);
 
-    // Hide all org sections, then show + expand only the matching one
-    const allSections = listEl?.querySelectorAll('.candidate-org-section');
-    if (!allSections || !allSections.length) return;
-
-    let found = false;
-    allSections.forEach(section => {
-      const toggle = section.querySelector('[data-toggle-candidate-org]');
-      const sectionOrg = toggle?.getAttribute('data-toggle-candidate-org');
-      if (sectionOrg === normalized) {
-        found = true;
-        section.style.display = '';
-        const body = section.querySelector('.candidate-org-body');
-        if (body) body.hidden = false;
-        if (toggle) {
-          toggle.setAttribute('aria-expanded', 'true');
-          const icon = toggle.querySelector('.bi');
-          if (icon) { icon.classList.remove('bi-chevron-down'); icon.classList.add('bi-chevron-up'); }
-        }
-      } else {
-        section.style.display = 'none';
-      }
-    });
-
+    const filterValue = normalized === 'AFPRO' ? 'afprotechs' : normalized.toLowerCase();
+    const found = Array.from(orgFilterSelect?.options || []).some(option => option.value === filterValue);
     if (found) {
-      setTimeout(() => { listEl?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }, 80);
-
-      // Update count to reflect only the visible org's candidates
-      const visibleCount = listEl?.querySelectorAll(
-        `.candidate-org-section:not([style*="display: none"]) .candidate-card`
-      ).length || 0;
-      if (listCount) listCount.textContent = `${visibleCount} candidate(s)`;
-
+      orgFilterSelect.value = filterValue;
+      applyOrgFilter();
       // Highlight the matching sidebar sub-item
       const sidebar = document.getElementById('sidebar');
       if (sidebar) {
