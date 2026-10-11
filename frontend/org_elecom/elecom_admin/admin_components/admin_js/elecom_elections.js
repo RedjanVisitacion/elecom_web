@@ -255,7 +255,6 @@ document.addEventListener('DOMContentLoaded', function(){
     document.getElementById('electionPassword').value = '';
     setFormMode(election);
     selectElectionView('form');
-    focusVotingRange();
   }
 
   function rowHtml(election) {
@@ -380,10 +379,12 @@ document.addEventListener('DOMContentLoaded', function(){
         });
         const data = await res.json().catch(() => ({}));
         if (!res.ok || !data.ok) throw new Error(data.error || (isEditing ? 'Failed to update election.' : 'Failed to create election.'));
+        votingPicker?.close(); resultsPicker?.close();
+        timePickers.forEach(picker => picker.close());
         form.reset();
         setFormMode(null);
-        showAlert(isEditing ? 'Election date and time updated.' : 'New active election created. Previous election records are kept as history.', 'success');
         await loadElections();
+        showAlert(isEditing ? 'Election date and time updated.' : 'New active election created. Previous election records are kept as history.', 'success');
       } catch (error) {
         showAlert(error.message || (isEditing ? 'Failed to update election.' : 'Failed to create election.'), 'danger');
       } finally {
