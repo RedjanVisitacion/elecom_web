@@ -424,3 +424,7 @@ html.election-viewport { --election-header-height: var(--topbar-height, 70px); }
 .election-toast-container { position: fixed; top: calc(var(--election-header-height, 64px) + 16px); right: 20px; z-index: 1090; max-width: calc(100vw - 32px); }
 .election-success-toast { width: 360px; max-width: 100%; background: #fff; color: #0d1b3e; border: 1px solid #dcfce7; border-left: 4px solid #22c55e; border-radius: 10px; box-shadow: 0 8px 24px rgba(13,27,62,.16); }
 .election-success-toast .toast-body { font-size: 13px; padding: 14px; }
+.election-form .school-year-toggle { border-radius: 8px; border: 1px solid #e2e8f0; padding: 10px 14px !important; text-align: left; background-color: #fff; color: #0d1b3e; }
+.school-year-menu { position: fixed; z-index: 1060; max-height: 180px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; box-shadow: 0 8px 24px rgba(13,27,62,.16); padding: 4px; }
+.school-year-option { display: block; width: 100%; padding: 9px 12px; border: 0; border-radius: 5px; background: #fff; color: #0d1b3e; text-align: left; font-size: 13px; }
+.school-year-option:hover, .school-year-option:focus-visible, .school-year-option.active { background: #eff6ff; color: #1d4ed8; }

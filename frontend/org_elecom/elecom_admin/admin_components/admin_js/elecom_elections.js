@@ -132,24 +132,75 @@ document.addEventListener('DOMContentLoaded', function(){
   const formTitle = document.getElementById('electionFormTitle');
   let loadedElections = [];
 
-  // Populate School Year dropdown: past 2 years up to next 5 years, always relative to today
-  (function populateSchoolYears() {
-    const sel = document.getElementById('schoolYear');
-    if (!sel) return;
-    const now = new Date();
-    // School year starts in June; if before June, current school year started last year
-    const baseYear = now.getMonth() >= 5 ? now.getFullYear() : now.getFullYear() - 1;
-    // Default to next school year (upcoming)
-    const defaultYear = baseYear + 1;
-    for (let y = baseYear - 2; y <= baseYear + 5; y++) {
-      const label = `${y}-${y + 1}`;
-      const opt = document.createElement('option');
-      opt.value = label;
-      opt.textContent = label;
-      if (y === defaultYear) opt.selected = true;
-      sel.appendChild(opt);
+  const schoolYear = document.getElementById('schoolYear');
+  const schoolYearToggle = document.getElementById('schoolYearToggle');
+  const schoolYearMenu = document.getElementById('schoolYearMenu');
+  let schoolYearChanged = false;
+  const currentYear = new Date().getFullYear();
+  const fallbackYear = new Date().getMonth() >= 5 ? currentYear : currentYear - 1;
+  for (let year = currentYear - 2; year <= currentYear + 5; year++) {
+    schoolYear.add(new Option(`${year}-${year + 1}`, `${year}-${year + 1}`, year === fallbackYear, year === fallbackYear));
+  }
+  const syncSchoolYear = () => { schoolYearToggle.textContent = schoolYear.value || 'Select school year'; };
+  const closeSchoolYear = (focus = false) => {
+    schoolYearMenu.hidden = true; schoolYearToggle.setAttribute('aria-expanded', 'false');
+    if (focus) schoolYearToggle.focus();
+  };
+  const setSchoolYearDefault = (value) => {
+    if (!value) return;
+    if (!Array.from(schoolYear.options).some(option => option.value === value)) schoolYear.add(new Option(value, value));
+    Array.from(schoolYear.options).forEach(option => { option.defaultSelected = option.value === value; });
+    schoolYear.value = value; syncSchoolYear();
+  };
+  schoolYearToggle.addEventListener('click', () => {
+    if (!schoolYearMenu.hidden) { closeSchoolYear(); return; }
+    votingPicker?.close(); resultsPicker?.close(); timePickers.forEach(picker => picker.close());
+    schoolYearMenu.replaceChildren();
+    for (const option of Array.from(schoolYear.options)) {
+      const button = document.createElement('button'); button.type = 'button';
+      button.className = 'school-year-option'; button.textContent = option.textContent;
+      button.classList.toggle('active', option.value === schoolYear.value);
+      button.setAttribute('aria-pressed', String(option.value === schoolYear.value));
+      button.addEventListener('click', () => {
+        schoolYear.value = option.value; schoolYearChanged = true; syncSchoolYear(); closeSchoolYear(true);
+      });
+      schoolYearMenu.appendChild(button);
     }
-  })();
+    const rect = schoolYearToggle.getBoundingClientRect();
+    const below = window.innerHeight - rect.bottom - 12, above = rect.top - 12;
+    const downward = below >= 180 || below >= above;
+    const height = Math.min(180, downward ? below : above);
+    schoolYearMenu.style.maxHeight = `${Math.max(0, height)}px`;
+    schoolYearMenu.style.width = `${rect.width}px`;
+    schoolYearMenu.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - rect.width - 8))}px`;
+    schoolYearMenu.style.top = `${downward ? rect.bottom + 4 : rect.top - height - 4}px`;
+    schoolYearMenu.hidden = false; schoolYearToggle.setAttribute('aria-expanded', 'true');
+    const selected = schoolYearMenu.querySelector('.active');
+    selected?.focus({ preventScroll: true }); selected?.scrollIntoView({ block: 'nearest' });
+  });
+  schoolYearMenu.addEventListener('keydown', event => {
+    if (event.key === 'Escape') { event.preventDefault(); closeSchoolYear(true); }
+    if (event.key === 'ArrowDown' || event.key === 'ArrowUp' || event.key === 'Home' || event.key === 'End') {
+      event.preventDefault();
+      const options = Array.from(schoolYearMenu.children), index = options.indexOf(document.activeElement);
+      const next = event.key === 'Home' ? 0 : event.key === 'End' ? options.length - 1 : index + (event.key === 'ArrowDown' ? 1 : -1);
+      options[Math.max(0, Math.min(options.length - 1, next))]?.focus();
+    }
+  });
+  document.addEventListener('pointerdown', event => {
+    if (!schoolYearMenu.contains(event.target) && !schoolYearToggle.contains(event.target)) closeSchoolYear();
+  });
+  document.addEventListener('focusin', event => {
+    if (!schoolYearMenu.hidden && !schoolYearMenu.contains(event.target) && event.target !== schoolYearToggle) closeSchoolYear();
+  });
+  window.addEventListener('resize', () => closeSchoolYear());
+  document.addEventListener('scroll', event => {
+    if (!schoolYearMenu.contains(event.target)) closeSchoolYear();
+  }, true);
+  form?.addEventListener('reset', () => {
+    schoolYearChanged = false; closeSchoolYear(); queueMicrotask(syncSchoolYear);
+  });
+  syncSchoolYear();
 
   function electionIdFromRoute() {
     const match = window.location.pathname.match(/\/elections\/(\d+)\/edit-dates\/?$/);
@@ -232,6 +283,8 @@ document.addEventListener('DOMContentLoaded', function(){
     // schoolYear is a <select> — use disabled when editing (school year shouldn't change)
     const syEl = document.getElementById('schoolYear');
     if (syEl) syEl.disabled = isEditing;
+    schoolYearToggle.disabled = isEditing;
+    closeSchoolYear(); syncSchoolYear();
   }
 
   function fillElectionForm(election) {
@@ -314,6 +367,8 @@ document.addEventListener('DOMContentLoaded', function(){
       if (!res.ok || !data.ok) throw new Error(data.error || 'Failed to load elections.');
       const elections = data.elections || [];
       loadedElections = elections;
+      const activeYear = elections.find(election => election.is_active && election.school_year)?.school_year;
+      if (!schoolYearChanged && !editingElectionId?.value && activeYear) setSchoolYearDefault(activeYear);
       if (!listEl) return;
       listEl.innerHTML = elections.length
         ? elections.map(rowHtml).join('')
