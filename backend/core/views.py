@@ -8572,9 +8572,7 @@ def admin_candidates_create_api(request):
                 if existing:
                     party_name = existing[0][0]
                     party_code, party_code_hash = _sync_party_security_code(cur, election_id=election_id, party_name=party_name)
-                    submitted = _candidate_party_code_hash(party_name, str(payload.get('party_code') or '').strip())
-                    if not secrets.compare_digest(submitted, party_code_hash):
-                        return JsonResponse({'ok': False, 'error': 'This party name is reserved. Enter its party security code to join the lineup.'}, status=403)
+                    # Authenticated admins manage lineups without supplying the party code.
                 else:
                     generated_party_code = _generate_party_security_code()
                     party_code = generated_party_code
