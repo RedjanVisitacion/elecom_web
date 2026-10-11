@@ -232,14 +232,19 @@
                         <label class="form-label">Candidate student ID</label>
                         <input type="text" name="student_id" class="form-control" readonly required>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label">Organization</label>
-                        <select name="organization" class="form-select" required>
-                            <option value="" selected disabled>Select organization</option>
-                            <option>USG</option>
-                            <option>SITE</option>
-                            <option>PAFE</option>
-                            <option>AFPROTECHS</option>
+                    <div class="col-md-3">
+                        <label class="form-label">Program</label>
+                        <select id="programSelect" name="program" class="form-select" required>
+                            <option value="" selected disabled>Select program</option>
+                            <option value="BSIT">BSIT</option>
+                            <option value="BTLED">BTLED</option>
+                            <option value="BFPT">BFPT</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Year/Section</label>
+                        <select id="yearSectionSelect" name="year_section" class="form-select" required>
+                            <option value="" selected disabled>Select year/section</option>
                         </select>
                     </div>
                     <div class="col-md-4">
@@ -255,6 +260,16 @@
                         <input type="text" name="last_name" class="form-control" required>
                     </div>
                     <div class="col-md-6">
+                        <label class="form-label">Organization</label>
+                        <select name="organization" class="form-select" required>
+                            <option value="" selected disabled>Select organization</option>
+                            <option>USG</option>
+                            <option>SITE</option>
+                            <option>PAFE</option>
+                            <option>AFPROTECHS</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6">
                         <label class="form-label">Position</label>
                         <select name="position" class="form-select" required>
                             <option value="" selected disabled>Select position</option>
@@ -268,21 +283,6 @@
                             <option>BSIT Representative</option>
                             <option>BTLED Representative</option>
                             <option>BFPT Representative</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Program</label>
-                        <select id="programSelect" name="program" class="form-select" required>
-                            <option value="" selected disabled>Select program</option>
-                            <option value="BSIT">BSIT</option>
-                            <option value="BTLED">BTLED</option>
-                            <option value="BFPT">BFPT</option>
-                        </select>
-                    </div>
-                    <div class="col-md-3">
-                        <label class="form-label">Year/Section</label>
-                        <select id="yearSectionSelect" name="year_section" class="form-select" required>
-                            <option value="" selected disabled>Select year/section</option>
                         </select>
                     </div>
                     <div class="col-12">
