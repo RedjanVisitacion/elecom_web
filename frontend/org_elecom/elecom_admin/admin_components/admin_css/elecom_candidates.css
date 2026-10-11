@@ -528,3 +528,7 @@
 }
 
 .candidate-avatar-placeholder { background: #0d1b3e; color: #fff; font-weight: 700; font-size: 16px; flex: 0 0 48px; }
+
+.candidate-toolbar-actions { flex-wrap: wrap; }
+#orgFilterSelect { width: 220px; max-width: 100%; flex: 0 0 auto; }
+.org-accordion-card[hidden] { display: none !important; }

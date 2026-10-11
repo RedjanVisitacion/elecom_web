@@ -284,12 +284,38 @@ document.addEventListener('DOMContentLoaded', function(){
       </div>`;
   }
 
+  const orgFilterSelect = document.getElementById('orgFilterSelect');
+  function visibleCandidateChecks() {
+    return Array.from(listEl?.querySelectorAll('.org-accordion-card:not([hidden]) .row-check') || []);
+  }
+  function applyOrgFilter() {
+    if (!listEl) return;
+    const selected = orgFilterSelect?.value || 'all';
+    listEl.querySelectorAll('.org-accordion-card').forEach(section => {
+      section.hidden = selected !== 'all' && section.dataset.org !== selected;
+      if (section.hidden) {
+        section.querySelectorAll('.row-check').forEach(check => { check.checked = false; });
+        section.querySelectorAll('[data-bs-toggle=tooltip]').forEach(button => window.bootstrap?.Tooltip?.getInstance(button)?.hide());
+      } else if (selected !== 'all') {
+        const body = section.querySelector('.candidate-org-body');
+        body.hidden = false; body.classList.add('show');
+        section.querySelector('.candidate-org-header').setAttribute('aria-expanded', 'true');
+        const icon = section.querySelector('.candidate-org-header .bi');
+        icon?.classList.add('bi-chevron-up'); icon?.classList.remove('bi-chevron-down');
+      }
+    });
+    listCount.textContent = `${visibleCandidateChecks().length} candidate(s)`;
+    updateBulkState();
+  }
+  orgFilterSelect?.addEventListener('change', applyOrgFilter);
+
   function groupAndRender(list){
     if(!listEl || !listCount) return;
     listEl.querySelectorAll('[data-bs-toggle=tooltip]').forEach(button => window.bootstrap?.Tooltip?.getInstance(button)?.dispose());
     if(!list || list.length===0){
       listEl.innerHTML='<div class="text-muted">No candidates found.</div>';
       listCount.textContent='0 candidate(s)';
+      updateBulkState();
       return;
     }
 
@@ -313,7 +339,7 @@ document.addEventListener('DOMContentLoaded', function(){
     orgKeys.forEach(org=>{
       const totalInOrg = Object.values(byOrg[org]).reduce((a,arr)=> a + arr.length, 0);
       html += `
-        <section class="candidate-org-section">
+        <section class="candidate-org-section org-accordion-card" data-org="${org === 'AFPRO' ? 'afprotechs' : escapeHtml(org.toLowerCase())}">
           <button type="button" class="candidate-org-header candidate-org-${escapeHtml(org.toLowerCase())}" data-toggle-candidate-org="${escapeHtml(org)}" aria-expanded="false">
             <div class="candidate-org-title">
               <img src="${escapeHtml(orgLogoUrl(org))}" alt="" class="candidate-org-logo">
@@ -364,7 +390,7 @@ document.addEventListener('DOMContentLoaded', function(){
       if (window.bootstrap?.Tooltip) window.bootstrap.Tooltip.getOrCreateInstance(button, { container: document.body, trigger: 'hover focus' });
       button.addEventListener('click', () => window.bootstrap?.Tooltip?.getInstance(button)?.hide());
     });
-    listCount.textContent = `${list.length} candidate(s)`;
+    applyOrgFilter();
   }
 
   listEl?.addEventListener('click', (event) => {
@@ -374,6 +400,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!body) return;
     const willExpand = body.hidden;
     body.hidden = !willExpand;
+    body.classList.toggle('show', willExpand);
     toggle.setAttribute('aria-expanded', willExpand ? 'true' : 'false');
     const icon = toggle.querySelector('.bi');
     if (icon) {
@@ -777,8 +804,14 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function updateBulkState(){
-    const checks = Array.from(document.querySelectorAll('.row-check'));
+    const checks = visibleCandidateChecks();
     const any = checks.some(c=>c.checked);
+    const selectAllControl = document.getElementById('selectAll');
+    if (selectAllControl) {
+      selectAllControl.checked = checks.length > 0 && checks.every(check => check.checked);
+      selectAllControl.indeterminate = any && !selectAllControl.checked;
+      selectAllControl.disabled = checks.length === 0;
+    }
     const bulkBtn = document.getElementById('bulkDeleteBtn');
     if (bulkBtn) bulkBtn.disabled = !any;
   }
@@ -850,11 +883,7 @@ document.addEventListener('DOMContentLoaded', function(){
   if (selectAll) {
     selectAll.addEventListener('change', (e)=>{
       const on = e.target.checked;
-      // Only check/uncheck rows in visible (non-hidden) sections
-      document.querySelectorAll('.candidate-org-section').forEach(section => {
-        if (section.style.display === 'none') return;
-        section.querySelectorAll('.row-check').forEach(cb => { cb.checked = on; });
-      });
+      visibleCandidateChecks().forEach(check => { check.checked = on; });
       updateBulkState();
     });
   }
@@ -862,7 +891,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const bulkBtn = document.getElementById('bulkDeleteBtn');
   if (bulkBtn) {
     bulkBtn.addEventListener('click', async ()=>{
-      const ids = Array.from(document.querySelectorAll('.row-check:checked')).map(cb=>parseInt(cb.value,10)).filter(Boolean);
+      const ids = visibleCandidateChecks().filter(check => check.checked).map(cb=>parseInt(cb.value,10)).filter(Boolean);
       if(ids.length===0) return;
       const confirmed = await showElecomConfirm({
         title: 'Unregister Candidates',
