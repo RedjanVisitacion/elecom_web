@@ -230,8 +230,8 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 #calEventModal .modal-content { display: flex; flex-direction: column; max-height: inherit; overflow: hidden; }
 #calEventModal .modal-header { flex: 0 0 auto; background: #0d1b3e !important; color: #fff; padding: 14px 20px !important; }
 #calEventModal .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 1; }
-#calEventModal .modal-body { flex: 1 1 auto; min-height: 0; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; padding: 16px 20px; }
+#calEventModal .modal-body { flex: 1 1 auto; min-height: 0; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; padding: 16px 20px 80px; }
 #calEventModal .modal-footer { flex: 0 0 auto; justify-content: flex-end; background: #fff; border-top: 1px solid #e2e8f0 !important; padding: 12px 20px; }
 #calEventModal .cal-color-opt span { position: relative; }
-#calEventModal .cal-color-opt input:checked + span::after { content: ''; position: absolute; left: 6px; top: 3px; width: 6px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+#calEventModal .cal-color-check { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; line-height: 1; pointer-events: none; }
 #calEventModal .cal-color-opt input:focus-visible + span { outline: 2px solid #0d1b3e; outline-offset: 3px; }

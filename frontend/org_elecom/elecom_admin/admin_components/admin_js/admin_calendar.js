@@ -273,6 +273,24 @@
       .replace(/"/g, "&quot;");
 
   /* ── Modal ────────────────────────────────────────────────────────────── */
+  const syncColorSelection = () => {
+    if (!modalEl) return;
+    modalEl.querySelectorAll('.cal-color-opt').forEach((swatch) => {
+      const selected = swatch.querySelector('input[name="calColor"]').checked;
+      swatch.classList.toggle('active', selected);
+      const dot = swatch.querySelector('span');
+      dot.querySelectorAll('.cal-color-check').forEach((icon) => icon.remove());
+      if (selected) {
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-check cal-color-check';
+        icon.setAttribute('aria-hidden', 'true');
+        dot.appendChild(icon);
+      }
+    });
+  };
+  modalEl?.addEventListener('change', (event) => {
+    if (event.target.matches('input[name="calColor"]')) syncColorSelection();
+  });
   const openModal = (prefillDate, event = null) => {
     if (saveBtn.disabled) return;
     editingEventId = event ? event.id : null;
@@ -317,6 +335,7 @@
       }
       if (match) match.checked = true;
     }
+    syncColorSelection();
     modal.show();
     setTimeout(() => { if (typeSelect) typeSelect.focus(); }, 400);
   };
