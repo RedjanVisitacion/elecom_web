@@ -273,20 +273,33 @@
     }
   };
 
-  const deleteBackup = async (id) => {
-    if (!window.confirm("Delete this backup file and history record?")) return;
-    const resp = await fetch(`${API_DELETE}${id}/`, {
-      method: "POST",
-      credentials: "same-origin",
-      cache: "no-store",
-    });
-    const data = await resp.json().catch(() => ({}));
-    if (!resp.ok || !data.ok) {
-      showAlert(data.error || "Failed to delete backup.", "error");
-      return;
+  let pendingDeleteId = null;
+  let deletingBackup = false;
+  const openDeleteConfirm = (id) => {
+    if (!id || deletingBackup) return;
+    pendingDeleteId = id;
+    bootstrap.Modal.getOrCreateInstance($("deleteBackupModal")).show();
+  };
+  const deleteBackup = async () => {
+    if (!pendingDeleteId || deletingBackup) return;
+    const id = pendingDeleteId;
+    const button = $("confirmDeleteBackupBtn");
+    deletingBackup = true; button.disabled = true; button.textContent = "Deleting...";
+    try {
+      const resp = await fetch(`${API_DELETE}${id}/`, {
+        method: "POST", credentials: "same-origin", cache: "no-store",
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.ok) throw new Error(data.error || "Failed to delete backup.");
+      deletingBackup = false;
+      bootstrap.Modal.getOrCreateInstance($("deleteBackupModal")).hide();
+      showAlert("Backup deleted.", "success");
+      await refreshAll();
+    } catch (error) {
+      showAlert(error.message || "Failed to delete backup.", "error");
+    } finally {
+      deletingBackup = false; button.disabled = false; button.textContent = "Delete backup";
     }
-    showAlert("Backup deleted.", "success");
-    await refreshAll();
   };
 
   const openRestoreConfirm = (formData) => {
@@ -446,6 +459,11 @@
       const formData = new FormData(event.currentTarget);
       openRestoreConfirm(formData);
     });
+    $("confirmDeleteBackupBtn")?.addEventListener("click", deleteBackup);
+    $("deleteBackupModal")?.addEventListener("hide.bs.modal", event => {
+      if (deletingBackup) event.preventDefault();
+    });
+    $("deleteBackupModal")?.addEventListener("hidden.bs.modal", () => { pendingDeleteId = null; });
     $("confirmRestoreBtn")?.addEventListener("click", submitRestore);
     $("saveAutoSettingsBtn")?.addEventListener("click", saveSettings);
     $("backupHistoryBody")?.addEventListener("click", (event) => {
@@ -456,7 +474,7 @@
       }
       const deleteBtn = event.target.closest(".delete-backup-btn");
       if (deleteBtn) {
-        deleteBackup(deleteBtn.dataset.id);
+        openDeleteConfirm(deleteBtn.dataset.id);
         return;
       }
       const restoreBtn = event.target.closest(".history-restore-btn");
