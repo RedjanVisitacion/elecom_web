@@ -304,7 +304,7 @@ document.addEventListener('DOMContentLoaded', function(){
     `;
   }
 
-  async function loadElections() {
+  async function loadElections(openRouteEditor = false) {
     setLoading(true);
     showAlert('');
     if (listEl) listEl.innerHTML = '<div class="empty-state">Loading elections...</div>';
@@ -320,7 +320,7 @@ document.addEventListener('DOMContentLoaded', function(){
         : '<div class="empty-state">No elections found. Create the first election event.</div>';
 
       const routeElectionId = electionIdFromRoute();
-      if (routeElectionId && window.location.pathname.includes('/edit-dates/')) {
+      if (openRouteEditor && routeElectionId && window.location.pathname.includes('/edit-dates/')) {
         const election = loadedElections.find(item => String(item.id) === String(routeElectionId));
         if (election) fillElectionForm(election);
       }
@@ -332,10 +332,16 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
+  function leaveEditRoute() {
+    if (window.location.pathname.includes('/edit-dates/')) {
+      window.history.replaceState(window.history.state, '', '/static/org_elecom/elecom_admin/elecom_elections.html');
+    }
+  }
   if (cancelEditBtn) {
     cancelEditBtn.addEventListener('click', function(){
       form?.reset();
       setFormMode(null);
+      leaveEditRoute();
       showAlert('');
     });
   }
@@ -393,6 +399,7 @@ document.addEventListener('DOMContentLoaded', function(){
         timePickers.forEach(picker => picker.close());
         form.reset();
         setFormMode(null);
+        leaveEditRoute();
         await loadElections();
         showAlert(isEditing ? 'Election date and time updated.' : 'New active election created. Previous election records are kept as history.', 'success');
       } catch (error) {
@@ -403,5 +410,5 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
-  loadElections();
+  loadElections(true);
 });
