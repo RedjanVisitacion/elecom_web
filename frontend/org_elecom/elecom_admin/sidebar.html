@@ -1,0 +1,26 @@
+<!-- Static navigation snippet: copy into .sidebar-menu; set active/aria-current and collapse show for the current page. -->
+            <ul class="nav flex-column">
+            <li class="nav-section-label">Overview</li>
+            <li class="nav-item"><a class="nav-link active" href="/static/org_elecom/elecom_admin/admin_dashboard.html" aria-current="page"><i class="bi bi-grid" aria-hidden="true"></i><span>Dashboard</span></a></li>
+            <li class="nav-section-label">Election Operations</li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_elections.html"><i class="bi bi-calendar2-range" aria-hidden="true"></i><span>Election Management</span></a></li>
+            <li class="nav-item">
+            <a class="nav-link" href="#candidatesSubmenu" data-bs-toggle="collapse" role="button" aria-expanded="false" aria-controls="candidatesSubmenu"><i class="bi bi-people" aria-hidden="true"></i><span>Candidates</span><i class="bi bi-chevron-right chevron ms-auto" aria-hidden="true"></i></a>
+            <div class="collapse candidates-submenu" id="candidatesSubmenu">
+            <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates.html"><i class="bi bi-people" aria-hidden="true"></i><span>List Candidates</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_register_candidate.html"><i class="bi bi-person-plus" aria-hidden="true"></i><span>Register Candidate</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_candidates_files.html"><i class="bi bi-folder2-open" aria-hidden="true"></i><span>Candidate Files</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_certificate_of_candidacy.html"><i class="bi bi-file-earmark-pdf" aria-hidden="true"></i><span>Certificate of Candidacy (COC)</span></a></li>
+            </ul>
+            </div>
+            </li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_network_authorize.html"><i class="bi bi-wifi" aria-hidden="true"></i><span>Network Authorization</span></a></li>
+            <li class="nav-section-label">Insights &amp; Reports</li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_results.html"><i class="bi bi-graph-up" aria-hidden="true"></i><span>Election Results</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_reports.html"><i class="bi bi-file-earmark-bar-graph" aria-hidden="true"></i><span>Generate Reports</span></a></li>
+            <li class="nav-section-label">System &amp; Support</li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_transparency.html"><i class="bi bi-shield-check" aria-hidden="true"></i><span>Transparency Logs</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_backup_restore.html"><i class="bi bi-database" aria-hidden="true"></i><span>Backup &amp; Restore</span></a></li>
+            <li class="nav-item"><a class="nav-link" href="/static/org_elecom/elecom_admin/elecom_live_chat.html"><i class="bi bi-chat-dots" aria-hidden="true"></i><span>Live Support Chat</span></a></li>
+            </ul>

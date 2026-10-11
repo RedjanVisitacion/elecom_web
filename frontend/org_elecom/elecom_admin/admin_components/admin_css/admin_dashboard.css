@@ -1205,3 +1205,32 @@ textarea.form-control { min-height: 120px; resize: vertical; }
     transition: none;
   }
 }
+
+/* Grouped admin navigation */
+.sidebar-menu .nav-section-label {
+  margin-top: 12px;
+  padding: 0 22px 6px;
+  font-size: 11px;
+  color: #64748b;
+  letter-spacing: 0.05em;
+  line-height: 1.5;
+}
+.sidebar-menu .nav-link.active {
+  background: #0d1b3e;
+  color: var(--yellow, #f5c518);
+  border-left-color: var(--yellow, #f5c518);
+}
+.sidebar-menu .candidates-submenu .nav-link {
+  margin-left: 24px;
+  padding-left: 18px;
+  font-size: 12px;
+}
+.sidebar-menu .candidates-submenu.collapsing {
+  transition: height 0.25s ease;
+}
+.sidebar-menu .nav-link .chevron { transition: transform 0.25s ease; }
+.sidebar-menu .nav-link:focus-visible { outline: 2px solid var(--yellow); outline-offset: -2px; }
+@media (prefers-reduced-motion: reduce) {
+  .sidebar-menu .candidates-submenu.collapsing,
+  .sidebar-menu .nav-link .chevron { transition: none; }
+}
