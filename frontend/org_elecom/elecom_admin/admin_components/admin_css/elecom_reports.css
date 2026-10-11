@@ -707,3 +707,17 @@ body.reports-page{
     box-shadow:none !important;
   }
 }
+
+#btnGenerateReport {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+  font-weight: 600;
+}
+#btnGenerateReport:hover:not(:disabled), #btnGenerateReport:focus-visible {
+  background: #0369a1;
+  border-color: #0369a1;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, .18);
+}
+#summaryDates { white-space: normal; overflow: visible; overflow-wrap: anywhere; }

@@ -20,8 +20,17 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   });
 
-  const startEl = document.getElementById('repStart');
-  const endEl = document.getElementById('repEnd');
+  const startEl = document.getElementById('report_start_date');
+  const endEl = document.getElementById('report_end_date');
+  if (typeof window.flatpickr === 'function') {
+    window.flatpickr('#report_start_date, #report_end_date', {
+      dateFormat: 'Y-m-d', allowInput: true,
+    });
+  }
+  function setReportDate(input, value) {
+    if (input._flatpickr) input._flatpickr.setDate(value, false, 'Y-m-d');
+    else input.value = value;
+  }
   const clearBtn = document.getElementById('clearDates');
   const applyWinBtn = document.getElementById('applyWindow');
   const reportElectionSelect = document.getElementById('reportElectionSelect');
@@ -178,8 +187,8 @@ document.addEventListener('DOMContentLoaded', function(){
 
   if (clearBtn){
     clearBtn.addEventListener('click', ()=>{
-      startEl.value='';
-      endEl.value='';
+      setReportDate(startEl, '');
+      setReportDate(endEl, '');
       validateDates();
       scheduleSummaryEstimate();
     });
@@ -249,9 +258,10 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!defaultStart && !defaultEnd) return false;
     applyWinBtn.classList.remove('d-none');
     applyWinBtn.onclick = ()=>{
-      if (defaultStart) startEl.value = defaultStart;
-      if (defaultEnd) endEl.value = defaultEnd;
+      setReportDate(startEl, defaultStart);
+      setReportDate(endEl, defaultEnd);
       validateDates();
+      updateSummaryPanel();
       scheduleSummaryEstimate();
     };
     return true;
@@ -1233,7 +1243,7 @@ document.addEventListener('DOMContentLoaded', function(){
     startEl.disabled = isLoading;
     endEl.disabled = isLoading;
     if (reportElectionSelect) reportElectionSelect.disabled = isLoading;
-    const genBtn = document.getElementById('genReportBtn');
+    const genBtn = document.getElementById('btnGenerateReport');
     const prevBtn = document.getElementById('previewBtn');
     genBtn.disabled = isLoading;
     prevBtn.disabled = isLoading;
@@ -1265,7 +1275,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   document.getElementById('previewBtn').addEventListener('click', refreshPreview);
 
-  document.getElementById('genReportBtn').addEventListener('click', async ()=>{
+  document.getElementById('btnGenerateReport').addEventListener('click', async ()=>{
     try{
       const data = await refreshPreview();
       if (!data) return;

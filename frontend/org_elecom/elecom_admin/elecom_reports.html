@@ -17,7 +17,8 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css?v=20260604-pdf-dom-pages">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css?v=20261011-report-dates1">
 </head>
 <body class="theme-elecom reports-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -95,11 +96,11 @@
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label">Start Date</label>
-                <input type="date" class="form-control" id="repStart" value="">
+                <input type="date" class="form-control" id="report_start_date" value="">
               </div>
               <div class="col-12 col-md-6">
                 <label class="form-label">End Date</label>
-                <input type="date" class="form-control" id="repEnd" value="">
+                <input type="date" class="form-control" id="report_end_date" value="">
               </div>
             </div>
             <div class="report-date-actions">
@@ -156,7 +157,7 @@
             </div>
           </div>
           <div class="report-action-row">
-            <button class="btn btn-dark" id="genReportBtn"><i class="bi bi-magic"></i> Generate Report</button>
+            <button class="btn btn-dark" id="btnGenerateReport"><i class="bi bi-file-earmark-arrow-down me-2" aria-hidden="true"></i> Generate Report</button>
             <button class="btn btn-outline-dark" id="previewBtn" type="button"><i class="bi bi-eye"></i> Preview</button>
           </div>
         </div>
@@ -200,6 +201,7 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20260604-readable-txt"></script>
+  <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20261011-report-dates1"></script>
 </body>
 </html>
