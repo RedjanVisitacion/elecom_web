@@ -270,7 +270,7 @@
                             <input class="form-check-input" type="checkbox" id="enableNetworkRestriction" disabled>
                             <label class="form-check-label fw-bold ms-2" for="enableNetworkRestriction">Enforce Restriction</label>
                         </div>
-                        <div style="flex:1;min-width:220px;"><strong>Network Authorization</strong> allows you to restrict voting to users connected to a specific network. When enabled, only users on the same network can submit votes.</div>
+                        <div style="flex:1;min-width:220px;"><strong>Network Authorization</strong> allows you to restrict voting to users connected to a specific network. When enabled, only an exact authorized device or client IP can submit votes.</div>
                     </div>
 
                     <div class="authorized-grid">
@@ -283,7 +283,7 @@
                             <button class="btn btn-outline-dark use-current-ip-btn" id="useCurrentIpBtn" type="button">
                                 Use Current IP
                             </button>
-                            <input class="form-control network-input" id="networkIpInput" type="text" placeholder="Enter IP" autocomplete="off">
+                            <input class="form-control network-input" id="networkIpInput" type="text" placeholder="Enter exact IP address" autocomplete="off">
                             <input class="form-control network-input" id="ssidInput" type="text" placeholder="Enter SSID" autocomplete="off">
                             <button class="btn btn-dark network-add-btn" id="btnAddNetwork" type="button">+ Add Network</button>
                         </div>

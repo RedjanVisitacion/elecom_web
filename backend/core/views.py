@@ -11012,11 +11012,6 @@ def _network_check_ips(request, payload: dict | None = None) -> list[tuple[str, 
     if request_ip and request_ip != primary_ip:
         candidates.append((request_ip, "request"))
 
-    if _is_private_network_ip(primary_ip) or _is_private_network_ip(request_ip):
-        public_ip = _get_server_public_ip()
-        if public_ip and all(public_ip != ip for ip, _ in candidates):
-            candidates.append((public_ip, "server_public"))
-
     return [(ip, source) for ip, source in candidates if ip]
 
 
@@ -11026,23 +11021,14 @@ def _authorized_network_matches(client_ip: str, rows: list[tuple]) -> bool:
     except Exception:
         return False
 
-    client_text = str(client_addr)
-    for network_ip, ip_prefix in rows:
-        network_text = str(network_ip or "").strip()
-        prefix_text = str(ip_prefix or "").strip().rstrip(".")
-
+    # Legacy ip_prefix values must never widen an exact-IP authorization.
+    for network_ip, _ip_prefix in rows:
         try:
-            if "/" in network_text:
-                if client_addr in ipaddress.ip_interface(network_text).network:
-                    return True
-            elif network_text and client_addr == ipaddress.ip_address(network_text):
+            authorized = ipaddress.ip_interface(str(network_ip or "").strip()).ip
+            if client_addr == authorized:
                 return True
-        except Exception:
-            pass
-
-        if isinstance(client_addr, ipaddress.IPv4Address) and prefix_text:
-            if client_text == prefix_text or client_text.startswith(prefix_text + "."):
-                return True
+        except ValueError:
+            continue
 
     return False
 
@@ -11244,12 +11230,14 @@ def admin_network_settings_api(request):
     # Get admin's IP address
     admin_ip = requested_ip or _get_request_ip(request)
 
-    # Calculate allowed prefix (first 3 octets for /24 network)
-    allowed_prefix = (payload.get("ip_prefix") or "").strip() or None
-    if admin_ip and "." in admin_ip:
-        allowed_prefix = allowed_prefix or ".".join(admin_ip.split(".")[:3])
-    elif admin_ip:
-        allowed_prefix = allowed_prefix or admin_ip
+    try:
+        address = ipaddress.ip_interface(admin_ip)
+        if address.network.prefixlen != address.max_prefixlen:
+            return JsonResponse({"ok": False, "error": "Enter one exact IP address, not a subnet."}, status=400)
+        admin_ip = str(address.ip)
+    except ValueError:
+        return JsonResponse({"ok": False, "error": "Enter a valid IPv4 or IPv6 address."}, status=400)
+    allowed_prefix = None
 
     try:
         with connection.cursor() as cur:
