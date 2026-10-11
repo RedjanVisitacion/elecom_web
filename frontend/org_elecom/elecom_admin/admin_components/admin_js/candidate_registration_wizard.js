@@ -86,33 +86,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const addMembership = document.getElementById('addMembershipBtn');
   const removeMembership = document.getElementById('removeMembershipBtn');
   let membershipCount = 1;
-  const syncMembershipOrganization = row => {
-    const select = row.querySelector('.membership-org-select');
-    const other = row.querySelector('.membership-org-other');
-    const value = row.querySelector('.membership-org-value');
-    const isOther = select.value === 'Others';
-    other.hidden = !isOther;
-    other.disabled = row.hidden || !isOther;
-    other.required = !row.hidden && isOther;
-    value.value = isOther ? other.value.trim() : select.value === 'None' ? '' : select.value;
-  };
-  membershipRows.forEach(row => {
-    const select = row.querySelector('.membership-org-select');
-    const other = row.querySelector('.membership-org-other');
-    select.addEventListener('change', () => {
-      other.value = '';
-      row.querySelector('input[name$="_position"]').value = '';
-      if (select.value === 'None') row.querySelector('input[name$="_years"]').value = '';
-      syncMembershipOrganization(row);
-      if (select.value === 'Others') other.focus();
-    });
-    other.addEventListener('input', () => syncMembershipOrganization(row));
-  });
   const updateMemberships = () => {
     membershipRows.forEach((row, index) => {
       row.hidden = index >= membershipCount;
       row.querySelectorAll('input,select').forEach(input => { input.disabled = row.hidden; });
-      syncMembershipOrganization(row);
+      window.CandidateMemberships.sync(row);
     });
     addMembership.disabled = membershipCount >= membershipRows.length;
     removeMembership.hidden = membershipCount <= 1;
@@ -126,12 +104,12 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   removeMembership.addEventListener('click', () => {
     if (membershipCount <= 1) return;
-    membershipRows[membershipCount - 1].querySelectorAll('input,select').forEach(input => { input.value = ''; });
+    window.CandidateMemberships.clear(membershipRows[membershipCount - 1]);
     membershipCount--;
     updateMemberships();
     addMembership.focus();
   });
-  form.addEventListener('reset', () => queueMicrotask(() => { membershipCount = 1; updateMemberships(); }));
+  form.addEventListener('reset', () => queueMicrotask(() => { membershipCount = 1; membershipRows.forEach(row => window.CandidateMemberships.clear(row)); updateMemberships(); }));
   updateMemberships();
   window.CandidateRegistrationWizard = { validateAll };
   show(0);
