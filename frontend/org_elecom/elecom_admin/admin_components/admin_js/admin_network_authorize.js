@@ -279,6 +279,7 @@ async function loadAccessLogs(silent = false) {
     const changed = JSON.stringify(accessLogs) !== JSON.stringify(nextLogs);
     accessLogs = nextLogs;
     if (!logsLoaded || changed) renderAccessLogs();
+    if (logsLoaded && changed) showNotification('Recent network access attempts have been updated.', 'info');
     logsLoaded = true;
   } catch (error) {
     // Retain the last successful rows; background failures retry next interval.
@@ -357,21 +358,16 @@ function escapeHtml(value) {
 }
 
 function showNotification(message, type = "info") {
-  let container = document.getElementById("notification-container");
-  if (!container) {
-    container = document.createElement("div");
-    container.id = "notification-container";
-    container.style.cssText = "position: fixed; top: 20px; right: 20px; z-index: 9999;";
-    document.body.appendChild(container);
-  }
-
-  const toast = document.createElement("div");
-  toast.className = `alert alert-${type === "success" ? "success" : type === "error" ? "danger" : "info"} alert-dismissible fade show`;
-  toast.innerHTML = `
-    ${escapeHtml(message)}
-    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-  `;
-
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 5000);
+  const element = document.getElementById('networkToast');
+  const error = type === 'error';
+  // Keep an actionable error visible when background polling detects new logs.
+  if (type === 'info' && element.classList.contains('show') && element.dataset.type === 'error') return;
+  element.dataset.type = type;
+  document.getElementById('networkToastTitle').textContent = error ? 'Please check Network Authorization' : type === 'success' ? 'Network settings updated' : 'Network access logs updated';
+  document.getElementById('networkToastBody').textContent = String(message || '');
+  document.getElementById('networkToastIcon').className = `bi ${error ? 'bi-exclamation-circle-fill text-danger' : type === 'success' ? 'bi-check-circle-fill text-success' : 'bi-info-circle-fill text-primary'} me-2`;
+  element.setAttribute('role', error ? 'alert' : 'status');
+  element.setAttribute('aria-live', error ? 'assertive' : 'polite');
+  bootstrap.Toast.getInstance(element)?.dispose();
+  new bootstrap.Toast(element, { autohide: !error, delay: 6000 }).show();
 }
