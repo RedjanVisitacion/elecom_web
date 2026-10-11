@@ -143,6 +143,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     const partyName = document.getElementById("party_name");
     if (partyName) partyName.required = !!isParty;
+    window.AdminCandidatePartyPicker?.sync();
   };
   document.querySelectorAll('input[name="candidate_type"]').forEach((r) => r.addEventListener("change", updateParty));
   updateParty();

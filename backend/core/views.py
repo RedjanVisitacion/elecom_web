@@ -8483,6 +8483,38 @@ def admin_candidates_update_api(request):
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
 
+@require_http_methods(["GET"])
+def admin_candidate_parties_api(request):
+    forbidden = _require_admin(request)
+    if forbidden:
+        return forbidden
+    _ensure_candidate_applications_table()
+    _ensure_election_scoped_tables()
+    election_id = _active_election_id()
+    with connection.cursor() as cur:
+        cur.execute("""SELECT DISTINCT party_name FROM (
+            SELECT TRIM(party_name) AS party_name FROM candidates_registration
+            WHERE COALESCE(election_id,0)=COALESCE(%s,0)
+            UNION SELECT TRIM(party_name) FROM candidate_applications
+            WHERE COALESCE(election_id,0)=COALESCE(%s,0)
+        ) parties WHERE COALESCE(party_name,'')<>'' AND LOWER(party_name)<>'independent'
+        ORDER BY party_name""", [election_id,election_id])
+        names = [row[0] for row in cur.fetchall()]
+        seen = set()
+        parties = []
+        for name in names:
+            key = party_key(name)
+            if key in seen:
+                continue
+            seen.add(key)
+            rows = party_rows(cur,election_id,name)
+            canonical_name = rows[0][0] if rows else name
+            parties.append({'name': canonical_name, 'logo_url': canonical_logo(cur,election_id,name)})
+    response = JsonResponse({'ok': True, 'parties': parties})
+    response['Cache-Control'] = 'private, no-store'
+    return response
+
+
 @csrf_exempt
 @require_http_methods(["POST"])
 def admin_candidate_coc_preview_api(request):
