@@ -1,5 +1,9 @@
 const API_BASE_URL = "/api";
 let detectedRequestIp = "";
+let restrictionEnabled = false;
+let accessLogs = [];
+let logPage = 1;
+const LOG_PAGE_SIZE = 10;
 
 function initNetworkAuthorizePage() {
   initSidebar();
@@ -44,7 +48,11 @@ function initSidebar() {
 }
 
 function setupEventListeners() {
-  const addBtn = document.getElementById("addNetworkBtn");
+  document.getElementById("enableNetworkRestriction")?.addEventListener("change", updateRestriction);
+  document.getElementById("logSearchInput")?.addEventListener("input", () => { logPage = 1; renderAccessLogs(); });
+  document.getElementById("logPrevious")?.addEventListener("click", () => { logPage--; renderAccessLogs(); });
+  document.getElementById("logNext")?.addEventListener("click", () => { logPage++; renderAccessLogs(); });
+  const addBtn = document.getElementById("btnAddNetwork");
   if (addBtn) {
     addBtn.addEventListener("click", addNetwork);
   } else {
@@ -77,6 +85,9 @@ async function loadNetworkSettings() {
       throw new Error(data.error || "Failed to load network settings");
     }
 
+    restrictionEnabled = data.enabled === true;
+    const toggle = document.getElementById("enableNetworkRestriction");
+    toggle.checked = restrictionEnabled; toggle.disabled = false;
     detectedRequestIp = data.current_ip || data.request_ip || "";
     renderDetectedRequestIp(detectedRequestIp);
     renderAuthorizedNetworks(data.networks || []);
@@ -88,10 +99,32 @@ async function loadNetworkSettings() {
   }
 }
 
+async function updateRestriction() {
+  const toggle = document.getElementById("enableNetworkRestriction");
+  const enabled = toggle.checked;
+  toggle.disabled = true;
+  document.getElementById("btnAddNetwork").disabled = true;
+  try {
+    const response = await fetch(`${API_BASE_URL}/admin/network-settings/`, {
+      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'set_enabled', enabled }),
+    });
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok || !data.ok) throw new Error(data.error || 'Unable to update network restriction.');
+    restrictionEnabled = data.enabled === true;
+    toggle.checked = restrictionEnabled;
+    showNotification(restrictionEnabled ? 'Network restriction enabled.' : 'Network restriction disabled.', 'success');
+    await loadNetworkSettings();
+  } catch (error) {
+    toggle.checked = restrictionEnabled;
+    showNotification(error.message, 'error');
+  } finally { toggle.disabled = false; document.getElementById("btnAddNetwork").disabled = false; }
+}
+
 async function addNetwork() {
   const ipInput = document.getElementById("networkIpInput");
   const ssidInput = document.getElementById("ssidInput");
-  const addBtn = document.getElementById("addNetworkBtn");
+  const addBtn = document.getElementById("btnAddNetwork");
   const networkIp = (ipInput?.value || "").trim();
   const ssid = (ssidInput?.value || "").trim();
 
@@ -131,7 +164,7 @@ async function addNetwork() {
     showNotification(error.message || "Error adding network", "error");
   } finally {
     addBtn.disabled = false;
-    addBtn.textContent = "Add";
+    addBtn.textContent = "+ Add Network";
   }
 }
 
@@ -213,21 +246,33 @@ async function loadAccessLogs() {
 
     const data = await response.json().catch(() => ({}));
     if (response.ok && data.ok) {
-      renderAccessLogs(data.logs || []);
+      accessLogs = data.logs || [];
+      renderAccessLogs();
+    } else {
+      throw new Error(data.error || "Failed to load network access logs.");
     }
   } catch (error) {
-    console.error("Error loading access logs:", error);
+    showNotification(error.message || "Failed to load network access logs.", "error");
   }
 }
 
-function renderAccessLogs(logs) {
+function renderAccessLogs() {
+  const query = document.getElementById("logSearchInput").value.trim().toLowerCase();
+  const filtered = accessLogs.filter(log => String(log.student_id || "").toLowerCase().includes(query) || String(log.ip_address || "").toLowerCase().includes(query));
+  const pages = Math.max(1, Math.ceil(filtered.length / LOG_PAGE_SIZE));
+  logPage = Math.max(1, Math.min(logPage, pages));
+  const start = (logPage - 1) * LOG_PAGE_SIZE;
+  const logs = filtered.slice(start, start + LOG_PAGE_SIZE);
+  document.getElementById("logPrevious").disabled = logPage <= 1;
+  document.getElementById("logNext").disabled = logPage >= pages;
+  document.getElementById("logPageStatus").textContent = filtered.length ? `${start + 1}-${Math.min(start + LOG_PAGE_SIZE, filtered.length)} of ${filtered.length} attempts (page ${logPage} of ${pages})` : '0 attempts';
   const tbody = document.getElementById("accessLogsBody");
   if (!tbody) return;
 
   if (!logs || logs.length === 0) {
     tbody.innerHTML = `
       <tr>
-        <td colspan="4" class="text-center text-muted py-4">No access attempts recorded</td>
+        <td colspan="4" class="text-center text-muted py-4">${query ? "No matching access attempts" : "No access attempts recorded"}</td>
       </tr>
     `;
     return;

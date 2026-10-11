@@ -11170,7 +11170,7 @@ def admin_network_settings_api(request):
                 row = cur.fetchone()
 
                 if row:
-                    enabled = (row[3] or "").lower() == "active"
+                    enabled = any((network["status"] or "").lower() == "active" for network in networks)
                     return JsonResponse({
                         "ok": True,
                         "enabled": enabled,
@@ -11219,6 +11219,24 @@ def admin_network_settings_api(request):
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except Exception:
         payload = {}
+
+    if payload.get("action") == "set_enabled":
+        if not isinstance(payload.get("enabled"), bool):
+            return JsonResponse({"ok": False, "error": "Enabled must be a boolean."}, status=400)
+        enabled = payload["enabled"]
+        try:
+            with transaction.atomic(), connection.cursor() as cur:
+                _ensure_network_authorization_tables(cur)
+                cur.execute("SELECT COUNT(*) FROM authorized_networks")
+                if enabled and not cur.fetchone()[0]:
+                    return JsonResponse({"ok": False, "error": "Add an authorized network before enabling restriction."}, status=400)
+                cur.execute(
+                    "UPDATE authorized_networks SET status = %s, updated_at = CURRENT_TIMESTAMP",
+                    ["Active" if enabled else "Disabled"],
+                )
+            return JsonResponse({"ok": True, "enabled": enabled})
+        except Exception as e:
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
     enabled = bool(payload.get("enabled", False))
     requested_ip = (payload.get("network_ip") or "").strip()
