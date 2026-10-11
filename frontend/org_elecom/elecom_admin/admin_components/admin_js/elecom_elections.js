@@ -1,4 +1,34 @@
 document.addEventListener('DOMContentLoaded', function(){
+  const schedulePickers = new Map();
+  for (const id of ['electionStart', 'electionEnd', 'electionResults']) {
+    const input = document.getElementById(id);
+    if (!input) continue;
+    if (window.flatpickr) {
+      const picker = window.flatpickr(input, {
+        enableTime: true, dateFormat: 'Y-m-d H:i',
+        altInput: true, altFormat: 'Y-m-d h:i K',
+        static: false, appendTo: document.body, disableMobile: true,
+        minuteIncrement: 1,
+      });
+      // Keep labels associated with the visible input rather than the hidden value.
+      picker.altInput.id = `${id}Display`;
+      document.querySelector(`label[for="${id}"]`)?.setAttribute('for', picker.altInput.id);
+      schedulePickers.set(id, picker);
+    } else {
+      input.placeholder = 'YYYY-MM-DD HH:mm';
+    }
+  }
+  const setScheduleValue = (id, value) => {
+    const normalized = (value || '').replace('T', ' ');
+    const picker = schedulePickers.get(id);
+    if (picker) picker.setDate(normalized, false, 'Y-m-d H:i');
+    else document.getElementById(id).value = normalized;
+  };
+  const scheduleValue = (id) => (document.getElementById(id)?.value || '').replace(' ', 'T');
+  document.getElementById('newElectionForm')?.addEventListener('reset', () => {
+    schedulePickers.forEach((picker) => picker.clear());
+  });
+
   const menuToggle = document.getElementById('menuToggle');
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -162,15 +192,15 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       syEl.value = syVal;
     }
-    document.getElementById('electionStart').value = election.start_at_local || '';
-    document.getElementById('electionEnd').value = election.end_at_local || '';
-    document.getElementById('electionResults').value = election.results_at_local || '';
+    setScheduleValue('electionStart', election.start_at_local);
+    setScheduleValue('electionEnd', election.end_at_local);
+    setScheduleValue('electionResults', election.results_at_local);
     const noteEl = document.getElementById('electionNote');
     if (noteEl) noteEl.value = election.note || '';
     document.getElementById('electionPassword').value = '';
     setFormMode(election);
     selectElectionView('form');
-    document.getElementById('electionStart')?.focus({ preventScroll: true });
+    (schedulePickers.get('electionStart')?.altInput || document.getElementById('electionStart'))?.focus({ preventScroll: true });
   }
 
   function rowHtml(election) {
@@ -183,7 +213,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const reportsUrl = `/elections/${encodeURIComponent(election.id)}/reports/`;
     const resultsUrl = `/elections/${encodeURIComponent(election.id)}/results/`;
     return `
-      <article class="election-row">
+      <article class="election-row${primaryStatus.className === 'active' ? ' active-election-card' : ''}">
         <div>
           <div class="election-title">
             <h3>${escapeHtml(election.name || `Election #${election.id}`)}</h3>
@@ -267,9 +297,9 @@ document.addEventListener('DOMContentLoaded', function(){
         election_id: isEditing ? editingElectionId.value : '',
         name: document.getElementById('electionName')?.value || '',
         school_year: document.getElementById('schoolYear')?.value || '',
-        start_at: document.getElementById('electionStart')?.value || '',
-        end_at: document.getElementById('electionEnd')?.value || '',
-        results_at: document.getElementById('electionResults')?.value || '',
+        start_at: scheduleValue('electionStart'),
+        end_at: scheduleValue('electionEnd'),
+        results_at: scheduleValue('electionResults'),
         note: document.getElementById('electionNote')?.value || '',
         admin_password: document.getElementById('electionPassword')?.value || '',
       };

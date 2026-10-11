@@ -404,3 +404,15 @@ html.election-viewport { --election-header-height: var(--topbar-height, 70px); }
   .election-info-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .election-actions .btn { width: auto; }
 }
+
+.election-form-actions .election-primary-cta {
+  background: #0d1b3e; border: 1px solid #0d1b3e; color: #fff;
+  font-weight: 600; letter-spacing: .02em;
+  transition: background-color .18s, box-shadow .18s;
+}
+.election-form-actions .election-primary-cta:hover:not(:disabled),
+.election-form-actions .election-primary-cta:focus-visible {
+  background: #172b53; border-color: #172b53; color: #fff;
+  box-shadow: 0 0 0 3px rgba(13,27,62,.14);
+}
+.election-row.active-election-card { border-top: 4px solid #22c55e; }
