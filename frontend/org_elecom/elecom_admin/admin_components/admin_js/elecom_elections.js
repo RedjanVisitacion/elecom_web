@@ -137,8 +137,8 @@ document.addEventListener('DOMContentLoaded', function(){
   const schoolYearMenu = document.getElementById('schoolYearMenu');
   let schoolYearChanged = false;
   const currentYear = new Date().getFullYear();
-  const fallbackYear = new Date().getMonth() >= 5 ? currentYear : currentYear - 1;
-  for (let year = currentYear - 2; year <= currentYear + 5; year++) {
+  const fallbackYear = currentYear;
+  for (let year = currentYear; year <= currentYear + 5; year++) {
     schoolYear.add(new Option(`${year}-${year + 1}`, `${year}-${year + 1}`, year === fallbackYear, year === fallbackYear));
   }
   const syncSchoolYear = () => { schoolYearToggle.textContent = schoolYear.value || 'Select school year'; };
