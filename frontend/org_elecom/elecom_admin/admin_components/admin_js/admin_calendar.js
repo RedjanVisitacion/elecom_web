@@ -317,7 +317,11 @@
       }
       if (match) match.checked = true;
     }
-    modal.show();
+    const management = document.getElementById("activitiesManagementModal");
+    if (management?.classList.contains("show")) {
+      management.addEventListener("hidden.bs.modal", () => modal.show(), { once: true });
+      window.bootstrap.Modal.getInstance(management).hide();
+    } else modal.show();
     setTimeout(() => { if (typeSelect) typeSelect.focus(); }, 400);
   };
 
@@ -462,6 +466,8 @@
   /* ── Bootstrap modal clear on hide ───────────────────────────────────── */
   if (modalEl) {
     modalEl.addEventListener("hidden.bs.modal", () => {
+      const management = document.getElementById("activitiesManagementModal");
+      if (management && window.bootstrap) window.bootstrap.Modal.getOrCreateInstance(management).show();
       showModalError("");
     });
   }

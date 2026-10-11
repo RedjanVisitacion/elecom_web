@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import MagicMock, Mock
 
 from core.dashboard_turnout import load_dashboard_turnout
+from core.dashboard_activity import load_dashboard_activity
 
 
 class DashboardTurnoutTests(unittest.TestCase):
@@ -70,6 +71,7 @@ class DashboardTurnoutTests(unittest.TestCase):
             "_current_vote_filter": lambda alias="": (f"{alias + '.' if alias else ''}election_id = %s", [7]),
             "timezone": SimpleNamespace(now=lambda: self.now),
             "load_dashboard_turnout": load_dashboard_turnout,
+            "load_dashboard_activity": load_dashboard_activity,
             "JsonResponse": Response, "logger": Mock(),
         }
         self.cursor.fetchone.side_effect = [(35,), (1647,), (2,), None]
@@ -79,7 +81,7 @@ class DashboardTurnoutTests(unittest.TestCase):
     def test_api_exports_only_aggregate_activity(self):
         response = self.api()
         self.assertTrue(response.data["ok"])
-        self.assertEqual(set(response.data), {"ok", "metrics", "election", "turnout"})
+        self.assertEqual(set(response.data), {"ok", "metrics", "election", "turnout", "activity"})
         self.assertEqual(response["Cache-Control"], "no-store")
         self.assertEqual(response.data["metrics"]["total_cast_votes"], 2)
         for token in ("student_id", "first_name", "last_name", "voted_at", "vote_items"):

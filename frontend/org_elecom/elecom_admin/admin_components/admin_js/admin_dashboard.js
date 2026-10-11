@@ -488,6 +488,14 @@ document.addEventListener("DOMContentLoaded", function () {
       }
       const diffSec = Math.max(0, Math.floor((target - now) / 1000));
       setCountdown(diffSec);
+      if (electionHelperText && now >= start.getTime() && now < end.getTime()) {
+        const days = Math.floor(diffSec / 86400);
+        const hours = Math.floor(diffSec % 86400 / 3600);
+        const minutes = Math.floor(diffSec % 3600 / 60);
+        electionHelperText.textContent = `General Election is currently active. Polls close in ${pad2(days)}d ${pad2(hours)}h ${pad2(minutes)}m.`;
+      } else if (electionHelperText && now >= end.getTime()) {
+        electionHelperText.textContent = "General Election is closed. Polls have ended.";
+      }
     };
 
     tick();
@@ -500,44 +508,6 @@ document.addEventListener("DOMContentLoaded", function () {
     return num.toLocaleString();
   };
 
-  const mountainMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
-  let mountainFrame = null;
-  let mountainWidth = 0;
-  let mountainTarget = 0;
-  const finishMountainAnimation = () => {
-    if (mountainFrame !== null) cancelAnimationFrame(mountainFrame);
-    mountainFrame = null;
-    mountainWidth = mountainTarget;
-    document.getElementById("turnoutProgressFill")?.setAttribute("width", String(mountainWidth));
-  };
-  const animateMountainProgress = (target) => {
-    mountainTarget = target;
-    if (mountainMotion.matches || document.hidden) {
-      finishMountainAnimation();
-      return;
-    }
-    if (mountainFrame !== null) cancelAnimationFrame(mountainFrame);
-    mountainFrame = null;
-    if (mountainWidth === target) return;
-    const from = mountainWidth;
-    const started = performance.now();
-    const step = (now) => {
-      const fraction = Math.min(1, Math.max(0, (now - started) / 800));
-      // Match Flutter's 800ms easeOutCubic tween; resume from the visible fill.
-      mountainWidth = from + (target - from) * (1 - Math.pow(1 - fraction, 3));
-      document.getElementById("turnoutProgressFill")?.setAttribute("width", String(mountainWidth));
-      mountainFrame = fraction < 1 ? requestAnimationFrame(step) : null;
-    };
-    mountainFrame = requestAnimationFrame(step);
-  };
-  mountainMotion.addEventListener("change", () => {
-    if (mountainMotion.matches) finishMountainAnimation();
-  });
-  document.addEventListener("visibilitychange", () => {
-    document.getElementById("turnoutProgress")?.classList.toggle("mountain-paused", document.hidden);
-    if (document.hidden) finishMountainAnimation();
-  });
-
   const renderTurnout = (metrics) => {
     const total = Math.max(0, Number(metrics.total_voters) || 0);
     const cast = Math.max(0, Number(metrics.total_cast_votes) || 0);
@@ -547,7 +517,7 @@ document.addEventListener("DOMContentLoaded", function () {
     const progress = document.getElementById("turnoutProgress");
     progress?.setAttribute("aria-valuenow", percent.toFixed(1));
     progress?.setAttribute("aria-valuetext", `${percent.toFixed(1)} percent turnout; ${fmt(cast)} voted out of ${fmt(total)} total voters`);
-    animateMountainProgress(percent * 10);
+
   };
 
   let dashboardLoading = false;
@@ -576,9 +546,11 @@ document.addEventListener("DOMContentLoaded", function () {
       setElectionScheduleDetails(e);
       startCountdown({ start_at: e.start_at, end_at: e.end_at });
       renderTurnout(m);
+      window.dispatchEvent(new CustomEvent("elecom:dashboard", { detail: data }));
       const status = document.getElementById("turnoutChartStatus");
       if (status) status.hidden = true;
     } catch (e) {
+      window.dispatchEvent(new Event("elecom:dashboard-error"));
       const status = document.getElementById("turnoutChartStatus");
       if (status) {
         status.textContent = "Refresh unavailable. Previously loaded totals may be out of date.";
@@ -600,7 +572,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   void loadDashboard();
-  setInterval(loadDashboard, 15000);
+  setInterval(loadDashboard, 5000);
   document.addEventListener("visibilitychange", () => { if (!document.hidden) void loadDashboard(); });
 
   const input = document.getElementById("candidateSearch");

@@ -50,6 +50,7 @@ from elecom_voting.models import (
 
 from .names import identity_row, normalize_middle_name
 from .dashboard_turnout import load_dashboard_turnout
+from .dashboard_activity import load_dashboard_activity
 
 from . import facepp_service
 from . import local_face_service
@@ -2007,6 +2008,8 @@ def admin_dashboard_api(request):
     except Exception:
         logger.exception("Failed to load aggregate dashboard turnout")
 
+    activity = load_dashboard_activity(connection, (turnout or {}).get("activity", []))
+
     response = JsonResponse(
         {
             "ok": True,
@@ -2018,6 +2021,7 @@ def admin_dashboard_api(request):
             },
             "election": election,
             "turnout": turnout,
+            "activity": activity,
         }
     )
 
