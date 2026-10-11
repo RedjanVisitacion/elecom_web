@@ -313,7 +313,7 @@ def _serve_admin_static_page(request, page: str):
         return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
 
     html = _normalize_admin_html(page_path.read_text(encoding="utf-8"))
-    return HttpResponse(html, content_type="text/html")
+    return HttpResponse(html, content_type="text/html; charset=utf-8")
 
 
 @require_http_methods(["GET"])
@@ -4898,7 +4898,7 @@ def admin_secure_page_view(request, token):
     except Exception:
         return HttpResponse(
             '<script>window.location.href="/static/org_elecom/elecom_admin/admin_dashboard.html";</script>',
-            content_type="text/html",
+            content_type="text/html; charset=utf-8",
             status=403,
         )
 
@@ -4909,7 +4909,7 @@ def admin_secure_page_view(request, token):
     ):
         return HttpResponse(
             '<script>window.location.href="/static/org_elecom/elecom_admin/admin_dashboard.html";</script>',
-            content_type="text/html",
+            content_type="text/html; charset=utf-8",
             status=403,
         )
 
@@ -4926,7 +4926,7 @@ def admin_secure_page_view(request, token):
         return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
 
     html = _normalize_admin_html(page_path.read_text(encoding="utf-8"))
-    return HttpResponse(html, content_type="text/html")
+    return HttpResponse(html, content_type="text/html; charset=utf-8")
 
 
 @csrf_exempt
@@ -5027,7 +5027,7 @@ def student_secure_page_view(request, token):
     except Exception:
         return HttpResponse(
             '<script>window.location.href="/static/org_elecom/elecom_user/user_dashboard.html";</script>',
-            content_type="text/html",
+            content_type="text/html; charset=utf-8",
             status=403,
         )
 
@@ -5038,7 +5038,7 @@ def student_secure_page_view(request, token):
     ):
         return HttpResponse(
             '<script>window.location.href="/static/org_elecom/elecom_user/user_dashboard.html";</script>',
-            content_type="text/html",
+            content_type="text/html; charset=utf-8",
             status=403,
         )
 
@@ -5050,7 +5050,7 @@ def student_secure_page_view(request, token):
         return JsonResponse({"ok": False, "error": "Page not found."}, status=404)
 
     html = page_path.read_text(encoding="utf-8")
-    return HttpResponse(html, content_type="text/html")
+    return HttpResponse(html, content_type="text/html; charset=utf-8")
 
 
 @csrf_exempt

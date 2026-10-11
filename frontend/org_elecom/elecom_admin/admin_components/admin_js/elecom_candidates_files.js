@@ -183,8 +183,8 @@
     if (!candidate) return;
     clearPreview();
     const controller = new AbortController(); previewRequest = controller;
-    document.getElementById('candidatePreviewTitle').textContent = `${label} ? ${name(candidate)}`;
-    const message = document.createElement('p'); message.className = 'preview-message'; message.setAttribute('role', 'status'); message.textContent = 'Loading file?';
+    document.getElementById('candidatePreviewTitle').textContent = `${label} - ${name(candidate)}`;
+    const message = document.createElement('p'); message.className = 'preview-message'; message.setAttribute('role', 'status'); message.textContent = 'Loading file...';
     previewBody.append(message); previewModal.show();
     const params = new URLSearchParams({ id: candidate.id, source: candidate.source, election_id: candidate.election_id || '', kind });
     try {
@@ -248,7 +248,7 @@
     form.set('election_id', operation.target.election_id || ''); form.set('kind', operation.kind);
     form.set('action', operation.deleting ? 'delete' : 'upload');
     if (!operation.deleting) form.set(operation.kind, file);
-    saving = true; confirm.disabled = true; confirm.textContent = operation.deleting ? 'Deleting?' : 'Uploading?';
+    saving = true; confirm.disabled = true; confirm.textContent = operation.deleting ? 'Deleting...' : 'Uploading...';
     try {
       const response = await fetch('/api/admin/candidates/document/', { method: 'POST', credentials: 'same-origin', headers: { 'X-CSRFToken': csrfToken }, body: form });
       const contentType = response.headers.get('content-type') || '';
