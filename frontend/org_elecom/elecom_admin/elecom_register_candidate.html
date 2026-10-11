@@ -29,6 +29,22 @@
 .candidate-upload-zone:hover, .candidate-upload-zone:focus-within, .candidate-upload-zone.is-dragging { border-color:#0284c7; background:#f0f9ff; }
 .candidate-upload-zone input[type="file"] { position:absolute; inset:0; width:100%; height:100%; opacity:0; cursor:pointer; }
 .candidate-upload-zone .upload-filename { max-width:100%; overflow-wrap:anywhere; color:#64748b; font-size:13px; }
+
+#registerCandidateForm [hidden] { display:none !important; }
+.candidate-stepper { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; list-style:none; margin:0 0 16px; padding:0; }
+.wizard-step-control { display:flex; align-items:center; gap:8px; width:100%; padding:10px 8px; border:1px solid #e2e8f0; border-radius:8px; background:#f8fafc; color:#64748b; font-size:13px; text-align:left; }
+.wizard-step-number { display:grid; place-items:center; flex:0 0 26px; height:26px; border-radius:50%; background:#e2e8f0; font-weight:600; }
+.wizard-step-control[aria-current="step"] { border-color:#0284c7; background:#f0f9ff; color:#0369a1; font-weight:600; }
+.wizard-step-control[aria-current="step"] .wizard-step-number { background:#0284c7; color:white; }
+.wizard-step-control.is-complete .wizard-step-number { background:#dcfce7; color:#15803d; }
+.wizard-step-control:focus-visible { outline:2px solid #0284c7; outline-offset:2px; }
+.wizard-step-control:disabled { cursor:default; opacity:.65; }
+.candidate-wizard-actions { display:flex; justify-content:flex-end; gap:10px; margin-top:18px; padding-top:12px; border-top:1px solid #e2e8f0; }
+#registerCandidateForm .wizard-step .row { --bs-gutter-y:10px; }
+#registerCandidateForm .wizard-step .form-label { margin-bottom:4px; }
+#registerCandidateForm #wizardNextBtn { background:#0284c7; border-color:#0284c7; color:white; font-weight:600; }
+#registerCandidateForm #wizardNextBtn:hover { background:#0369a1; border-color:#0369a1; }
+@media(max-width:767px) { .candidate-stepper { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         .reg-collapse-chevron { transition: transform .2s ease; }
         [aria-expanded="false"] .reg-collapse-chevron { transform: rotate(-180deg); }
     </style>
@@ -205,22 +221,14 @@
                     </button>
                     <div class="collapse" id="registerCandidateCollapse">
                         <div class="px-3 pb-3">
-                <form id="registerCandidateForm" method="post" enctype="multipart/form-data">
-                    <div class="row g-3">
-                    <div class="col-12">
-                        <label class="form-label">Candidate Type</label>
-                        <div class="d-flex gap-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="candidate_type" id="type_ind" value="Independent">
-                                <label class="form-check-label" for="type_ind">Independent</label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="candidate_type" id="type_party" value="Political Party" checked>
-                                <label class="form-check-label" for="type_party">Political Party</label>
-                            </div>
-                        </div>
-                    </div>
-
+                <form id="registerCandidateForm" method="post" enctype="multipart/form-data" novalidate>
+<nav aria-label="Registration progress"><ol class="candidate-stepper">
+<li><button type="button" class="wizard-step-control" data-wizard-target="0" aria-controls="candidateWizardStep1" aria-current="step"><span class="wizard-step-number">1</span><span>Candidate Info</span></button></li>
+<li><button type="button" class="wizard-step-control" data-wizard-target="1" aria-controls="candidateWizardStep2" disabled><span class="wizard-step-number">2</span><span>Media & Party</span></button></li>
+<li><button type="button" class="wizard-step-control" data-wizard-target="2" aria-controls="candidateWizardStep3" disabled><span class="wizard-step-number">3</span><span>COC Details</span></button></li>
+<li><button type="button" class="wizard-step-control" data-wizard-target="3" aria-controls="candidateWizardStep4" disabled><span class="wizard-step-number">4</span><span>Signature & Review</span></button></li>
+</ol></nav><p id="wizardStepStatus" class="visually-hidden" aria-live="polite">Step 1 of 4: Candidate Info</p>
+<section class="wizard-step active" id="candidateWizardStep1" aria-label="Candidate Info"><h6 class="visually-hidden" tabindex="-1">Candidate Info</h6><div class="row g-3">
                     <div class="col-12">
                         <label class="form-label" for="studentLookup">Find student by name or Student ID</label>
                         <input id="studentLookup" class="form-control" type="search" autocomplete="off" placeholder="Type at least two characters">
@@ -287,7 +295,23 @@
                     </div>
                     <div class="col-12">
                         <label class="form-label">Platform</label>
-                        <textarea name="platform" class="form-control" rows="3" required></textarea>
+                        <textarea name="platform" class="form-control" rows="2" required></textarea>
+                    </div>
+
+</div></section>
+<section class="wizard-step" id="candidateWizardStep2" aria-label="Media & Party" hidden><h6 class="visually-hidden" tabindex="-1">Media & Party</h6><div class="row g-3">
+                    <div class="col-12">
+                        <label class="form-label">Candidate Type</label>
+                        <div class="d-flex gap-3">
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="candidate_type" id="type_ind" value="Independent">
+                                <label class="form-check-label" for="type_ind">Independent</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="candidate_type" id="type_party" value="Political Party" checked>
+                                <label class="form-check-label" for="type_party">Political Party</label>
+                            </div>
+                        </div>
                     </div>
 
                     <div class="col-12"><hr class="my-2"></div>
@@ -318,7 +342,9 @@
                         </label>
                     </div>
 
-                    <div class="col-12"><hr><h6>Certificate of Candidacy</h6><p class="form-text">Complete the candidate details and signature, then preview the COC. Registration publishes the candidate directly.</p></div>
+                    </div></section>
+<section class="wizard-step" id="candidateWizardStep3" aria-label="COC Details" hidden><h6 class="visually-hidden" tabindex="-1">COC Details</h6><div class="row g-3">
+<div class="col-12"><h6>Certificate of Candidacy</h6><p class="form-text">Complete the candidate details and signature, then preview the COC. Registration publishes the candidate directly.</p></div>
 <div class="col-md-6"><label class="form-label" for="coc_curriculum_program">Curriculum program</label><input id="coc_curriculum_program" name="curriculum_program" type="text" class="form-control" required></div>
 <div class="col-md-6"><label class="form-label" for="coc_major">Major (optional)</label><input id="coc_major" name="major" type="text" class="form-control"></div>
 <div class="col-md-6"><label class="form-label" for="coc_gender">Gender</label><input id="coc_gender" name="gender" type="text" class="form-control" required></div>
@@ -327,13 +353,17 @@
 <div class="col-md-6"><label class="form-label" for="coc_email">Email</label><input id="coc_email" name="email" type="email" class="form-control" required></div>
 <div class="col-md-6"><label class="form-label" for="coc_address">Address</label><input id="coc_address" name="address" type="text" class="form-control" required></div>
 <div class="col-12"><details><summary>Optional organization memberships (up to three)</summary><div class="row g-2 mt-1"><div class="col-md-4"><label class="form-label" for="affiliation_0_organization">Organization 1</label><input class="form-control" id="affiliation_0_organization" name="affiliation_0_organization"></div><div class="col-md-4"><label class="form-label" for="affiliation_0_years">Years (e.g. 2025-2026) 1</label><input class="form-control" id="affiliation_0_years" name="affiliation_0_years"></div><div class="col-md-4"><label class="form-label" for="affiliation_0_position">Position 1</label><input class="form-control" id="affiliation_0_position" name="affiliation_0_position"></div><div class="col-md-4"><label class="form-label" for="affiliation_1_organization">Organization 2</label><input class="form-control" id="affiliation_1_organization" name="affiliation_1_organization"></div><div class="col-md-4"><label class="form-label" for="affiliation_1_years">Years (e.g. 2025-2026) 2</label><input class="form-control" id="affiliation_1_years" name="affiliation_1_years"></div><div class="col-md-4"><label class="form-label" for="affiliation_1_position">Position 2</label><input class="form-control" id="affiliation_1_position" name="affiliation_1_position"></div><div class="col-md-4"><label class="form-label" for="affiliation_2_organization">Organization 3</label><input class="form-control" id="affiliation_2_organization" name="affiliation_2_organization"></div><div class="col-md-4"><label class="form-label" for="affiliation_2_years">Years (e.g. 2025-2026) 3</label><input class="form-control" id="affiliation_2_years" name="affiliation_2_years"></div><div class="col-md-4"><label class="form-label" for="affiliation_2_position">Position 3</label><input class="form-control" id="affiliation_2_position" name="affiliation_2_position"></div></div></details></div>
+</div></section>
+<section class="wizard-step" id="candidateWizardStep4" aria-label="Signature & Review" hidden><h6 class="visually-hidden" tabindex="-1">Signature & Review</h6><div class="row g-3">
 <div class="col-12"><label class="form-label" for="candidateSignature">Candidate signature</label><canvas id="candidateSignature" width="680" height="180" tabindex="0" aria-label="Candidate signature pad" style="display:block;width:100%;max-width:680px;height:180px;background:white;border:1px solid #cbd5e1;border-radius:8px;touch-action:none;"></canvas><button id="clearCandidateSignature" type="button" class="btn btn-outline-secondary btn-sm mt-2">Clear signature</button><p class="form-text">The candidate signs here using a mouse, touch screen, or stylus.</p></div>
 <div class="col-12"><label class="form-check"><input name="coc_confirmed" type="checkbox" class="form-check-input" required> <span class="form-check-label">The candidate reviewed these details and provided this signature.</span></label></div>
 <div class="col-12"><button id="previewAdminCoc" type="button" class="btn btn-outline-primary">Preview Certificate of Candidacy</button><a id="registeredCocLink" class="btn btn-outline-success d-none ms-2" target="_blank" rel="noopener">View issued COC</a></div>
-<div class="col-12 d-flex justify-content-end">
-                        <button id="submitBtn" type="submit" class="btn btn-primary">Submit</button>
-                    </div>
-                    </div>
+</div></section>
+<div class="candidate-wizard-actions">
+    <button id="wizardBackBtn" type="button" class="btn btn-outline-secondary" hidden>Back</button>
+    <button id="wizardNextBtn" type="button" class="btn btn-primary">Next Step <i class="bi bi-arrow-right" aria-hidden="true"></i></button>
+    <button id="submitBtn" type="submit" class="btn btn-primary" hidden><i class="bi bi-check-lg" aria-hidden="true"></i> Submit Registration</button>
+</div>
                 </form>
                         </div>
                     </div>
@@ -385,8 +415,9 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_coc.js?v=20261011-department-eligibility1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_register_candidate.js?v=20261011-department-eligibility1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_coc.js?v=20261011-wizard1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/candidate_registration_wizard.js?v=20261011-wizard1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_register_candidate.js?v=20261011-wizard1"></script>
 <div class="modal fade" id="adminCocPreviewModal" tabindex="-1" aria-labelledby="adminCocPreviewTitle" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="adminCocPreviewTitle">Certificate of Candidacy Preview</h5><button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body p-0"><iframe id="adminCocPreviewFrame" title="COC preview" style="width:100%;height:72vh;border:0;"></iframe></div></div></div></div>
 </body>
 </html>

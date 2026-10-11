@@ -124,7 +124,7 @@ document.addEventListener('DOMContentLoaded', () => {
   };
   const previewButton=document.getElementById('previewAdminCoc');
   previewButton.addEventListener('click',async () => {
-    if (!form.reportValidity()) return;
+    if (!(window.CandidateRegistrationWizard ? window.CandidateRegistrationWizard.validateAll() : form.reportValidity())) return;
     previewButton.disabled=true;
     try {
       const payload=await augment({});
@@ -138,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.AdminCandidateCoc = {
     augment,
+    hasSignature: () => signed,
     reset: () => {accountProgram='';allowedOrganizations=[];applyEligibility();clear(); profilePhoto.value='';photoInput.required=true;search.value='';results.replaceChildren();document.getElementById('studentProfileSummary').textContent='';},
     showCertificate: data => {const link=document.getElementById('registeredCocLink');if(data.certificate_url){link.href=data.certificate_url;link.classList.remove('d-none');}}
   };
