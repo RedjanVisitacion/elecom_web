@@ -224,3 +224,14 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 .dashboard-page .election-state-badge { display: inline-flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 999px; background: rgba(255,255,255,.1); color: #e2e8f0; font-size: 10px; font-weight: 700; letter-spacing: .04em; }
 .dashboard-page .election-state-badge::before { content: ''; width: 6px; height: 6px; flex: 0 0 6px; border-radius: 50%; background: currentColor; }
 .dashboard-page .election-state-badge.is-active { background: rgba(34,197,94,.16); color: #86efac; }
+
+/* Keep event actions visible while the form scrolls. */
+#calEventModal .modal-dialog { max-height: calc(100vh - 2 * var(--bs-modal-margin, 1.75rem)); max-height: calc(100dvh - 2 * var(--bs-modal-margin, 1.75rem)); }
+#calEventModal .modal-content { display: flex; flex-direction: column; max-height: inherit; overflow: hidden; }
+#calEventModal .modal-header { flex: 0 0 auto; background: #0d1b3e !important; color: #fff; padding: 14px 20px !important; }
+#calEventModal .modal-header .btn-close { filter: brightness(0) invert(1); opacity: 1; }
+#calEventModal .modal-body { flex: 1 1 auto; min-height: 0; max-height: 60vh; overflow-y: auto; overscroll-behavior: contain; padding: 16px 20px; }
+#calEventModal .modal-footer { flex: 0 0 auto; justify-content: flex-end; background: #fff; border-top: 1px solid #e2e8f0 !important; padding: 12px 20px; }
+#calEventModal .cal-color-opt span { position: relative; }
+#calEventModal .cal-color-opt input:checked + span::after { content: ''; position: absolute; left: 6px; top: 3px; width: 6px; height: 10px; border: solid #fff; border-width: 0 2px 2px 0; transform: rotate(45deg); }
+#calEventModal .cal-color-opt input:focus-visible + span { outline: 2px solid #0d1b3e; outline-offset: 3px; }

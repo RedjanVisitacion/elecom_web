@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261011-visual-polish1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261011-event-modal1">
 </head>
 <body class="theme-elecom dashboard-page">
 
@@ -285,11 +285,11 @@
 
 
     <!-- New Event Modal -->
-    <div class="modal fade" id="calEventModal" tabindex="-1" aria-hidden="true">
+    <div class="modal fade" id="calEventModal" tabindex="-1" aria-labelledby="calEventModalTitle" aria-hidden="true">
         <div class="modal-dialog modal-dialog-centered">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title"><i class="bi bi-calendar-plus me-2 text-warning"></i>New event</h5>
+                    <h5 class="modal-title" id="calEventModalTitle"><i class="bi bi-calendar-plus me-2 text-warning"></i>New event</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
@@ -361,7 +361,7 @@
 
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="calEventLocation">Location <span class="text-muted fw-normal">(optional)</span></label>
-                        <input type="text" class="form-control" id="calEventLocation" placeholder="e.g. COMELEC Office, Main Campus" maxlength="255">
+                        <input type="text" class="form-control" id="calEventLocation" placeholder="e.g. USTP Gym, Admin Building, Online" maxlength="255">
                     </div>
 
                     <div class="mb-3">
@@ -395,14 +395,14 @@
     <style>
     /* Color picker swatches */
     .cal-color-opt { cursor:pointer; margin:0; }
-    .cal-color-opt input[type=radio] { display:none; }
+    .cal-color-opt input[type=radio] { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip-path:inset(50%); white-space:nowrap; border:0; }
     .cal-color-opt span {
         display:block; width:22px; height:22px; border-radius:50%;
         background:var(--c); border:2px solid transparent;
         transition:border-color .15s, transform .15s;
     }
     .cal-color-opt input[type=radio]:checked + span {
-        border-color:#000; transform:scale(1.2);
+        border-color:#fff; outline:2px solid #64748b; outline-offset:2px;
     }
     /* Activity calendar grid */
     #activitiesCalendarGrid table { width:100%; table-layout:fixed; }
