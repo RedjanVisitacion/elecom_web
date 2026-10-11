@@ -22,14 +22,61 @@ document.addEventListener('DOMContentLoaded', function(){
 
   const startEl = document.getElementById('report_start_date');
   const endEl = document.getElementById('report_end_date');
+  const rangeEl = document.getElementById('report_date_range');
+  let rangePicker = null;
+  function syncReportRange(dates, _text, instance) {
+    startEl.value = dates[0] ? instance.formatDate(dates[0], 'Y-m-d') : '';
+    endEl.value = dates[1] ? instance.formatDate(dates[1], 'Y-m-d') : '';
+    validateDates();
+    updateSummaryPanel();
+    scheduleSummaryEstimate();
+  }
   if (typeof window.flatpickr === 'function') {
-    window.flatpickr('#report_start_date, #report_end_date', {
-      dateFormat: 'Y-m-d', allowInput: true,
+    rangePicker = window.flatpickr(rangeEl, {
+      mode: 'range', dateFormat: 'Y-m-d', allowInput: true,
+      locale: { rangeSeparator: ' to ' },
+      onChange: syncReportRange,
+      onReady: (_dates, _text, instance) => {
+        // Flatpickr provides click selection; add pointer dragging between days.
+        let drag = null;
+        const dayAt = target => target?.closest?.('.flatpickr-day:not(.flatpickr-disabled)');
+        const down = event => {
+          const day = dayAt(event.target);
+          if (event.button === 0 && day?.dateObj) drag = { id: event.pointerId, date: day.dateObj };
+        };
+        const up = event => {
+          if (!drag || drag.id !== event.pointerId) return;
+          const first = drag.date; drag = null;
+          const day = dayAt(event.target);
+          if (!day?.dateObj || first.getTime() === day.dateObj.getTime()) return;
+          event.preventDefault();
+          instance.setDate([first, day.dateObj].sort((a, b) => a - b), true);
+          instance.close();
+        };
+        const cancel = () => { drag = null; };
+        instance.calendarContainer.addEventListener('pointerdown', down);
+        document.addEventListener('pointerup', up);
+        document.addEventListener('pointercancel', cancel);
+        instance.config.onDestroy.push(() => {
+          document.removeEventListener('pointerup', up);
+          document.removeEventListener('pointercancel', cancel);
+        });
+      },
+    });
+  } else {
+    rangeEl.addEventListener('change', () => {
+      const parts = rangeEl.value.trim().split(' to ');
+      startEl.value = parts[0] || ''; endEl.value = parts[1] || '';
+      validateDates(); scheduleSummaryEstimate();
     });
   }
-  function setReportDate(input, value) {
-    if (input._flatpickr) input._flatpickr.setDate(value, false, 'Y-m-d');
-    else input.value = value;
+  function setReportRange(start = '', end = '') {
+    if (rangePicker) rangePicker.setDate([start, end].filter(Boolean), true, 'Y-m-d');
+    else {
+      startEl.value = start; endEl.value = end;
+      rangeEl.value = [start, end].filter(Boolean).join(' to ');
+      updateSummaryPanel(); scheduleSummaryEstimate();
+    }
   }
   const clearBtn = document.getElementById('clearDates');
   const applyWinBtn = document.getElementById('applyWindow');
@@ -180,6 +227,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function validateDates(){
     const s = startEl.value; const e = endEl.value;
+    if (s && !e) { showAlert('Select an end date to complete the report range.'); return false; }
     if (s && e && e < s) { showAlert('End date must be on or after Start date.'); return false; }
     showAlert('');
     return true;
@@ -187,8 +235,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   if (clearBtn){
     clearBtn.addEventListener('click', ()=>{
-      setReportDate(startEl, '');
-      setReportDate(endEl, '');
+      setReportRange();
       validateDates();
       scheduleSummaryEstimate();
     });
@@ -258,8 +305,7 @@ document.addEventListener('DOMContentLoaded', function(){
     if (!defaultStart && !defaultEnd) return false;
     applyWinBtn.classList.remove('d-none');
     applyWinBtn.onclick = ()=>{
-      setReportDate(startEl, defaultStart);
-      setReportDate(endEl, defaultEnd);
+      setReportRange(defaultStart, defaultEnd);
       validateDates();
       updateSummaryPanel();
       scheduleSummaryEstimate();
