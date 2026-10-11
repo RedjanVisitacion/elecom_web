@@ -3,13 +3,6 @@
   let chart = null;
   const clock = (iso) => new Date(iso).toLocaleTimeString("en-PH", { timeZone: "Asia/Manila", hour: "2-digit", minute: "2-digit" });
   const timestamp = (iso) => new Date(iso).toLocaleString("en-PH", { timeZone: "Asia/Manila", month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-  const relative = (iso) => {
-    const seconds = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 1000));
-    if (seconds < 60) return "Just now";
-    if (seconds < 3600) return `${Math.floor(seconds / 60)} min ago`;
-    if (seconds < 86400) return `${Math.floor(seconds / 3600)} hr ago`;
-    return `${Math.floor(seconds / 86400)} days ago`;
-  };
   const render = (data) => {
     const canvas = document.getElementById("turnoutLineChart");
     const caption = document.getElementById("turnoutLineCaption");
@@ -56,36 +49,6 @@
       hourly.forEach((item) => { const row = body.insertRow(); row.insertCell().textContent = timestamp(item.hour); row.insertCell().textContent = item.withheld ? "Withheld" : String(item.count); });
       tableWrap.appendChild(table);
     }
-    const list = document.getElementById("activityFeedList");
-    const state = document.getElementById("activityFeedState");
-    if (!list) return;
-    const events = data.activity?.events || [];
-    const signature = JSON.stringify(events);
-    if (list.dataset.signature !== signature) {
-      list.dataset.signature = signature;
-      const position = list.scrollTop;
-      list.replaceChildren();
-      events.forEach((event) => {
-        const li = document.createElement("li");
-        const icon = document.createElement("span");
-        const kind = ["vote", "biometric", "network"].includes(event.kind) ? event.kind : "vote";
-        icon.className = `activity-status-icon ${kind}`;
-        icon.setAttribute("aria-hidden", "true");
-        const glyph = document.createElement("i"); glyph.className = `bi ${kind === "biometric" ? "bi-person-check" : kind === "network" ? "bi-wifi" : "bi-check2-circle"}`; icon.appendChild(glyph);
-        const body = document.createElement("div");
-        const title = document.createElement("strong"); title.textContent = event.title;
-        const detail = document.createElement("span"); detail.textContent = event.detail;
-        const time = document.createElement("small"); time.dataset.timestamp = event.timestamp; time.title = timestamp(event.timestamp); time.textContent = relative(event.timestamp);
-        body.append(title, detail, time); li.append(icon, body); list.appendChild(li);
-      });
-      if (!events.length) { const li = document.createElement("li"); li.textContent = "No recorded activity yet."; list.appendChild(li); }
-      list.scrollTop = position;
-    }
-    list.querySelectorAll("[data-timestamp]").forEach((el) => { el.textContent = relative(el.dataset.timestamp); });
-    if (state) state.textContent = data.activity?.complete ? "Live ? 5s" : "Partial data";
   };
   window.addEventListener("elecom:dashboard", (event) => render(event.detail));
-  window.addEventListener("elecom:dashboard-error", () => {
-    const state = document.getElementById("activityFeedState"); if (state) state.textContent = "Refresh unavailable";
-  });
 })();

@@ -206,14 +206,16 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 .chart-caption { color: #64748b; font-size: 11px; line-height: 1.5; margin: 8px 0; }
 .turnout-data { flex-shrink: 0; font-size: 11px; color: #64748b; max-height: 110px; overflow: auto; }
 .turnout-data table { width: 100%; } .turnout-data td, .turnout-data th { padding: 4px; }
-.live-activity-card .card-body { display: flex; flex-direction: column; min-height: 0; padding: 16px; }
-.activity-feed-heading { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-.activity-feed-heading h2 { font-size: 15px; font-weight: 700; margin: 3px 0 0; }
-.activity-feed-state { font-size: 10px; color: #15803d; background: #ecfdf5; padding: 4px 7px; border-radius: 20px; }
-.activity-feed-list { flex: 1; min-height: 0; overflow-y: auto; list-style: none; padding: 0; margin: 6px 0 0; }
-.activity-feed-list li { display: flex; gap: 10px; padding: 12px 0; border-bottom: 1px solid #eef2f6; font-size: 12px; }
-.activity-status-icon { width: 28px; height: 28px; flex-shrink: 0; display: grid; place-items: center; border-radius: 50%; color: #15803d; background: #ecfdf5; }
-.activity-status-icon.biometric { color: #2563eb; background: #eff6ff; }
-.activity-status-icon.network { color: #b45309; background: #fffbeb; }
-.activity-feed-list strong { display: block; color: #0d1b3e; } .activity-feed-list small { color: #64748b; display: block; margin-top: 4px; }
-.activity-management-link { text-align: left; padding: 0; font-size: 11px; align-self: flex-start; }
+
+/* Activities calendar restored to the dashboard's lower-right card. */
+.activities-heading, .activities-month-navigation { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-shrink: 0; }
+.dashboard-page .activities-heading h2 { display: flex; align-items: center; gap: 8px; margin: 0 !important; }
+.activities-heading h2 i { color: #0d1b3e; font-size: 20px; }
+.dashboard-page .activities-new-event { background: #eab308; color: #0d1b3e; border-color: #eab308; font-size: 11px; font-weight: 700; padding: 4px 8px; }
+.dashboard-page .activities-new-event:hover { background: #ca8a04; border-color: #ca8a04; }
+.activities-month-navigation { margin: 5px 0; font-size: 12px; }
+.activities-month-navigation .btn { color: #0d1b3e; padding: 2px 4px; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day { border-radius: 50%; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day:is(.is-today, .is-selected) { background: #0d1b3e !important; color: #fff !important; box-shadow: none; font-weight: 700; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.dashboard-page .compact-calendar .acal-dot { bottom: -3px; width: 4px; height: 4px; }
