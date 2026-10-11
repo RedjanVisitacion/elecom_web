@@ -17,7 +17,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_candidates.css?v=20261011-confirm-contrast1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_candidates.css?v=20261011-edit-modal1">
 </head>
 <body class="theme-elecom candidates-page-body">
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -126,7 +126,7 @@
 
     <!-- Edit Modal -->
     <div class="modal fade" id="editModal" tabindex="-1" aria-hidden="true">
-      <div class="modal-dialog modal-lg">
+      <div class="modal-dialog modal-lg modal-dialog-scrollable">
         <div class="modal-content">
           <div class="modal-header">
             <h5 class="modal-title">Edit Candidate</h5>
@@ -172,37 +172,31 @@
                 <label class="form-label">Year/Section</label>
                 <input type="text" class="form-control" name="year_section" id="ed_year" required>
               </div>
-              <div class="col-md-8">
+              <div class="col-12">
                 <label class="form-label">Platform</label>
                 <textarea class="form-control" rows="3" name="platform" id="ed_platform"></textarea>
               </div>
               <!-- Photo upload -->
               <div class="col-md-6">
                 <label class="form-label">Candidate Photo</label>
-                <div class="d-flex align-items-center gap-2 mb-1">
-                  <img id="ed_photo_preview" src="" alt="Photo preview"
-                       class="rounded border"
-                       style="width:56px;height:56px;object-fit:cover;display:none;">
-                  <span id="ed_photo_preview_placeholder"
-                        class="rounded border d-flex align-items-center justify-content-center bg-light text-secondary"
-                        style="width:56px;height:56px;font-size:1.5rem;"><i class="bi bi-person"></i></span>
+                <div class="candidate-upload-thumbnail candidate-upload-photo">
+                  <img id="ed_photo_preview" alt="Candidate Photo preview" style="display:none;object-fit:cover;">
+                  <span id="ed_photo_preview_placeholder" class="candidate-upload-placeholder"><i class="bi bi-person" aria-hidden="true"></i></span>
                 </div>
-                <input type="file" class="form-control" id="ed_photo_file" accept="image/*">
+                <input type="file" class="visually-hidden" id="ed_photo_file" accept="image/*">
+                <label for="ed_photo_file" class="btn btn-outline-primary btn-sm candidate-upload-trigger mt-2"><i class="bi bi-camera me-1" aria-hidden="true"></i>Change Photo</label>
                 <div class="form-text text-muted" id="ed_photo_status"></div>
                 <input type="hidden" id="ed_photo_url">
               </div>
               <!-- Party Logo upload -->
               <div class="col-md-6">
                 <label class="form-label">Party Logo</label>
-                <div class="d-flex align-items-center gap-2 mb-1">
-                  <img id="ed_party_logo_preview" src="" alt="Party logo preview"
-                       class="rounded border"
-                       style="width:56px;height:56px;object-fit:cover;display:none;">
-                  <span id="ed_party_logo_preview_placeholder"
-                        class="rounded border d-flex align-items-center justify-content-center bg-light text-secondary"
-                        style="width:56px;height:56px;font-size:1.5rem;"><i class="bi bi-image"></i></span>
+                <div class="candidate-upload-thumbnail candidate-upload-party_logo">
+                  <img id="ed_party_logo_preview" alt="Party Logo preview" style="display:none;object-fit:contain;">
+                  <span id="ed_party_logo_preview_placeholder" class="candidate-upload-placeholder"><i class="bi bi-image" aria-hidden="true"></i></span>
                 </div>
-                <input type="file" class="form-control" id="ed_party_logo_file" accept="image/*">
+                <input type="file" class="visually-hidden" id="ed_party_logo_file" accept="image/*">
+                <label for="ed_party_logo_file" class="btn btn-outline-primary btn-sm candidate-upload-trigger mt-2"><i class="bi bi-camera me-1" aria-hidden="true"></i>Change Logo</label>
                 <div class="form-text text-muted" id="ed_party_logo_status"></div>
                 <input type="hidden" id="ed_party_logo_url">
               </div>
@@ -210,7 +204,7 @@
           </div>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-            <button type="button" class="btn btn-primary" id="saveEditBtn">Save changes</button>
+            <button type="button" class="btn btn-save-candidate" id="saveEditBtn">Save changes</button>
           </div>
         </div>
       </div>
