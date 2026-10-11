@@ -535,3 +535,11 @@
 
 .candidate-toolbar { padding-top: 16px; flex-wrap: wrap; }
 .candidate-toolbar-actions { min-width: 0; max-width: 100%; }
+
+.candidates-page-body .top-navbar { z-index: 1030; }
+.candidates-page-body .candidate-toolbar-container {
+  position: sticky; top: var(--candidate-header-height, 60px); background: #fff;
+  z-index: 1020; padding: 12px 20px; flex-wrap: wrap;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.05);
+}
+#backToTopBtn { width: 46px; height: 46px; display: inline-flex; align-items: center; justify-content: center; z-index: 1025; box-shadow: 0 4px 14px rgba(13,27,62,.2); }

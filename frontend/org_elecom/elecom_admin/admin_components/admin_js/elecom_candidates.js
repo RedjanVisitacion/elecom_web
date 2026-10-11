@@ -1,4 +1,20 @@
 document.addEventListener('DOMContentLoaded', function(){
+  const candidateHeader = document.querySelector('.top-navbar');
+  const measureCandidateHeader = () => {
+    if (candidateHeader) document.documentElement.style.setProperty('--candidate-header-height', `${candidateHeader.getBoundingClientRect().height}px`);
+  };
+  measureCandidateHeader();
+  if (candidateHeader && window.ResizeObserver) new ResizeObserver(measureCandidateHeader).observe(candidateHeader);
+  const backToTopBtn = document.getElementById('backToTopBtn');
+  const updateBackToTop = () => {
+    backToTopBtn?.classList.toggle('d-none', (window.scrollY || document.documentElement.scrollTop) <= 300);
+  };
+  window.addEventListener('scroll', updateBackToTop, { passive: true });
+  backToTopBtn?.addEventListener('click', () => {
+    window.scrollTo({ top: 0, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+  });
+  updateBackToTop();
+
   const menuToggle = document.getElementById('menuToggle');
   const sidebar = document.getElementById('sidebar');
   const sidebarOverlay = document.getElementById('sidebarOverlay');
