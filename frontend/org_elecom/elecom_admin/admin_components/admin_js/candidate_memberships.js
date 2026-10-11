@@ -76,7 +76,7 @@ document.addEventListener("DOMContentLoaded", () => {
       get(row,'.membership-year-output').textContent = `From ${start.value} to ${end.value}`;
     }));
     get(row,'.membership-year-apply').addEventListener('click', () => {
-      get(row,'.membership-years-value').value = `${get(row,'.membership-year-start').value}?${get(row,'.membership-year-end').value}`;
+      get(row,'.membership-years-value').value = `${get(row,'.membership-year-start').value}-${get(row,'.membership-year-end').value}`;
       get(row,'.membership-year-picker').open=false; sync(row);
       get(row,'.membership-year-picker').querySelector('summary').focus();
     });
@@ -84,7 +84,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   form.elements.date_of_birth.addEventListener('change', () => rows.forEach(row => {
     yearBounds(row);
-    if (get(row,'.membership-years-value').value) get(row,'.membership-years-value').value = `${get(row,'.membership-year-start').value}?${get(row,'.membership-year-end').value}`;
+    if (get(row,'.membership-years-value').value) get(row,'.membership-years-value').value = `${get(row,'.membership-year-start').value}-${get(row,'.membership-year-end').value}`;
     sync(row);
   }));
   window.CandidateMemberships = {sync, clear};
