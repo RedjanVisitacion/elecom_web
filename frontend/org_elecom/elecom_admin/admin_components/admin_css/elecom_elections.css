@@ -418,3 +418,5 @@ html.election-viewport { --election-header-height: var(--topbar-height, 70px); }
 .election-row.active-election-card { border-top: 4px solid #22c55e; }
 
 .flatpickr-calendar.results-release-calendar { z-index: 1055; margin-top: 4px; }
+
+.election-management-page .election-form { overflow-y: auto; overscroll-behavior: contain; }

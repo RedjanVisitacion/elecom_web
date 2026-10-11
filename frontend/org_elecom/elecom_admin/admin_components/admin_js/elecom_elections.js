@@ -1,59 +1,79 @@
 document.addEventListener('DOMContentLoaded', function(){
-  const votingInput = document.getElementById('electionVotingRange');
+  const votingInput = document.getElementById('voting_date_range');
   const startInput = document.getElementById('electionStart');
   const endInput = document.getElementById('electionEnd');
   const resultsInput = document.getElementById('electionResults');
-  let votingPicker = null, resultsPicker = null;
-  const updateResultsMinimum = () => {
-    const end = endInput.value ? new Date(endInput.value) : null;
-    if (resultsPicker) {
-      resultsPicker.set('minDate', end);
-      if (end && resultsPicker.selectedDates[0] < end) resultsPicker.clear();
-    }
-    resultsInput.disabled = !end;
-    if (resultsPicker?.altInput) resultsPicker.altInput.disabled = !end;
+  const startTime = document.getElementById('voting_start_time');
+  const endTime = document.getElementById('voting_end_time');
+  const resultsDate = document.getElementById('results_release_date');
+  const resultsTime = document.getElementById('results_release_time');
+  let votingPicker = null, resultsPicker = null, resultsTimePicker = null;
+  const timePickers = new Map();
+  const time24 = (value) => {
+    const match = value.trim().match(/^(\d{1,2}):(\d{2}) (AM|PM)$/i);
+    if (!match || Number(match[1]) < 1 || Number(match[1]) > 12 || Number(match[2]) > 59) return '';
+    const hour = Number(match[1]) % 12 + (match[3].toUpperCase() === 'PM' ? 12 : 0);
+    return `${String(hour).padStart(2, '0')}:${match[2]}`;
   };
-  const syncVotingValues = (dates, _, picker) => {
-    startInput.value = dates[0] ? picker.formatDate(dates[0], 'Y-m-d\\TH:i') : '';
-    endInput.value = dates[1] ? picker.formatDate(dates[1], 'Y-m-d\\TH:i') : '';
-    updateResultsMinimum();
+  const syncResults = () => {
+    const time = time24(resultsTime.value);
+    resultsInput.value = resultsDate.value && time ? `${resultsDate.value}T${time}` : '';
+    const sameDay = resultsDate.value && resultsDate.value === endInput.value.slice(0, 10);
+    resultsTimePicker?.set('minTime', sameDay ? endInput.value.slice(11, 16) : null);
+  };
+  const syncVotingValues = () => {
+    const dates = votingPicker ? votingPicker.selectedDates.map(date => votingPicker.formatDate(date, 'Y-m-d')) : votingInput.value.split(' to ');
+    const validDate = value => /^\d{4}-\d{2}-\d{2}$/.test(value || '');
+    const start = time24(startTime.value), end = time24(endTime.value);
+    startInput.value = validDate(dates[0]) && start ? `${dates[0]}T${start}` : '';
+    endInput.value = validDate(dates[1]) && end ? `${dates[1]}T${end}` : '';
+    const complete = !!(startInput.value && endInput.value);
+    resultsDate.disabled = !complete; resultsTime.disabled = !complete;
+    resultsPicker?.set('minDate', complete ? dates[1] : null);
+    syncResults();
   };
   if (window.flatpickr) {
-    resultsPicker = window.flatpickr(resultsInput, {
-      enableTime: true, dateFormat: 'Y-m-d H:i', altInput: true,
-      altFormat: 'Y-m-d h:i K', time_24hr: false, minuteIncrement: 1,
-      position: 'below left',
-      onReady: (_, __, picker) => picker.calendarContainer.classList.add('results-release-calendar'),
-      static: false, appendTo: document.body, disableMobile: true,
-    });
-    resultsPicker.altInput.id = 'electionResultsDisplay';
-    document.querySelector('label[for="electionResults"]')?.setAttribute('for', resultsPicker.altInput.id);
+    const floating = { static: false, appendTo: document.body, disableMobile: true, position: 'auto left' };
     votingPicker = window.flatpickr(votingInput, {
-      mode: 'range', enableTime: true, dateFormat: 'Y-m-d H:i K',
-      altInput: true, altFormat: 'Y-m-d h:i K', time_24hr: false,
-      static: false, appendTo: document.body, disableMobile: true, minuteIncrement: 1,
-      onChange: syncVotingValues,
+      ...floating, mode: 'range', enableTime: false, dateFormat: 'Y-m-d', onChange: syncVotingValues,
     });
-    votingPicker.altInput.id = 'electionVotingRangeDisplay';
-    votingPicker.altInput.setAttribute('aria-describedby', 'votingRangeHelp');
-    document.querySelector('label[for="electionVotingRange"]')?.setAttribute('for', votingPicker.altInput.id);
-  } else {
-    votingInput.placeholder = 'YYYY-MM-DD HH:mm to YYYY-MM-DD HH:mm';
-    resultsInput.placeholder = 'YYYY-MM-DD HH:mm';
-    votingInput.addEventListener('input', () => {
-      const match = votingInput.value.trim().match(/^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}) to (\d{4}-\d{2}-\d{2} \d{2}:\d{2})$/);
-      startInput.value = match ? match[1].replace(' ', 'T') : '';
-      endInput.value = match ? match[2].replace(' ', 'T') : '';
-      updateResultsMinimum();
+    resultsPicker = window.flatpickr(resultsDate, {
+      ...floating, enableTime: false, dateFormat: 'Y-m-d', onChange: syncResults,
+      onReady: (_, __, picker) => picker.calendarContainer.classList.add('results-release-calendar'),
     });
+    for (const input of [startTime, endTime, resultsTime]) {
+      const picker = window.flatpickr(input, {
+        ...floating, noCalendar: true, enableTime: true, dateFormat: 'h:i K', time_24hr: false,
+        minuteIncrement: 1, defaultDate: input.value,
+        onChange: input === resultsTime ? syncResults : syncVotingValues,
+      });
+      timePickers.set(input.id, picker);
+    }
+    resultsTimePicker = timePickers.get('results_release_time');
   }
-  const scheduleValue = (id) => (document.getElementById(id)?.value || '').replace(' ', 'T');
-  const focusVotingRange = () => (votingPicker?.altInput || votingInput).focus({ preventScroll: true });
+  votingInput.addEventListener('input', syncVotingValues);
+  startTime.addEventListener('input', syncVotingValues); endTime.addEventListener('input', syncVotingValues);
+  resultsDate.addEventListener('input', syncResults); resultsTime.addEventListener('input', syncResults);
+  const setTime = (input, value) => {
+    const picker = timePickers.get(input.id);
+    if (picker) picker.setDate(value, false, 'H:i');
+    else {
+      const [hour, minute] = value.split(':').map(Number);
+      input.value = `${String(hour % 12 || 12).padStart(2, '0')}:${String(minute).padStart(2, '0')} ${hour < 12 ? 'AM' : 'PM'}`;
+    }
+  };
+  const scheduleValue = id => document.getElementById(id)?.value || '';
+  const focusVotingRange = () => votingInput.focus({ preventScroll: true });
   document.getElementById('newElectionForm')?.addEventListener('reset', () => {
-    votingPicker?.clear(); resultsPicker?.clear(); startInput.value = ''; endInput.value = '';
-    updateResultsMinimum();
+    // Wait for the browser reset before restoring picker state and defaults.
+    queueMicrotask(() => {
+      votingPicker?.clear(); resultsPicker?.clear();
+      votingInput.value = ''; resultsDate.value = '';
+      setTime(startTime, '08:00'); setTime(endTime, '17:00'); setTime(resultsTime, '17:00');
+      syncVotingValues();
+    });
   });
-  updateResultsMinimum();
+  syncVotingValues();
 
   const menuToggle = document.getElementById('menuToggle');
   const sidebar = document.getElementById('sidebar');
@@ -218,13 +238,18 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       syEl.value = syVal;
     }
-    startInput.value = election.start_at_local || '';
-    endInput.value = election.end_at_local || '';
-    if (votingPicker) votingPicker.setDate([startInput.value, endInput.value].filter(Boolean), false, 'Y-m-d\\TH:i');
-    else votingInput.value = [startInput.value, endInput.value].filter(Boolean).map(value => value.replace('T', ' ')).join(' to ');
-    updateResultsMinimum();
-    if (resultsPicker) resultsPicker.setDate((election.results_at_local || '').replace('T', ' '), false, 'Y-m-d H:i');
-    else resultsInput.value = (election.results_at_local || '').replace('T', ' ');
+    const startLocal = election.start_at_local || '', endLocal = election.end_at_local || '';
+    const dates = [startLocal.slice(0, 10), endLocal.slice(0, 10)].filter(Boolean);
+    if (votingPicker) votingPicker.setDate(dates, false, 'Y-m-d');
+    else votingInput.value = dates.join(' to ');
+    setTime(startTime, startLocal.slice(11, 16) || '08:00');
+    setTime(endTime, endLocal.slice(11, 16) || '17:00');
+    syncVotingValues();
+    const release = election.results_at_local || '';
+    if (resultsPicker) resultsPicker.setDate(release.slice(0, 10), false, 'Y-m-d');
+    else resultsDate.value = release.slice(0, 10);
+    setTime(resultsTime, release.slice(11, 16) || '17:00');
+    syncResults();
     const noteEl = document.getElementById('electionNote');
     if (noteEl) noteEl.value = election.note || '';
     document.getElementById('electionPassword').value = '';
@@ -321,6 +346,10 @@ document.addEventListener('DOMContentLoaded', function(){
     form.addEventListener('submit', async function(event){
       event.preventDefault();
       showAlert('');
+      syncVotingValues();
+      if (resultsDate.value && !time24(resultsTime.value)) {
+        showAlert('Choose a valid results release time.', 'danger'); resultsTime.focus(); return;
+      }
       const isEditing = !!(editingElectionId && editingElectionId.value);
       const payload = {
         action: isEditing ? 'update' : 'create',
@@ -339,7 +368,7 @@ document.addEventListener('DOMContentLoaded', function(){
       }
       if (payload.results_at && (!Number.isFinite(Date.parse(payload.results_at)) || Date.parse(payload.results_at) < end)) {
         showAlert('Results release cannot be before voting ends.', 'danger');
-        (resultsPicker?.altInput || resultsInput).focus(); return;
+        resultsDate.focus(); return;
       }
       setLoading(true);
       try {
