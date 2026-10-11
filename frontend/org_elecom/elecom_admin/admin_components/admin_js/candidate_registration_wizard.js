@@ -1,4 +1,4 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
   const form = document.getElementById('registerCandidateForm');
   if (!form) return;
   const steps = [...form.querySelectorAll('.wizard-step')];
@@ -82,6 +82,34 @@
   }, true);
   form.addEventListener('reset', () => queueMicrotask(() => { reached = 0; show(0); }));
   new MutationObserver(() => show(current)).observe(submit, {attributes:true,attributeFilter:['disabled']});
+  const membershipRows = [...form.querySelectorAll('.membership-row')];
+  const addMembership = document.getElementById('addMembershipBtn');
+  const removeMembership = document.getElementById('removeMembershipBtn');
+  let membershipCount = 1;
+  const updateMemberships = () => {
+    membershipRows.forEach((row, index) => {
+      row.hidden = index >= membershipCount;
+      row.querySelectorAll('input').forEach(input => { input.disabled = row.hidden; });
+    });
+    addMembership.disabled = membershipCount >= membershipRows.length;
+    removeMembership.hidden = membershipCount <= 1;
+    document.getElementById('membershipRowStatus').textContent = `${membershipCount} optional membership row(s), maximum three.`;
+  };
+  addMembership.addEventListener('click', () => {
+    if (membershipCount >= membershipRows.length) return;
+    membershipCount++;
+    updateMemberships();
+    membershipRows[membershipCount - 1].querySelector('input').focus();
+  });
+  removeMembership.addEventListener('click', () => {
+    if (membershipCount <= 1) return;
+    membershipRows[membershipCount - 1].querySelectorAll('input').forEach(input => { input.value = ''; });
+    membershipCount--;
+    updateMemberships();
+    addMembership.focus();
+  });
+  form.addEventListener('reset', () => queueMicrotask(() => { membershipCount = 1; updateMemberships(); }));
+  updateMemberships();
   window.CandidateRegistrationWizard = { validateAll };
   show(0);
 });
