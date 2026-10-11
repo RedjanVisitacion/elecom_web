@@ -244,6 +244,7 @@ document.addEventListener('DOMContentLoaded', function(){
       organization: getImportValue(row, ['Organization', 'Org']),
       position: getImportValue(row, ['Position']),
       party_name: partyName,
+      party_code: getImportValue(row, ['Party Security Code', 'Party Code', 'party_code']),
       candidate_type: candidateType,
       program: getImportValue(row, ['Program']),
       year_section: getImportValue(row, ['Year/Section', 'Year Section', 'year_section', 'yearsection']),
@@ -856,14 +857,20 @@ document.addEventListener('DOMContentLoaded', function(){
     });
   }
 
-  function showElecomAlert({ title, message, actionText = 'OK' }){
-    return showElecomConfirm({
-      title,
-      message,
-      confirmText: actionText,
-      danger: false,
-      alertOnly: true,
-    });
+  function candidateToast(message, title = 'Candidate updated', error = false) {
+    const toast = document.getElementById('candidateChangeToast');
+    document.getElementById('candidateToastTitle').textContent = title;
+    document.getElementById('candidateToastMessage').textContent = message;
+    document.getElementById('candidateToastIcon').className = `bi ${error ? 'bi-exclamation-circle-fill text-danger' : 'bi-check-circle-fill text-success'} me-2`;
+    toast.classList.toggle('candidate-toast-error', error);
+    const instance = window.bootstrap.Toast.getOrCreateInstance(toast);
+    // Success confirmations expire; errors remain available until dismissed.
+    instance.dispose();
+    window.bootstrap.Toast.getOrCreateInstance(toast, { autohide: !error, delay: 6000 }).show();
+  }
+  function showElecomAlert({ title, message }) {
+    candidateToast(message, title, !/finished|success/i.test(title || ''));
+    return Promise.resolve();
   }
 
   document.addEventListener('change', (e)=>{
@@ -898,7 +905,7 @@ document.addEventListener('DOMContentLoaded', function(){
         body: JSON.stringify({ ids }),
       });
       const d = await res.json();
-      if(d && d.ok){ reloadWithFilter(); }
+      if(d && d.ok){ await reloadWithFilter(); candidateToast(`${ids.length} candidate(s) unregistered.`, 'Candidates removed'); }
       else {
         await showElecomAlert({
           title: 'Unregister Failed',
@@ -1185,7 +1192,7 @@ document.addEventListener('DOMContentLoaded', function(){
       });
 
       const d = await res.json();
-      if(d && d.ok){ if (editModal) editModal.hide(); reloadWithFilter(); }
+      if(d && d.ok){ if (editModal) editModal.hide(); await reloadWithFilter(); candidateToast(d.party_logo_shared ? 'Candidate details saved. The party logo is shared across the lineup.' : 'Candidate details saved.'); }
       else {
         await showElecomAlert({
           title: 'Save Failed',
@@ -1206,7 +1213,7 @@ document.addEventListener('DOMContentLoaded', function(){
         body: JSON.stringify({ id }),
       });
       const d = await res.json();
-      if(d && d.ok){ bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide(); reloadWithFilter(); }
+      if(d && d.ok){ bootstrap.Modal.getInstance(document.getElementById('deleteModal')).hide(); await reloadWithFilter(); candidateToast('Candidate unregistered.', 'Candidate removed'); }
       else {
         await showElecomAlert({
           title: 'Unregister Failed',

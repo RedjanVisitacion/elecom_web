@@ -553,3 +553,8 @@
 #editModal .btn-save-candidate:hover, #editModal .btn-save-candidate:focus-visible { background: #0369a1; border-color: #0369a1; color: #fff; }
 
 #editModal .modal-body { padding-bottom: 36px !important; }
+
+.candidate-toast-container { position: fixed; top: calc(var(--candidate-header-height, 60px) + 16px); right: 20px; z-index: 1090; max-width: calc(100vw - 32px); }
+#candidateChangeToast { width: 380px; max-width: 100%; background: #fff; color: #0d1b3e; border-left: 4px solid #22c55e; box-shadow: 0 8px 24px rgba(13,27,62,.16); }
+#candidateChangeToast.candidate-toast-error { border-left-color: #dc2626; }
+#candidateChangeToast .toast-body { white-space: pre-line; max-height: 240px; overflow-y: auto; }

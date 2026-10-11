@@ -498,6 +498,7 @@ document.addEventListener("DOMContentLoaded", () => {
           year_section: String(fd.get("year_section") || "").trim(),
           platform: String(fd.get("platform") || "").trim(),
           party_name: String(fd.get("party_name") || "").trim(),
+          party_code: String(fd.get("party_code") || "").trim(),
           party_logo_url: String(fd.get("party_logo_url") || "").trim(),
         };
 
@@ -544,7 +545,7 @@ document.addEventListener("DOMContentLoaded", () => {
           return;
         }
 
-        showAlert("success", `Candidate registered successfully.`);
+        showAlert("success", data.party_code ? `Candidate registered. New party security code: ${data.party_code}. Share it privately with authorized lineup members.` : `Candidate registered successfully.`);
         await loadApplications();
         form.reset();
         populateYearSections();

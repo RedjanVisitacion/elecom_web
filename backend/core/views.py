@@ -7164,6 +7164,9 @@ def _approved_application_is_still_official(cur, app: dict) -> bool:
     return _official_candidate_id_for_application(cur, app) is not None
 
 
+from .candidate_parties import party_key, lock_party, party_rows, canonical_logo, share_logo
+
+
 def _candidate_party_code_hash(party_name: str, party_code: str) -> str:
     normalized_party = str(party_name or "").strip().lower()
     normalized_code = str(party_code or "").strip()
@@ -7280,34 +7283,12 @@ def _party_slot_count(cur, *, election_id, party_name: str, organization: str, p
 
 
 def _existing_party_code_hash(cur, *, election_id, party_name: str) -> str:
-    cur.execute(
-        """
-        SELECT party_code_hash
-        FROM candidates_registration
-        WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-          AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
-          AND COALESCE(party_code_hash, '') <> ''
-        ORDER BY created_at ASC NULLS LAST
-        LIMIT 1
-        """,
-        [election_id, party_name],
-    )
-    row = cur.fetchone()
-    return str(row[0] or "").strip() if row else ""
+    rows = party_rows(cur, election_id, party_name)
+    return next((str(row[1]).strip() for row in rows if row[1]), '')
 
 
 def _party_name_exists(cur, *, election_id, party_name: str) -> bool:
-    cur.execute(
-        """
-        SELECT 1
-        FROM candidates_registration
-        WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-          AND LOWER(TRIM(COALESCE(party_name, ''))) = LOWER(TRIM(%s))
-        LIMIT 1
-        """,
-        [election_id, party_name],
-    )
-    return cur.fetchone() is not None
+    return bool(party_rows(cur, election_id, party_name))
 
 
 def _insert_user_notification_for_student(*, student_id: str, notif_type: str, title: str, body: str) -> None:
@@ -7522,13 +7503,16 @@ def candidate_application_parties_api(request):
         with connection.cursor() as cur:
             cur.execute(
                 """
-                SELECT DISTINCT NULLIF(TRIM(party_name), '') AS party_name
-                FROM candidates_registration
-                WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
-                  AND NULLIF(TRIM(party_name), '') IS NOT NULL
+                SELECT DISTINCT party_name FROM (
+                    SELECT NULLIF(TRIM(party_name), '') AS party_name FROM candidates_registration
+                    WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+                    UNION
+                    SELECT NULLIF(TRIM(party_name), '') AS party_name FROM candidate_applications
+                    WHERE COALESCE(election_id, 0) = COALESCE(%s, 0)
+                ) parties WHERE party_name IS NOT NULL AND LOWER(party_name) <> 'independent'
                 ORDER BY party_name
                 """,
-                [election_id],
+                [election_id, election_id],
             )
             parties = [str(row[0]).strip() for row in cur.fetchall() if str(row[0]).strip()]
             for party in parties:
@@ -7723,6 +7707,19 @@ def candidate_application_submit_api(request):
             )
 
         with transaction.atomic(), connection.cursor() as cur:
+            if party_key(party_name):
+                lock_party(cur, election_id, party_name)
+                existing = party_rows(cur, election_id, party_name)
+                if existing:
+                    party_name = existing[0][0]
+                    _, reserved_hash = _sync_party_security_code(cur, election_id=election_id, party_name=party_name)
+                    submitted = _candidate_party_code_hash(party_name, party_code)
+                    if not secrets.compare_digest(submitted, reserved_hash):
+                        return JsonResponse({'ok': False, 'error': 'Invalid party security code for this party.'}, status=403)
+                    party_code_hash = reserved_hash
+                    generated_party_code = None
+                party_logo_url = canonical_logo(cur, election_id, party_name, party_logo_url)
+                share_logo(cur, election_id, party_name, party_logo_url)
             cur.execute(
                 """
                 INSERT INTO candidate_applications (
@@ -8018,6 +8015,9 @@ def admin_candidate_application_decision_api(request):
                 except ValueError as error:
                     return JsonResponse({"ok": False, "error": str(error)}, status=409)
 
+                lock_party(cur, app.get('election_id'), app.get('party_name'))
+                app['party_logo_url'] = canonical_logo(cur, app.get('election_id'), app.get('party_name'), app.get('party_logo_url'))
+                share_logo(cur, app.get('election_id'), app.get('party_name'), app.get('party_logo_url'))
                 cur.execute(
                     """
                     INSERT INTO candidates_registration (
@@ -8345,7 +8345,7 @@ def admin_candidates_list_api(request):
     sql = f"""
         SELECT id, student_id, first_name, middle_name, last_name,
                position, organization, program, year_section,
-               photo_url, party_name, candidate_type, party_logo_url
+               photo_url, party_name, candidate_type, party_logo_url, election_id
         FROM candidates_registration
         {where}
         ORDER BY party_name, organization, position, last_name, first_name
@@ -8354,10 +8354,18 @@ def admin_candidates_list_api(request):
 
     try:
         _ensure_election_scoped_tables()
+        _ensure_candidate_applications_table()
         with connection.cursor() as cur:
             cur.execute(sql, params)
             cols = [c[0] for c in cur.description]
             rows = [identity_row(cols, r) for r in cur.fetchall()]
+            logos = {}
+            for candidate in rows:
+                key = (candidate.get('election_id'), party_key(candidate.get('party_name')))
+                if key[1]:
+                    if key not in logos:
+                        logos[key] = canonical_logo(cur, key[0], candidate.get('party_name'), candidate.get('party_logo_url'))
+                    candidate['party_logo_url'] = logos[key]
         return JsonResponse({"ok": True, "candidates": rows})
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load candidates."}, status=500)
@@ -8374,13 +8382,14 @@ def admin_candidates_detail_api(request):
         return JsonResponse({"ok": False, "error": "Missing id."}, status=400)
 
     try:
+        _ensure_candidate_applications_table()
         with connection.cursor() as cur:
             cur.execute(
                 """
                 SELECT id, student_id, first_name, middle_name, last_name,
                        organization, position, program, year_section,
                        platform, candidate_type, party_name, photo_url,
-                       party_logo_url
+                       party_logo_url, election_id
                 FROM candidates_registration
                 WHERE id = %s
                 LIMIT 1
@@ -8392,6 +8401,7 @@ def admin_candidates_detail_api(request):
                 return JsonResponse({"ok": False, "error": "Not found."}, status=404)
             cols = [c[0] for c in cur.description]
             candidate = identity_row(cols, row)
+            candidate['party_logo_url'] = canonical_logo(cur, candidate.get('election_id'), candidate.get('party_name'), candidate.get('party_logo_url'))
         return JsonResponse({"ok": True, "candidate": candidate})
     except Exception:
         return JsonResponse({"ok": False, "error": "Failed to load candidate."}, status=500)
@@ -8430,7 +8440,14 @@ def admin_candidates_update_api(request):
         return JsonResponse({"ok": False, "error": "Missing required fields."}, status=400)
 
     try:
-        with connection.cursor() as cur:
+        _ensure_candidate_applications_table()
+        with transaction.atomic(), connection.cursor() as cur:
+            cur.execute('SELECT election_id, party_name FROM candidates_registration WHERE id = %s', [cid])
+            candidate_party = cur.fetchone()
+            if not candidate_party:
+                return JsonResponse({'ok': False, 'error': 'Candidate not found.'}, status=404)
+            election_id, party_name = candidate_party
+            lock_party(cur, election_id, party_name)
             cur.execute(
                 """
                 UPDATE candidates_registration
@@ -8460,7 +8477,8 @@ def admin_candidates_update_api(request):
                     cid,
                 ],
             )
-        return JsonResponse({"ok": True})
+            shared_count = share_logo(cur, election_id, party_name, fields['party_logo_url'])
+        return JsonResponse({'ok': True, 'party_logo_shared': bool(party_key(party_name)), 'party_records_updated': shared_count})
     except Exception as e:
         return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
@@ -8513,8 +8531,9 @@ def admin_candidates_create_api(request):
 
     try:
         _ensure_election_scoped_tables()
+        _ensure_candidate_applications_table()
         election_id = _active_election_id()
-        with connection.cursor() as cur:
+        with transaction.atomic(), connection.cursor() as cur:
             if allow_existing:
                 cur.execute(
                     """
@@ -8544,14 +8563,33 @@ def admin_candidates_create_api(request):
                         }
                     )
 
+            party_code = None
+            party_code_hash = None
+            generated_party_code = None
+            if party_key(party_name):
+                lock_party(cur, election_id, party_name)
+                existing = party_rows(cur, election_id, party_name)
+                if existing:
+                    party_name = existing[0][0]
+                    party_code, party_code_hash = _sync_party_security_code(cur, election_id=election_id, party_name=party_name)
+                    submitted = _candidate_party_code_hash(party_name, str(payload.get('party_code') or '').strip())
+                    if not secrets.compare_digest(submitted, party_code_hash):
+                        return JsonResponse({'ok': False, 'error': 'This party name is reserved. Enter its party security code to join the lineup.'}, status=403)
+                else:
+                    generated_party_code = _generate_party_security_code()
+                    party_code = generated_party_code
+                    party_code_hash = _candidate_party_code_hash(party_name, party_code)
+                party_logo_url = canonical_logo(cur, election_id, party_name, party_logo_url)
+                candidate_type = 'Political Party'
+
             cur.execute(
                 """
                 INSERT INTO candidates_registration (
                     student_id, first_name, middle_name, last_name,
                     organization, position, program, year_section,
-                    platform, photo_url, party_name, candidate_type, party_logo_url, election_id
+                    platform, photo_url, party_name, candidate_type, party_logo_url, election_id, party_code_hash, party_code
                 )
-                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 RETURNING id
                 """,
                 [
@@ -8569,10 +8607,15 @@ def admin_candidates_create_api(request):
                     candidate_type,
                     party_logo_url,
                     int(election_id) if election_id is not None else None,
+                    party_code_hash, party_code,
                 ],
             )
             row = cur.fetchone()
-        return JsonResponse({"ok": True, "id": int(row[0]) if row else None})
+            share_logo(cur, election_id, party_name, party_logo_url)
+        response = {'ok': True, 'id': int(row[0]) if row else None}
+        if generated_party_code:
+            response['party_code'] = generated_party_code
+        return JsonResponse(response)
     except Exception as e:
         msg = str(e) or "Failed to register candidate."
         if "ux_candidates_registration_student_position" in msg or "duplicate key" in msg.lower():
