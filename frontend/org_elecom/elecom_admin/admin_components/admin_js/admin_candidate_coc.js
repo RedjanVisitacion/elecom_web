@@ -40,10 +40,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const ctx = canvas.getContext('2d');
   ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#000';
   let signed = false, drawing = false, debounce, controller, previewUrl;
-  const notify = (message) => {
-    const el = document.getElementById('errorAlert');
-    el.textContent = message; el.style.display = 'block'; el.scrollIntoView({behavior:'smooth',block:'center'});
-  };
+  const notify = message => window.RegistrationNotifications.show('error', message);
   const fill = (name,value) => { const el = form.elements.namedItem(name); if (el) el.value = value || ''; };
   const chooseStudent = (student) => {
     accountProgram = student.program || '';

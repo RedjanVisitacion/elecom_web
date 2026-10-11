@@ -14,21 +14,34 @@ document.addEventListener('DOMContentLoaded', () => {
   const selectedParty = () => parties.find(party => party.name === select.selectedOptions[0]?.dataset.partyName);
   const updateCapacity = () => {
     const political = document.getElementById('type_party').checked;
-    const party = political && loadedOrganization === organization.value ? selectedParty() : null;
+    const matching = loadedOrganization === organization.value;
+    for (const option of select.options) {
+      const party = parties.find(item => item.name === option.dataset.partyName);
+      if (!party) continue;
+      const slot = matching ? party.positions?.[position.value] : null;
+      const full = political && slot && slot.used >= slot.limit;
+      option.disabled = !!full;
+      option.textContent = party.name + (full ? ` (Full for ${position.value})` : '');
+    }
+    // Capacity blocks the party choice; the chosen position must remain in FormData.
     for (const option of position.options) {
       if (!option.value) continue;
-      option.dataset.baseLabel ||= option.textContent;
-      const slot = party?.positions?.[option.value];
-      const full = slot && slot.used >= slot.limit;
+      option.dataset.baseLabel ||= option.textContent.replace(/ \(Full:.*\)$/,'');
       const eligible = !/representative/i.test(option.value) || (organization.value === 'USG' && option.value === `${form.elements.program.value} Representative`);
-      option.disabled = !eligible || !!full;
-      option.textContent = option.dataset.baseLabel + (full ? ` (Full: ${slot.used}/${slot.limit})` : '');
+      option.disabled = !eligible;
+      option.textContent = option.dataset.baseLabel;
     }
+    const party = political && matching ? selectedParty() : null;
     const slot = party?.positions?.[position.value];
     const full = slot && slot.used >= slot.limit;
-    select.setCustomValidity(full ? 'This party position is full. Go Back to Candidate Info and choose another position, or select another party.' : '');
+    select.setCustomValidity('');
     capacityStatus.classList.toggle('text-danger', !!full);
-    capacityStatus.textContent = slot ? `${party.name}: ${slot.used} of ${slot.limit} slots used for ${position.value} in ${organization.value}.${full ? ' This position is full; choose another position or party.' : ''}` : '';
+    capacityStatus.textContent = slot ? `${party.name}: ${slot.used} of ${slot.limit} slots used for ${position.value} in ${organization.value}.` : '';
+    if (full) {
+      select.value = ''; name.value = ''; name.readOnly = true;
+      shared.hidden = true; image.removeAttribute('src');zone.hidden=false;logoInput.disabled=!political;
+      window.RegistrationNotifications.show('warning', `${party.name} is full for ${position.value} in ${organization.value}. Select another party or go Back to choose another position.`);
+    }
   };
   const sync = () => {
     const political = document.getElementById('type_party').checked;

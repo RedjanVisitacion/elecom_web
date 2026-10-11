@@ -13,17 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const form = document.getElementById("registerCandidateForm");
   const submitBtn = document.getElementById("submitBtn");
 
-  const showAlert = (type, msg) => {
-    if (successAlert) successAlert.style.display = "none";
-    if (errorAlert) errorAlert.style.display = "none";
-
-    const el = type === "success" ? successAlert : errorAlert;
-    if (!el) return;
-
-    el.textContent = msg;
-    el.style.display = "block";
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  };
+  const showAlert = (type, msg) => window.RegistrationNotifications.show(type, msg);
 
   const setLoading = (loading) => {
     if (!submitBtn) return;

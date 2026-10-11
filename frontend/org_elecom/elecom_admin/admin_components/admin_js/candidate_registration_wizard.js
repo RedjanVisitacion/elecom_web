@@ -48,8 +48,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (index === 3 && !window.AdminCandidateCoc?.hasSignature()) {
       show(index); document.getElementById('candidateSignature').focus();
       status.textContent = 'The candidate must sign the COC before registration.';
-      const alert = document.getElementById('errorAlert');
-      alert.textContent = 'The candidate must sign the COC before registration.'; alert.style.display = 'block';
+      window.RegistrationNotifications.show('error', 'The candidate must sign the COC before registration.');
       return false;
     }
     return true;
