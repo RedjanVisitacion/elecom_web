@@ -323,7 +323,11 @@
                             <span class="upload-filename" aria-live="polite">No file selected</span>
                             <input id="candidate_photo" type="file" name="photo_file" accept="image/*" aria-label="Upload candidate photo" required>
                         </label>
-                        <div class="form-text">Upload the candidate's actual photo.</div>
+                        <div class="d-flex flex-wrap align-items-center gap-2 mt-2">
+                            <button id="openCandidateCamera" type="button" class="btn btn-outline-primary btn-sm"><i class="bi bi-camera" aria-hidden="true"></i> Use camera / webcam</button>
+                            <img id="candidatePhotoThumbnail" alt="Selected candidate photo" width="80" height="80" style="object-fit:cover;border-radius:8px;" hidden>
+                        </div>
+                        <div class="form-text">Upload a photo or take one using a built-in camera or USB webcam.</div>
                     </div>
 
                     <div class="col-12 party-fields d-none"><hr class="my-2"></div>
@@ -402,7 +406,7 @@
 </div>
 </div></section>
 <section class="wizard-step" id="candidateWizardStep4" aria-label="Signature & Review" hidden><h6 class="visually-hidden" tabindex="-1">Signature & Review</h6><div class="row g-3">
-<div class="col-12"><label class="form-label" for="candidateSignature">Candidate signature</label><canvas id="candidateSignature" width="680" height="180" tabindex="0" aria-label="Candidate signature pad" style="display:block;width:100%;max-width:680px;height:180px;background:white;border:1px solid #cbd5e1;border-radius:8px;touch-action:none;"></canvas><button id="clearCandidateSignature" type="button" class="btn btn-outline-secondary btn-sm mt-2">Clear signature</button><p class="form-text">The candidate signs here using a mouse, touch screen, or stylus.</p></div>
+<div class="col-12"><label class="form-label" for="candidateSignature">Candidate signature</label><canvas id="candidateSignature" width="680" height="180" tabindex="0" aria-label="Candidate signature pad" style="display:block;width:100%;max-width:680px;height:180px;background:white;border:1px solid #cbd5e1;border-radius:8px;touch-action:none;"></canvas><button id="clearCandidateSignature" type="button" class="btn btn-outline-secondary btn-sm mt-2">Clear signature</button><label class="btn btn-outline-primary btn-sm mt-2 ms-2" for="candidateSignatureFile"><i class="bi bi-upload" aria-hidden="true"></i> Import signature PNG</label><input id="candidateSignatureFile" type="file" accept="image/png" class="visually-hidden"><p class="form-text">Sign using a mouse, touch screen, stylus, or USB pen tablet configured as a pointing device. A signature exported by a dedicated pad can be imported as a PNG.</p><p id="candidateSignatureStatus" class="form-text" aria-live="polite"></p></div>
 <div class="col-12"><label class="form-check"><input name="coc_confirmed" type="checkbox" class="form-check-input" required> <span class="form-check-label">The candidate reviewed these details and provided this signature.</span></label></div>
 <div class="col-12"><button id="previewAdminCoc" type="button" class="btn btn-outline-primary">Preview Certificate of Candidacy</button><a id="registeredCocLink" class="btn btn-outline-success d-none ms-2" target="_blank" rel="noopener">View issued COC</a></div>
 </div></section>
@@ -462,12 +466,21 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_coc.js?v=20261011-wizard1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_coc.js?v=20261011-capture1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/candidate_memberships.js?v=20261011-year-separator2"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/candidate_registration_wizard.js?v=20261011-membership-controls1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_candidate_party_picker.js?v=20261011-party-picker1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/candidate_camera.js?v=20261011-capture1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_register_candidate.js?v=20261011-party-picker1"></script>
 <div class="modal fade" id="adminCocPreviewModal" tabindex="-1" aria-labelledby="adminCocPreviewTitle" aria-hidden="true"><div class="modal-dialog modal-xl modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="adminCocPreviewTitle">Certificate of Candidacy Preview</h5><button class="btn-close btn-close-white" type="button" data-bs-dismiss="modal" aria-label="Close"></button></div><div class="modal-body p-0"><iframe id="adminCocPreviewFrame" title="COC preview" style="width:100%;height:72vh;border:0;"></iframe></div></div></div></div>
+<div class="modal fade" id="candidateCameraModal" tabindex="-1" aria-labelledby="candidateCameraTitle" aria-hidden="true"><div class="modal-dialog modal-lg modal-dialog-centered"><div class="modal-content">
+<div class="modal-header"><h5 class="modal-title" id="candidateCameraTitle">Take candidate photo</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button></div>
+<div class="modal-body"><label class="form-label" for="candidateCameraSelect">Camera</label><select id="candidateCameraSelect" class="form-select mb-2" aria-label="Choose camera"></select>
+<video id="candidateCameraVideo" autoplay playsinline muted style="width:100%;max-height:50vh;background:#0d1b3e;border-radius:8px;"></video>
+<img id="candidateCameraSnapshot" alt="Captured candidate photo" style="width:100%;max-height:50vh;object-fit:contain;border-radius:8px;" hidden>
+<p id="candidateCameraStatus" class="form-text" role="status" aria-live="polite"></p></div>
+<div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button id="candidateCameraRetake" type="button" class="btn btn-outline-primary" hidden>Retake</button><button id="candidateCameraCapture" type="button" class="btn btn-primary" disabled>Capture photo</button><button id="candidateCameraUse" type="button" class="btn btn-primary" hidden disabled>Use photo</button></div>
+</div></div></div>
 </body>
 </html>
 

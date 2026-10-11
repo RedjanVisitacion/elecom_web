@@ -86,15 +86,66 @@ document.addEventListener('DOMContentLoaded', () => {
       } catch (error) { if (error.name !== 'AbortError') results.textContent=error.message; }
     },300);
   });
+  const signatureStatus = document.getElementById('candidateSignatureStatus');
+  const signatureFile = document.getElementById('candidateSignatureFile');
+  let activePointer = null, signatureVersion = 0;
   const point = event => { const rect=canvas.getBoundingClientRect(); return [(event.clientX-rect.left)*canvas.width/rect.width,(event.clientY-rect.top)*canvas.height/rect.height]; };
+  const drawPoint = event => {
+    const [x,y] = point(event);
+    ctx.lineWidth = event.pointerType === 'pen' && event.pressure > 0 ? 1 + 3 * event.pressure : 2;
+    ctx.lineTo(x,y); ctx.stroke(); signed=true;
+  };
   canvas.addEventListener('pointerdown', event => {
-    event.preventDefault(); canvas.setPointerCapture(event.pointerId); drawing=true;
+    if (event.isPrimary === false || event.button !== 0 || activePointer !== null) return;
+    event.preventDefault(); signatureVersion++; activePointer=event.pointerId;
+    canvas.setPointerCapture(event.pointerId); drawing=true;
     const [x,y]=point(event); ctx.beginPath();ctx.moveTo(x,y);
+    signatureStatus.textContent = event.pointerType === 'pen' ? 'Pen / tablet input detected.' : 'Signature input active.';
   });
-  canvas.addEventListener('pointermove', event => { if (!drawing) return; const [x,y]=point(event);ctx.lineTo(x,y);ctx.stroke();signed=true; });
-  ['pointerup','pointercancel','lostpointercapture'].forEach(name => canvas.addEventListener(name,()=>{drawing=false;}));
-  const clear = () => {ctx.clearRect(0,0,canvas.width,canvas.height);signed=false;};
+  canvas.addEventListener('pointermove', event => {
+    if (!drawing || event.pointerId !== activePointer) return;
+    event.preventDefault();
+    const samples = event.getCoalescedEvents?.() || [];
+    (samples.length ? samples : [event]).forEach(drawPoint);
+  });
+  canvas.addEventListener('pointerup', event => {
+    if (event.pointerId !== activePointer) return;
+    if (drawing) drawPoint(event);
+    drawing=false; activePointer=null;
+    if (canvas.hasPointerCapture(event.pointerId)) canvas.releasePointerCapture(event.pointerId);
+    signatureStatus.textContent = 'Signature captured.';
+  });
+  ['pointercancel','lostpointercapture'].forEach(name => canvas.addEventListener(name,event=>{
+    if (event.pointerId === activePointer) {drawing=false;activePointer=null;}
+  }));
+  const clear = () => {
+    signatureVersion++; drawing=false;
+    if (activePointer !== null && canvas.hasPointerCapture(activePointer)) canvas.releasePointerCapture(activePointer);
+    activePointer=null;ctx.clearRect(0,0,canvas.width,canvas.height);signed=false;
+    signatureFile.value='';signatureStatus.textContent='';
+  };
   document.getElementById('clearCandidateSignature').addEventListener('click',clear);
+  signatureFile.addEventListener('change',async () => {
+    const file=signatureFile.files[0];
+    if (!file) return;
+    const version=++signatureVersion;
+    try {
+      if (file.type !== 'image/png' || file.size > 1024*1024) throw new Error('Import a signature PNG no larger than 1 MB.');
+      const bitmap=await createImageBitmap(file);
+      if (version !== signatureVersion) {bitmap.close();return;}
+      const scratch=document.createElement('canvas');scratch.width=canvas.width;scratch.height=canvas.height;
+      const context=scratch.getContext('2d');
+      const scale=Math.min((canvas.width-20)/bitmap.width,(canvas.height-20)/bitmap.height);
+      const width=bitmap.width*scale,height=bitmap.height*scale;
+      context.drawImage(bitmap,(canvas.width-width)/2,(canvas.height-height)/2,width,height);bitmap.close();
+      const pixels=context.getImageData(0,0,scratch.width,scratch.height).data;
+      let ink=0;
+      for(let i=0;i<pixels.length;i+=4) if(pixels[i+3]>0 && Math.min(pixels[i],pixels[i+1],pixels[i+2])<240) ink++;
+      if(ink<10) throw new Error('The PNG must contain a visible signature.');
+      ctx.clearRect(0,0,canvas.width,canvas.height);ctx.drawImage(scratch,0,0);signed=true;
+      signatureStatus.textContent='Imported signature. Please review it before confirming.';
+    } catch(error) {signatureStatus.textContent=error.message;signatureFile.value='';}
+  });
   const readBase64 = blob => new Promise((resolve,reject) => { const reader=new FileReader();reader.onload=()=>resolve(String(reader.result).split(',')[1]);reader.onerror=()=>reject(new Error('Could not read the photo.'));reader.readAsDataURL(blob); });
   const augment = async payload => {
     if (!form.elements.student_id.value) throw new Error('Search for and select a student first.');
