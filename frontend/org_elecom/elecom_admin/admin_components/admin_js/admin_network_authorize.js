@@ -4,12 +4,37 @@ let restrictionEnabled = false;
 let accessLogs = [];
 let logPage = 1;
 const LOG_PAGE_SIZE = 10;
+let logPollTimer = null;
+let logRequest = null;
+let logsLoaded = false;
+let logsPageActive = true;
+
+function startLogPolling() {
+  if (logPollTimer || document.hidden || !logsPageActive) return;
+  loadAccessLogs(logsLoaded);
+  logPollTimer = setInterval(() => loadAccessLogs(true), 3000);
+}
+
+function stopLogPolling() {
+  clearInterval(logPollTimer);
+  logPollTimer = null;
+  if (logRequest) logRequest.abort();
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) stopLogPolling();
+  else startLogPolling();
+});
+window.addEventListener('pagehide', () => { logsPageActive = false; stopLogPolling(); });
+window.addEventListener('pageshow', event => {
+  if (event.persisted) { logsPageActive = true; startLogPolling(); }
+});
 
 function initNetworkAuthorizePage() {
   initSidebar();
   setupEventListeners();
   loadNetworkSettings();
-  loadAccessLogs();
+  startLogPolling();
 }
 
 if (document.readyState === "loading") {
@@ -238,21 +263,31 @@ function renderDetectedRequestIp(ipAddress) {
   }
 }
 
-async function loadAccessLogs() {
+async function loadAccessLogs(silent = false) {
+  if (logRequest || document.hidden || !logsPageActive) return;
+  const controller = new AbortController();
+  logRequest = controller;
+  const timeout = setTimeout(() => controller.abort(), 15000);
   try {
     const response = await fetch(`${API_BASE_URL}/admin/network-logs/`, {
-      credentials: "include",
+      credentials: "include", cache: "no-store", signal: controller.signal,
     });
-
     const data = await response.json().catch(() => ({}));
-    if (response.ok && data.ok) {
-      accessLogs = data.logs || [];
-      renderAccessLogs();
-    } else {
-      throw new Error(data.error || "Failed to load network access logs.");
-    }
+    if (!response.ok || !data.ok) throw new Error(data.error || "Failed to load network access logs.");
+    if (controller.signal.aborted || document.hidden || !logsPageActive) return;
+    const nextLogs = data.logs || [];
+    const changed = JSON.stringify(accessLogs) !== JSON.stringify(nextLogs);
+    accessLogs = nextLogs;
+    if (!logsLoaded || changed) renderAccessLogs();
+    logsLoaded = true;
   } catch (error) {
-    showNotification(error.message || "Failed to load network access logs.", "error");
+    // Retain the last successful rows; background failures retry next interval.
+    if (!silent && !document.hidden && logsPageActive) {
+      showNotification(error.name === 'AbortError' ? 'Network logs request timed out. Retrying automatically.' : error.message, 'error');
+    }
+  } finally {
+    clearTimeout(timeout);
+    if (logRequest === controller) logRequest = null;
   }
 }
 
