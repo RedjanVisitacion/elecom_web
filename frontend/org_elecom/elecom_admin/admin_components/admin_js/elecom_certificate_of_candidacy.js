@@ -130,7 +130,18 @@ document.addEventListener('DOMContentLoaded', () => {
     reader.readAsDataURL(file);
   });
 
-  function message(text, error = false) { notice.textContent = text; notice.className = error ? 'text-danger' : 'text-success'; }
+  function message(text, error = false) {
+    const toast = document.getElementById('cocToast');
+    const previous = bootstrap.Toast.getInstance(toast);
+    if (!text) { previous?.hide(); return; }
+    notice.textContent = text;
+    document.getElementById('cocToastTitle').textContent = error ? 'Please check COC settings' : 'COC settings saved';
+    document.getElementById('cocToastIcon').className = `bi ${error ? 'bi-exclamation-circle-fill text-danger' : 'bi-check-circle-fill text-success'} me-2`;
+    toast.setAttribute('role', error ? 'alert' : 'status');
+    toast.setAttribute('aria-live', error ? 'assertive' : 'polite');
+    if (previous) previous.dispose();
+    new bootstrap.Toast(toast, { autohide: !error, delay: 6000 }).show();
+  }
   function updateYear(form, selected) {
     const select = form.elements.academic_year_start;
     const current = new Date().getFullYear();
