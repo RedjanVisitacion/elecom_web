@@ -27,7 +27,7 @@
             label: (item) => `${item.parsed.y.toLocaleString()} votes cast in this hour`,
           } } },
           scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: "#64748b", font: { size: 10 } }, title: { display: true, text: "Election hours ? Philippine time", color: "#64748b" } },
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: "#64748b", font: { size: 10 } }, title: { display: true, text: "Election hours - Philippine time", color: "#64748b" } },
             y: { beginAtZero: true, suggestedMax: 10, grid: { color: "#eef2f6" }, ticks: { precision: 0, color: "#64748b", font: { size: 10 } }, title: { display: true, text: "Votes cast per hour", color: "#64748b" } },
           },
         },
