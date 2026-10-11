@@ -137,10 +137,44 @@ document.addEventListener("DOMContentLoaded", () => {
   const partyFields = document.querySelectorAll(".party-fields");
   const updateParty = () => {
     const isParty = document.getElementById("type_party")?.checked;
-    partyFields.forEach((el) => el.classList.toggle("d-none", !isParty));
+    partyFields.forEach((el) => {
+      el.classList.toggle("d-none", !isParty);
+      el.querySelectorAll("input, select, textarea").forEach((input) => { input.disabled = !isParty; });
+    });
+    const partyName = document.getElementById("party_name");
+    if (partyName) partyName.required = !!isParty;
   };
   document.querySelectorAll('input[name="candidate_type"]').forEach((r) => r.addEventListener("change", updateParty));
   updateParty();
+
+  // File inputs remain keyboard accessible and feed the existing upload flow.
+  const uploadZones = document.querySelectorAll(".candidate-upload-zone");
+  const refreshUploadLabels = () => uploadZones.forEach((zone) => {
+    const input = zone.querySelector('input[type="file"]');
+    zone.querySelector(".upload-filename").textContent = input.files?.[0]?.name || "No file selected";
+  });
+  uploadZones.forEach((zone) => {
+    const input = zone.querySelector('input[type="file"]');
+    input.addEventListener("change", refreshUploadLabels);
+    ["dragenter", "dragover"].forEach((name) => zone.addEventListener(name, (event) => {
+      event.preventDefault();
+      if (!input.disabled) zone.classList.add("is-dragging");
+    }));
+    zone.addEventListener("dragleave", () => zone.classList.remove("is-dragging"));
+    zone.addEventListener("drop", (event) => {
+      event.preventDefault();
+      zone.classList.remove("is-dragging");
+      if (input.disabled) return;
+      const files = event.dataTransfer?.files;
+      if (!files?.length) return;
+      if (files.length !== 1 || !files[0].type.startsWith("image/")) {
+        showAlert("error", "Please select one image file.");
+        return;
+      }
+      input.files = files;
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+  });
 
   // Program -> Year/Section
   const programSelect = document.getElementById("programSelect");
@@ -548,6 +582,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showAlert("success", data.party_code ? `Candidate registered. New party security code: ${data.party_code}. Share it privately with authorized lineup members.` : `Candidate registered successfully.`);
         await loadApplications();
         form.reset();
+        refreshUploadLabels();
         populateYearSections();
         filterPositionsByOrg();
         updateParty();
