@@ -169,6 +169,16 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function showAlert(message, type) {
     if (!alertEl) return;
+    if (message && type === 'success' && window.bootstrap?.Toast) {
+      const toast = document.getElementById('electionSuccessToast');
+      const text = document.getElementById('electionSuccessMessage');
+      if (toast && text) {
+        alertEl.className = 'alert d-none'; alertEl.textContent = '';
+        text.textContent = message;
+        window.bootstrap.Toast.getOrCreateInstance(toast, { delay: 5000, autohide: true }).show();
+        return;
+      }
+    }
     if (!message) {
       alertEl.className = 'alert d-none';
       alertEl.textContent = '';

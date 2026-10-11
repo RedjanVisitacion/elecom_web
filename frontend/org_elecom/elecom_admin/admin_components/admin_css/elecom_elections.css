@@ -420,3 +420,7 @@ html.election-viewport { --election-header-height: var(--topbar-height, 70px); }
 .flatpickr-calendar.results-release-calendar { z-index: 1055; margin-top: 4px; }
 
 .election-management-page .election-form { overflow-y: auto; overscroll-behavior: contain; }
+
+.election-toast-container { position: fixed; top: calc(var(--election-header-height, 64px) + 16px); right: 20px; z-index: 1090; max-width: calc(100vw - 32px); }
+.election-success-toast { width: 360px; max-width: 100%; background: #fff; color: #0d1b3e; border: 1px solid #dcfce7; border-left: 4px solid #22c55e; border-radius: 10px; box-shadow: 0 8px 24px rgba(13,27,62,.16); }
+.election-success-toast .toast-body { font-size: 13px; padding: 14px; }
