@@ -94,3 +94,19 @@ html:has(.coc-page), body.coc-page { height: 100%; overflow: hidden; }
 @media (max-width: 1100px) and (max-height: 650px) {
   .coc-settings #chairSignaturePad { min-height: 28px; }
 }
+
+.coc-settings .form-select { padding: 6px 32px 6px 10px; }
+.coc-save-row .btn-save-coc-settings {
+  background: #0284c7;
+  border-color: #0284c7;
+  color: #ffffff;
+  font-weight: 600;
+  transition: background-color .15s ease, box-shadow .15s ease;
+}
+.coc-save-row .btn-save-coc-settings:hover:not(:disabled),
+.coc-save-row .btn-save-coc-settings:focus-visible {
+  background: #0369a1;
+  border-color: #0369a1;
+  color: #ffffff;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, .2);
+}

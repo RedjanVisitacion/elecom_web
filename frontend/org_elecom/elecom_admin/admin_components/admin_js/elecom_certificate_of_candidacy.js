@@ -132,19 +132,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function message(text, error = false) { notice.textContent = text; notice.className = error ? 'text-danger' : 'text-success'; }
   function updateYear(form, selected) {
-    const slider = form.elements.academic_year_start;
+    const select = form.elements.academic_year_start;
     const current = new Date().getFullYear();
-    const year = Number(selected || slider.value || current);
-    if (selected !== undefined) {
-      slider.min = Math.max(1900, Math.min(current - 15, year));
-      slider.max = Math.min(2200, Math.max(current + 15, year));
+    const year = Number(selected ?? (select.value || current));
+    if (!select.options.length || selected !== undefined) {
+      // Retain a saved year even when it falls outside the current choices.
+      const years = new Set(Array.from({ length: 6 }, (_, index) => current + index));
+      years.add(year);
+      select.replaceChildren(...[...years].sort((a, b) => a - b).map(start => {
+        const option = document.createElement('option');
+        option.value = String(start);
+        option.textContent = `${start}-${start + 1}`;
+        return option;
+      }));
     }
-    slider.value = year;
-    form.elements.academic_year_end.value = year + 1;
-    slider.setAttribute('aria-valuetext', `${year} to ${year + 1}`);
-    form.querySelector('[data-year-label]').textContent = `${year} - ${year + 1}`;
-    form.querySelector('[data-year-min]').textContent = slider.min;
-    form.querySelector('[data-year-max]').textContent = slider.max;
+    select.value = String(year);
+    form.elements.academic_year_end.value = String(year + 1);
   }
   function values(form) {
     return { form_kind: form.dataset.cocForm, ...formatting,
@@ -239,10 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
   }
   for (const form of forms) {
     updateYear(form, new Date().getFullYear());
-    form.elements.academic_year_start.addEventListener('input', () => {
+    form.elements.academic_year_start.addEventListener('change', () => {
       updateYear(form);
+      previewSignatures();
     });
-    form.addEventListener('input', previewSignatures);
+    form.elements.chairperson_name.addEventListener('input', previewSignatures);
     form.addEventListener('submit', async event => {
       event.preventDefault();
       if (signatureLoading || drawing) { message('Finish drawing or loading the signature before saving.', true); return; }
