@@ -1234,3 +1234,39 @@ textarea.form-control { min-height: 120px; resize: vertical; }
   .sidebar-menu .candidates-submenu.collapsing,
   .sidebar-menu .nav-link .chevron { transition: none; }
 }
+
+/* Compact desktop navigation: remove header boxes as well as their text. */
+@media (min-width: 993px) {
+  :is(.sidebar.collapsed, html.sidebar-is-collapsed .sidebar) :is(.category-header, .nav-section-label) {
+    display: none !important;
+  }
+  :is(.sidebar.collapsed, html.sidebar-is-collapsed .sidebar) .nav-item {
+    margin-top: 0 !important;
+    margin-bottom: 6px !important;
+  }
+  :is(.sidebar.collapsed, html.sidebar-is-collapsed .sidebar) .nav-link {
+    height: 44px;
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+    margin-top: 0;
+    margin-bottom: 0;
+  }
+}
+/* Appended to body so the scrollable sidebar cannot clip the tooltip. */
+.sidebar-feature-tooltip {
+  position: fixed;
+  z-index: 1080;
+  pointer-events: none;
+  max-width: 240px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: #0d1b3e;
+  color: #fff;
+  font-size: 12px;
+  line-height: 1.4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+.sidebar-feature-tooltip[hidden] { display: none; }

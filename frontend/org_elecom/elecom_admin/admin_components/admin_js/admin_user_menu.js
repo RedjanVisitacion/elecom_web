@@ -13,7 +13,44 @@
       // Keep navigation usable when browser storage is unavailable.
     }
 
+    const featureTooltip = document.createElement("div");
+    featureTooltip.className = "sidebar-feature-tooltip";
+    featureTooltip.id = "sidebarFeatureTooltip";
+    featureTooltip.setAttribute("role", "tooltip");
+    featureTooltip.hidden = true;
+    document.body.appendChild(featureTooltip);
+    let tooltipLink = null;
+    const hideFeatureTooltip = () => {
+      featureTooltip.hidden = true;
+      if (tooltipLink) tooltipLink.removeAttribute("aria-describedby");
+      tooltipLink = null;
+    };
+    const showFeatureTooltip = (link) => {
+      hideFeatureTooltip();
+      if (!sidebar.classList.contains("collapsed") || mobile.matches) return;
+      tooltipLink = link;
+      featureTooltip.textContent = link.getAttribute("aria-label");
+      featureTooltip.hidden = false;
+      const rect = link.getBoundingClientRect();
+      featureTooltip.style.left = `${sidebar.getBoundingClientRect().right + 10}px`;
+      featureTooltip.style.top = `${Math.max(8, Math.min(rect.top + (rect.height - featureTooltip.offsetHeight) / 2, window.innerHeight - featureTooltip.offsetHeight - 8))}px`;
+      link.setAttribute("aria-describedby", featureTooltip.id);
+    };
+    sidebar.querySelectorAll(".nav-link").forEach((link) => {
+      link.addEventListener("mouseenter", () => showFeatureTooltip(link));
+      link.addEventListener("mouseleave", hideFeatureTooltip);
+      link.addEventListener("focus", () => showFeatureTooltip(link));
+      link.addEventListener("blur", hideFeatureTooltip);
+      link.addEventListener("click", hideFeatureTooltip);
+    });
+    sidebar.addEventListener("scroll", hideFeatureTooltip, true);
+    sidebar.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") hideFeatureTooltip();
+    });
+    window.addEventListener("resize", hideFeatureTooltip);
+
     const setCollapsed = (collapsed) => {
+      hideFeatureTooltip();
       sidebar.classList.toggle("collapsed", collapsed);
       document.body.classList.toggle("sidebar-collapsed", collapsed);
       toggle.setAttribute("aria-expanded", String(!collapsed));
@@ -23,8 +60,7 @@
         const label = link.querySelector("span");
         const name = (label ? label.textContent : link.textContent).trim();
         link.setAttribute("aria-label", name);
-        if (collapsed) link.title = name;
-        else link.removeAttribute("title");
+        link.removeAttribute("title");
       });
     };
 
