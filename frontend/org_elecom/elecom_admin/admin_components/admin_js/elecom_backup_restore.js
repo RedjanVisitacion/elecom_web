@@ -44,13 +44,19 @@
   };
 
   const showAlert = (message, type) => {
-    const alert = $("backupAlert");
-    if (!alert) return;
-    alert.textContent = message || "";
-    alert.className = `backup-alert ${type || "success"}`;
-    alert.classList.toggle("d-none", !message);
+    const inline = $("backupAlert");
+    if (inline) { inline.textContent = ""; inline.classList.add("d-none"); }
+    if (!message) return;
+    const element = $("backupToast");
+    const error = type === "error";
+    $("backupToastTitle").textContent = error ? "Please check Backup & Restore" : "Backup & Restore";
+    $("backupToastBody").textContent = String(message);
+    $("backupToastIcon").className = `bi ${error ? "bi-exclamation-circle-fill text-danger" : "bi-check-circle-fill text-success"} me-2`;
+    element.setAttribute("role", error ? "alert" : "status");
+    element.setAttribute("aria-live", error ? "assertive" : "polite");
+    bootstrap.Toast.getInstance(element)?.dispose();
+    new bootstrap.Toast(element, { autohide: true, delay: 4000 }).show();
   };
-
   const formatBytes = (bytes) => {
     const value = Number(bytes) || 0;
     if (value < 1024) return `${value} B`;
@@ -331,6 +337,7 @@
       await refreshAll();
     } catch (restoreError) {
       if (error) error.textContent = restoreError.message;
+      showAlert(restoreError.message, "error");
     } finally {
       setButtonLoading(confirmBtn, false);
       if (confirmBtn) confirmBtn.disabled = false;
