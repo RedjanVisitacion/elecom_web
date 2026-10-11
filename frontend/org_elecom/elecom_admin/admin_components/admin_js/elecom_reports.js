@@ -217,12 +217,18 @@ document.addEventListener('DOMContentLoaded', function(){
     return Math.round((n / d) * 1000) / 10;
   }
 
-  function showAlert(msg, type='danger'){
-    if (!alertBox) return;
-    if (!msg) { alertBox.classList.add('d-none'); alertBox.textContent=''; return; }
-    alertBox.className = 'alert alert-'+type;
-    alertBox.textContent = msg;
-    alertBox.classList.remove('d-none');
+  function showAlert(msg, type='danger') {
+    if (alertBox) { alertBox.classList.add('d-none'); alertBox.textContent = ''; }
+    if (!msg) return;
+    const element = document.getElementById('reportToast');
+    const error = type === 'danger';
+    document.getElementById('reportToastTitle').textContent = error ? 'Please check report settings' : type === 'success' ? 'Report ready' : 'Generate Reports';
+    document.getElementById('reportToastBody').textContent = String(msg);
+    document.getElementById('reportToastIcon').className = `bi ${error ? 'bi-exclamation-circle-fill text-danger' : 'bi-check-circle-fill text-success'} me-2`;
+    element.setAttribute('role', error ? 'alert' : 'status');
+    element.setAttribute('aria-live', error ? 'assertive' : 'polite');
+    bootstrap.Toast.getInstance(element)?.dispose();
+    new bootstrap.Toast(element, { autohide: !error, delay: 6000 }).show();
   }
 
   function validateDates(){
@@ -1319,7 +1325,14 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   }
 
-  document.getElementById('previewBtn').addEventListener('click', refreshPreview);
+  document.getElementById('previewBtn').addEventListener('click', async () => {
+    try {
+      const data = await refreshPreview();
+      if (data) showAlert('Report preview is ready.', 'success');
+    } catch (error) {
+      showAlert(error.message === 'invalid_date' ? 'Complete a valid date range before previewing.' : 'Unable to load the report preview. Please try again.');
+    }
+  });
 
   document.getElementById('btnGenerateReport').addEventListener('click', async ()=>{
     try{
@@ -1345,6 +1358,7 @@ document.addEventListener('DOMContentLoaded', function(){
         a.click();
         a.remove();
       }
+      showAlert('Report generated. Your download has been started.', 'success');
     } catch(e){
       if (String(e && e.message) === 'invalid_date') showAlert('Please fix the date range before generating.');
       else if (String(e && e.message) === 'missing_pdf_engine') showAlert('PDF engine failed to load. Please refresh the page and try again.','danger');
