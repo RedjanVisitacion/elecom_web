@@ -273,6 +273,58 @@
       .replace(/"/g, "&quot;");
 
   /* ── Modal ────────────────────────────────────────────────────────────── */
+  const dateRangeInput = document.getElementById('event_date_range');
+  const timeRangeSelect = document.getElementById('event_time_range');
+  const customTimes = document.getElementById('eventCustomTimes');
+  const datePicker = window.flatpickr ? window.flatpickr(dateRangeInput, {
+    mode: 'range', dateFormat: 'Y-m-d', static: false, appendTo: document.body,
+    disableMobile: true,
+    onReady: (_, __, instance) => instance.calendarContainer.classList.add('event-range-calendar'),
+    onChange: (dates, _, instance) => {
+      dateInput.value = dates[0] ? instance.formatDate(dates[0], 'Y-m-d') : '';
+      endDateInput.value = dates[1] ? instance.formatDate(dates[1], 'Y-m-d') : '';
+    },
+  }) : null;
+  if (!datePicker) {
+    dateRangeInput.placeholder = 'YYYY-MM-DD to YYYY-MM-DD';
+    dateRangeInput.addEventListener('input', () => {
+      const match = dateRangeInput.value.trim().match(/^(\d{4}-\d{2}-\d{2})(?: to (\d{4}-\d{2}-\d{2}))?$/);
+      dateInput.value = match ? match[1] : '';
+      endDateInput.value = match ? match[2] || '' : '';
+    });
+  }
+  // Allow focus in the body-mounted calendar without Bootstrap redirecting it.
+  document.addEventListener('focusin', (event) => {
+    if (modalEl.classList.contains('show') && datePicker?.calendarContainer.contains(event.target)) event.stopImmediatePropagation();
+  }, true);
+  modalEl.addEventListener('hide.bs.modal', () => datePicker?.close());
+  modalEl.querySelector('.modal-body').addEventListener('scroll', () => datePicker?.close());
+  for (const input of [startTimeInput, endTimeInput]) {
+    input.add(new Option('Not specified', ''));
+    for (let minute = 0; minute < 1440; minute += 15) {
+      const hour = Math.floor(minute / 60), mins = String(minute % 60).padStart(2, '0');
+      input.add(new Option(`${hour % 12 || 12}:${mins} ${hour < 12 ? 'AM' : 'PM'}`, `${String(hour).padStart(2, '0')}:${mins}`));
+    }
+  }
+  const selectTimeValue = (input, value) => {
+    if (value && !Array.from(input.options).some((option) => option.value === value)) input.add(new Option(value, value));
+    input.value = value;
+  };
+  const syncTimeRange = () => {
+    const start = startTimeInput.value, end = endTimeInput.value;
+    const preset = `${start}|${end}`;
+    timeRangeSelect.value = !start && !end ? 'all_day' : ['08:00|12:00', '13:00|17:00'].includes(preset) ? preset : 'custom';
+    customTimes.classList.toggle('d-none', timeRangeSelect.value !== 'custom');
+  };
+  timeRangeSelect.addEventListener('change', () => {
+    const custom = timeRangeSelect.value === 'custom';
+    customTimes.classList.toggle('d-none', !custom);
+    if (!custom) {
+      const [start = '', end = ''] = timeRangeSelect.value === 'all_day' ? [] : timeRangeSelect.value.split('|');
+      startTimeInput.value = start; endTimeInput.value = end;
+    }
+  });
+
   const syncColorSelection = () => {
     if (!modalEl) return;
     modalEl.querySelectorAll('.cal-color-opt').forEach((swatch) => {
@@ -321,8 +373,8 @@
       titleInput.value = event.title;
       dateInput.value = event.event_date;
       endDateInput.value = event.end_date || "";
-      startTimeInput.value = (event.start_time || "").slice(0, 5);
-      endTimeInput.value = (event.end_time || "").slice(0, 5);
+      selectTimeValue(startTimeInput, (event.start_time || "").slice(0, 5));
+      selectTimeValue(endTimeInput, (event.end_time || "").slice(0, 5));
       locationInput.value = event.location || "";
       descInput.value = event.description || "";
       const colors = Array.from(modalEl.querySelectorAll('input[name="calColor"]'));
@@ -335,6 +387,9 @@
       }
       if (match) match.checked = true;
     }
+    if (datePicker) datePicker.setDate([dateInput.value, endDateInput.value].filter(Boolean), false);
+    else dateRangeInput.value = [dateInput.value, endDateInput.value].filter(Boolean).join(' to ');
+    syncTimeRange();
     syncColorSelection();
     modal.show();
     setTimeout(() => { if (typeSelect) typeSelect.focus(); }, 400);
@@ -385,9 +440,12 @@
       if (titleInput) titleInput.focus();
       return;
     }
-    if (!evDate) { showModalError("Start date is required."); dateInput.focus(); return; }
-    if (endDate && endDate < evDate) { showModalError("End date cannot be before start date."); endDateInput.focus(); return; }
+    if (!evDate) { showModalError("Start date is required."); dateRangeInput.focus(); return; }
+    if (endDate && endDate < evDate) { showModalError("End date cannot be before start date."); dateRangeInput.focus(); return; }
 
+    if (startTime && endTime && (!endDate || endDate === evDate) && endTime <= startTime) {
+      showModalError("End time must be after start time for a single-day event."); endTimeInput.focus(); return;
+    }
     saveBtn.disabled = true;
     saveBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>Saving...';
 

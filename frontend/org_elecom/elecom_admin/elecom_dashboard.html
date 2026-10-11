@@ -20,7 +20,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261011-picker-clearance1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261011-range-pickers1">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 </head>
 <body class="theme-elecom dashboard-page">
 
@@ -338,24 +339,24 @@
                         <input type="text" class="form-control" id="calEventTitle" placeholder="Enter activity name" maxlength="255">
                     </div>
 
-                    <div class="row g-2 mb-3">
-                        <div class="col-6">
-                            <label class="form-label fw-semibold" for="calEventDate">
-                                Start date <span class="text-danger">*</span>
-                            </label>
-                            <input type="date" class="form-control" id="calEventDate">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold" for="calEventEndDate">End date <span class="text-muted fw-normal">(optional)</span></label>
-                            <input type="date" class="form-control" id="calEventEndDate">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold" for="calEventStartTime">Start time <span class="text-muted fw-normal">(optional)</span></label>
-                            <input type="time" class="form-control" id="calEventStartTime" placeholder="e.g. 08:00">
-                        </div>
-                        <div class="col-6">
-                            <label class="form-label fw-semibold" for="calEventEndTime">End time <span class="text-muted fw-normal">(optional)</span></label>
-                            <input type="time" class="form-control" id="calEventEndTime" placeholder="e.g. 17:00">
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="event_date_range">Date range <span class="text-danger">*</span></label>
+                        <input type="text" id="event_date_range" class="form-control" placeholder="Select start &amp; end date" aria-describedby="eventDateHelp">
+                        <div id="eventDateHelp" class="form-text">Select one date for a single-day event, or two dates for a range.</div>
+                        <input type="hidden" id="calEventDate" name="start_date">
+                        <input type="hidden" id="calEventEndDate" name="end_date">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="event_time_range">Time range</label>
+                        <select id="event_time_range" class="form-select">
+                            <option value="all_day">All Day</option>
+                            <option value="08:00|12:00">08:00 AM - 12:00 PM</option>
+                            <option value="13:00|17:00">01:00 PM - 05:00 PM</option>
+                            <option value="custom">Custom times</option>
+                        </select>
+                        <div class="row g-2 mt-1 d-none" id="eventCustomTimes">
+                            <div class="col-6"><label class="form-label" for="calEventStartTime">From</label><select id="calEventStartTime" class="form-select"></select></div>
+                            <div class="col-6"><label class="form-label" for="calEventEndTime">To</label><select id="calEventEndTime" class="form-select"></select></div>
                         </div>
                     </div>
 
@@ -472,6 +473,7 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/dashboard_insights.js?v=20261011-visual-polish1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261011-visual-polish1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261011-picker-clearance1"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261011-range-pickers1"></script>
 </body>
 </html>
