@@ -22,6 +22,8 @@ document.addEventListener('DOMContentLoaded', function(){
     resultsPicker = window.flatpickr(resultsInput, {
       enableTime: true, dateFormat: 'Y-m-d H:i', altInput: true,
       altFormat: 'Y-m-d h:i K', time_24hr: false, minuteIncrement: 1,
+      position: 'below left',
+      onReady: (_, __, picker) => picker.calendarContainer.classList.add('results-release-calendar'),
       static: false, appendTo: document.body, disableMobile: true,
     });
     resultsPicker.altInput.id = 'electionResultsDisplay';
