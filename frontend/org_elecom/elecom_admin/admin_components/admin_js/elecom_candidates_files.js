@@ -114,11 +114,21 @@
     items.sort(compare).forEach(item => tile(item.label, item.detail, item.icon, item.action, item.href, item.missing, item.metadata, item.kind));
     status.textContent = grid.children.length ? `${grid.children.length} item${grid.children.length === 1 ? '' : 's'}` : query ? 'No matching items in this folder.' : 'No candidates in this organization for the selected election.';
   }
+  function notify(message, error = false) {
+    const element = document.getElementById('filesToast');
+    document.getElementById('filesToastTitle').textContent = error ? 'Please check Candidate Files' : 'Candidate Files updated';
+    document.getElementById('filesToastBody').textContent = message;
+    document.getElementById('filesToastIcon').className = `bi ${error ? 'bi-exclamation-circle-fill text-danger' : 'bi-check-circle-fill text-success'} me-2`;
+    element.setAttribute('role', error ? 'alert' : 'status');
+    element.setAttribute('aria-live', error ? 'assertive' : 'polite');
+    bootstrap.Toast.getInstance(element)?.dispose();
+    new bootstrap.Toast(element, { autohide: !error, delay: 6000 }).show();
+  }
   let filesRequest = null;
   const candidateMatches = (row, selected) =>
     (row.id === selected.id && row.source === selected.source)
     || (String(row.student_id) === String(selected.student_id) && group(row) === group(selected) && row.position === selected.position);
-  async function load(silent = false) {
+  async function load(silent = false, announceRefresh = false) {
     if (silent && (filesRequest || loading || saving || document.hidden
         || document.querySelector('.modal.show'))) return;
     if (filesRequest) filesRequest.abort();
@@ -143,11 +153,13 @@
       candidate = selected ? rows.find(row => candidateMatches(row, selected)) || null : null;
       loading = false;
       if (!silent || changed) render();
+      if (silent && changed) notify('Candidate folders and submitted files have been updated.');
+      else if (announceRefresh) notify('Candidate files refreshed.');
     } catch (error) {
       if (id !== generation) return;
       loading = false;
       // Retain the last successful contents and retry on the next poll.
-      if (!silent) { render(); status.textContent = `${error.name === 'AbortError' ? 'The request timed out.' : error.message} Use Refresh to try again.`; }
+      if (!silent) { render(); notify(`${error.name === 'AbortError' ? 'The request timed out.' : error.message} Use Refresh to try again.`, true); }
     } finally {
       clearTimeout(timeout);
       if (filesRequest === controller) filesRequest = null;
@@ -221,7 +233,7 @@
   let pending = null;
   function openDocumentDialog(kind, label, deleting, replacing) {
     if (saving || !candidate) return;
-    pending = { kind, deleting, target: { ...candidate } };
+    pending = { kind, deleting, replacing, label, target: { ...candidate } };
     document.getElementById('documentTitle').textContent = `${deleting ? 'Delete' : replacing ? 'Replace' : 'Upload'} ${label}`;
     document.getElementById('documentMessage').textContent = deleting
       ? `Remove ${label} from ${name(candidate)}'s folder?`
@@ -238,10 +250,10 @@
     const operation = pending;
     const file = fileInput.files[0];
     if (!operation.deleting && (!file || file.size <= 0 || file.size > 8 * 1024 * 1024)) {
-      dialogError.textContent = 'Select a non-empty file of at most 8 MB.'; return;
+      dialogError.textContent = 'Select a non-empty file of at most 8 MB.'; notify(dialogError.textContent, true); return;
     }
     if (!operation.deleting && !(operation.kind === 'requirements_photo' ? /\.(jpe?g|png)$/i : /\.pdf$/i).test(file.name)) {
-      dialogError.textContent = operation.kind === 'requirements_photo' ? 'Select a JPG or PNG photo.' : 'Select a PDF document.'; return;
+      dialogError.textContent = operation.kind === 'requirements_photo' ? 'Select a JPG or PNG photo.' : 'Select a PDF document.'; notify(dialogError.textContent, true); return;
     }
     const form = new FormData();
     form.set('id', operation.target.id); form.set('source', operation.target.source);
@@ -254,9 +266,11 @@
       const contentType = response.headers.get('content-type') || '';
       const data = contentType.includes('application/json') ? await response.json() : null;
       if (!response.ok || !data?.ok) throw new Error(data?.error || (response.status === 413 ? 'The server rejected the upload size.' : 'Unable to update the document. Refresh the page and try again.'));
-      saving = false; dialog.hide(); await load();
+      saving = false; dialog.hide();
+      notify(`${operation.label} ${operation.deleting ? 'deleted' : operation.replacing ? 'replaced' : 'uploaded'} successfully.`);
+      await load();
     } catch (error) {
-      saving = false; dialogError.textContent = error.message; confirm.disabled = false;
+      saving = false; dialogError.textContent = error.message; notify(error.message, true); confirm.disabled = false;
       confirm.textContent = operation.deleting ? 'Delete file' : 'Upload file';
     }
   });
@@ -277,7 +291,7 @@
   election.addEventListener('change', () => { org = ''; candidate = null; load(); });
   scope.addEventListener('change', () => { org = ''; candidate = null; load(); });
   document.getElementById('filesBack').addEventListener('click', () => navigate(candidate ? org : ''));
-  document.getElementById('filesRefresh').addEventListener('click', () => load());
+  document.getElementById('filesRefresh').addEventListener('click', () => load(false, true));
   async function init() {
     try {
       const res = await fetch('/api/admin/elections/', { credentials: 'same-origin' }); const data = await res.json();
