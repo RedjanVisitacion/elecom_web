@@ -551,3 +551,5 @@
 #editModal input[type="file"]:focus-visible + .candidate-upload-trigger { outline: 2px solid #0284c7; outline-offset: 3px; }
 #editModal .btn-save-candidate { background: #0284c7; border-color: #0284c7; color: #fff; font-weight: 600; }
 #editModal .btn-save-candidate:hover, #editModal .btn-save-candidate:focus-visible { background: #0369a1; border-color: #0369a1; color: #fff; }
+
+#editModal .modal-body { padding-bottom: 36px !important; }
