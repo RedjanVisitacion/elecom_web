@@ -23,7 +23,10 @@ class Cursor:
     def __enter__(self): return self
     def __exit__(self, *args): pass
     def execute(self, sql, params=None): self.queries.append((sql, params))
-    def fetchone(self): return self.row
+    def fetchone(self):
+        if "SELECT type FROM user_notifications" in self.queries[-1][0]:
+            return (getattr(self, "notif_type", "candidate_filing"),)
+        return self.row
     def fetchall(self): return [(token,) for token in self.tokens]
 
 
@@ -106,6 +109,21 @@ class PushTests(unittest.TestCase):
         self.assertEqual(messages[0]["data"]["student_id"], "student")
         self.assertNotIn("notification", messages[0])
         self.assertEqual(messages[0]["android"]["priority"], "high")
+
+    def test_calendar_and_election_push_preserve_notification_type(self):
+        for kind in ("schedule", "election", "results"):
+            self.cursor.row = ("student", "Update", "Body", [])
+            self.cursor.tokens = ["device"]
+            self.cursor.notif_type = kind
+            messages = []
+            ns["_messaging"] = lambda: SimpleNamespace(
+                MulticastMessage=lambda **kw: kw,
+                AndroidConfig=lambda **kw: kw,
+                send_each_for_multicast=lambda m: (messages.append(m) or SimpleNamespace(
+                    responses=[SimpleNamespace(success=True)])),
+            )
+            ns["deliver_candidate_push"](12)
+            self.assertEqual(messages[0]["data"]["type"], kind)
 
     def test_invalid_tokens_removed_and_transient_failures_retained(self):
         class UnregisteredError(Exception): pass

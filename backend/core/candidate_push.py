@@ -3,7 +3,8 @@ from datetime import timedelta
 import json
 import logging
 
-from django.db import connection, transaction
+from django.db import close_old_connections, connection, transaction
+from threading import Thread
 from django.http import JsonResponse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_exempt
@@ -130,6 +131,9 @@ def deliver_candidate_push(notification_id):
                 # Do not replay old alerts onto a device registered later.
                 cur.execute("UPDATE candidate_push_outbox SET sent_at = NOW() WHERE notification_id = %s", [notification_id])
                 return True
+            cur.execute("SELECT type FROM user_notifications WHERE id = %s", [notification_id])
+            type_row = cur.fetchone()
+            notif_type = str(type_row[0]) if type_row else "general"
             messaging = _messaging()
             failures = False
             for offset in range(0, len(tokens), 500):
@@ -137,7 +141,7 @@ def deliver_candidate_push(notification_id):
                 message = messaging.MulticastMessage(
                     tokens=batch,
                     data={"notification_id": str(notification_id), "student_id": str(student),
-                          "type": "candidate_filing", "title": title, "body": body},
+                          "type": notif_type, "title": title, "body": body},
                     android=messaging.AndroidConfig(priority="high", ttl=timedelta(days=1)),
                 )
                 result = messaging.send_each_for_multicast(message)
@@ -167,3 +171,21 @@ def deliver_pending_candidate_pushes(limit=100):
     for notification_id in ids:
         _try_delivery(notification_id)
     return len(ids)
+
+
+def dispatch_broadcast_pushes(notification_ids):
+    """Send after commit without holding the admin request open for every account.
+
+    Failed deliveries remain in the existing durable outbox for the retry command.
+    """
+    def deliver():
+        close_old_connections()
+        try:
+            for notification_id in notification_ids:
+                _try_delivery(notification_id)
+        finally:
+            close_old_connections()
+    try:
+        Thread(target=deliver, daemon=True, name="elecom-broadcast-push").start()
+    except Exception:
+        logger.warning("Broadcast push delivery deferred to outbox worker")

@@ -6554,10 +6554,19 @@ def _bulk_insert_user_notifications_for_all_accounts(*, notif_type: str, title: 
     `user_notifications.student_id` stores the same key the mobile session uses:
     trimmed users.student_id, or `users.id` as text when student_id is blank.
     """
+    from .candidate_push import ensure_candidate_push_tables
     _ensure_user_notifications_table()
+    ensure_candidate_push_tables()
+    with transaction.atomic():
+        _insert_broadcast_notifications(notif_type=notif_type, title=title, body=body)
+
+
+def _insert_broadcast_notifications(*, notif_type, title, body):
+    from .candidate_push import dispatch_broadcast_pushes
     with connection.cursor() as cur:
         cur.execute(
             """
+            WITH inserted AS (
             INSERT INTO user_notifications (student_id, type, title, body, created_at, read_at, receipt_id, pinned)
             SELECT DISTINCT ON (notif_key)
                 notif_key, %s, %s, %s, NOW(), NULL, NULL, FALSE
@@ -6568,9 +6577,16 @@ def _bulk_insert_user_notifications_for_all_accounts(*, notif_type: str, title: 
                 FROM users u
             ) t
             ORDER BY notif_key, id DESC
+            RETURNING id, student_id, title, body
+            )
+            INSERT INTO candidate_push_outbox (notification_id, student_id, title, body)
+            SELECT id, student_id, title, body FROM inserted
+            RETURNING notification_id
             """,
             [notif_type, title, body],
         )
+        ids = [row[0] for row in cur.fetchall()]
+    transaction.on_commit(lambda: dispatch_broadcast_pushes(ids))
 
 
 def _vote_window_times_aware(start_at, end_at, results_at):
@@ -6606,17 +6622,29 @@ def _compute_election_phases(*, now, start_at, end_at, results_at):
     return vote, res
 
 
-def _maybe_emit_election_broadcast_notifications() -> None:
+@transaction.atomic
+def _maybe_emit_election_broadcast_notifications(*, announce_schedule=False) -> None:
     """
     When any authenticated client polls election_window_api:
     - Fan-out DB notifications on vote phase transitions (start / end / results).
     - Fan-out when the latest vote_windows row or its timestamps change (schedule update).
 
-    True FCM to offline devices is not implemented here; mobile can poll this endpoint and show local push.
+    Schedule saves also call this directly; alerts use the durable FCM outbox.
     """
     try:
         _ensure_election_broadcast_state_table()
         now = timezone.now()
+
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT window_id, vote_phase, results_state, COALESCE(schedule_sig, '')
+                FROM election_broadcast_state WHERE singleton = 1 FOR UPDATE
+                """
+            )
+            prev = cur.fetchone()
+        if not prev:
+            return
 
         with connection.cursor() as cur:
             cur.execute("SELECT id, start_at, end_at, results_at FROM vote_windows ORDER BY id DESC LIMIT 1")
@@ -6629,17 +6657,6 @@ def _maybe_emit_election_broadcast_notifications() -> None:
         new_sig = _vote_window_schedule_sig(window_id, start_at, end_at, results_at)
         vote_phase, results_state = _compute_election_phases(now=now, start_at=start_at, end_at=end_at, results_at=results_at)
 
-        with connection.cursor() as cur:
-            cur.execute(
-                """
-                SELECT window_id, vote_phase, results_state, COALESCE(schedule_sig, '')
-                FROM election_broadcast_state WHERE singleton = 1
-                """
-            )
-            prev = cur.fetchone()
-        if not prev:
-            return
-
         old_wid, old_vote, old_results = int(prev[0] or 0), str(prev[1] or ""), str(prev[2] or "")
         old_sig = str(prev[3] or "")
 
@@ -6649,11 +6666,11 @@ def _maybe_emit_election_broadcast_notifications() -> None:
         sig_backfill_only = old_sig == "" and old_wid != 0 and new_sig != ""
 
         schedule_changed = new_sig != old_sig
-        if schedule_changed and not cold_start and not sig_backfill_only:
+        if schedule_changed and (announce_schedule or (not cold_start and not sig_backfill_only)):
             _bulk_insert_user_notifications_for_all_accounts(
                 notif_type="election",
                 title="Voting schedule updated",
-                body="Election dates or the active voting window were changed. Check the Home countdown for the latest schedule.",
+                body=f"Voting: {_election_datetime_local_for_admin_form(start_at)} to {_election_datetime_local_for_admin_form(end_at)} (Philippine time). Check Home for the latest schedule.",
             )
 
         # Phase alerts only for the same vote_windows row (avoid cross-window false positives).
@@ -6695,7 +6712,9 @@ def _maybe_emit_election_broadcast_notifications() -> None:
                 [window_id, vote_phase, results_state, new_sig],
             )
     except Exception:
-        pass
+        logger.exception("Election notification broadcast failed")
+        if announce_schedule:
+            raise
 
 
 @require_http_methods(["GET"])
@@ -10233,6 +10252,7 @@ def results_analytics_api(request):
 
 @csrf_exempt
 @require_http_methods(["GET", "POST"])
+@transaction.atomic
 def admin_election_window_api(request):
     forbidden = _require_admin(request)
     if forbidden:
@@ -10270,31 +10290,6 @@ def admin_election_window_api(request):
         return JsonResponse({"ok": False, "error": "Failed to load election window."}, status=500)
 
 
-@require_http_methods(["GET"])
-def app_update_api(request):
-    latest_version = str(getattr(settings, "APP_UPDATE_LATEST_VERSION", "") or "").strip()
-    latest_build_raw = getattr(settings, "APP_UPDATE_LATEST_BUILD", 0) or 0
-    try:
-        latest_build = int(latest_build_raw)
-    except Exception:
-        latest_build = 0
-    apk_url = str(getattr(settings, "APP_UPDATE_APK_URL", "") or "").strip()
-    message = str(getattr(settings, "APP_UPDATE_MESSAGE", "") or "").strip()
-    force_update = str(
-        getattr(settings, "APP_UPDATE_FORCE", "false") or "false"
-    ).strip().lower() in {"1", "true", "yes", "on"}
-
-    return JsonResponse(
-        {
-            "ok": True,
-            "latest_version": latest_version,
-            "latest_build": latest_build,
-            "apk_url": apk_url,
-            "force_update": force_update,
-            "message": message,
-        }
-    )
-
     try:
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except Exception:
@@ -10311,6 +10306,30 @@ def app_update_api(request):
 
     if not admin_password:
         return JsonResponse({"ok": False, "error": "Admin password is required."}, status=400)
+
+    student_id = str(request.session.get("student_id") or "").strip()
+    if not student_id:
+        return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
+    try:
+        with connection.cursor() as cur:
+            cur.execute(
+                """
+                SELECT password_hash
+                FROM users
+                WHERE (student_id::text = %s OR id::text = %s)
+                  AND COALESCE(role, '') ILIKE 'admin'
+                ORDER BY CASE WHEN student_id::text = %s THEN 0 ELSE 1 END, id DESC
+                LIMIT 1
+                """,
+                [student_id, student_id, student_id],
+            )
+            row = cur.fetchone()
+        if not row or not _verify_password(str(row[0] or ""), admin_password):
+            return JsonResponse({"ok": False, "error": "Incorrect admin password."}, status=401)
+    except Exception as e:
+        if getattr(settings, "DEBUG", False):
+            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        return JsonResponse({"ok": False, "error": "Failed to verify admin password."}, status=500)
 
     from django.utils.dateparse import parse_datetime
 
@@ -10372,6 +10391,7 @@ def app_update_api(request):
                     )
                     new_row = cur.fetchone()
                     new_id = int(new_row[0]) if new_row and new_row[0] is not None else None
+                    _maybe_emit_election_broadcast_notifications(announce_schedule=True)
                     return JsonResponse({"ok": True, "election_id": new_id, "created_new": True})
                 else:
                     cur.execute(
@@ -10397,12 +10417,41 @@ def app_update_api(request):
                 )
                 new_row = cur.fetchone()
                 new_id = int(new_row[0]) if new_row and new_row[0] is not None else None
+                _maybe_emit_election_broadcast_notifications(announce_schedule=True)
                 return JsonResponse({"ok": True, "election_id": new_id, "created_new": True})
+        _maybe_emit_election_broadcast_notifications(announce_schedule=True)
         return JsonResponse({"ok": True, "created_new": False})
     except Exception as e:
+        transaction.set_rollback(True)
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
         return JsonResponse({"ok": False, "error": "Failed to save election window."}, status=500)
+
+
+@require_http_methods(["GET"])
+def app_update_api(request):
+    latest_version = str(getattr(settings, "APP_UPDATE_LATEST_VERSION", "") or "").strip()
+    latest_build_raw = getattr(settings, "APP_UPDATE_LATEST_BUILD", 0) or 0
+    try:
+        latest_build = int(latest_build_raw)
+    except Exception:
+        latest_build = 0
+    apk_url = str(getattr(settings, "APP_UPDATE_APK_URL", "") or "").strip()
+    message = str(getattr(settings, "APP_UPDATE_MESSAGE", "") or "").strip()
+    force_update = str(
+        getattr(settings, "APP_UPDATE_FORCE", "false") or "false"
+    ).strip().lower() in {"1", "true", "yes", "on"}
+
+    return JsonResponse(
+        {
+            "ok": True,
+            "latest_version": latest_version,
+            "latest_build": latest_build,
+            "apk_url": apk_url,
+            "force_update": force_update,
+            "message": message,
+        }
+    )
 
 
 @csrf_exempt
@@ -10583,6 +10632,7 @@ def admin_elections_api(request):
                         """,
                         [start_db, end_db, results_db, note, election_id],
                     )
+                    _maybe_emit_election_broadcast_notifications(announce_schedule=True)
                     return JsonResponse({"ok": True, "election_id": election_id, "updated": True})
 
                 cur.execute("SELECT COALESCE(MAX(id), 0) FROM vote_windows")
@@ -10615,6 +10665,7 @@ def admin_elections_api(request):
                 )
                 new_row = cur.fetchone()
                 new_id = int(new_row[0]) if new_row and new_row[0] is not None else None
+            _maybe_emit_election_broadcast_notifications(announce_schedule=True)
         return JsonResponse({"ok": True, "election_id": new_id})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
@@ -11904,7 +11955,7 @@ def admin_calendar_events_api(request, event_id=None):
             return JsonResponse({"ok": True, "events": events})
         except Exception as e:
             logger.exception("admin_calendar_events_api GET failed")
-            return JsonResponse({"ok": False, "error": str(e)}, status=500)
+            return JsonResponse({"ok": False, "error": "Failed to load calendar events."}, status=500)
 
     if request.method == "PUT" and event_id is None:
         return JsonResponse({"ok": False, "error": "Event ID is required."}, status=400)
@@ -11956,6 +12007,15 @@ def admin_calendar_events_api(request, event_id=None):
     if not _re.fullmatch(r"#[0-9a-fA-F]{6}", color):
         return JsonResponse({"ok": False, "error": "Invalid color."}, status=400)
     try:
+        with transaction.atomic():
+            return _save_calendar_event_with_notifications(event_id, title, event_date, end_date, start_time, end_time, description, location, color)
+    except Exception:
+        logger.exception("admin_calendar_events_api POST failed")
+        return JsonResponse({"ok": False, "error": "Failed to save calendar event."}, status=500)
+
+
+def _save_calendar_event_with_notifications(event_id, title, event_date, end_date, start_time, end_time, description, location, color):
+    try:
         with connection.cursor() as cur:
             if event_id is not None:
                 cur.execute("""
@@ -11978,6 +12038,16 @@ def admin_calendar_events_api(request, event_id=None):
                 """, [title, event_date, end_date, start_time, end_time, description, location, color])
                 row = cur.fetchone()
 
+        if event_id is None:
+            when = event_date + (f" at {start_time}" if start_time else "")
+            if end_date and end_date != event_date:
+                when += f" through {end_date}"
+            body = f"{title}: {when} (Philippine time)."
+            if location:
+                body += f" Location: {location}."
+            _bulk_insert_user_notifications_for_all_accounts(
+                notif_type="schedule", title="New calendar activity", body=body,
+            )
         return JsonResponse({
             "ok": True,
             "event": {
@@ -11995,7 +12065,7 @@ def admin_calendar_events_api(request, event_id=None):
         }, status=200 if event_id is not None else 201)
     except Exception as e:
         logger.exception("admin_calendar_events_api POST failed")
-        return JsonResponse({"ok": False, "error": str(e)}, status=500)
+        raise
 
 
 @csrf_exempt
