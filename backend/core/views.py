@@ -7160,6 +7160,31 @@ def _candidate_application_json(row: dict) -> dict:
     return out
 
 
+def _official_candidate_for_student(cur, *, election_id, student_id):
+    """A Student ID may have only one candidacy in the current election."""
+    cur.execute(
+        """
+        SELECT id, organization, position
+        FROM candidates_registration
+        WHERE COALESCE(election_id, %s, 0) = COALESCE(%s, 0)
+          AND TRIM(student_id::text) = %s
+        ORDER BY id DESC LIMIT 1
+        """, [election_id, election_id, str(student_id).strip()],
+    )
+    row = cur.fetchone()
+    return {"id": int(row[0]), "organization": row[1] or "", "position": row[2] or ""} if row else None
+
+
+def _lock_candidate_student(cur, *, election_id, student_id):
+    cur.execute("SELECT pg_advisory_xact_lock(hashtext(%s), hashtext(%s))",
+                [str(election_id or 0), str(student_id).strip()])
+
+
+def _already_candidate_response():
+    return JsonResponse({"ok": False, "code": "already_candidate",
+                         "error": "Your Student ID is already registered as a candidate for this election. You cannot file again."}, status=409)
+
+
 def _official_candidate_id_for_application(cur, app: dict):
     cur.execute(
         """
@@ -7369,6 +7394,7 @@ def candidate_application_status_api(request):
         _ensure_election_scoped_tables()
         election_id = _current_election_id() or None
         with connection.cursor() as cur:
+            official_candidate = _official_candidate_for_student(cur, election_id=election_id, student_id=student_id)
             cur.execute(
                 """
                 SELECT id, election_id, student_id, first_name, middle_name, last_name,
@@ -7387,13 +7413,13 @@ def candidate_application_status_api(request):
             )
             row = cur.fetchone()
             if not row:
-                return JsonResponse({"ok": True, "application": None, "certificate_storage_ready": True})
+                return JsonResponse({"ok": True, "application": None, "certificate_storage_ready": True, "official_candidate": official_candidate})
             cols = [c[0] for c in cur.description]
             app = identity_row(cols, row)
             official_candidate_id = _official_candidate_id_for_application(cur, app)
             if str(app.get("status") or "").strip().lower() == "approved":
                 if official_candidate_id is None:
-                    return JsonResponse({"ok": True, "application": None, "certificate_storage_ready": True})
+                    return JsonResponse({"ok": True, "application": None, "certificate_storage_ready": True, "official_candidate": official_candidate})
                 app["official_candidate_id"] = official_candidate_id
             if str(app.get("candidate_type") or "").strip().lower() == "political party":
                 party_code, _ = _sync_party_security_code(
@@ -7404,7 +7430,7 @@ def candidate_application_status_api(request):
                 if party_code:
                     app["party_code"] = party_code
         app.update(certificate_summary(app["id"]))
-        return JsonResponse({"ok": True, "application": _candidate_application_json(app), "certificate_storage_ready": True})
+        return JsonResponse({"ok": True, "application": _candidate_application_json(app), "certificate_storage_ready": True, "official_candidate": official_candidate})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -7591,6 +7617,8 @@ def candidate_application_submit_api(request):
         party_code_hash = None
         generated_party_code = None
         with connection.cursor() as cur:
+            if _official_candidate_for_student(cur, election_id=election_id, student_id=student_id):
+                return _already_candidate_response()
             cur.execute(
                 """
                 SELECT id, election_id, student_id, position, status,
@@ -7726,6 +7754,15 @@ def candidate_application_submit_api(request):
             )
 
         with transaction.atomic(), connection.cursor() as cur:
+            _lock_candidate_student(cur, election_id=election_id, student_id=student_id)
+            if _official_candidate_for_student(cur, election_id=election_id, student_id=student_id):
+                return _already_candidate_response()
+            cur.execute("""SELECT id FROM candidate_applications
+                WHERE COALESCE(election_id, 0) = COALESCE(%s, 0) AND student_id = %s
+                  AND status <> 'rejected' AND status <> 'approved'
+                LIMIT 1""", [election_id, student_id])
+            if cur.fetchone():
+                return JsonResponse({"ok": False, "error": "You already submitted a candidate filing for this election."}, status=409)
             if party_key(party_name):
                 lock_party(cur, election_id, party_name)
                 used_slots = _party_slot_count(cur, election_id=election_id, party_name=party_name,
@@ -7946,6 +7983,11 @@ def admin_candidate_application_decision_api(request):
                 current_status = str(app.get("status") or "").strip().lower()
                 if current_status not in {"pending", "requirements_review"}:
                     return JsonResponse({"ok": False, "error": "Application was already reviewed."}, status=409)
+
+                if action == "approve":
+                    _lock_candidate_student(cur, election_id=app.get("election_id"), student_id=app.get("student_id"))
+                    if _official_candidate_for_student(cur, election_id=app.get("election_id"), student_id=app.get("student_id")):
+                        return _already_candidate_response()
 
                 if action == "reject":
                     cur.execute(
@@ -8679,6 +8721,9 @@ def admin_candidates_create_api(request):
             if election_id is None:
                 raise ValueError('Create an active election before registering a candidate.')
         with transaction.atomic(), connection.cursor() as cur:
+            _lock_candidate_student(cur, election_id=election_id, student_id=student_id)
+            if _official_candidate_for_student(cur, election_id=election_id, student_id=student_id):
+                return _already_candidate_response()
             if certificate:
                 from .candidate_eligibility import validate_student_eligibility
                 validate_student_eligibility(cur, payload)
