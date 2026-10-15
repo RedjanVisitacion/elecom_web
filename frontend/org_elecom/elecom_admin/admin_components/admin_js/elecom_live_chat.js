@@ -383,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Close the active thread (e.g. voter deleted their chat) ─────────────
   function closeActiveThread() {
+    setTypingIndicator(false);
     clearInterval(threadPollTimer);
     activeStudentId = null;
     lastMsgId       = null;
@@ -404,6 +405,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function openConversation(studentId) {
     if (activeStudentId === studentId) return;
 
+    setTypingIndicator(false);
     activeStudentId = studentId;
     lastMsgId       = null;
 
@@ -462,12 +464,21 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Send admin reply ──────────────────────────────────────────────────────
+  function setTypingIndicator(visible) {
+    const indicator = document.getElementById('typingIndicator');
+    if (!indicator) return;
+    indicator.style.display = visible ? 'block' : 'none';
+    indicator.setAttribute('aria-hidden', visible ? 'false' : 'true');
+  }
+
   async function sendReply() {
     if (sending || !activeStudentId) return;
     const content = (replyInput.value || '').trim();
     if (!content) return;
 
+    const replyStudentId = activeStudentId;
     sending = true;
+    setTypingIndicator(true);
     sendBtn.disabled = true;
     replyInput.disabled = true;
 
@@ -476,9 +487,11 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: activeStudentId, content }),
+        body: JSON.stringify({ student_id: replyStudentId, content }),
       });
       const data = await res.json().catch(() => ({}));
+      setTypingIndicator(false);
+      if (activeStudentId !== replyStudentId) return;
       if (data.ok && data.message) {
         replyInput.value = '';
         // Append the new message immediately (optimistic), stamped with its id
@@ -499,8 +512,10 @@ document.addEventListener('DOMContentLoaded', () => {
         alert(data.error || 'Failed to send message.');
       }
     } catch (_) {
+      setTypingIndicator(false);
       alert('Network error. Please try again.');
     } finally {
+      setTypingIndicator(false);
       sending = false;
       replyInput.disabled = false;
       replyInput.focus();
