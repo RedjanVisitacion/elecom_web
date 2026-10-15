@@ -22,6 +22,11 @@ class KnowledgeTests(unittest.TestCase):
         context = current_date_context(datetime(2026, 10, 14, 16, 5, tzinfo=timezone.utc))
         self.assertIn('Thursday, October 15, 2026 (2026-10-15)', context)
         self.assertIn('not an election schedule', context)
+        self.assertIn('12:05 AM', context)
+        evening = current_date_context(datetime(2026, 10, 15, 15, 46, tzinfo=timezone.utc))
+        self.assertIn('11:46 PM', evening)
+        self.assertNotIn('12:05 AM', evening)
+        self.assertIn('do not add or subtract eight hours again', evening)
 
     def test_screenshot_typo_and_missing_account(self):
         reply = ns['_elevote_fallback_reply']('paano poboto?')

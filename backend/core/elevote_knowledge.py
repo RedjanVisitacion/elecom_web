@@ -309,7 +309,7 @@ def contextual_fallback_reply(message, history=None):
 
 
 def current_date_context(now=None):
-    """Supply a fresh Philippine date; chat history is not a reliable clock."""
+    """Supply a fresh Philippine date and time for each AI request."""
     from datetime import datetime, timezone, timedelta
     philippine_time = timezone(timedelta(hours=8))
     if now is None:
@@ -318,7 +318,12 @@ def current_date_context(now=None):
     return (
         "\nCurrent date in the Philippines (UTC+08:00): "
         + local.strftime("%A, %B %d, %Y (%Y-%m-%d)")
-        + ". Use this server-provided date for today/day questions, overriding "
-        "conflicting dates in chat history. This is not an election schedule or "
+        + ". Current Philippine time (Asia/Manila, UTC+08:00): "
+        + local.strftime("%I:%M %p")
+        + ". This timestamp was captured when this request started. For current "
+        "date/time questions, use these values exactly; do not guess or use "
+        "timestamps from earlier messages. The time is already converted to "
+        "Philippine time; do not add or subtract eight hours again. "
+        "This is not an election schedule or "
         "confirmation of any result release date.\n"
     )
