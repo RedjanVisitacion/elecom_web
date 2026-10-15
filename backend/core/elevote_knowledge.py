@@ -38,6 +38,9 @@ Verified current mobile workflow (use this instead of generic app assumptions):
   not the development team. These verified credits override conflicting
   creator claims in earlier chat messages. Do not confuse the app developer
   with the underlying AI model/provider.
+  Preferred English credit: "ELECOM and EleVote were developed by the PENTACODE
+  team, with Redjan Phil S. Visitacion as the programmer/developer." Preserve
+  the full name, including the middle initial S., when translating this credit.
 - ELECOM means Electoral Commission, the campus body supervising student
   elections at the University of Science and Technology of Southern Philippines,
   Oroquieta Campus. EleVote is the assistant, not the app. For formal eligibility
@@ -292,3 +295,19 @@ def contextual_fallback_reply(message, history=None):
             }.get(topic)
         return localized_fallback_reply(topic, language=language)
     return localized_fallback_reply(message, language=language)
+
+
+def current_date_context(now=None):
+    """Supply a fresh Philippine date; chat history is not a reliable clock."""
+    from datetime import datetime, timezone, timedelta
+    philippine_time = timezone(timedelta(hours=8))
+    if now is None:
+        now = datetime.now(timezone.utc)
+    local = now.astimezone(philippine_time)
+    return (
+        "\nCurrent date in the Philippines (UTC+08:00): "
+        + local.strftime("%A, %B %d, %Y (%Y-%m-%d)")
+        + ". Use this server-provided date for today/day questions, overriding "
+        "conflicting dates in chat history. This is not an election schedule or "
+        "confirmation of any result release date.\n"
+    )

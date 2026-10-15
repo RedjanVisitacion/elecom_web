@@ -16,6 +16,13 @@ exec(compile(ast.Module(body=functions, type_ignores=[]), '<elevote>', 'exec'), 
 
 
 class KnowledgeTests(unittest.TestCase):
+    def test_current_date_uses_philippine_day_across_utc_midnight(self):
+        from datetime import datetime, timezone
+        from core.elevote_knowledge import current_date_context
+        context = current_date_context(datetime(2026, 10, 14, 16, 5, tzinfo=timezone.utc))
+        self.assertIn('Thursday, October 15, 2026 (2026-10-15)', context)
+        self.assertIn('not an election schedule', context)
+
     def test_screenshot_typo_and_missing_account(self):
         reply = ns['_elevote_fallback_reply']('paano poboto?')
         self.assertIn('Para bumoto', reply)

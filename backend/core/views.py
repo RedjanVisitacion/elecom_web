@@ -1170,7 +1170,7 @@ def _ensure_elevote_chat_table() -> None:
 
 def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
     from .elevote_languages import LANGUAGE_INSTRUCTIONS
-    from .elevote_knowledge import APP_KNOWLEDGE, SUPPORT_BEHAVIOR, build_chat_messages
+    from .elevote_knowledge import APP_KNOWLEDGE, SUPPORT_BEHAVIOR, build_chat_messages, current_date_context
 
     api_key = (getattr(settings, "GROQ_API_KEY", "") or "").strip()
     if not api_key:
@@ -1187,7 +1187,7 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
     recent.reverse()
 
     messages = build_chat_messages(
-        LANGUAGE_INSTRUCTIONS + SUPPORT_BEHAVIOR + APP_KNOWLEDGE,
+        LANGUAGE_INSTRUCTIONS + SUPPORT_BEHAVIOR + APP_KNOWLEDGE + current_date_context(),
         recent,
         message,
     )
