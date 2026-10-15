@@ -727,9 +727,10 @@ body.reports-page{
   font-weight: 600;
   color: #0f172a;
 }
-.report-format-card .format-desc {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  color: #64748b;
+
+@media screen {
+  .reports-wrapper {
+    padding-top: 24px !important;
+    padding-bottom: 40px !important;
+  }
 }
