@@ -125,6 +125,16 @@ def build_chat_messages(system_prompt, history, message):
 
 
 HELP = {
+    'results': {
+        'english': 'Official election results appear in the Results tab only when ELECOM releases them. I cannot confirm the release date from this chat. Open Results/View Results for the current publication status, or ask ELECOM for the announcement schedule.',
+        'tagalog': 'Lalabas ang opisyal na resulta sa Results tab kapag inilabas na ito ng ELECOM. Hindi ko makukumpirma rito ang petsa ng release. Buksan ang Results/View Results para sa kasalukuyang publication status, o itanong sa ELECOM ang iskedyul ng anunsyo.',
+        'bisaya': 'Makita ang opisyal nga resulta sa Results tab kung ipagawas na kini sa ELECOM. Dili ko makakumpirma dinhi sa petsa sa release. Ablihi ang Results/View Results para sa kasamtangang publication status, o pangutan-a ang ELECOM sa iskedyul sa anunsyo.',
+    },
+    'accuracy': {
+        'english': 'The AI service is unavailable right now, so this is limited app guidance rather than a live information check. I cannot verify election announcements or account records here. Which statement looks incorrect? For an official result or schedule, check Results or ask ELECOM.',
+        'tagalog': 'Hindi available ngayon ang AI service, kaya pangkalahatang gabay sa app lang ito at hindi live na pag-verify ng impormasyon. Hindi ko masusuri rito ang anunsyo o account record. Aling pahayag ang mali? Para sa opisyal na resulta o iskedyul, tingnan ang Results o itanong sa ELECOM.',
+        'bisaya': 'Dili available karon ang AI service, mao nga kinatibuk-ang giya sa app lang kini ug dili live nga pagsusi sa impormasyon. Dili nako masusi dinhi ang anunsyo o account record. Unsang pahayag ang sayop? Para sa opisyal nga resulta o iskedyul, tan-awa ang Results o pangutan-a ang ELECOM.',
+    },
     'no_account': {
         'english': 'There is no self-service Sign Up in ELECOM. Ask your ELECOM administrator to check or add your student voter record using your Student ID. If you already have an account but forgot the password, use Forgot Password? on Login. Do not share your password or OTP in chat.',
         'tagalog': 'Walang sariling Sign Up sa ELECOM app. Makipag-ugnayan sa ELECOM administrator para ma-check o maidagdag ang iyong student voter record gamit ang Student ID. Kung may account ka na pero nakalimutan ang password, gamitin ang Forgot Password? sa Login. Huwag ibahagi rito ang password o OTP.',
@@ -183,6 +193,11 @@ HELP = {
 def support_topic(message):
     text = _normalized(message)
     words = set(re.findall(r'[a-z]+', text))
+    if re.search(r'not accurate|inaccurate|wrong answer|incorrect|not correct|mali|sayop', text):
+        return 'accuracy'
+    # A results announcement is not the voting countdown/calendar.
+    if words & {'result', 'results', 'resulta', 'winner', 'winners'}:
+        return 'results'
     if ('account' in words or 'akawnt' in words or 'signup' in words or 'register' in words) and (
         re.search(r"wala|walay|no account|don.?t have|do not have|without|missing|not found|not registered|create|register|sign.?up|himo|gawa|gumawa", text)
     ):

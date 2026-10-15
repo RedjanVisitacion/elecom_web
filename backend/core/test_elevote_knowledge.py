@@ -108,5 +108,19 @@ class KnowledgeTests(unittest.TestCase):
             self.assertIn(expected.lower(), prompt.lower())
         self.assertEqual(sum(m['content'] == 'paano poboto?' for m in captured['messages']), 1)
 
+    def test_results_announcement_is_not_misrouted_to_calendar(self):
+        for message in ('When will election results be announced?',
+                        'Kailan ang election results?', 'kanus-a ang resulta sa eleksyon?'):
+            reply = contextual_fallback_reply(message)
+            self.assertIn('Results', reply)
+            self.assertNotIn('Calendar of Activities', reply)
+        self.assertIn('cannot confirm the release date', contextual_fallback_reply('When will election results be announced?'))
+
+    def test_accuracy_complaint_explains_limited_help_instead_of_repeating_menu(self):
+        reply = contextual_fallback_reply('why the information posted is not accurate?')
+        self.assertIn('AI service is unavailable', reply)
+        self.assertIn('Which statement', reply)
+        self.assertNotIn('Please ask your question again', reply)
+
 
 if __name__ == '__main__': unittest.main()
