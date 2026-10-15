@@ -757,3 +757,13 @@ body.reports-page{
   margin-top: 20px;
   margin-bottom: 24px;
 }
+
+.report-highlights-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(0, 2fr));
+  gap: 12px;
+  margin-top: 12px;
+}
+@media (max-width: 768px) {
+  .report-highlights-grid { grid-template-columns: minmax(0, 1fr); }
+}

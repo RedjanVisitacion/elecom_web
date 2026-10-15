@@ -634,14 +634,15 @@ document.addEventListener('DOMContentLoaded', function(){
           </section>`}
 
         <section class="report-summary-grid">
-          <div class="report-summary-card"><span>Total Votes</span><strong>${enriched.totalVotes}</strong></div>
-          <div class="report-summary-card"><span>Distinct Voters</span><strong>${enriched.totals.distinct_voters || 0}</strong></div>
-          <div class="report-summary-card"><span>Total Candidates</span><strong>${candidateCount}</strong></div>
           <div class="report-summary-card"><span>Total Registered Voters</span><strong>${enriched.totalVoters}</strong></div>
+          <div class="report-summary-card"><span>Voted</span><strong>${enriched.totals.distinct_voters || 0}</strong></div>
           <div class="report-summary-card"><span>Did Not Vote</span><strong>${enriched.didNotVote}</strong></div>
           <div class="report-summary-card"><span>Voter Turnout</span><strong>${enriched.turnout}%</strong></div>
-          <div class="report-summary-card wide"><span>Leading Organization</span><strong>${escapeHtml(leadingOrg)}</strong></div>
-          <div class="report-summary-card wide"><span>Highest Vote Candidate</span><strong>${escapeHtml(highestName)}</strong></div>
+        </section>
+        <section class="report-highlights-grid">
+          <div class="report-summary-card"><span>Total Candidates</span><strong>${candidateCount}</strong></div>
+          <div class="report-summary-card"><span>Leading Organization</span><strong>${escapeHtml(leadingOrg)}</strong></div>
+          <div class="report-summary-card"><span>Highest Vote Candidate</span><strong>${escapeHtml(highestName)}</strong></div>
         </section>
 
         <section class="report-chart-grid">
@@ -727,8 +728,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
     rows.push('REPORT SUMMARY');
     rows.push(thinLine);
-    rows.push(`${pad('Total Votes', 28)}: ${enriched.totalVotes}`);
-    rows.push(`${pad('Distinct Voters', 28)}: ${enriched.totals.distinct_voters || 0}`);
+    rows.push(`${pad('Voted', 28)}: ${enriched.totals.distinct_voters || 0}`);
     rows.push(`${pad('Total Candidates', 28)}: ${enriched.candidates.length}`);
     rows.push(`${pad('Total Registered Voters', 28)}: ${enriched.totalVoters}`);
     rows.push(`${pad('Did Not Vote', 28)}: ${enriched.didNotVote}`);
@@ -799,8 +799,7 @@ document.addEventListener('DOMContentLoaded', function(){
       'Election Scope',
       'Date Range',
       'Generated At',
-      'Total Votes',
-      'Distinct Voters',
+      'Voted',
       'Total Candidates',
       'Total Registered Voters',
       'Did Not Vote',
@@ -819,7 +818,6 @@ document.addEventListener('DOMContentLoaded', function(){
         reportScopeLabel(),
         rangeText,
         formatDateTime(),
-        String(enriched.totalVotes),
         String(enriched.totals.distinct_voters || 0),
         String(enriched.candidates.length),
         String(enriched.totalVoters),
@@ -1097,8 +1095,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const summaryRows = [
       { label: 'Election Scope', value: reportScopeLabel() },
       { label: 'Date Range', value: rangeText },
-      { label: 'Total Votes', value: enriched.totalVotes },
-      { label: 'Distinct Voters', value: enriched.totals.distinct_voters || 0 },
+      { label: 'Voted', value: enriched.totals.distinct_voters || 0 },
       { label: 'Total Candidates', value: enriched.candidates.length },
       { label: 'Total Registered Voters', value: enriched.totalVoters },
       { label: 'Did Not Vote', value: enriched.didNotVote },
