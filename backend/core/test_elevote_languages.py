@@ -68,10 +68,8 @@ class LanguageTests(unittest.TestCase):
         self.assertIn('Saang bahagi', reply('paano ito?'))
 
     def test_prompt_supplies_multilingual_instructions_to_model(self):
-        groq = next(n for n in tree.body if isinstance(n, ast.FunctionDef) and n.name == '_elevote_groq_reply')
-        messages = next(n.value for n in groq.body if isinstance(n, ast.Assign)
-                        and any(isinstance(t, ast.Name) and t.id == 'messages' for t in n.targets))
-        prompt = eval(compile(ast.Expression(messages), '<prompt>', 'eval'), {'LANGUAGE_INSTRUCTIONS': LANGUAGE_INSTRUCTIONS})[0]['content']
+        from core.elevote_knowledge import APP_KNOWLEDGE, SUPPORT_BEHAVIOR, build_chat_messages
+        prompt = build_chat_messages(LANGUAGE_INSTRUCTIONS + SUPPORT_BEHAVIOR + APP_KNOWLEDGE, [], 'Hello')[0]['content']
         for term in ('Bisaya', 'Tagalog', 'latest question', 'paano bonoto?', 'do not invent'):
             self.assertIn(term.lower(), prompt.lower())
         self.assertEqual(support_language('hello'), 'english')

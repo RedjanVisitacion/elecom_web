@@ -30,6 +30,8 @@ def support_language(message):
     words = set(re.findall(r"[a-z]+", text))
     if words & {'bisaya', 'cebuano', 'binisaya'}:
         return 'bisaya'
+    if re.search(r'\bwala (?:pa )?akong\b', text):
+        return 'tagalog'
     if words & {'tagalog', 'filipino'}:
         return 'tagalog'
     bisaya = words & {'unsa', 'unsay', 'unsaon', 'unsao', 'unsaog', 'ngano',
@@ -39,7 +41,10 @@ def support_language(message):
     tagalog = words & {'paano', 'pano', 'panu', 'bakit', 'saan', 'sino', 'hindi',
                        'kailangan', 'bumoto', 'bonoto', 'makaboto', 'pakisabi',
                        'po', 'opo', 'naman', 'nasaan', 'asan', 'aking', 'iyong'}
-    if bisaya and len(bisaya) >= len(tagalog):
+    # Question words are stronger than possessives shared by mixed-language chat.
+    bisaya_score = len(bisaya) + 3 * len(words & {'unsa', 'unsay', 'unsaon', 'unsao', 'unsaog', 'ngano', 'nganong', 'asa', 'kinsa'})
+    tagalog_score = len(tagalog) + 3 * len(words & {'paano', 'pano', 'panu', 'bakit', 'saan', 'sino', 'nasaan', 'asan'})
+    if bisaya and bisaya_score >= tagalog_score:
         return 'bisaya'
     if tagalog:
         return 'tagalog'
@@ -84,15 +89,15 @@ REPLIES = {
 }
 
 
-def localized_fallback_reply(message):
-    language = support_language(message)
+def localized_fallback_reply(message, *, language=None):
+    language = language or support_language(message)
     if language == 'english':
         return None  # Preserve the existing English help responses.
     text = _normalized(message)
     words = set(re.findall(r'[a-z]+', text))
     def has(*terms):
         return bool(words.intersection(terms))
-    voting = has('vote', 'votes', 'voting', 'boto', 'bumoto', 'bonoto', 'magboto',
+    voting = has('vote', 'votes', 'voting', 'boto', 'bumoto', 'bonoto', 'poboto', 'magboto',
                  'pagboto', 'makaboto', 'moboto', 'muboto', 'botar', 'muvote', 'ballot')
     if voting and has('change', 'usab', 'usbon', 'ilisan', 'ilis', 'baguhin', 'palitan', 'mabago', 'mausab'):
         intent = 'change_vote'

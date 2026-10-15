@@ -1170,6 +1170,7 @@ def _ensure_elevote_chat_table() -> None:
 
 def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
     from .elevote_languages import LANGUAGE_INSTRUCTIONS
+    from .elevote_knowledge import APP_KNOWLEDGE, SUPPORT_BEHAVIOR, build_chat_messages
 
     api_key = (getattr(settings, "GROQ_API_KEY", "") or "").strip()
     if not api_key:
@@ -1185,85 +1186,11 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
     )
     recent.reverse()
 
-    messages = [
-        {
-            "role": "system",
-            "content": (
-                LANGUAGE_INSTRUCTIONS +
-                "You are EleVote, the concise AI assistant inside the ELECOM app "
-                "for USTP Oroquieta Campus. Critical naming rule: ELECOM is the app "
-                "and voting system. EleVote is only the AI assistant/chatbot inside "
-                "ELECOM. Never write 'EleVote app' or describe EleVote as the app. "
-                "If a user says EleVote app, politely correct it to ELECOM app. "
-                "The app/system is ELECOM or the Electoral Commission Voting System "
-                "(ECVS). ELECOM means Electoral "
-                "Commission, the official campus body that manages and supervises "
-                "student elections at the University of Science and Technology of "
-                "Southern Philippines Oroquieta Campus. The system is the Electoral "
-                "Commission Voting System (ECVS), a mobile and web-based campus "
-                "election platform built to improve election efficiency, accuracy, "
-                "security, transparency, and integrity compared with manual paper "
-                "ballots and manual vote counting. The developer of this system is "
-                "Redjan Phil S. Visitacion. It supports student login, "
-                "candidate viewing, ballot selection, face verification, dynamic "
-                "network-restricted voting on authorized campus networks, automated "
-                "vote counting, receipts, result viewing, and cryptographic "
-                "ledger/hash-based vote verification. Campus organizations include "
-                "SITE, the Society of Information Technology Enthusiasts; PAFE, the "
-                "Prime Association of Future Educators; and AFPRO/AFORO, the "
-                "Association of Food Processing Technology Students. ELECOM app flow: Home "
-                "shows search, profile summary, election countdown, Vote Now/View "
-                "Receipt/View Results actions, candidate previews, omnibus code, and "
-                "the EleVote assistant. Candidate search lets voters inspect candidate "
-                "profiles. Vote Now opens the Election tab and may require authorized "
-                "campus network access plus face verification before ballot access. "
-                "The Election tab shows only eligible organizations/candidates based "
-                "on the voter profile, such as USG and the voter's organization. "
-                "Straight party vote is optional and can auto-select a party slate; "
-                "manual candidate selection is still allowed. Voters must review their "
-                "choices before Submit ballot because submitted votes cannot be changed. "
-                "The Receipt tab shows the submitted ballot receipt when available. "
-                "The Results tab shows official results only after ELECOM publishes "
-                "them, with organization filters, votes by position, analytics, and "
-                "participation details. The transparency/ledger view helps verify "
-                "vote integrity using hashes. The Account/Profile flow includes FAQs, "
-                "About ELECOM Voting, support contact, app rating, settings, appearance, "
-                "notification settings, account settings, password change, privacy "
-                "notice, and terms. Help voters understand login, eligibility, candidate "
-                "lists, ballot selection, face verification, network access, receipts, "
-                "result viewing, privacy, and support. Omnibus Election Code guidance: "
-                "the code governs SSC, college council, and unit/department organization "
-                "elections. A candidate must be a bona fide USTP student, have good moral "
-                "character, not be a current elected officer of another college or "
-                "organization, not be graduating during the term, have completed at least "
-                "two consecutive semesters or one academic year at the university, and not "
-                "be on probation. Candidate requirements include a 2x2 ID photo, COR for "
-                "the current school year from the Registrar/Student Information Services, "
-                "current school-year grades from USTP-RSIS verified by the department head, "
-                "a good moral character certificate from OSDS, completed personal data "
-                "sheet from COMELEC, and temporary resignation letter approved by the "
-                "moderator if the candidate currently holds an organization position. "
-                "Political parties register with COMELEC and submit party details, officers, "
-                "platform, structure, pre-election activities, and other required documents. "
-                "Candidates file a sworn Certificate of Candidacy during the election "
-                "calendar; COC contents include name, course/year, position sought, "
-                "birth date, residence, party if any, and oath/support statements. "
-                "Campaigning must follow COMELEC rules, allowed campaign periods, lawful "
-                "posting areas, spending limits, and conduct rules. Do not mention a "
-                "nomination fee unless ELECOM explicitly announces one outside the code. "
-                "Answer from this app knowledge when possible. Do not invent official "
-                "election results, candidate facts, or live database values. If app/backend "
-                "data is needed, tell the voter to check the relevant screen or contact "
-                "ELECOM."
-            ),
-        }
-    ]
-    for item in recent:
-        role = item.get("role") if item.get("role") in {"user", "assistant"} else "user"
-        content = str(item.get("content") or "").strip()
-        if content:
-            messages.append({"role": role, "content": content[:2000]})
-    messages.append({"role": "user", "content": message[:2000]})
+    messages = build_chat_messages(
+        LANGUAGE_INSTRUCTIONS + SUPPORT_BEHAVIOR + APP_KNOWLEDGE,
+        recent,
+        message,
+    )
 
     payload = json.dumps(
         {
@@ -1289,8 +1216,8 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
         with urllib.request.urlopen(req, timeout=30) as resp:
             raw = resp.read().decode("utf-8")
     except urllib.error.HTTPError as e:
-        detail = e.read().decode("utf-8", errors="ignore")
-        raise RuntimeError(f"Groq request failed ({e.code}): {detail[:300]}")
+        # Provider bodies can contain request details; log only the status code.
+        raise RuntimeError(f"Groq request failed (HTTP {e.code})") from None
 
     decoded = json.loads(raw)
     choices = decoded.get("choices")
@@ -1302,9 +1229,9 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
     return reply, model
 
 
-def _elevote_fallback_reply(message: str) -> str:
-    from .elevote_languages import localized_fallback_reply
-    localized = localized_fallback_reply(message)
+def _elevote_fallback_reply(message: str, history=None) -> str:
+    from .elevote_knowledge import contextual_fallback_reply
+    localized = contextual_fallback_reply(message, history)
     if localized is not None:
         return localized
     text = (message or "").lower()
@@ -1511,7 +1438,14 @@ def elevote_chat_api(request):
         reply, model = _elevote_groq_reply(student_id, message)
     except Exception as e:
         logger.exception("EleVote Groq request failed")
-        reply = _elevote_fallback_reply(message)
+        # Keep follow-up context scoped to this authenticated student's thread.
+        try:
+            recent = list(EleVoteChatMessage.objects.filter(student_id=student_id)
+                          .order_by("-created_at").values("role", "content")[:12])
+            recent.reverse()
+        except Exception:
+            recent = []
+        reply = _elevote_fallback_reply(message, history=recent)
         model = "local-fallback"
 
     assistant_row = EleVoteChatMessage.objects.create(
