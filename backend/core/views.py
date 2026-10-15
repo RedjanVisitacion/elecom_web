@@ -11303,12 +11303,17 @@ def admin_network_settings_api(request):
         payload = {}
 
     if payload.get("action") == "set_enabled":
+        from .developer_options import _developer_admin
+        denied = _developer_admin(request)
+        if denied is not None:
+            return denied
         if not isinstance(payload.get("enabled"), bool):
             return JsonResponse({"ok": False, "error": "Enabled must be a boolean."}, status=400)
         enabled = payload["enabled"]
         try:
             with transaction.atomic(), connection.cursor() as cur:
                 _ensure_network_authorization_tables(cur)
+                cur.execute("LOCK TABLE authorized_networks IN SHARE ROW EXCLUSIVE MODE")
                 cur.execute("SELECT COUNT(*) FROM authorized_networks")
                 if enabled and not cur.fetchone()[0]:
                     return JsonResponse({"ok": False, "error": "Add an authorized network before enabling restriction."}, status=400)
@@ -11320,7 +11325,6 @@ def admin_network_settings_api(request):
         except Exception as e:
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
 
-    enabled = bool(payload.get("enabled", False))
     requested_ip = (payload.get("network_ip") or "").strip()
 
     # Get admin's IP address
@@ -11336,8 +11340,11 @@ def admin_network_settings_api(request):
     allowed_prefix = None
 
     try:
-        with connection.cursor() as cur:
+        with transaction.atomic(), connection.cursor() as cur:
             _ensure_network_authorization_tables(cur)
+            cur.execute("LOCK TABLE authorized_networks IN SHARE ROW EXCLUSIVE MODE")
+            cur.execute("SELECT EXISTS (SELECT 1 FROM authorized_networks WHERE LOWER(status) = 'active')")
+            enabled = bool(cur.fetchone()[0])
             cur.execute(
                 """
                 INSERT INTO authorized_networks (network_ip, ip_prefix, ssid, status, created_at, updated_at)
@@ -11348,7 +11355,7 @@ def admin_network_settings_api(request):
                     admin_ip,
                     allowed_prefix,
                     (payload.get("ssid") or "").strip() or None,
-                    payload.get("status") or ("Active" if enabled else "Disabled"),
+                    "Active" if enabled else "Disabled",
                 ],
             )
             network_id = cur.fetchone()[0]

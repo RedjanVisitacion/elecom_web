@@ -27,7 +27,7 @@ document.addEventListener('visibilitychange', () => {
 });
 window.addEventListener('pagehide', () => { logsPageActive = false; stopLogPolling(); });
 window.addEventListener('pageshow', event => {
-  if (event.persisted) { logsPageActive = true; startLogPolling(); }
+  if (event.persisted) { logsPageActive = true; loadNetworkSettings(); startLogPolling(); }
 });
 
 function initNetworkAuthorizePage() {
@@ -73,7 +73,6 @@ function initSidebar() {
 }
 
 function setupEventListeners() {
-  document.getElementById("enforceRestrictionToggle")?.addEventListener("change", updateRestriction);
   document.getElementById("logSearchInput")?.addEventListener("input", () => { logPage = 1; renderAccessLogs(); });
   document.getElementById("logPrevious")?.addEventListener("click", () => { logPage--; renderAccessLogs(); });
   document.getElementById("logNext")?.addEventListener("click", () => { logPage++; renderAccessLogs(); });
@@ -111,8 +110,6 @@ async function loadNetworkSettings() {
     }
 
     restrictionEnabled = data.enabled === true;
-    const toggle = document.getElementById("enforceRestrictionToggle");
-    toggle.checked = restrictionEnabled; toggle.disabled = false;
     detectedRequestIp = data.current_ip || data.request_ip || "";
     renderDetectedRequestIp(detectedRequestIp);
     renderAuthorizedNetworks(data.networks || []);
@@ -122,31 +119,6 @@ async function loadNetworkSettings() {
     renderDetectedRequestIp("");
     renderAuthorizedNetworks([]);
   }
-}
-
-async function updateRestriction() {
-  const toggle = document.getElementById("enforceRestrictionToggle");
-  const enabled = toggle.checked;
-  syncAuthorizedNetworkBadges();
-  toggle.disabled = true;
-  document.getElementById("btnAddNetwork").disabled = true;
-  try {
-    const response = await fetch(`${API_BASE_URL}/admin/network-settings/`, {
-      method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'set_enabled', enabled }),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || !data.ok) throw new Error(data.error || 'Unable to update network restriction.');
-    restrictionEnabled = data.enabled === true;
-    toggle.checked = restrictionEnabled;
-    syncAuthorizedNetworkBadges();
-    showNotification(restrictionEnabled ? 'Network restriction enabled.' : 'Network restriction disabled.', 'success');
-    await loadNetworkSettings();
-  } catch (error) {
-    toggle.checked = restrictionEnabled;
-    syncAuthorizedNetworkBadges();
-    showNotification(error.message, 'error');
-  } finally { toggle.disabled = false; document.getElementById("btnAddNetwork").disabled = false; }
 }
 
 async function addNetwork() {
@@ -171,10 +143,8 @@ async function addNetwork() {
       headers: { "Content-Type": "application/json" },
       credentials: "include",
       body: JSON.stringify({
-        enabled: true,
         network_ip: networkIp,
         ssid,
-        status: "Active",
       }),
     });
 
@@ -234,7 +204,7 @@ function renderAuthorizedNetworks(networks) {
   }
 
   tbody.innerHTML = networks.map((network) => {
-    const status = document.getElementById("enforceRestrictionToggle").checked ? "Active" : "Disabled";
+    const status = restrictionEnabled ? "Active" : "Disabled";
     const statusClass = status === "Active" ? "bg-success" : "bg-secondary";
 
     return `
@@ -251,15 +221,6 @@ function renderAuthorizedNetworks(networks) {
       </tr>
     `;
   }).join("");
-}
-
-function syncAuthorizedNetworkBadges() {
-  const enabled = document.getElementById("enforceRestrictionToggle")?.checked === true;
-  document.querySelectorAll("#authorizedNetworksBody [data-network-status]").forEach(badge => {
-    badge.classList.toggle("bg-success", enabled);
-    badge.classList.toggle("bg-secondary", !enabled);
-    badge.textContent = enabled ? "Active" : "Disabled";
-  });
 }
 
 function renderDetectedRequestIp(ipAddress) {
