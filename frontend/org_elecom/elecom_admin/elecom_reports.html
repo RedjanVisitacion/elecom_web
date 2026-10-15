@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css?v=20261015-format-spacing1">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_reports.css?v=20261015-preview-layout1">
 </head>
 <body class="theme-elecom reports-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -141,11 +141,11 @@
               <span>Report Summary</span>
             </div>
             <div class="report-summary-metrics">
-              <div><span>Selected Election</span><strong id="summaryElection">All elections</strong></div>
-              <div><span>Date Coverage</span><strong id="summaryDates">All time</strong></div>
-              <div><span>Export Format</span><strong id="summaryFormat">PDF</strong></div>
-              <div><span>Estimated Records</span><strong id="summaryRecords">Ready</strong></div>
-              <div><span>Election Status</span><strong id="summaryStatus">All records</strong></div>
+              <div><span>Selected Election</span><strong class="summary-value" id="summaryElection">All elections</strong></div>
+              <div><span>Date Coverage</span><strong class="summary-value" id="summaryDates">All time</strong></div>
+              <div><span>Export Format</span><strong class="summary-value" id="summaryFormat">PDF</strong></div>
+              <div><span>Estimated Records</span><strong class="summary-value" id="summaryRecords">Ready</strong></div>
+              <div><span>Election Status</span><strong class="summary-value" id="summaryStatus">All records</strong></div>
             </div>
           </div>
           <div class="report-action-row">
@@ -200,6 +200,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20261011-report-toast2"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20261015-preview-layout1"></script>
 </body>
 </html>

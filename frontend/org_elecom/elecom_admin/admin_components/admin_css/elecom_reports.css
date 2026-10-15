@@ -242,15 +242,16 @@ body.reports-page{
   text-transform:uppercase;
 }
 
-.report-summary-metrics strong{
+.report-summary-metrics .summary-value{
   display:block;
-  overflow:hidden;
   margin-top:4px;
-  color:#001b3f;
-  font-size:.95rem;
-  font-weight:800;
-  text-overflow:ellipsis;
-  white-space:nowrap;
+  font-size:13.5px;
+  font-weight:600;
+  color:#0f172a;
+  white-space:normal;
+  overflow:visible;
+  text-overflow:clip;
+  overflow-wrap:anywhere;
 }
 
 .official-report{
@@ -733,4 +734,26 @@ body.reports-page{
     padding-top: 24px !important;
     padding-bottom: 40px !important;
   }
+}
+
+.report-table-wrap.summary-results-wrap {
+  min-width: 0;
+  overflow-x: hidden;
+}
+.report-table-wrap .organization-results-table,
+.report-table-wrap .position-results-table {
+  width: 100% !important;
+  min-width: 0;
+  overflow-x: hidden;
+  table-layout: auto;
+}
+.summary-results-wrap th,
+.summary-results-wrap td {
+  padding: 6px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.report-watermark {
+  margin-top: 20px;
+  margin-bottom: 24px;
 }
