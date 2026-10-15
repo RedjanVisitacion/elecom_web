@@ -1178,7 +1178,7 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
 
     _ensure_elevote_chat_table()
 
-    model = (getattr(settings, "GROQ_MODEL", "") or "llama-3.1-8b-instant").strip()
+    model = (getattr(settings, "GROQ_MODEL", "") or "openai/gpt-oss-20b").strip()
     recent = list(
         EleVoteChatMessage.objects.filter(student_id=student_id)
         .order_by("-created_at")
@@ -1192,14 +1192,15 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
         message,
     )
 
-    payload = json.dumps(
-        {
-            "model": model,
-            "messages": messages,
-            "temperature": 0.25,
-            "max_tokens": 450,
-        }
-    ).encode("utf-8")
+    payload_data = {
+        "model": model,
+        "messages": messages,
+        "temperature": 0.25,
+        "max_completion_tokens": 1024,
+    }
+    if model in {"openai/gpt-oss-20b", "openai/gpt-oss-120b"}:
+        payload_data["reasoning_effort"] = "low"
+    payload = json.dumps(payload_data).encode("utf-8")
 
     req = urllib.request.Request(
         "https://api.groq.com/openai/v1/chat/completions",

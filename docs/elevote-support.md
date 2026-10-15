@@ -63,3 +63,28 @@ privately if replies keep falling back. Never share `.env`, credentials, or
 unsanitized conversation logs.
 
 Update the guide and regression cases whenever the actual app flows change.
+
+
+## Groq model migration (2026-10-15)
+
+Repeated `Groq request failed (HTTP 404)` was observed on the server. The local
+configuration and previous code default used `llama-3.1-8b-instant`, which Groq's
+[deprecation notice](https://console.groq.com/docs/deprecations) lists as retired
+for free/developer accounts on 2026-08-16. The documented replacement is
+`openai/gpt-oss-20b`. Defaults and the local model setting have been updated.
+
+On production, edit the existing `/var/www/elecom/backend/.env` model line to:
+
+```dotenv
+GROQ_MODEL=openai/gpt-oss-20b
+```
+
+Do not change or share the API key. Git does not deploy `.env`. Deploy source
+changes and restart Gunicorn, then send one fresh question and check for new
+provider errors. This migration does not prove the server's configured model or
+account access until tested there.
+
+The request uses `max_completion_tokens=1024` and low reasoning effort for GPT-OSS
+models. It reads the final `message.content`, not the reasoning field. See Groq's
+[reasoning guide](https://console.groq.com/docs/reasoning). Offline regression
+tests verify the payload; they do not make a paid/live completion request.

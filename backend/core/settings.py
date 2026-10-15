@@ -241,7 +241,7 @@ except ValueError:
 FACE_VOTE_VERIFY_SESSION_MINUTES = int(os.getenv("FACE_VOTE_VERIFY_SESSION_MINUTES", "20"))
 
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
-GROQ_MODEL = os.getenv("GROQ_MODEL", "llama-3.1-8b-instant")
+GROQ_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 # Mobile APK update prompt. For MediaFire distribution, update these values in
 # backend/.env whenever you publish a new APK.

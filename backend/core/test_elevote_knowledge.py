@@ -96,13 +96,17 @@ class KnowledgeTests(unittest.TestCase):
         response = Mock()
         response.__enter__ = Mock(return_value=SimpleNamespace(read=lambda: b'{"choices":[{"message":{"content":"Test reply"}}]}'))
         response.__exit__ = Mock(return_value=False)
-        ns.update(settings=SimpleNamespace(GROQ_API_KEY='test-not-a-real-key', GROQ_MODEL='test-model'),
+        ns.update(settings=SimpleNamespace(GROQ_API_KEY='test-not-a-real-key', GROQ_MODEL='openai/gpt-oss-20b'),
                   _ensure_elevote_chat_table=lambda: None,
                   EleVoteChatMessage=SimpleNamespace(objects=SimpleNamespace(filter=lambda **kwargs: query)),
                   json=json,
                   urllib=SimpleNamespace(request=SimpleNamespace(Request=request, urlopen=lambda *a, **kw: response),
                                          error=SimpleNamespace(HTTPError=RuntimeError)))
-        self.assertEqual(ns['_elevote_groq_reply']('student-test', 'paano poboto?'), ('Test reply', 'test-model'))
+        self.assertEqual(ns['_elevote_groq_reply']('student-test', 'paano poboto?'), ('Test reply', 'openai/gpt-oss-20b'))
+        self.assertEqual(captured['model'], 'openai/gpt-oss-20b')
+        self.assertEqual(captured['max_completion_tokens'], 1024)
+        self.assertEqual(captured['reasoning_effort'], 'low')
+        self.assertNotIn('max_tokens', captured)
         prompt = captured['messages'][0]['content']
         for expected in ('no mobile Sign', 'Last 2 Semesters', 'Do not invent', 'Bisaya', 'Tagalog'):
             self.assertIn(expected.lower(), prompt.lower())
