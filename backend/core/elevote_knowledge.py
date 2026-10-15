@@ -28,6 +28,12 @@ SUPPORT_BEHAVIOR = (
 
 APP_KNOWLEDGE = """
 Verified current mobile workflow (use this instead of generic app assumptions):
+- Development credits: the development team is PENTACODE. The programmer/developer
+  is Redjan Phil S. Visitacion. When asked who made ELECOM or EleVote, credit
+  PENTACODE and Redjan Phil S. Visitacion. ELECOM is the election commission,
+  not the development team. These verified credits override conflicting
+  creator claims in earlier chat messages. Do not confuse the app developer
+  with the underlying AI model/provider.
 - ELECOM means Electoral Commission, the campus body supervising student
   elections at the University of Science and Technology of Southern Philippines,
   Oroquieta Campus. EleVote is the assistant, not the app. For formal eligibility
