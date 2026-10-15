@@ -527,11 +527,14 @@ document.addEventListener('DOMContentLoaded', function(){
     const turnout = pct(totals.distinct_voters || 0, totalVoters);
     const byOrg = data?.by_org || {};
     const byPos = data?.by_pos || {};
+    // Grouped shares use selection totals, not the number of voters/ballots.
+    const totalOrgVotes = Object.values(byOrg).reduce((sum, votes) => sum + Number(votes || 0), 0);
+    const totalPositionVotes = Object.values(byPos).reduce((sum, votes) => sum + Number(votes || 0), 0);
     const hasVotes = totalVotes > 0;
     const leadingOrg = hasVotes ? Object.entries(byOrg).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0))[0] : null;
     const highestCandidate = hasVotes ? voteRankedCandidates[0] : null;
     const topVotes = hasVotes ? Number(highestCandidate?.votes || 0) : 0;
-    return { totals, candidates, voteRankedCandidates, totalVotes, totalVoters, turnout, byOrg, byPos, leadingOrg, highestCandidate, topVotes };
+    return { totals, candidates, voteRankedCandidates, totalVotes, totalVoters, turnout, byOrg, byPos, totalOrgVotes, totalPositionVotes, leadingOrg, highestCandidate, topVotes };
   }
 
   function barRows(entries, total, emptyLabel){
@@ -666,7 +669,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="report-table-wrap summary-results-wrap">
               <table class="table table-sm organization-results-table">
                 <thead><tr><th>Organization</th><th class="text-end">Votes</th><th class="text-end">Share</th></tr></thead>
-                <tbody>${simpleRows(orgEntries, enriched.totalVotes, 'No organization data', orgDisplayName)}</tbody>
+                <tbody>${simpleRows(orgEntries, enriched.totalOrgVotes, 'No organization data', orgDisplayName)}</tbody>
               </table>
             </div>
           </div>
@@ -675,7 +678,7 @@ document.addEventListener('DOMContentLoaded', function(){
             <div class="report-table-wrap summary-results-wrap">
               <table class="table table-sm position-results-table">
                 <thead><tr><th>Position</th><th class="text-end">Votes</th><th class="text-end">Share</th></tr></thead>
-                <tbody>${simpleRows(posEntries, enriched.totalVotes, 'No position data')}</tbody>
+                <tbody>${simpleRows(posEntries, enriched.totalPositionVotes, 'No position data')}</tbody>
               </table>
             </div>
           </div>
@@ -734,7 +737,7 @@ document.addEventListener('DOMContentLoaded', function(){
     rows.push(`${pad('Organization', 68)} ${right('Votes', 10)} ${right('Share', 10)}`);
     rows.push(thinLine);
     sortOrgEntries(Object.entries(enriched.byOrg)).forEach(([org, votes]) => {
-      rows.push(`${pad(orgDisplayName(org), 68)} ${right(votes || 0, 10)} ${right(`${pct(votes, enriched.totalVotes)}%`, 10)}`);
+      rows.push(`${pad(orgDisplayName(org), 68)} ${right(votes || 0, 10)} ${right(`${pct(votes, enriched.totalOrgVotes)}%`, 10)}`);
     });
     rows.push('');
 
@@ -743,7 +746,7 @@ document.addEventListener('DOMContentLoaded', function(){
     rows.push(`${pad('Position', 68)} ${right('Votes', 10)} ${right('Share', 10)}`);
     rows.push(thinLine);
     sortPositionEntries(Object.entries(enriched.byPos)).forEach(([position, votes]) => {
-      rows.push(`${pad(position, 68)} ${right(votes || 0, 10)} ${right(`${pct(votes, enriched.totalVotes)}%`, 10)}`);
+      rows.push(`${pad(position, 68)} ${right(votes || 0, 10)} ${right(`${pct(votes, enriched.totalPositionVotes)}%`, 10)}`);
     });
     rows.push('');
 
@@ -1107,7 +1110,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const orgRows = sortOrgEntries(Object.entries(enriched.byOrg)).map(([org, votes]) => ({
       org: orgDisplayName(org),
       votes: Number(votes || 0),
-      share: `${pct(votes, enriched.totalVotes)}%`,
+      share: `${pct(votes, enriched.totalOrgVotes)}%`,
     }));
     y = drawPdfTable(
       doc,
@@ -1125,7 +1128,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const posRows = sortPositionEntries(Object.entries(enriched.byPos)).map(([position, votes]) => ({
       position,
       votes: Number(votes || 0),
-      share: `${pct(votes, enriched.totalVotes)}%`,
+      share: `${pct(votes, enriched.totalPositionVotes)}%`,
     }));
     y = drawPdfTable(
       doc,
