@@ -123,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function hashBadge(display, fullHash) {
     if (!fullHash) return '<span class="ledger-hash">' + escapeHtml(display || "-") + '</span>';
-    return `<button type="button" class="ledger-hash ${matchesHash(fullHash) || matchesHash(display) ? "hash-match" : ""}" data-copy-hash="${escapeHtml(fullHash)}"
+    return `<button type="button" class="ledger-hash ${matchesHash(fullHash) || matchesHash(display) ? "hash-highlight" : ""}" data-copy-hash="${escapeHtml(fullHash)}"
       aria-label="Copy full hash">${escapeHtml(display || fullHash)}</button>`;
   }
 
@@ -155,12 +155,14 @@ document.addEventListener("DOMContentLoaded", function () {
     ledgerPage = Math.max(1, Math.min(ledgerPage, pages));
     const start = (ledgerPage - 1) * PAGE_SIZE;
     renderRows(filtered.slice(start, start + PAGE_SIZE));
-    els.pagination.hidden = filtered.length === 0;
+    els.pagination.hidden = ledgerBlocks.length === 0;
     els.previous.disabled = ledgerPage === 1;
     els.next.disabled = ledgerPage === pages;
-    text(els.pageStatus, filtered.length
-      ? `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length} ${lookupQuery() ? "matching" : "loaded"} blocks (page ${ledgerPage} of ${pages})`
-      : "0 blocks");
+    text(els.pageStatus, lookupQuery()
+      ? `${filtered.length} matching record(s) found`
+      : filtered.length
+        ? `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length} loaded blocks (page ${ledgerPage} of ${pages})`
+        : "0 blocks");
   }
 
   function text(el, value) {

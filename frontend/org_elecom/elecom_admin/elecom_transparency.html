@@ -17,7 +17,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20261015-hash-lookup1">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20261015-ledger-cleanup1">
 </head>
 <body class="theme-elecom transparency-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -71,14 +71,9 @@
     <main class="content-area transparency-shell">
       <section class="transparency-hero">
         <div>
-          <div class="page-kicker">Admin / Transparency</div>
           <h1>Election Transparency</h1>
           <p>Immutable audit trail and cryptographic block verification.</p>
         </div>
-        <button class="btn btn-dark refresh-ledger-btn" id="refreshLedgerBtn">
-          <i class="bi bi-arrow-clockwise"></i>
-          Refresh
-        </button>
       </section>
 
       <section class="transparency-grid" aria-label="Ledger summary">
@@ -99,20 +94,25 @@
           <div>
             <h2>Public Ledger</h2>
           </div>
-          <button class="btn btn-outline-dark verify-ledger-btn" id="verifyLedgerBtn">
-            <i class="bi bi-patch-check"></i>
-            Verify Chain
-          </button>
+          <div class="ledger-actions">
+            <button class="btn btn-dark refresh-ledger-btn" id="refreshLedgerBtn">
+              <i class="bi bi-arrow-clockwise"></i>
+              Refresh
+            </button>
+            <button class="btn btn-outline-dark verify-ledger-btn" id="verifyLedgerBtn">
+              <i class="bi bi-patch-check"></i>
+              Verify Chain
+            </button>
+          </div>
         </div>
 
         <div class="input-group mb-3 hash-lookup-bar">
           <input type="text" id="hashLookupInput" class="form-control"
             placeholder="Paste hash here to verify or locate block..."
-            aria-label="Find a block, vote, or previous hash" aria-describedby="hashLookupScope"
+            aria-label="Find a block, vote, or previous hash"
             autocomplete="off" spellcheck="false">
           <button class="btn btn-outline-primary" type="button" id="btnVerifyHash">Inspect Hash</button>
         </div>
-        <small id="hashLookupScope" class="text-muted d-block mb-3">Searches the latest loaded ledger blocks.</small>
 
         <div class="ledger-empty" id="ledgerEmpty" hidden>
           <i class="bi bi-shield-lock"></i>
@@ -190,6 +190,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20261015-hash-lookup1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20261015-ledger-cleanup1"></script>
 </body>
 </html>
