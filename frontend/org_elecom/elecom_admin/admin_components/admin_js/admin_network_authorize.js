@@ -73,7 +73,7 @@ function initSidebar() {
 }
 
 function setupEventListeners() {
-  document.getElementById("enableNetworkRestriction")?.addEventListener("change", updateRestriction);
+  document.getElementById("enforceRestrictionToggle")?.addEventListener("change", updateRestriction);
   document.getElementById("logSearchInput")?.addEventListener("input", () => { logPage = 1; renderAccessLogs(); });
   document.getElementById("logPrevious")?.addEventListener("click", () => { logPage--; renderAccessLogs(); });
   document.getElementById("logNext")?.addEventListener("click", () => { logPage++; renderAccessLogs(); });
@@ -111,7 +111,7 @@ async function loadNetworkSettings() {
     }
 
     restrictionEnabled = data.enabled === true;
-    const toggle = document.getElementById("enableNetworkRestriction");
+    const toggle = document.getElementById("enforceRestrictionToggle");
     toggle.checked = restrictionEnabled; toggle.disabled = false;
     detectedRequestIp = data.current_ip || data.request_ip || "";
     renderDetectedRequestIp(detectedRequestIp);
@@ -125,8 +125,9 @@ async function loadNetworkSettings() {
 }
 
 async function updateRestriction() {
-  const toggle = document.getElementById("enableNetworkRestriction");
+  const toggle = document.getElementById("enforceRestrictionToggle");
   const enabled = toggle.checked;
+  syncAuthorizedNetworkBadges();
   toggle.disabled = true;
   document.getElementById("btnAddNetwork").disabled = true;
   try {
@@ -138,10 +139,12 @@ async function updateRestriction() {
     if (!response.ok || !data.ok) throw new Error(data.error || 'Unable to update network restriction.');
     restrictionEnabled = data.enabled === true;
     toggle.checked = restrictionEnabled;
+    syncAuthorizedNetworkBadges();
     showNotification(restrictionEnabled ? 'Network restriction enabled.' : 'Network restriction disabled.', 'success');
     await loadNetworkSettings();
   } catch (error) {
     toggle.checked = restrictionEnabled;
+    syncAuthorizedNetworkBadges();
     showNotification(error.message, 'error');
   } finally { toggle.disabled = false; document.getElementById("btnAddNetwork").disabled = false; }
 }
@@ -231,15 +234,15 @@ function renderAuthorizedNetworks(networks) {
   }
 
   tbody.innerHTML = networks.map((network) => {
-    const status = network.status || "Active";
-    const statusClass = status.toLowerCase() === "active" ? "status-text-active" : "status-text-disabled";
+    const status = document.getElementById("enforceRestrictionToggle").checked ? "Active" : "Disabled";
+    const statusClass = status === "Active" ? "bg-success" : "bg-secondary";
 
     return `
       <tr>
         <td>${escapeHtml(formatDate(network.created_at || network.updated_at))}</td>
         <td>${escapeHtml(network.network_ip || "")}</td>
         <td>${escapeHtml(network.ssid || "N/A")}</td>
-        <td><span class="${statusClass}">${escapeHtml(status)}</span></td>
+        <td><span class="badge ${statusClass}" data-network-status>${escapeHtml(status)}</span></td>
         <td class="text-center">
           <button type="button" class="delete-network-btn" data-delete-network="${escapeHtml(network.id)}" aria-label="Delete network">
             <i class="bi bi-trash"></i>
@@ -248,6 +251,15 @@ function renderAuthorizedNetworks(networks) {
       </tr>
     `;
   }).join("");
+}
+
+function syncAuthorizedNetworkBadges() {
+  const enabled = document.getElementById("enforceRestrictionToggle")?.checked === true;
+  document.querySelectorAll("#authorizedNetworksBody [data-network-status]").forEach(badge => {
+    badge.classList.toggle("bg-success", enabled);
+    badge.classList.toggle("bg-secondary", !enabled);
+    badge.textContent = enabled ? "Active" : "Disabled";
+  });
 }
 
 function renderDetectedRequestIp(ipAddress) {
