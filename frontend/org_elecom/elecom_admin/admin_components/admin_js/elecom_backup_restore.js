@@ -10,7 +10,6 @@
   let pageSize = 8;
   let latestBackup = null;
   let pendingRestoreForm = null;
-  const STORAGE_LIMIT_BYTES = 5 * 1024 * 1024 * 1024;
 
   const $ = (id) => document.getElementById(id);
 
@@ -116,7 +115,7 @@
     if (total) total.textContent = String(safeStats.total_backups || 0);
     if (success) success.textContent = String(safeStats.successful_backups || 0);
     if (failed) failed.textContent = String(safeStats.failed_backups || 0);
-    if (storage) storage.textContent = formatBytes(storageUsed || 0);
+    if (storage) storage.textContent = `${formatBytes(storageUsed || 0)} / 5 GB`;
     if (last) last.textContent = safeStats.last_backup_time ? formatDate(safeStats.last_backup_time) : "None yet";
   };
 
@@ -140,13 +139,13 @@
     }
     body.innerHTML = items.map((item) => `
       <tr>
-        <td><strong>${escapeHtml(item.name)}</strong></td>
-        <td>${escapeHtml(item.type_label)}</td>
-        <td>${escapeHtml(formatDate(item.created_at))}</td>
-        <td>${escapeHtml(formatBytes(item.file_size))}</td>
-        <td>${escapeHtml(item.created_by || "Admin")}</td>
-        <td><span class="status-badge ${statusClass(item.status)}">${escapeHtml(item.status || "completed")}</span></td>
-        <td>
+        <td data-label="Backup Name"><strong class="backup-filename">${escapeHtml(item.name)}</strong></td>
+        <td data-label="Type">${escapeHtml(item.type_label)}</td>
+        <td data-label="Date &amp; Time">${escapeHtml(formatDate(item.created_at))}</td>
+        <td data-label="File Size">${escapeHtml(formatBytes(item.file_size))}</td>
+        <td data-label="Created By">${escapeHtml(item.created_by || "Admin")}</td>
+        <td data-label="Status"><span class="status-badge ${statusClass(item.status)}">${escapeHtml(item.status || "completed")}</span></td>
+        <td data-label="Actions">
           <div class="backup-actions">
             <a class="btn btn-sm btn-outline-dark download-action" href="/backup/download/${item.id}/" title="Download backup" aria-label="Download ${escapeHtml(item.name)}"><i class="bi bi-download"></i></a>
             <button class="btn btn-sm btn-outline-warning restore-action history-restore-btn" type="button" data-id="${item.id}" data-name="${escapeHtml(item.name)}" title="Restore backup" aria-label="Restore ${escapeHtml(item.name)}"><i class="bi bi-database-down"></i></button>
@@ -155,28 +154,6 @@
         </td>
       </tr>
     `).join("");
-  };
-
-  const updateStorage = (bytes) => {
-    const used = Number(bytes) || 0;
-    const text = formatBytes(bytes);
-    const storageText = $("storageUsageText");
-    const meterText = $("storageMeterText");
-    const fill = $("storageMeterFill");
-    const historyFill = $("historyStorageFill");
-    const historyPercent = $("historyStoragePercent");
-    const pctValue = Math.min(100, (used / STORAGE_LIMIT_BYTES) * 100);
-    const pctText = `${pctValue.toFixed(pctValue >= 10 ? 1 : 2)}%`;
-    const width = used > 0 ? `${Math.max(2, pctValue)}%` : "0";
-    if (storageText) storageText.textContent = `${text} / 5 GB Used`;
-    if (meterText) meterText.textContent = `${text} / 5 GB`;
-    if (historyPercent) historyPercent.textContent = pctText;
-    [fill, historyFill].forEach((bar) => {
-      if (!bar) return;
-      bar.style.width = width;
-      bar.classList.toggle("warn", pctValue >= 70 && pctValue < 90);
-      bar.classList.toggle("danger", pctValue >= 90);
-    });
   };
 
   const setButtonLoading = (button, loading, label = "Saving") => {
@@ -201,7 +178,6 @@
     pageSize = Number(data.page_size || pageSize);
     latestBackup = data.latest_backup || (data.backups && data.backups[0]) || null;
     renderHistory(data.backups || []);
-    updateStorage(data.storage_used || 0);
     updateAnalytics(data.stats || {}, data.storage_used || 0);
     const latestText = $("latestBackupText");
     if (latestText) latestText.textContent = latestBackup ? latestBackup.name : "No backup available";
@@ -363,7 +339,7 @@
     const frequency = frequencyInput ? frequencyInput.value : "weekly";
     const backupTypeEl = $("autoBackupType");
     const backup_type = backupTypeEl ? backupTypeEl.value : "postgres";
-    const saveBtn = $("saveAutoSettingsBtn");
+    const saveBtn = $("btnSaveBackupSettings");
     setButtonLoading(saveBtn, true);
     if (saveBtn) saveBtn.disabled = true;
     try {
@@ -465,7 +441,7 @@
     });
     $("deleteBackupModal")?.addEventListener("hidden.bs.modal", () => { pendingDeleteId = null; });
     $("confirmRestoreBtn")?.addEventListener("click", submitRestore);
-    $("saveAutoSettingsBtn")?.addEventListener("click", saveSettings);
+    $("btnSaveBackupSettings")?.addEventListener("click", saveSettings);
     $("backupHistoryBody")?.addEventListener("click", (event) => {
       const emptyCreate = event.target.closest(".empty-create-backup");
       if (emptyCreate) {

@@ -17,7 +17,7 @@
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_backup_restore.css?v=20260922-sidebar-fix">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_backup_restore.css?v=20261015-backup-polish1">
 </head>
 <body class="theme-elecom backup-page-body">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -92,7 +92,7 @@
             </div>
           </div>
           <div class="backup-command-actions">
-            <button class="btn backup-primary-action" type="button" data-backup-type="postgres">
+            <button class="btn backup-primary-action" id="btnCreateBackup" type="button" data-backup-type="postgres">
               <i class="bi bi-database-add"></i>
               <span>Create Backup Now</span>
             </button>
@@ -143,7 +143,7 @@
             <button class="backup-type-btn backup-primary" type="button" data-backup-type="postgres">
               <i class="bi bi-database-fill-check"></i>
               <span>Full Database</span>
-              <small>All tables � complete backup</small>
+              <small>All tables &mdash; complete backup</small>
             </button>
           </div>
         </details>
@@ -152,18 +152,15 @@
           <div class="panel-heading table-heading">
             <div>
               <h2>Backup History</h2>
-              <p>Review generated backups, download archives, restore from a file, or remove old records.</p>
-            </div>
-            <span class="backup-chip" id="storageUsageText">0 B / 5 GB Used</span>
-          </div>
-          <div class="history-storage-summary">
-            <div class="storage-meter compact">
-              <div class="storage-meter-head"><span>Storage allocation</span><strong id="historyStoragePercent">0%</strong></div>
-              <div class="storage-meter-track"><div id="historyStorageFill"></div></div>
+              <p>Manage saved backups.</p>
             </div>
           </div>
           <div class="table-responsive backup-table-wrap">
             <table class="table backup-history-table mb-0">
+              <colgroup>
+                <col style="width:30%"><col style="width:10%"><col style="width:14%">
+                <col style="width:8%"><col style="width:12%"><col style="width:12%"><col style="width:14%">
+              </colgroup>
               <thead>
                 <tr>
                   <th>Backup Name</th>
@@ -192,7 +189,7 @@
             <div class="panel-heading">
               <div>
                 <h2>Restore From Backup</h2>
-                <p>Use this only when you need to bring back data from a saved backup.</p>
+                <p>Restore data from a saved backup.</p>
               </div>
             </div>
             <form id="restoreForm" class="restore-form">
@@ -237,7 +234,7 @@
                 </div>
               </div>
               <div class="restore-warning"><i class="bi bi-exclamation-octagon"></i> Restore can replace current data. Create a fresh backup first if you are unsure.</div>
-              <button class="btn restore-submit btn-restore" type="submit"><i class="bi bi-shield-check"></i> Continue to Password Check</button>
+              <button class="btn restore-submit btn-restore" id="btnContinueRestore" type="submit"><i class="bi bi-shield-check"></i> Continue to Password Check</button>
             </form>
           </section>
 
@@ -270,11 +267,7 @@
                   <option value="reports">Report Data</option>
                 </select>
               </div>
-              <div class="storage-meter">
-                <div class="storage-meter-head"><span>Storage Usage</span><strong id="storageMeterText">0 B</strong></div>
-                <div class="storage-meter-track"><div id="storageMeterFill"></div></div>
-              </div>
-              <button class="btn btn-save-settings w-100" type="button" id="saveAutoSettingsBtn"><i class="bi bi-save"></i> Save Settings</button>
+              <button class="btn btn-save-settings w-100" type="button" id="btnSaveBackupSettings"><i class="bi bi-save"></i> Save Settings</button>
             </div>
           </section>
         </div>
@@ -324,6 +317,6 @@
   </div>
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_backup_restore.js?v=20261011-backup-confirm1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_backup_restore.js?v=20261015-backup-polish1"></script>
 </body>
 </html>
