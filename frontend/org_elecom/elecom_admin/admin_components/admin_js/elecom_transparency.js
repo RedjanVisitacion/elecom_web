@@ -37,7 +37,6 @@ document.addEventListener("DOMContentLoaded", function () {
     ledgerEmpty: document.getElementById("ledgerEmpty"),
     ledgerTableWrap: document.getElementById("ledgerTableWrap"),
     statusCard: document.querySelector(".status-card"),
-    refreshBtn: document.getElementById("refreshLedgerBtn"),
     verifyBtn: document.getElementById("verifyLedgerBtn"),
     pagination: document.getElementById("ledgerPagination"),
     previous: document.getElementById("ledgerPrevious"),
@@ -252,7 +251,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function setLoading(isLoading) {
-    [els.refreshBtn, els.verifyBtn].forEach((button) => {
+    [els.verifyBtn].forEach((button) => {
       if (button) button.disabled = isLoading;
     });
   }
@@ -324,7 +323,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
-  if (els.refreshBtn) els.refreshBtn.addEventListener("click", loadLedger);
   if (els.verifyBtn) els.verifyBtn.addEventListener("click", verifyLedger);
 
   els.hashInput?.addEventListener("input", () => { ledgerPage = 1; renderPage(); });
