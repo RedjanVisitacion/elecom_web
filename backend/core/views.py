@@ -1169,6 +1169,8 @@ def _ensure_elevote_chat_table() -> None:
 
 
 def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
+    from .elevote_languages import LANGUAGE_INSTRUCTIONS
+
     api_key = (getattr(settings, "GROQ_API_KEY", "") or "").strip()
     if not api_key:
         raise RuntimeError("Groq API key is not configured.")
@@ -1187,6 +1189,7 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
         {
             "role": "system",
             "content": (
+                LANGUAGE_INSTRUCTIONS +
                 "You are EleVote, the concise AI assistant inside the ELECOM app "
                 "for USTP Oroquieta Campus. Critical naming rule: ELECOM is the app "
                 "and voting system. EleVote is only the AI assistant/chatbot inside "
@@ -1300,6 +1303,10 @@ def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
 
 
 def _elevote_fallback_reply(message: str) -> str:
+    from .elevote_languages import localized_fallback_reply
+    localized = localized_fallback_reply(message)
+    if localized is not None:
+        return localized
     text = (message or "").lower()
     if (
         "developer" in text
