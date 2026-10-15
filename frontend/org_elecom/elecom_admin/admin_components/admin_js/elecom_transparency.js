@@ -43,12 +43,66 @@ document.addEventListener("DOMContentLoaded", function () {
     previous: document.getElementById("ledgerPrevious"),
     next: document.getElementById("ledgerNext"),
     pageStatus: document.getElementById("ledgerPageStatus"),
+    hashInput: document.getElementById("hashLookupInput"),
+    inspectBtn: document.getElementById("btnVerifyHash"),
+    detailsModal: document.getElementById("blockDetailsModal"),
+    matchSelect: document.getElementById("hashMatchSelect"),
   };
 
   const PAGE_SIZE = 10;
   let ledgerBlocks = [];
   let ledgerPage = 1;
   const copyTooltips = new Map();
+  let inspectionMatches = [];
+
+  function lookupQuery() {
+    return String(els.hashInput?.value || "").trim().toLowerCase();
+  }
+
+  function matchesHash(value) {
+    const query = lookupQuery();
+    return Boolean(query && String(value || "").toLowerCase().includes(query));
+  }
+
+  function matchingBlocks() {
+    if (!lookupQuery()) return ledgerBlocks;
+    return ledgerBlocks.filter(block => [
+      block.block_hash_full, block.hash_full, block.vote_hash_full, block.previous_hash_full,
+      block.block_hash, block.hash, block.vote_hash, block.previous_hash,
+    ].some(matchesHash));
+  }
+
+  function showBlockDetails(index = 0) {
+    const block = inspectionMatches[index];
+    const details = document.getElementById("hashInspectionDetails");
+    details.hidden = !block;
+    if (!block) return;
+    text(document.getElementById("inspectedBlockNumber"), `#${block.block_number || block.id || "-"}`);
+    text(document.getElementById("inspectedBlockHash"), block.block_hash_full || block.hash_full || "Not supplied");
+    text(document.getElementById("inspectedVoteHash"), block.vote_hash_full || "Not supplied");
+    text(document.getElementById("inspectedPreviousHash"), block.previous_hash_full || "None (genesis block)");
+    text(document.getElementById("inspectedBlockStatus"), block.block_status || block.status || "Pending");
+    text(document.getElementById("inspectedVoteIntegrity"), block.vote_rows_missing
+      ? "Warning: vote rows are missing"
+      : block.vote_changed ? "Warning: recorded vote data has changed"
+        : "No vote changes reported by the ledger API");
+    // The current API returns no Merkle root or inclusion proof.
+    text(document.getElementById("inspectedMerkleStatus"), "Not available — no Merkle proof supplied");
+  }
+
+  function inspectHash() {
+    inspectionMatches = lookupQuery() ? matchingBlocks() : [];
+    const message = !lookupQuery() ? "Paste a hash to inspect a block."
+      : inspectionMatches.length ? `${inspectionMatches.length} matching block(s) found. A hash match locates a record; it does not prove cryptographic integrity.`
+        : "No matching hash in the loaded ledger blocks. This lookup does not search older blocks outside the loaded list.";
+    text(document.getElementById("hashInspectionMessage"), message);
+    document.getElementById("hashMatchPicker").hidden = inspectionMatches.length < 2;
+    els.matchSelect.innerHTML = inspectionMatches.map((block, index) =>
+      `<option value="${index}">Block #${escapeHtml(block.block_number || block.id || "-")}</option>`).join("");
+    els.matchSelect.value = "0";
+    showBlockDetails();
+    bootstrap.Modal.getOrCreateInstance(els.detailsModal).show();
+  }
 
   function showLedgerToast(message, isError = false) {
     const element = document.getElementById("ledgerToast");
@@ -69,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function hashBadge(display, fullHash) {
     if (!fullHash) return '<span class="ledger-hash">' + escapeHtml(display || "-") + '</span>';
-    return `<button type="button" class="ledger-hash" data-copy-hash="${escapeHtml(fullHash)}"
+    return `<button type="button" class="ledger-hash ${matchesHash(fullHash) || matchesHash(display) ? "hash-match" : ""}" data-copy-hash="${escapeHtml(fullHash)}"
       aria-label="Copy full hash">${escapeHtml(display || fullHash)}</button>`;
   }
 
@@ -96,15 +150,16 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function renderPage() {
-    const pages = Math.max(1, Math.ceil(ledgerBlocks.length / PAGE_SIZE));
+    const filtered = matchingBlocks();
+    const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
     ledgerPage = Math.max(1, Math.min(ledgerPage, pages));
     const start = (ledgerPage - 1) * PAGE_SIZE;
-    renderRows(ledgerBlocks.slice(start, start + PAGE_SIZE));
-    els.pagination.hidden = ledgerBlocks.length === 0;
+    renderRows(filtered.slice(start, start + PAGE_SIZE));
+    els.pagination.hidden = filtered.length === 0;
     els.previous.disabled = ledgerPage === 1;
     els.next.disabled = ledgerPage === pages;
-    text(els.pageStatus, ledgerBlocks.length
-      ? `${start + 1}–${Math.min(start + PAGE_SIZE, ledgerBlocks.length)} of ${ledgerBlocks.length} loaded blocks (page ${ledgerPage} of ${pages})`
+    text(els.pageStatus, filtered.length
+      ? `${start + 1}–${Math.min(start + PAGE_SIZE, filtered.length)} of ${filtered.length} ${lookupQuery() ? "matching" : "loaded"} blocks (page ${ledgerPage} of ${pages})`
       : "0 blocks");
   }
 
@@ -148,6 +203,12 @@ document.addEventListener("DOMContentLoaded", function () {
   function renderRows(blocks) {
     if (!els.ledgerRows) return;
     disposeCopyTooltips();
+    if (!blocks.length && lookupQuery() && ledgerBlocks.length) {
+      if (els.ledgerEmpty) els.ledgerEmpty.hidden = true;
+      if (els.ledgerTableWrap) els.ledgerTableWrap.hidden = false;
+      els.ledgerRows.innerHTML = '<tr><td colspan="6" class="text-center text-muted py-4">No matching hash in the loaded blocks.</td></tr>';
+      return;
+    }
     if (!blocks.length) {
       if (els.ledgerEmpty) els.ledgerEmpty.hidden = false;
       if (els.ledgerTableWrap) els.ledgerTableWrap.hidden = true;
@@ -172,7 +233,7 @@ document.addEventListener("DOMContentLoaded", function () {
           ? `${tamperReason}${changedAt ? ` Changed at ${changedAt}.` : ""}`
           : "";
         return `
-          <tr class="${voteChanged ? "ledger-row-warning" : ""}">
+          <tr class="${voteChanged ? "ledger-row-warning" : ""} ${lookupQuery() ? "ledger-row-match" : ""}">
             <td data-label="Block">#${escapeHtml(block.block_number || block.id || "-")}</td>
             <td data-label="Block Hash">${hashBadge(block.block_hash || block.hash, block.block_hash_full || block.hash_full)}</td>
             <td data-label="Vote Hash">${hashBadge(block.vote_hash, block.vote_hash_full)}</td>
@@ -264,6 +325,12 @@ document.addEventListener("DOMContentLoaded", function () {
   if (els.refreshBtn) els.refreshBtn.addEventListener("click", loadLedger);
   if (els.verifyBtn) els.verifyBtn.addEventListener("click", verifyLedger);
 
+  els.hashInput?.addEventListener("input", () => { ledgerPage = 1; renderPage(); });
+  els.hashInput?.addEventListener("keydown", event => {
+    if (event.key === "Enter") { event.preventDefault(); inspectHash(); }
+  });
+  els.inspectBtn?.addEventListener("click", inspectHash);
+  els.matchSelect?.addEventListener("change", () => showBlockDetails(Number(els.matchSelect.value)));
   els.previous?.addEventListener("click", () => { ledgerPage--; renderPage(); });
   els.next?.addEventListener("click", () => { ledgerPage++; renderPage(); });
   els.ledgerRows?.addEventListener("click", copyHash);

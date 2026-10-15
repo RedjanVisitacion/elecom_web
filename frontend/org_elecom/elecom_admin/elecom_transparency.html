@@ -17,7 +17,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20261015-ledger-pagination1">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20261015-hash-lookup1">
 </head>
 <body class="theme-elecom transparency-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -105,6 +105,15 @@
           </button>
         </div>
 
+        <div class="input-group mb-3 hash-lookup-bar">
+          <input type="text" id="hashLookupInput" class="form-control"
+            placeholder="Paste hash here to verify or locate block..."
+            aria-label="Find a block, vote, or previous hash" aria-describedby="hashLookupScope"
+            autocomplete="off" spellcheck="false">
+          <button class="btn btn-outline-primary" type="button" id="btnVerifyHash">Inspect Hash</button>
+        </div>
+        <small id="hashLookupScope" class="text-muted d-block mb-3">Searches the latest loaded ledger blocks.</small>
+
         <div class="ledger-empty" id="ledgerEmpty" hidden>
           <i class="bi bi-shield-lock"></i>
           <h3>No vote blocks recorded yet</h3>
@@ -140,6 +149,36 @@
     </main>
   </div>
 
+  <div class="modal fade" id="blockDetailsModal" tabindex="-1" aria-labelledby="blockDetailsTitle" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2 class="modal-title fs-5" id="blockDetailsTitle">Block Details</h2>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p id="hashInspectionMessage" role="status"></p>
+          <div id="hashMatchPicker" class="mb-3" hidden>
+            <label for="hashMatchSelect" class="form-label">Matching block</label>
+            <select id="hashMatchSelect" class="form-select"></select>
+          </div>
+          <dl id="hashInspectionDetails" class="hash-inspection-details" hidden>
+            <dt>Block</dt><dd id="inspectedBlockNumber"></dd>
+            <dt>Block Hash (SHA-256)</dt><dd><code id="inspectedBlockHash"></code></dd>
+            <dt>Vote Hash (SHA-256)</dt><dd><code id="inspectedVoteHash"></code></dd>
+            <dt>Previous Hash (SHA-256)</dt><dd><code id="inspectedPreviousHash"></code></dd>
+            <dt>Recorded Block Status</dt><dd id="inspectedBlockStatus"></dd>
+            <dt>Vote Integrity</dt><dd id="inspectedVoteIntegrity"></dd>
+            <dt>Merkle Verification</dt><dd id="inspectedMerkleStatus"></dd>
+          </dl>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-dark" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <div class="toast-container position-fixed bottom-0 end-0 p-3">
     <div id="ledgerToast" class="toast" role="status" aria-live="polite" aria-atomic="true">
       <div class="d-flex">
@@ -151,6 +190,6 @@
 
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20261015-ledger-pagination1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20261015-hash-lookup1"></script>
 </body>
 </html>
