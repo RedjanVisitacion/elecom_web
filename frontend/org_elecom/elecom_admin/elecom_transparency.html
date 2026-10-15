@@ -17,7 +17,7 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261011-sidebar-spacing1">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20260606-row-reason">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_transparency.css?v=20261015-ledger-pagination1">
 </head>
 <body class="theme-elecom transparency-page">
   <div class="sidebar-overlay" id="sidebarOverlay"></div>
@@ -73,7 +73,7 @@
         <div>
           <div class="page-kicker">Admin / Transparency</div>
           <h1>Election Transparency</h1>
-          <p>Review the public vote ledger and tamper-check status used by the mobile transparency screen.</p>
+          <p>Immutable audit trail and cryptographic block verification.</p>
         </div>
         <button class="btn btn-dark refresh-ledger-btn" id="refreshLedgerBtn">
           <i class="bi bi-arrow-clockwise"></i>
@@ -88,14 +88,9 @@
           <small id="lastVerified">Checking ledger...</small>
         </article>
         <article class="transparency-card">
-          <span class="card-label">Vote Blocks</span>
+          <span class="card-label">Total Vote Blocks</span>
           <strong id="totalBlocks">0</strong>
           <small>Public blocks recorded</small>
-        </article>
-        <article class="transparency-card hash-card">
-          <span class="card-label">Latest Hash</span>
-          <strong id="latestHash">-</strong>
-          <small>Privacy-safe block fingerprint</small>
         </article>
       </section>
 
@@ -103,7 +98,6 @@
         <div class="panel-head">
           <div>
             <h2>Public Ledger</h2>
-            <p>Anonymous vote hashes are shown for transparency. The system still checks current database rows in the background to detect edited or deleted votes.</p>
           </div>
           <button class="btn btn-outline-dark verify-ledger-btn" id="verifyLedgerBtn">
             <i class="bi bi-patch-check"></i>
@@ -134,13 +128,29 @@
             </tbody>
           </table>
         </div>
+        <nav class="ledger-pagination" id="ledgerPagination" aria-label="Public ledger pages" hidden>
+          <span id="ledgerPageStatus" class="text-muted" aria-live="polite"></span>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-sm btn-outline-dark" id="ledgerPrevious">Previous</button>
+            <button type="button" class="btn btn-sm btn-outline-dark" id="ledgerNext">Next</button>
+          </div>
+        </nav>
       </section>
 
     </main>
   </div>
 
+  <div class="toast-container position-fixed bottom-0 end-0 p-3">
+    <div id="ledgerToast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+      <div class="d-flex">
+        <div class="toast-body" id="ledgerToastMessage"></div>
+        <button type="button" class="btn-close me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261011-sidebar-spacing1"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20260606-row-reason"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_transparency.js?v=20261015-ledger-pagination1"></script>
 </body>
 </html>

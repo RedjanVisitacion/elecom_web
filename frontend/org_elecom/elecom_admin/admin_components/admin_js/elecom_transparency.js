@@ -33,14 +33,80 @@ document.addEventListener("DOMContentLoaded", function () {
     ledgerStatus: document.getElementById("ledgerStatus"),
     lastVerified: document.getElementById("lastVerified"),
     totalBlocks: document.getElementById("totalBlocks"),
-    latestHash: document.getElementById("latestHash"),
     ledgerRows: document.getElementById("ledgerRows"),
     ledgerEmpty: document.getElementById("ledgerEmpty"),
     ledgerTableWrap: document.getElementById("ledgerTableWrap"),
     statusCard: document.querySelector(".status-card"),
     refreshBtn: document.getElementById("refreshLedgerBtn"),
     verifyBtn: document.getElementById("verifyLedgerBtn"),
+    pagination: document.getElementById("ledgerPagination"),
+    previous: document.getElementById("ledgerPrevious"),
+    next: document.getElementById("ledgerNext"),
+    pageStatus: document.getElementById("ledgerPageStatus"),
   };
+
+  const PAGE_SIZE = 10;
+  let ledgerBlocks = [];
+  let ledgerPage = 1;
+  const copyTooltips = new Map();
+
+  function showLedgerToast(message, isError = false) {
+    const element = document.getElementById("ledgerToast");
+    text(document.getElementById("ledgerToastMessage"), message);
+    element.classList.toggle("text-bg-danger", isError);
+    element.classList.toggle("text-bg-success", !isError);
+    element.setAttribute("role", isError ? "alert" : "status");
+    bootstrap.Toast.getOrCreateInstance(element, { delay: 5000 }).show();
+  }
+
+  function disposeCopyTooltips() {
+    copyTooltips.forEach(({ tooltip, timer }) => {
+      clearTimeout(timer);
+      tooltip.dispose();
+    });
+    copyTooltips.clear();
+  }
+
+  function hashBadge(display, fullHash) {
+    if (!fullHash) return '<span class="ledger-hash">' + escapeHtml(display || "-") + '</span>';
+    return `<button type="button" class="ledger-hash" data-copy-hash="${escapeHtml(fullHash)}"
+      aria-label="Copy full hash">${escapeHtml(display || fullHash)}</button>`;
+  }
+
+  async function copyHash(event) {
+    const button = event.target.closest("[data-copy-hash]");
+    if (!button || !els.ledgerRows.contains(button)) return;
+    try {
+      await navigator.clipboard.writeText(button.dataset.copyHash);
+      if (!button.isConnected) return;
+      const previous = copyTooltips.get(button);
+      if (previous) { clearTimeout(previous.timer); previous.tooltip.dispose(); }
+      const tooltip = new bootstrap.Tooltip(button, {
+        title: "Hash copied to clipboard!", trigger: "manual", container: "body",
+      });
+      tooltip.show();
+      const timer = setTimeout(() => {
+        tooltip.dispose();
+        copyTooltips.delete(button);
+      }, 2000);
+      copyTooltips.set(button, { tooltip, timer });
+    } catch (_) {
+      showLedgerToast("Unable to copy hash. Please allow clipboard access and try again.", true);
+    }
+  }
+
+  function renderPage() {
+    const pages = Math.max(1, Math.ceil(ledgerBlocks.length / PAGE_SIZE));
+    ledgerPage = Math.max(1, Math.min(ledgerPage, pages));
+    const start = (ledgerPage - 1) * PAGE_SIZE;
+    renderRows(ledgerBlocks.slice(start, start + PAGE_SIZE));
+    els.pagination.hidden = ledgerBlocks.length === 0;
+    els.previous.disabled = ledgerPage === 1;
+    els.next.disabled = ledgerPage === pages;
+    text(els.pageStatus, ledgerBlocks.length
+      ? `${start + 1}–${Math.min(start + PAGE_SIZE, ledgerBlocks.length)} of ${ledgerBlocks.length} loaded blocks (page ${ledgerPage} of ${pages})`
+      : "0 blocks");
+  }
 
   function text(el, value) {
     if (el) el.textContent = value;
@@ -51,7 +117,7 @@ document.addEventListener("DOMContentLoaded", function () {
     if (normalized.includes("modified")) return "critical";
     if (normalized.includes("critical")) return "critical";
     if (normalized.includes("warning")) return "warning";
-    if (normalized.includes("valid") || normalized.includes("accepted")) return "valid";
+    if (normalized === "valid" || normalized === "accepted") return "valid";
     return "warning";
   }
 
@@ -81,6 +147,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   function renderRows(blocks) {
     if (!els.ledgerRows) return;
+    disposeCopyTooltips();
     if (!blocks.length) {
       if (els.ledgerEmpty) els.ledgerEmpty.hidden = false;
       if (els.ledgerTableWrap) els.ledgerTableWrap.hidden = true;
@@ -107,9 +174,9 @@ document.addEventListener("DOMContentLoaded", function () {
         return `
           <tr class="${voteChanged ? "ledger-row-warning" : ""}">
             <td data-label="Block">#${escapeHtml(block.block_number || block.id || "-")}</td>
-            <td data-label="Block Hash"><span class="ledger-hash" title="${escapeHtml(block.block_hash_full || block.hash_full || "")}">${escapeHtml(block.block_hash || block.hash || "-")}</span></td>
-            <td data-label="Vote Hash"><span class="ledger-hash" title="${escapeHtml(block.vote_hash_full || "")}">${escapeHtml(block.vote_hash || "-")}</span></td>
-            <td data-label="Previous Hash"><span class="ledger-hash" title="${escapeHtml(block.previous_hash_full || "")}">${escapeHtml(block.previous_hash || "-")}</span></td>
+            <td data-label="Block Hash">${hashBadge(block.block_hash || block.hash, block.block_hash_full || block.hash_full)}</td>
+            <td data-label="Vote Hash">${hashBadge(block.vote_hash, block.vote_hash_full)}</td>
+            <td data-label="Previous Hash">${hashBadge(block.previous_hash, block.previous_hash_full)}</td>
             <td data-label="Status">
               <span class="ledger-status ${escapeHtml(status)}"><i class="bi bi-shield-check"></i>${escapeHtml(status)}</span>
               ${reasonText ? `<div class="ledger-reason">${escapeHtml(reasonText)}</div>` : ""}
@@ -143,10 +210,14 @@ document.addEventListener("DOMContentLoaded", function () {
       text(els.ledgerStatus, summary.ledger_status || "Warning");
       text(els.lastVerified, `Last checked ${formatDate(summary.last_verified)}`);
       text(els.totalBlocks, String(summary.total_vote_blocks || blocks.length || 0));
-      text(els.latestHash, summary.latest_hash || "-");
       if (els.statusCard) els.statusCard.dataset.state = state;
-      renderRows(blocks);
+      ledgerBlocks = Array.isArray(blocks) ? blocks : [];
+      renderPage();
     } catch (error) {
+      ledgerBlocks = [];
+      renderPage();
+      if (els.ledgerEmpty) els.ledgerEmpty.hidden = true;
+      if (els.ledgerTableWrap) els.ledgerTableWrap.hidden = false;
       text(els.ledgerStatus, "Unavailable");
       text(els.lastVerified, error.message || "Failed to load ledger.");
       if (els.statusCard) els.statusCard.dataset.state = "critical";
@@ -159,7 +230,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   async function verifyLedger() {
-    if (els.verifyBtn) els.verifyBtn.disabled = true;
+    setLoading(true);
     try {
       const response = await fetch("/api/vote/ledger/verify/", { credentials: "same-origin" });
       const data = await response.json().catch(() => ({}));
@@ -173,17 +244,30 @@ document.addEventListener("DOMContentLoaded", function () {
       text(els.totalBlocks, String(data.total_vote_blocks || 0));
       if (els.statusCard) els.statusCard.dataset.state = state;
       await loadLedger();
+      const verified = state === "valid" &&
+        Array.isArray(data.issues) && data.issues.length === 0 &&
+        !data.vote_tampering_detected &&
+        !data.changed_vote_count && !data.missing_vote_rows_count;
+      showLedgerToast(verified
+        ? "Chain Integrity Verified: All blocks valid"
+        : "Chain verification found issues. Review the ledger status and flagged blocks.", !verified);
     } catch (error) {
+      showLedgerToast(error.message || "Failed to verify ledger.", true);
       text(els.ledgerStatus, "Unavailable");
       text(els.lastVerified, error.message || "Failed to verify ledger.");
       if (els.statusCard) els.statusCard.dataset.state = "critical";
     } finally {
-      if (els.verifyBtn) els.verifyBtn.disabled = false;
+      setLoading(false);
     }
   }
 
   if (els.refreshBtn) els.refreshBtn.addEventListener("click", loadLedger);
   if (els.verifyBtn) els.verifyBtn.addEventListener("click", verifyLedger);
+
+  els.previous?.addEventListener("click", () => { ledgerPage--; renderPage(); });
+  els.next?.addEventListener("click", () => { ledgerPage++; renderPage(); });
+  els.ledgerRows?.addEventListener("click", copyHash);
+  window.addEventListener("pagehide", disposeCopyTooltips);
 
   loadLedger();
 });
