@@ -799,7 +799,7 @@ document.addEventListener('DOMContentLoaded', function(){
       'Election Scope',
       'Date Range',
       'Generated At',
-      'Voted',
+      'Distinct Voters',
       'Total Candidates',
       'Total Registered Voters',
       'Did Not Vote',
