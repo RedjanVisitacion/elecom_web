@@ -523,7 +523,8 @@ document.addEventListener('DOMContentLoaded', function(){
     const candidates = sortByReportOrder(uniqueCandidates);
     const voteRankedCandidates = rankedCandidates(uniqueCandidates);
     const totalVotes = Number(totals.total_votes || 0);
-    const totalVoters = Number(totals.total_voters || 0);
+    const totalVoters = Number(totals.total_registered_voters ?? totals.total_voters ?? 0);
+    const didNotVote = Number(totals.did_not_vote ?? (totalVoters - Number(totals.distinct_voters || 0)));
     const turnout = pct(totals.distinct_voters || 0, totalVoters);
     const byOrg = data?.by_org || {};
     const byPos = data?.by_pos || {};
@@ -534,7 +535,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const leadingOrg = hasVotes ? Object.entries(byOrg).sort((a,b) => Number(b[1] || 0) - Number(a[1] || 0))[0] : null;
     const highestCandidate = hasVotes ? voteRankedCandidates[0] : null;
     const topVotes = hasVotes ? Number(highestCandidate?.votes || 0) : 0;
-    return { totals, candidates, voteRankedCandidates, totalVotes, totalVoters, turnout, byOrg, byPos, totalOrgVotes, totalPositionVotes, leadingOrg, highestCandidate, topVotes };
+    return { totals, candidates, voteRankedCandidates, totalVotes, totalVoters, didNotVote, turnout, byOrg, byPos, totalOrgVotes, totalPositionVotes, leadingOrg, highestCandidate, topVotes };
   }
 
   function barRows(entries, total, emptyLabel){
@@ -636,6 +637,8 @@ document.addEventListener('DOMContentLoaded', function(){
           <div class="report-summary-card"><span>Total Votes</span><strong>${enriched.totalVotes}</strong></div>
           <div class="report-summary-card"><span>Distinct Voters</span><strong>${enriched.totals.distinct_voters || 0}</strong></div>
           <div class="report-summary-card"><span>Total Candidates</span><strong>${candidateCount}</strong></div>
+          <div class="report-summary-card"><span>Total Registered Voters</span><strong>${enriched.totalVoters}</strong></div>
+          <div class="report-summary-card"><span>Did Not Vote</span><strong>${enriched.didNotVote}</strong></div>
           <div class="report-summary-card"><span>Voter Turnout</span><strong>${enriched.turnout}%</strong></div>
           <div class="report-summary-card wide"><span>Leading Organization</span><strong>${escapeHtml(leadingOrg)}</strong></div>
           <div class="report-summary-card wide"><span>Highest Vote Candidate</span><strong>${escapeHtml(highestName)}</strong></div>
@@ -727,6 +730,8 @@ document.addEventListener('DOMContentLoaded', function(){
     rows.push(`${pad('Total Votes', 28)}: ${enriched.totalVotes}`);
     rows.push(`${pad('Distinct Voters', 28)}: ${enriched.totals.distinct_voters || 0}`);
     rows.push(`${pad('Total Candidates', 28)}: ${enriched.candidates.length}`);
+    rows.push(`${pad('Total Registered Voters', 28)}: ${enriched.totalVoters}`);
+    rows.push(`${pad('Did Not Vote', 28)}: ${enriched.didNotVote}`);
     rows.push(`${pad('Voter Turnout', 28)}: ${enriched.turnout}%`);
     rows.push(`${pad('Leading Organization', 28)}: ${enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet'}`);
     rows.push(`${pad('Highest Vote Candidate', 28)}: ${enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet'}`);
@@ -797,6 +802,8 @@ document.addEventListener('DOMContentLoaded', function(){
       'Total Votes',
       'Distinct Voters',
       'Total Candidates',
+      'Total Registered Voters',
+      'Did Not Vote',
       'Voter Turnout',
       'Organization',
       'Position',
@@ -815,6 +822,8 @@ document.addEventListener('DOMContentLoaded', function(){
         String(enriched.totalVotes),
         String(enriched.totals.distinct_voters || 0),
         String(enriched.candidates.length),
+        String(enriched.totalVoters),
+        String(enriched.didNotVote),
         `${enriched.turnout}%`,
         orgDisplayName(candidate.organization || 'USG'),
         candidate.position || '',
@@ -1091,6 +1100,8 @@ document.addEventListener('DOMContentLoaded', function(){
       { label: 'Total Votes', value: enriched.totalVotes },
       { label: 'Distinct Voters', value: enriched.totals.distinct_voters || 0 },
       { label: 'Total Candidates', value: enriched.candidates.length },
+      { label: 'Total Registered Voters', value: enriched.totalVoters },
+      { label: 'Did Not Vote', value: enriched.didNotVote },
       { label: 'Voter Turnout', value: `${enriched.turnout}%` },
       { label: 'Leading Organization', value: enriched.leadingOrg ? orgDisplayName(enriched.leadingOrg[0]) : 'None yet' },
       { label: 'Highest Vote Candidate', value: enriched.highestCandidate ? candidateName(enriched.highestCandidate) : 'None yet' },

@@ -10874,6 +10874,8 @@ def admin_reports_summary_api(request):
                 "distinct_voters": distinct_voters,
                 "total_candidates": len(candidates),
                 "total_voters": total_voters,
+                "total_registered_voters": total_voters,
+                "did_not_vote": total_voters - distinct_voters,
             },
             "by_org": by_org,
             "by_pos": by_pos,

@@ -99,3 +99,31 @@ test('preview and text export use the same corrected grouped denominators', () =
   assert.match(text, /pct\(votes, enriched\.totalPositionVotes\)/);
   assert.doesNotMatch(text, /pct\(votes, enriched\.totalVotes\)/);
 });
+
+test('PDF summary includes voter metrics immediately above turnout using the API payload', async () => {
+  const h = harness();
+  await h.context.exportStructuredPdfReport({...sample, totals: {
+    total_votes: 31, distinct_voters: 31, total_voters: 1631,
+    total_registered_voters: 1631, did_not_vote: 1600,
+  }}, 'metrics');
+  const summary = h.tables.get('Report Summary');
+  const turnoutIndex = summary.findIndex(row => row.label === 'Voter Turnout');
+  assert.equal(summary[turnoutIndex - 2].label, 'Total Registered Voters');
+  assert.equal(summary[turnoutIndex - 2].value, 1631);
+  assert.equal(summary[turnoutIndex - 1].label, 'Did Not Vote');
+  assert.equal(summary[turnoutIndex - 1].value, 1600);
+  assert.equal(summary[turnoutIndex].value, '1.9%');
+  assert.equal(h.tables.get('Candidate Results')[0].pct, '96.8%');
+});
+
+test('voter metrics work during staged deployment with the previous API and with zero totals', async () => {
+  const h = harness();
+  const oldApi = h.context.enrichReport({...sample, totals: {total_voters: 1631, distinct_voters: 31}});
+  assert.equal(oldApi.totalVoters, 1631);
+  assert.equal(oldApi.didNotVote, 1600);
+  const zero = h.context.enrichReport({totals: {total_voters: 0, distinct_voters: 0}});
+  assert.equal(zero.didNotVote, 0);
+  assert.equal(zero.turnout, 0);
+  assert.match(source, /<span>Total Registered Voters<\/span><strong>\$\{enriched.totalVoters\}/);
+  assert.match(source, /<span>Did Not Vote<\/span><strong>\$\{enriched.didNotVote\}/);
+});
