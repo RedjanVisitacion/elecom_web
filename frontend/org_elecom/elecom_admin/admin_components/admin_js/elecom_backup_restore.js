@@ -139,7 +139,7 @@
     }
     body.innerHTML = items.map((item) => `
       <tr>
-        <td data-label="Backup Name"><strong class="backup-filename">${escapeHtml(item.name)}</strong></td>
+        <td data-label="Backup Name"><strong class="backup-filename" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</strong></td>
         <td data-label="Type">${escapeHtml(item.type_label)}</td>
         <td data-label="Date &amp; Time">${escapeHtml(formatDate(item.created_at))}</td>
         <td data-label="File Size">${escapeHtml(formatBytes(item.file_size))}</td>
