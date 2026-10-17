@@ -1,4 +1,40 @@
 (function () {
+  // Mobile navigation must work on every page, independently of dashboard code.
+  const initMobileSidebar = () => {
+    const sidebar = document.getElementById("sidebar");
+    const trigger = document.getElementById("menuToggle");
+    const overlay = document.getElementById("sidebarOverlay");
+    if (!sidebar || !trigger || !overlay || trigger.dataset.mobileSidebarInitialized) return;
+    trigger.dataset.mobileSidebarInitialized = "true";
+    trigger.type = "button";
+    trigger.setAttribute("aria-controls", "sidebar");
+    trigger.setAttribute("aria-label", "Open navigation");
+    const mobile = window.matchMedia("(max-width: 992px)");
+    const setOpen = (open, restoreFocus = false) => {
+      sidebar.classList.toggle("active", open);
+      overlay.classList.toggle("active", open);
+      trigger.setAttribute("aria-expanded", String(open));
+      if (restoreFocus) trigger.focus();
+    };
+    trigger.addEventListener("click", () => {
+      if (mobile.matches) setOpen(true);
+    });
+    overlay.addEventListener("click", () => setOpen(false, true));
+    for (const id of ["closeSidebar", "sidebarCollapseToggle", "toggle-btn"]) {
+      document.getElementById(id)?.addEventListener("click", () => {
+        if (mobile.matches) setOpen(false, true);
+      });
+    }
+    sidebar.addEventListener("click", (event) => {
+      const link = event.target.closest("a[href]");
+      if (mobile.matches && link && !link.matches('[data-bs-toggle="collapse"]')) setOpen(false);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && sidebar.classList.contains("active")) setOpen(false, true);
+    });
+    mobile.addEventListener("change", () => setOpen(false));
+    setOpen(false);
+  };
   const initCollapsibleSidebar = () => {
     const sidebar = document.getElementById("sidebar");
     const toggle = document.getElementById("toggle-btn") || document.getElementById("sidebarCollapseToggle");
@@ -99,8 +135,10 @@
   };
 
   if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initMobileSidebar);
     document.addEventListener("DOMContentLoaded", initCollapsibleSidebar);
   } else {
+    initMobileSidebar();
     initCollapsibleSidebar();
   }
 

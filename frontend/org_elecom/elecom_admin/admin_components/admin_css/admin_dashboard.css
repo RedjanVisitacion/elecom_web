@@ -1270,3 +1270,10 @@ textarea.form-control { min-height: 120px; resize: vertical; }
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
 }
 .sidebar-feature-tooltip[hidden] { display: none; }
+
+
+/* Keep mobile navigation above sticky page headers and controls. */
+@media (max-width: 992px) {
+  .sidebar { z-index: 1050 !important; }
+  .sidebar-overlay { z-index: 1040; }
+}
