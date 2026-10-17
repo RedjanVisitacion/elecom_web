@@ -285,3 +285,25 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
     padding: 4px 8px !important;
   }
 }
+/* Mobile content grows naturally inside one viewport-height scroll container. */
+@media (max-width: 768px) {
+  .dashboard-page .main-content {
+    display: block;
+    height: 100vh;
+    height: 100dvh;
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .dashboard-page .content-area {
+    height: auto;
+    overflow: visible;
+    grid-template-rows: auto auto;
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+  }
+  .dashboard-page .dashboard-overview,
+  .dashboard-page .dashboard-secondary {
+    grid-template-rows: auto auto;
+  }
+  .dashboard-page .turnout-chart { min-height: 240px; }
+}
