@@ -307,3 +307,49 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
   }
   .dashboard-page .turnout-chart { min-height: 240px; }
 }
+
+/* Let a wrapped mobile Activities header grow above the month navigation. */
+@media (max-width: 768px) {
+  .dashboard-page .dashboard-secondary .compact-calendar {
+    height: auto;
+    max-height: none;
+  }
+  .dashboard-page .dashboard-secondary .compact-calendar .card-body {
+    height: auto;
+    grid-template-rows: auto auto auto;
+    gap: 0;
+  }
+  .dashboard-page .activities-heading {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .dashboard-page .compact-calendar #btnNewCalEvent {
+    position: static;
+    margin: 0;
+    height: auto;
+    min-height: 24px;
+    white-space: nowrap !important;
+  }
+  .dashboard-page .activities-month-navigation {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    margin: 0 0 8px;
+    gap: 2px;
+  }
+  .dashboard-page .compact-calendar #activitiesCalendarGrid,
+  .dashboard-page .compact-calendar #activitiesCalendarGrid table {
+    height: auto;
+  }
+  .dashboard-page .compact-calendar #activitiesCalendarGrid table {
+    grid-template-rows: 14px auto;
+  }
+  .dashboard-page .compact-calendar #activitiesCalendarGrid tbody {
+    grid-auto-rows: minmax(24px, auto);
+  }
+}
