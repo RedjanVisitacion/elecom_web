@@ -382,3 +382,27 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
     font-size: 10px !important;
   }
 }
+
+/* Stack the lower dashboard cards on narrow screens. */
+@media (max-width: 767.98px) {
+  .dashboard-page .dashboard-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
+  }
+  .dashboard-page .dashboard-primary,
+  .dashboard-page .dashboard-secondary,
+  .dashboard-page .dashboard-grid .card {
+    width: 100%;
+  }
+  .dashboard-page .dashboard-secondary { gap: 12px; }
+  .dashboard-page .turnout-line-wrap {
+    flex: 0 0 auto;
+    height: 240px;
+    width: 100%;
+    min-width: 0;
+  }
+  .dashboard-page #turnoutLineChart {
+    display: block;
+    width: 100% !important;
+  }
+}
