@@ -353,3 +353,16 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
     grid-auto-rows: minmax(24px, auto);
   }
 }
+
+/* Balance all four countdown units on mobile. */
+@media (max-width: 768px) {
+  .dashboard-page .election-countdown {
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px !important;
+    justify-content: center;
+    width: 100%;
+    max-width: 250px;
+    margin: 0 auto;
+  }
+}
