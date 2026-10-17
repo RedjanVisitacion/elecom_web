@@ -558,3 +558,36 @@
 #candidateChangeToast { width: 380px; max-width: 100%; background: #fff; color: #0d1b3e; border-left: 4px solid #22c55e; box-shadow: 0 8px 24px rgba(13,27,62,.16); }
 #candidateChangeToast.candidate-toast-error { border-left-color: #dc2626; }
 #candidateChangeToast .toast-body { white-space: pre-line; max-height: 240px; overflow-y: auto; }
+
+
+/* Keep the mobile navigation above sticky Candidates controls. */
+@media (max-width: 992px) {
+  .candidates-page-body .sidebar { z-index: 1050 !important; }
+  .candidates-page-body .sidebar-overlay { z-index: 1040; }
+  .candidates-page-body .candidate-toolbar-container { z-index: 10; }
+}
+
+.candidate-transfer-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+@media (max-width: 768px) {
+  .candidate-toolbar-actions > #bulkDeleteBtn,
+  .candidate-toolbar-actions > #orgFilterSelect,
+  .candidate-toolbar-actions > .candidate-transfer-actions {
+    grid-column: 1 / -1;
+  }
+  .candidate-toolbar-actions > #orgFilterSelect { width: 100%; }
+  .candidate-transfer-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    min-width: 0;
+  }
+  .candidate-transfer-actions .btn {
+    min-width: 0;
+    font-size: 12px;
+    padding: 6px 4px;
+  }
+}
