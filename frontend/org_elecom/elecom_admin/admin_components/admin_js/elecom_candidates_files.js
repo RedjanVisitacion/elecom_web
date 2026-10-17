@@ -46,12 +46,13 @@
         cell.append(caption, content); meta.append(cell);
       }
     }
-    el.append(graphic, title, meta);
+    el.append(graphic, title);
+    if (detail || metadata) el.append(meta);
     if (kind) {
       const actions = document.createElement('div'); actions.className = 'file-document-actions';
       if (href) {
         const open = document.createElement('button'); open.type = 'button';
-        open.addEventListener('click', () => openPreview(kind, label));
+        open.addEventListener('click', () => openDocument(kind));
         open.className = 'files-control'; open.textContent = 'Open'; open.setAttribute('aria-label', `Open ${label}`); actions.append(open);
       }
       if (kind === 'certificate') { el.append(actions); grid.append(el); return; }
@@ -95,7 +96,7 @@
         const href = isCertificate
           ? (candidate.source === 'application' && candidate[key] === true ? `/api/admin/candidate-applications/${encodeURIComponent(candidate.id)}/certificate/` : '')
           : (candidate[key] ? url(candidate[key]) : '');
-        items.push({ label, detail: href ? 'Open file ↗' : 'Not submitted', icon, href, missing: !href, kind: isCertificate ? 'certificate' : key.replace(/_url$/, '') });
+        items.push({ label, detail: href ? '' : 'Not submitted', icon, href, missing: !href, kind: isCertificate ? 'certificate' : key.replace(/_url$/, '') });
       }
     } else if (org || query) {
       rows.filter(row => (!org || group(row) === org) && `${name(row)} ${row.student_id} ${row.position} ${group(row)}`.toLowerCase().includes(query))
@@ -180,50 +181,14 @@
   });
   window.addEventListener('pagehide', () => { stopPolling(); if (filesRequest) filesRequest.abort(); });
   window.addEventListener('pageshow', () => { startPolling(); });
-  const previewElement = document.getElementById('candidatePreviewModal');
-  const previewModal = new bootstrap.Modal(previewElement);
-  const previewBody = document.getElementById('candidatePreviewBody');
-  let previewUrl = '', previewRequest = null;
-  function clearPreview() {
-    if (previewRequest) previewRequest.abort();
-    previewRequest = null; previewBody.replaceChildren();
-    if (previewUrl) URL.revokeObjectURL(previewUrl);
-    previewUrl = '';
-  }
-  previewElement.addEventListener('hidden.bs.modal', clearPreview);
-  async function openPreview(kind, label) {
+  function openDocument(kind) {
     if (!candidate) return;
-    clearPreview();
-    const controller = new AbortController(); previewRequest = controller;
-    document.getElementById('candidatePreviewTitle').textContent = `${label} - ${name(candidate)}`;
-    const message = document.createElement('p'); message.className = 'preview-message'; message.setAttribute('role', 'status'); message.textContent = 'Loading file...';
-    previewBody.append(message); previewModal.show();
     const params = new URLSearchParams({ id: candidate.id, source: candidate.source, election_id: candidate.election_id || '', kind });
-    try {
-      const previewEndpoint = kind === 'certificate'
-        ? `/api/admin/candidate-applications/${encodeURIComponent(candidate.id)}/certificate/`
-        : `/api/admin/candidates/document/preview/?${params}`;
-      const response = await fetch(previewEndpoint, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
-      const type = response.headers.get('content-type') || '';
-      if (!response.ok) {
-        const data = type.includes('application/json') ? await response.json() : null;
-        throw new Error(data?.error || 'Unable to load this file. Refresh the page and try again.');
-      }
-      if (!['application/pdf', 'image/jpeg', 'image/png'].some(allowed => type.startsWith(allowed))) throw new Error('This file type cannot be previewed.');
-      const blob = await response.blob();
-      if (controller.signal.aborted || previewRequest !== controller) return;
-      previewUrl = URL.createObjectURL(blob);
-      const viewer = document.createElement(type.startsWith('image/') ? 'img' : 'iframe');
-      viewer.className = type.startsWith('image/') ? 'candidate-preview-photo' : 'candidate-preview-pdf';
-      if (type.startsWith('image/')) viewer.alt = label;
-      else viewer.title = label;
-      viewer.src = previewUrl;
-      viewer.addEventListener('error', () => { message.textContent = 'Unable to display this file in your browser.'; previewBody.replaceChildren(message); });
-      previewBody.replaceChildren(viewer);
-    } catch (error) {
-      if (error.name === 'AbortError' || previewRequest !== controller) return;
-      message.textContent = error.message; message.classList.add('text-danger'); previewBody.replaceChildren(message);
-    }
+    // Use authenticated same-origin endpoints and their readable filename headers.
+    const endpoint = kind === 'certificate'
+      ? `/api/admin/candidate-applications/${encodeURIComponent(candidate.id)}/certificate/`
+      : `/api/admin/candidates/document/preview/?${params}`;
+    window.open(endpoint, '_blank', 'noopener,noreferrer');
   }
   const dialogElement = document.getElementById('candidateDocumentModal');
   const dialog = new bootstrap.Modal(dialogElement);

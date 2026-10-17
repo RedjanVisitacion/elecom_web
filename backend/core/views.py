@@ -8148,7 +8148,14 @@ def admin_candidate_document_preview_api(request):
             return JsonResponse({"ok": False, "error": "This file has not been submitted or was deleted."}, status=404)
         raw, content_type = read_candidate_document(row[0], row[1], photo=kind == "requirements_photo")
         response = HttpResponse(raw, content_type=content_type)
-        response["Content-Disposition"] = 'inline; filename="' + kind + ('.pdf' if content_type == 'application/pdf' else '.png' if content_type == 'image/png' else '.jpg') + '"'
+        document_name = {
+            "enrollment_certificate": "Certificate_of_Enrollment",
+            "grades": "Grade_Card",
+            "good_moral": "Good_Moral_Certificate",
+            "requirements_photo": "Candidate_Photo",
+        }[kind]
+        extension = '.pdf' if content_type == 'application/pdf' else '.png' if content_type == 'image/png' else '.jpg'
+        response["Content-Disposition"] = f'inline; filename="{document_name}{extension}"'
         response["Cache-Control"] = "private, no-store"
         response["X-Content-Type-Options"] = "nosniff"
         return response
