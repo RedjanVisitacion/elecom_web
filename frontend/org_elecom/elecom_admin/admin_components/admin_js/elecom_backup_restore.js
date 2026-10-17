@@ -13,34 +13,7 @@
 
   const $ = (id) => document.getElementById(id);
 
-  const initSidebar = () => {
-    const sidebar = $("sidebar");
-    const overlay = $("sidebarOverlay");
-    const menuToggle = $("menuToggle");
-    const closeBtn = $("closeSidebar");
-
-    const closeSidebar = () => {
-      sidebar?.classList.remove("active");
-      overlay?.classList.remove("active");
-    };
-
-    menuToggle?.addEventListener("click", () => {
-      sidebar?.classList.toggle("active");
-      overlay?.classList.toggle("active");
-    });
-    closeBtn?.addEventListener("click", closeSidebar);
-    overlay?.addEventListener("click", closeSidebar);
-
-    document.querySelectorAll(".sidebar .nav-link").forEach((link) => {
-      link.addEventListener("click", () => {
-        if (window.innerWidth <= 992) closeSidebar();
-      });
-    });
-
-    window.addEventListener("resize", () => {
-      if (window.innerWidth > 992) closeSidebar();
-    });
-  };
+  // Shared mobile navigation is initialized by admin_user_menu.js.
 
   const showAlert = (message, type) => {
     const inline = $("backupAlert");
@@ -390,8 +363,6 @@
   };
 
   document.addEventListener("DOMContentLoaded", () => {
-    initSidebar();
-
     $("backupPrevBtn")?.addEventListener("click", () => {
       if (page > 1) {
         page -= 1;
