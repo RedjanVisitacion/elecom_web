@@ -383,6 +383,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Close the active thread (e.g. voter deleted their chat) ─────────────
   function closeActiveThread() {
+    showMobileThread(false);
     setTypingIndicator(false);
     clearInterval(threadPollTimer);
     activeStudentId = null;
@@ -402,7 +403,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Open a conversation ───────────────────────────────────────────────────
+  function showMobileThread(open) {
+    document.getElementById('threadPane')?.classList.toggle('mobile-active', open);
+    document.querySelector('.chat-shell')?.classList.toggle('has-active-thread', open);
+  }
+  document.getElementById('chatBackToInbox')?.addEventListener('click', () => {
+    showMobileThread(false);
+    const selected = [...(convListEl?.querySelectorAll('.chat-conv-item') || [])]
+      .find(item => item.getAttribute('data-id') === activeStudentId);
+    selected?.focus();
+  });
+
   function openConversation(studentId) {
+    showMobileThread(true);
     if (activeStudentId === studentId) return;
 
     setTypingIndicator(false);
