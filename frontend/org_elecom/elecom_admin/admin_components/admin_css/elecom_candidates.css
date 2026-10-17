@@ -591,3 +591,14 @@
     padding: 6px 4px;
   }
 }
+
+/* Let the Candidates controls scroll with the cards on mobile. */
+@media (max-width: 768px) {
+  .candidates-page-body .candidate-toolbar-container {
+    position: relative !important;
+    top: auto !important;
+    z-index: 1;
+    background: transparent;
+    box-shadow: none;
+  }
+}
