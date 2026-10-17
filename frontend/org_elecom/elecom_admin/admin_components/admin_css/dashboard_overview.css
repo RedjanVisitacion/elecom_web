@@ -246,3 +246,42 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
 #calEventModal .activity-type-option { display: block; width: 100%; border: 0; background: #fff; text-align: left; padding: 9px 12px; color: #0d1b3e; font-size: 13px; white-space: normal; }
 #calEventModal .activity-type-option:hover, #calEventModal .activity-type-option:focus-visible, #calEventModal .activity-type-option.active { background: #eff6ff; color: #1d4ed8; }
 #calEventModal .activity-type-empty { margin: 0; padding: 12px; color: #64748b; font-size: 13px; }
+
+/* Responsive dashboard actions: keep timer, calendar, and header controls clear. */
+.dashboard-page .top-navbar,
+.dashboard-page .top-navbar .top-navbar-actions {
+  display: flex;
+  align-items: center;
+}
+.dashboard-page .top-navbar .system-status-badge {
+  align-self: center;
+  flex-shrink: 0;
+}
+.dashboard-page .activities-new-event {
+  white-space: nowrap !important;
+  flex-shrink: 0;
+}
+.dashboard-page .activities-heading {
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+@media (max-width: 767.98px) {
+  .dashboard-page .election-banner-layout {
+    display: flex !important;
+    flex-direction: column;
+    align-items: center !important;
+    gap: 15px !important;
+  }
+  .dashboard-page .election-banner-layout > div:first-child { width: 100%; }
+  .dashboard-page .election-countdown {
+    flex-direction: row;
+    justify-content: center;
+    flex-wrap: wrap;
+    max-width: 100%;
+    min-width: 0;
+  }
+  .dashboard-page .compact-calendar #btnNewCalEvent {
+    font-size: 12px !important;
+    padding: 4px 8px !important;
+  }
+}
