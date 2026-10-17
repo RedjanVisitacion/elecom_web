@@ -31,7 +31,6 @@ window.addEventListener('pageshow', event => {
 });
 
 function initNetworkAuthorizePage() {
-  initSidebar();
   setupEventListeners();
   loadNetworkSettings();
   startLogPolling();
@@ -43,34 +42,7 @@ if (document.readyState === "loading") {
   initNetworkAuthorizePage();
 }
 
-function initSidebar() {
-  const sidebar = document.getElementById("sidebar");
-  const overlay = document.getElementById("sidebarOverlay");
-  const menuToggle = document.getElementById("menuToggle");
-  const closeBtn = document.getElementById("closeSidebar");
-
-  const closeSidebar = () => {
-    sidebar?.classList.remove("active");
-    overlay?.classList.remove("active");
-  };
-
-  menuToggle?.addEventListener("click", () => {
-    sidebar?.classList.toggle("active");
-    overlay?.classList.toggle("active");
-  });
-  closeBtn?.addEventListener("click", closeSidebar);
-  overlay?.addEventListener("click", closeSidebar);
-
-  document.querySelectorAll(".sidebar .nav-link").forEach((link) => {
-    link.addEventListener("click", () => {
-      if (window.innerWidth <= 992) closeSidebar();
-    });
-  });
-
-  window.addEventListener("resize", () => {
-    if (window.innerWidth > 992) closeSidebar();
-  });
-}
+// Sidebar interactions are owned by admin_user_menu.js on every admin page.
 
 function setupEventListeners() {
   document.getElementById("logSearchInput")?.addEventListener("input", () => { logPage = 1; renderAccessLogs(); });
