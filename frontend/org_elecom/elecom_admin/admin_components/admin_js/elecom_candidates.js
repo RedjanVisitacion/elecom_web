@@ -285,16 +285,18 @@ document.addEventListener('DOMContentLoaded', function(){
 
     return `
       <div class="p-3 border rounded d-flex align-items-center gap-3 candidate-card" data-id="${item.id}">
-        <div class="form-check">
-          <input class="form-check-input row-check" type="checkbox" value="${item.id}">
+        <div class="candidate-row-identity">
+          <div class="form-check">
+            <input class="form-check-input row-check" type="checkbox" value="${item.id}" aria-label="Select ${escapeHtml(name || item.student_id)}">
+          </div>
+          ${avatarHtml}
         </div>
-        ${avatarHtml}
-        <div class="flex-grow-1">
-          <div class="fw-semibold">${escapeHtml(name || item.student_id)}</div>
+        <div class="flex-grow-1 candidate-row-details">
+          <div class="fw-semibold candidate-row-name">${escapeHtml(name || item.student_id)}</div>
           <div class="small text-muted d-flex align-items-center gap-1">${partyLogo}<span>${escapeHtml(item.party_name || 'Independent')}</span></div>
           <div class="small text-muted">${escapeHtml(item.program || '')}${item.year_section ? ' · ' + escapeHtml(item.year_section) : ''}</div>
         </div>
-        <div class="d-flex align-items-center gap-2">
+        <div class="d-flex align-items-center gap-2 candidate-row-actions">
           <button class="btn btn-outline-primary btn-sm" data-action="edit" data-bs-toggle="tooltip" title="Edit Candidate Details" aria-label="Edit Candidate Details" data-id="${item.id}"><i class="bi bi-pencil-square"></i></button>
           <button class="btn btn-outline-danger btn-sm" data-action="delete" data-bs-toggle="tooltip" title="Unregister Candidate" aria-label="Unregister Candidate" data-id="${item.id}" data-name="${escapeHtml(name || item.student_id)}"><i class="bi bi-person-dash"></i></button>
         </div>

@@ -602,3 +602,60 @@
     box-shadow: none;
   }
 }
+
+
+/* Preserve desktop placement while grouping mobile selection and avatar. */
+.candidate-row-identity { display: contents; }
+@media (max-width: 768px) {
+  .candidates-page-body .candidate-card {
+    flex-wrap: nowrap;
+    align-items: center !important;
+    gap: 8px !important;
+    padding: 8px 0 !important;
+    border: 0 !important;
+    border-bottom: 1px solid #e5e7eb !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  .candidates-page-body .candidate-row-identity {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 0 0 auto;
+  }
+  .candidate-row-identity .form-check {
+    margin: 0;
+    min-height: 0;
+    padding-left: 0;
+  }
+  .candidate-row-identity .row-check { margin: 0; float: none; }
+  .candidates-page-body .candidate-row-identity .candidate-avatar-img,
+  .candidates-page-body .candidate-row-identity .candidate-avatar-placeholder {
+    width: 45px;
+    height: 45px;
+    flex: 0 0 45px;
+  }
+  .candidates-page-body .candidate-card > .candidate-row-details {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: left;
+  }
+  .candidate-row-name { font-size: 12px; line-height: 1.35; }
+  .candidate-row-details .small { font-size: 10px; line-height: 1.4; }
+  .candidate-row-details .small span { min-width: 0; overflow-wrap: anywhere; }
+  .candidate-row-details .candidate-party-logo { flex: 0 0 14px; width: 14px; height: 14px; }
+  .candidates-page-body .candidate-card > .candidate-row-actions {
+    flex: 0 0 auto;
+    flex-direction: column;
+    width: auto;
+    gap: 6px !important;
+  }
+  .candidate-row-actions .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+  }
+}
