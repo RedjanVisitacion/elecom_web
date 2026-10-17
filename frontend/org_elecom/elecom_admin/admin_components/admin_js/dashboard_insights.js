@@ -13,7 +13,8 @@
       const hour = Date.parse(item.hour);
       return (!Number.isFinite(start) || hour + 3600000 > start) && (!Number.isFinite(end) || hour < end);
     });
-    const labels = hourly.map((item) => clock(item.hour));
+    const historical = turnout?.scope === "historical";
+    const labels = hourly.map((item) => historical ? timestamp(item.hour) : clock(item.hour));
     if (canvas && window.Chart) {
       if (!chart) chart = new Chart(canvas, {
         type: "line",
@@ -37,7 +38,7 @@
       chart.data.datasets[0].data = hourly.map((item) => item.count);
       chart.update("none");
     }
-    if (caption) caption.textContent = !turnout ? "Hourly turnout is unavailable." : !hourly.length ? "No completed election hours in the latest 24-hour window." : `Completed hourly intervals through ${timestamp(turnout.through)}. Small counts are withheld; gaps are not zero votes.`;
+    if (caption) caption.textContent = !turnout ? "Hourly turnout is unavailable." : historical ? "Showing historical data for completed election. Small counts are withheld; gaps are not zero votes." : !hourly.length ? "No completed election hours in the latest 24-hour window." : `Completed hourly intervals through ${timestamp(turnout.through)}. Small counts are withheld; gaps are not zero votes.`;
     if (canvas && !window.Chart && caption) caption.textContent = "Chart could not load. Hourly totals are available below.";
     const tableWrap = document.getElementById("turnoutDataTable");
     if (tableWrap) {

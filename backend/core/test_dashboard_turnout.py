@@ -54,7 +54,39 @@ class DashboardTurnoutTests(unittest.TestCase):
         self.assertTrue(all(item["count"] == 0 and not item["withheld"] for item in result["hourly"]))
         self.assertEqual(result["activity"], [])
 
-    def api(self, role="admin"):
+    def test_closed_election_uses_full_schedule_including_partial_hours(self):
+        election = {"status": "Closed", "start_at": "2026-10-04T08:30:00+08:00",
+                    "end_at": "2026-10-05T17:15:00+08:00"}
+        self.cursor.fetchall.return_value = [(datetime(2026, 10, 4, 8), 5),
+                                               (datetime(2026, 10, 5, 17), 3)]
+        result = load_dashboard_turnout(self.connection, "v.election_id = %s", [7], self.now, election)
+        sql, params = self.cursor.execute.call_args.args
+        self.assertEqual(params[0], 7)
+        self.assertEqual(params[1].isoformat(), election["start_at"])
+        self.assertEqual(params[2].isoformat(), election["end_at"])
+        self.assertEqual(result["scope"], "historical")
+        self.assertEqual(len(result["hourly"]), 34)
+        self.assertEqual(result["hourly"][0]["count"], 5)
+        self.assertEqual(result["hourly"][-1]["hour"], "2026-10-05T17:00:00+08:00")
+        self.assertIsNone(result["hourly"][-1]["count"])
+        self.assertTrue(result["hourly"][-1]["withheld"])
+
+    def test_active_election_keeps_latest_24_completed_hours(self):
+        result = load_dashboard_turnout(self.connection, "TRUE", [], self.now, {"status": "Active"})
+        self.assertEqual(result["scope"], "latest_24_hours")
+        self.assertEqual(len(result["hourly"]), 24)
+        self.assertEqual(result["hourly"][-1]["hour"], "2026-10-07T14:00:00+08:00")
+
+    def test_historical_hour_boundary_excludes_hour_after_end(self):
+        for status in ("Closed", "Finished", "Completed"):
+            with self.subTest(status=status):
+                result = load_dashboard_turnout(self.connection, "TRUE", [], self.now, {
+                    "status": status, "start_at": "2026-10-04T08:00:00+08:00",
+                    "end_at": "2026-10-05T17:00:00+08:00"})
+                self.assertEqual(len(result["hourly"]), 33)
+                self.assertEqual(result["hourly"][-1]["hour"], "2026-10-05T16:00:00+08:00")
+
+    def api(self, role="admin", election_row=None):
         module = ast.parse(Path(__file__).with_name("views.py").read_text(encoding="utf-8-sig"))
         function = next(node for node in module.body if isinstance(node, ast.FunctionDef) and node.name == "admin_dashboard_api")
         function.decorator_list = []
@@ -70,11 +102,13 @@ class DashboardTurnoutTests(unittest.TestCase):
             "_current_election_filter": lambda: ("election_id = %s", [7]),
             "_current_vote_filter": lambda alias="": (f"{alias + '.' if alias else ''}election_id = %s", [7]),
             "timezone": SimpleNamespace(now=lambda: self.now),
+            "_iso_or_none": lambda value: value.isoformat() if value else None,
+            "_compute_election_phases": lambda **kwargs: ("closed", None),
             "load_dashboard_turnout": load_dashboard_turnout,
             "load_dashboard_activity": load_dashboard_activity,
             "JsonResponse": Response, "logger": Mock(),
         }
-        self.cursor.fetchone.side_effect = [(35,), (1647,), (2,), None]
+        self.cursor.fetchone.side_effect = [(35,), (1647,), (2,), election_row]
         exec(compile(ast.Module(body=[function], type_ignores=[]), "<dashboard api>", "exec"), namespace)
         return namespace["admin_dashboard_api"](SimpleNamespace(session={"role": role}))
 
@@ -87,6 +121,14 @@ class DashboardTurnoutTests(unittest.TestCase):
         for token in ("student_id", "first_name", "last_name", "voted_at", "vote_items"):
             self.assertNotIn(token, str(response.data))
             self.assertNotIn(token, " ".join(call.args[0] for call in self.cursor.execute.call_args_list))
+
+    def test_api_passes_closed_schedule_to_turnout_query(self):
+        response = self.api(election_row=(
+            datetime(2026, 10, 4, 0, tzinfo=timezone.utc),
+            datetime(2026, 10, 5, 9, tzinfo=timezone.utc), None))
+        self.assertEqual(response.data["election"]["status"], "Closed")
+        self.assertEqual(response.data["turnout"]["scope"], "historical")
+        self.assertEqual(len(response.data["turnout"]["hourly"]), 33)
 
     def test_api_fails_closed_when_hourly_query_fails(self):
         self.cursor.fetchall.side_effect = RuntimeError("database unavailable")

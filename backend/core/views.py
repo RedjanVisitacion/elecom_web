@@ -1946,7 +1946,7 @@ def admin_dashboard_api(request):
     turnout = None
     try:
         turnout_filter, turnout_params = _current_vote_filter("v")
-        turnout = load_dashboard_turnout(connection, turnout_filter, turnout_params, timezone.now())
+        turnout = load_dashboard_turnout(connection, turnout_filter, turnout_params, timezone.now(), election=election)
     except Exception:
         logger.exception("Failed to load aggregate dashboard turnout")
 
