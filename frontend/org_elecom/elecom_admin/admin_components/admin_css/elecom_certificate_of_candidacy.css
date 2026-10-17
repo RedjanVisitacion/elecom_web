@@ -110,3 +110,50 @@ html:has(.coc-page), body.coc-page { height: 100%; overflow: hidden; }
   color: #ffffff;
   box-shadow: 0 0 0 3px rgba(2, 132, 199, .2);
 }
+
+/* Mobile COC editing: settings first, followed by a full-width preview. */
+@media (max-width: 768px) {
+  .coc-page .main-content {
+    overflow-x: hidden;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  .coc-page .coc-workspace {
+    height: auto;
+    min-height: 0;
+    overflow: visible;
+    flex: none;
+    padding-bottom: calc(32px + env(safe-area-inset-bottom, 0px));
+  }
+  .coc-page .coc-split {
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    overflow: visible;
+    gap: 16px;
+  }
+  .coc-page .coc-settings {
+    order: 1;
+    width: 100%;
+    flex: none;
+  }
+  .coc-page .coc-previews {
+    order: 2;
+    width: 100%;
+    flex: none;
+    height: 70vh;
+    height: 70dvh;
+    min-height: 420px;
+  }
+  .coc-page .coc-settings .form-control,
+  .coc-page .coc-settings .form-select,
+  .coc-page .coc-settings .form-range {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+  }
+  .coc-page .coc-settings #chairSignaturePad {
+    flex: none;
+    height: 160px;
+  }
+}
