@@ -5599,7 +5599,7 @@ def _create_backup_artifact(backup_type: str, created_by: str, audit_action: str
         raise ValueError("Invalid backup path.")
 
     try:
-        if backup_type in ("postgres", "full_system"):
+        if backup_type == "full_system":
             sql_name = _backup_filename("database", "sql")
             with tempfile.TemporaryDirectory() as tmp:
                 sql_path = Path(tmp) / sql_name
@@ -5994,15 +5994,19 @@ def admin_backup_restore_api(request):
                 shutil.copy2(source_path, upload_path)
 
             sql_path = upload_path
-            if upload_path.suffix.lower() == ".zip":
+            # Older postgres backups were ZIP archives mislabeled as .sql.
+            # Inspect the content so those existing downloads remain restorable.
+            if zipfile.is_zipfile(upload_path):
                 with zipfile.ZipFile(upload_path) as zf:
                     sql_members = [m for m in zf.namelist() if m.lower().endswith(".sql") and not m.startswith("/")]
                     if not sql_members:
                         return JsonResponse({"ok": False, "error": "Zip backup does not contain a .sql file."}, status=400)
-                    zf.extract(sql_members[0], tmp_root)
-                    sql_path = (tmp_root / sql_members[0]).resolve()
-                    if tmp_root.resolve() not in sql_path.parents:
-                        return JsonResponse({"ok": False, "error": "Invalid zip backup structure."}, status=400)
+                    # Copy to a fixed local path; never extract archive paths.
+                    sql_path = tmp_root / "restore_payload.sql"
+                    with zf.open(sql_members[0]) as source, sql_path.open("wb") as dest:
+                        shutil.copyfileobj(source, dest)
+            elif upload_path.suffix.lower() == ".zip":
+                return JsonResponse({"ok": False, "error": "Invalid ZIP backup file."}, status=400)
 
             sql_text = sql_path.read_text(encoding="utf-8", errors="ignore").lower()
             first_kb = sql_text[:2048]
