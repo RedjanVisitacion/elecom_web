@@ -22,6 +22,7 @@ import io
 import ipaddress
 import zipfile
 from pathlib import Path
+from .backup_sql import inspect_sql, sanitize_data_sql
 
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone as dt_timezone
@@ -5408,6 +5409,19 @@ def _pg_dump_data_only_sql(sql_text: str, backup_type: str) -> str:
 
 
 def _sanitized_restore_file(input_path: Path, scope: str = "database") -> Path:
+    # Data backups can be tens of MB. Avoid simultaneous full-file copies,
+    # lowercasing and split/join lists in a memory-constrained web worker.
+    _, markers = inspect_sql(input_path, {"type: table", "create table"})
+    if markers != {"type: table", "create table"}:
+        tmp = tempfile.NamedTemporaryFile(suffix=".sql", delete=False)
+        restore_path = Path(tmp.name)
+        tmp.close()
+        try:
+            sanitize_data_sql(input_path, restore_path)
+            return restore_path
+        except BaseException:
+            restore_path.unlink(missing_ok=True)
+            raise
     sql_text = input_path.read_text(encoding="utf-8", errors="ignore")
     sanitized = _pg_dump_data_only_sql(sql_text, _backup_type_for_restore_scope(scope))
     if sanitized == sql_text:
@@ -6008,8 +6022,12 @@ def admin_backup_restore_api(request):
             elif upload_path.suffix.lower() == ".zip":
                 return JsonResponse({"ok": False, "error": "Invalid ZIP backup file."}, status=400)
 
-            sql_text = sql_path.read_text(encoding="utf-8", errors="ignore").lower()
-            first_kb = sql_text[:2048]
+            known_tables = {
+                "student", "users", "vote_windows", "votes", "vote_items",
+                "candidates_registration", "user_notifications", "app_ratings",
+                "authorized_networks", "network_access_attempts",
+            }
+            first_kb, present_tables = inspect_sql(sql_path, known_tables if scope != "database" else ())
             if "postgresql database dump" not in first_kb and "create table" not in first_kb and "insert into" not in first_kb:
                 return JsonResponse({"ok": False, "error": "Backup validation failed."}, status=400)
             if scope != "database":
@@ -6019,14 +6037,9 @@ def admin_backup_restore_api(request):
                     "voters": {"student", "users"},
                     "reports": {"votes", "vote_items"},
                 }.get(scope, set())
-                known_tables = {
-                    "student", "users", "vote_windows", "votes", "vote_items",
-                    "candidates_registration", "user_notifications", "app_ratings",
-                    "authorized_networks", "network_access_attempts",
-                }
-                if allowed_tables and not any(table in sql_text for table in allowed_tables):
+                if allowed_tables and not allowed_tables.intersection(present_tables):
                     return JsonResponse({"ok": False, "error": "Backup does not appear to match the selected restore scope."}, status=400)
-                disallowed = [table for table in known_tables - allowed_tables if table in sql_text]
+                disallowed = (known_tables - allowed_tables).intersection(present_tables)
                 if disallowed:
                     return JsonResponse(
                         {

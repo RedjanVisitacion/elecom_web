@@ -13,6 +13,7 @@ from types import SimpleNamespace
 import unittest
 from unittest.mock import Mock
 import zipfile
+from core.backup_sql import inspect_sql
 
 
 SQL = b'-- PostgreSQL database dump\nINSERT INTO users VALUES (1);\n'
@@ -28,6 +29,7 @@ class BackupFormatTests(unittest.TestCase):
         self.restored = []
         self.env = dict(
             Path=Path, shutil=shutil, tempfile=tempfile, zipfile=zipfile, json=json,
+            inspect_sql=inspect_sql,
             BACKUP_ALLOWED_TYPES={'postgres': {}, 'full_system': {}},
             BACKUP_RESTORE_SCOPES={'database'},
             _backup_root=lambda: self.root,
