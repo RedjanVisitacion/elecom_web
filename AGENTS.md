@@ -787,3 +787,54 @@ dart format --output=none --set-exit-if-changed .
 - `deploy/enable-pull-deploy.sh` installs the repo-local `core.hooksPath=deploy/hooks` on /var/www/elecom only. It refuses to replace an existing custom hooks path or post-merge hook.
 - `deploy/hooks/post-merge` collects static files, restarts Gunicorn, and checks service health after a successful merge. Deployment failures are printed; the source merge may already have completed. Do not claim success merely because Git pulled.
 - Setup is not active on the user's server until the scripts are deployed and `sh deploy/enable-pull-deploy.sh` runs there once. Hooks do not run on an already-up-to-date pull. Environment edits, migrations, and local-change conflicts still need their appropriate separate handling. See docs/pull-auto-deploy.md.
+
+## Backup & Restore incident and verified fixes (2026-10-27)
+
+### Current workspace and backup coverage
+
+- The actual Windows checkout in this session is `G:\elecom_web`; older `F:\elecom_web` references above are historical. Production remains `/var/www/elecom`, with Django in `/var/www/elecom/backend`.
+- Backup handlers, table selection, creation, download, and password-gated restore are in `backend/core/views.py`. Bounded-memory SQL inspection and data-file sanitization are in `backend/core/backup_sql.py`.
+- The UI's **Full Database** option (`postgres`) is a data-only SQL backup of public base tables selected by `_backup_table_names`. `BACKUP_SKIP_TABLES` excludes `admin_backups`, `admin_backup_settings`, and `audit_logs`. Do not describe it as an entire server or schema recovery backup.
+- Restoring these data backups requires the existing database structure. External uploaded media files, source code, `.env`, and server configuration are not included. Stored image references and any document data actually retained in database rows can be included.
+- The inspected 2026-10-27 backup contained 40 tables, including accounts, voters, candidates, election windows, votes, ledger records, face enrollments, and support chats. This is an incident snapshot, not a fixed table count.
+
+### ZIP archives mislabeled as SQL
+
+- Original bug: `_create_backup_artifact` packaged `postgres` backups as ZIP while giving them a `.sql` filename. VS Code reported binary/unsupported encoding; restore read the ZIP as text and returned **Backup validation failed**. That warning alone did not mean the backup data was corrupt.
+- Fixed creation: `postgres` now goes directly through `_run_pg_dump` and produces plain SQL. ZIP packaging is reserved for the internal `full_system` branch; do not assume that branch is exposed as a configured UI option.
+- Restore uses `zipfile.is_zipfile`, so legacy ZIP downloads with `.sql` extensions remain supported. SQL members are copied into a fixed temporary filename with `zf.open` and `shutil.copyfileobj`; never extract untrusted archive paths.
+- To manually inspect an old mislabeled download, make a copy, rename the copy to `.zip`, and extract its SQL. The original file need not be rewritten for the fixed restore handler.
+
+### Restore 502: confirmed memory exhaustion
+
+- A later restore passed format validation but returned HTTP 502. Nginx logged **upstream prematurely closed connection while reading response header** for `POST /backup/restore/`. Kernel logs then confirmed **Out of memory: Killed process ... (gunicorn)** at the matching failure times. Internet speed was not the established cause of these failures.
+- At diagnosis the VPS had approximately 960 MiB total RAM, 160 MiB available, and no swap. These values are historical; inspect current memory before making capacity changes. No swap or RAM upgrade was performed in this session.
+- The old restore path held multiple whole-file copies through `read_text`, lowercasing, and split/join sanitization. `inspect_sql` now scans in 64 KiB chunks, including marker matches across boundaries. `sanitize_data_sql` bounds reads even within very large individual INSERT lines, such as embedded documents.
+- Data-only restore preparation now streams into a temporary file and preserves skipping the unsupported `SET transaction_timeout` setting. Scope validation uses streamed marker detection instead of retaining a lowercase copy of the SQL file.
+- The legacy schema-dump conversion branch and the no-`psql` fallback still load SQL into memory. Do not claim every restore format/path is bounded-memory. The measured improvement applies to validation/preparation of the tested data-only backup, not total Gunicorn/PostgreSQL memory.
+- The user's actual 27,745,577-byte SQL file was tested locally: validation/preparation peaked at approximately 1.4 MB of traced Python allocations. Nine focused tests passed, including legacy ZIP compatibility, invalid-file rejection, scope-independent format handling, and large-file streaming. Run from `backend`: `venv\Scripts\python.exe -m unittest core.test_backup_formats core.test_backup_sql`.
+- Full `manage.py check` was blocked locally by missing `numpy` imported by `local_face_service`; do not report it as passed. Python syntax compilation passed during the memory fix.
+
+### Production verification and diagnostics
+
+- The user committed/pushed the fixes and ran `git pull origin main` in `/var/www/elecom`. Screenshots confirmed the installed post-merge hook collected static files, restarted Gunicorn, and reported **ELECOM update deployed; Gunicorn is active**. The pull hook was therefore active on this server by this incident; verify it remains configured rather than repeating setup blindly.
+- Deployment success and restore success are separate checks. After deploying the memory fix, the user ran a restore with **Everything** selected and supplied a screenshot showing **Backup restored successfully**. The live request succeeded; independent record-by-record comparison and ledger verification were not performed in this session.
+- A loading spinner covers both upload and server-side work. Upload time depends on upload speed; restore time depends on server/database work. Do not infer the active stage from the spinner or network badge alone.
+- After an ambiguous failure, avoid duplicate restore submissions until checking for an active restore process/database operation. `pgrep -a psql` showed no process during this incident, but that check alone does not establish database integrity or exclude every database session.
+- Useful read-only diagnostics on the VPS:
+
+  ```bash
+  free -h
+  swapon --show
+  pgrep -a psql
+  sudo journalctl -u gunicorn --since "2 hours ago" --no-pager | grep -Ei -A 12 -B 5 'WORKER TIMEOUT|SIGKILL|SIGABRT|Traceback|Error handling request|out of memory'
+  sudo journalctl -k --since "2 hours ago" --no-pager | grep -Ei 'out of memory|oom|killed process'
+  sudo tail -n 80 /var/log/nginx/error.log
+  ```
+
+- Match timestamps/timezones rather than assuming host log time equals Philippine time. Routine notification HTTP 200 logs and unrelated default-site **directory index forbidden** errors did not diagnose the restore failure. Do not expose SQL row contents, password hashes, biometric embeddings, or other private backup contents in diagnostics.
+
+### Sidebar consistency and Windows Git ownership
+
+- Backup & Restore previously overrode shared sidebar styles with pill-shaped links, extra shadows, and icon movement. Those page-specific sidebar overrides were removed from `elecom_backup_restore.css`; use `admin_dashboard.css` for the same active indicator, rounded corners, spacing, and hover behavior as other admin screens. Its HTML CSS reference was bumped to `?v=20261027-sidebar-consistency1` and deployment was confirmed.
+- Git's **detected dubious ownership** error on the user's moved/differently owned checkout was resolved with `git config --global --add safe.directory G:/elecom_web`. Trust only the explicitly owned checkout; do not use a wildcard trust exception. This Git issue was separate from the backup format and restore memory bugs.
