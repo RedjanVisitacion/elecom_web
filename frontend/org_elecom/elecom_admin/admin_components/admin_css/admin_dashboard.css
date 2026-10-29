@@ -1591,9 +1591,8 @@ body.admin-framed-shell .content-area { background: #F0F4F8; padding-left: 16px;
 
 /* Prominent navigation feedback; prevent repeat actions while leaving a page. */
 body.admin-framed-shell #adminNavigationLoading {
-  position:fixed; inset:0; z-index:6000; padding:20px;
-  display:flex; align-items:flex-start; justify-content:center;
-  padding-top:calc(var(--admin-frame-height,56px) + 48px);
+  position:fixed; inset:0; z-index:6000; padding:68px 16px 16px;
+  display:flex; align-items:flex-start; justify-content:flex-end;
   background:rgba(240,244,248,.12); pointer-events:auto; cursor:wait;
 }
 #adminNavigationLoading .admin-navigation-loading-message {
@@ -1610,3 +1609,7 @@ body.admin-framed-shell #adminNavigationLoading {
 @media(prefers-reduced-motion:reduce) { #adminNavigationLoading .admin-loading-emblem::after { animation:none; } }
 
 #adminNavigationLoading .admin-loading-cancel { grid-column:2; justify-self:start; }
+
+@media(max-width:575px) {
+  body.admin-framed-shell #adminNavigationLoading { padding-left:12px; padding-right:12px; }
+}
