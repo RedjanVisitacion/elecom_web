@@ -22,9 +22,20 @@
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261029-admin-consistency1">
     <style>
         /* ── Live Chat layout ────────────────────────────────────────── */
-        .chat-shell {
+        /* Size the workspace after the masthead, breadcrumb, and footer.
+           Only the conversation list and messages should scroll. */
+        html:has(body.live-chat-page), body.live-chat-page { overflow: hidden; }
+        body.admin-framed-shell.live-chat-page .main-content {
+            height: 100vh;
+            height: 100dvh;
+            min-height: 0;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+        .live-chat-page .chat-shell {
             display: flex;
-            height: calc(100vh - var(--topbar-height, 60px));
+            flex: 1 1 0;
+            min-height: 0;
             overflow: hidden;
             background: #f4f6fb;
         }
@@ -64,6 +75,15 @@
             border: 1px solid #e2e8f0;
             padding: 6px 14px;
         }
+        .chat-list-pane, .chat-thread-pane { min-height: 0; overflow: hidden; }
+        .chat-list-header, .chat-search-wrap, .chat-thread-header, .chat-input-bar {
+            flex-shrink: 0;
+        }
+        .chat-list-body, .chat-messages {
+            min-height: 0;
+            overscroll-behavior-y: contain;
+        }
+        .chat-bubble-wrap { flex-shrink: 0; }
         .chat-list-body {
             flex: 1;
             overflow-y: auto;
@@ -312,7 +332,6 @@
         @media (max-width: 640px) {
             .chat-list-pane { width: 100%; max-width: 100%; border-right: none; }
             .chat-thread-pane { display: none; }
-            .chat-shell { height: calc(100dvh - var(--topbar-height, 60px)); }
             .chat-shell.has-active-thread .chat-list-pane { display: none; }
             .chat-thread-pane.mobile-active { display: flex; width: 100%; background: #f4f6fb; }
             .chat-back-button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; height: 32px; padding: 0; }
@@ -350,7 +369,7 @@
         }
     </style>
 </head>
-<body data-admin-page="elecom_live_chat.html" class="admin-framed-shell theme-elecom">
+<body data-admin-page="elecom_live_chat.html" class="admin-framed-shell theme-elecom live-chat-page">
 <nav class="top-navbar"><div class="admin-frame-brand"><img class="admin-frame-ustp-logo" src="/static/assets/ustp-logo.png" alt="USTP"><img class="admin-frame-logo" src="/static/assets/elecom.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
             <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
             <div id="userMenuMount"></div>
