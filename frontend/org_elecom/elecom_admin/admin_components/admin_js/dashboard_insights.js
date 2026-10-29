@@ -18,18 +18,25 @@
     if (canvas && window.Chart) {
       if (!chart) chart = new Chart(canvas, {
         type: "line",
-        data: { labels: [], datasets: [{ label: "Votes cast per hour", data: [], borderColor: "#2563eb", borderWidth: 3, backgroundColor: "#2563eb", fill: false, cubicInterpolationMode: "monotone", tension: 0.35, pointRadius: 2, pointHoverRadius: 5, pointHitRadius: 12, spanGaps: false }] },
+        data: { labels: [], datasets: [{ label: "Votes cast per hour", data: [], borderColor: "#0A2463", borderWidth: 2, backgroundColor: (context) => {
+          const area = context.chart.chartArea;
+          if (!area) return "rgba(10,36,99,0)";
+          const fade = context.chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+          fade.addColorStop(0, "rgba(10,36,99,0.08)");
+          fade.addColorStop(1, "rgba(10,36,99,0)");
+          return fade;
+        }, fill: true, cubicInterpolationMode: "monotone", tension: 0.35, pointRadius: 0, pointHoverRadius: 5, pointHitRadius: 12, spanGaps: false }] },
         options: {
           responsive: true, maintainAspectRatio: false,
           animation: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 350 },
           interaction: { mode: "index", intersect: false },
-          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#0d1b3e", padding: 12, callbacks: {
+          plugins: { legend: { display: false }, tooltip: { backgroundColor: "#0F172A", cornerRadius: 4, titleFont: { family: "JetBrains Mono" }, bodyFont: { family: "JetBrains Mono" }, padding: 8, callbacks: {
             title: (items) => timestamp(chart.$hourly[items[0].dataIndex].hour),
             label: (item) => `${item.parsed.y.toLocaleString()} votes cast in this hour`,
           } } },
           scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 8, color: "#64748b", font: { size: 10 } }, title: { display: true, text: "Election hours - Philippine time", color: "#64748b" } },
-            y: { beginAtZero: true, min: 0, suggestedMax: 100, grid: { color: "#f1f5f9" }, ticks: { precision: 0, color: "#64748b", font: { size: 10 } }, title: { display: true, text: "Votes cast per hour", color: "#64748b" } },
+            x: { grid: { display: false }, ticks: { maxTicksLimit: 5, minRotation: 0, maxRotation: 0, color: "#64748b", font: { family: "JetBrains Mono", size: 10 } }, title: { display: true, text: "Election hours - Philippine time", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } } },
+            y: { beginAtZero: true, min: 0, suggestedMax: 100, grid: { display: false }, ticks: { precision: 0, color: "#64748b", font: { family: "JetBrains Mono", size: 10 } }, title: { display: true, text: "Votes cast per hour", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } } },
           },
         },
       });

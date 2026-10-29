@@ -400,3 +400,64 @@ body.dashboard-page { min-height: 0; --overview-slate: #4a5568; --overview-ink: 
     width: 100% !important;
   }
 }
+
+
+/* Institutional dashboard: scoped to the overview route. */
+body.dashboard-page {
+ --font-family-base: 'Plus Jakarta Sans'; --overview-slate: #64748B; --overview-ink: #0F172A;
+ --brand-primary: #0A2463; --brand-dark: #F5B301; --accent: #1E4DB7;
+ --yellow: #F5B301; --blue-900: #0A2463; --blue-600: #1E4DB7;
+ --bg-body: #F0F4F8; --radius-sm: 4px; --radius-md: 8px; --radius-lg: 8px; --radius-xl: 8px;
+ --shadow-1: none; --shadow-2: none; --shadow-3: none;
+ background: #F0F4F8; color: #0F172A; font-family: 'Plus Jakarta Sans'; font-size: 13px;
+}
+.dashboard-page :is(button,input,select,textarea) { font-family: inherit; }
+.dashboard-page :is(.sidebar,.sidebar-header) { background: #0A2463 !important; box-shadow: none !important; border-radius: 0; }
+.dashboard-page .sidebar { top: 0; bottom: 0; margin: 0; }
+.dashboard-page .top-navbar { margin: 0; border-radius: 0; border-bottom: 1px solid #CBD5E1; box-shadow: none !important; }
+.dashboard-page .sidebar .nav-link { border-radius: 4px; font-size: 12px; }
+.dashboard-page .sidebar .nav-link:is(.active,:hover) { background: #1E4DB7; color: #FFFFFF; border-left-color: #F5B301; }
+.dashboard-page .content-area { background: #F0F4F8; padding-left: 16px; padding-right: 16px; }
+.dashboard-page :is(.card,.modal-content,.dropdown-menu,.activity-type-menu) { border: 1px solid #CBD5E1 !important; border-radius: 8px !important; box-shadow: none !important; }
+.dashboard-page .card:hover { transform: none !important; box-shadow: none !important; }
+.dashboard-page .card::before,.dashboard-page .card::after { content: none !important; }
+.dashboard-page .content-area .card.election-hero-card { background: #0A2463 !important; color: #FFFFFF !important; border-color: #0A2463 !important; }
+.dashboard-page .election-banner .text-center { background: transparent !important; border: 0 !important; border-left: 1px solid rgba(255,255,255,.16) !important; border-radius: 0 !important; box-shadow: none !important; padding: 4px 16px; }
+.dashboard-page .election-countdown { gap: 0 !important; }
+.dashboard-page .election-banner .text-center { backdrop-filter: none; }
+.dashboard-page .election-banner .btn-light:hover { transform: none !important; }
+.dashboard-page .election-countdown .fw-bold { color: #FFFFFF !important; font-family: 'JetBrains Mono'; font-variant-numeric: tabular-nums; font-weight: 600 !important; }
+.dashboard-page :is(.btn,.activities-new-event) { border-radius: 6px !important; box-shadow: none !important; }
+.dashboard-page :is(.election-banner .btn-light,.activities-new-event,.btn-primary) { background: #F5B301 !important; border-color: #F5B301 !important; color: #0F172A !important; }
+.dashboard-page :is(.election-banner .btn-light,.activities-new-event,.btn-primary):hover { background: #1E4DB7 !important; border-color: #1E4DB7 !important; color: #FFFFFF !important; }
+.dashboard-page :is(.stat-icon,.activities-heading h2 i) { border: 1px solid #CBD5E1; border-radius: 4px; background: #F8FAFC; color: #0F172A !important; }
+.dashboard-page .stat-icon i { color: #0F172A !important; font-size: 18px !important; }
+.dashboard-page .activities-heading h2 i { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; font-size: 16px; }
+.dashboard-page :is(h1,h2,h3,.h3,.mountain-turnout-percent) { color: #0F172A !important; }
+.dashboard-page :is(.dashboard-stats .h3,.mountain-turnout-percent,.overview-eyebrow,.dashboard-stats .small,#vwInfo,#calMonthLabel,#activitiesCalendarGrid,.turnout-data,.mountain-turnout-summary) { font-family: 'JetBrains Mono'; font-variant-numeric: tabular-nums; }
+.dashboard-page :is(.overview-eyebrow,.text-muted,.chart-caption,.turnout-data,.mountain-turnout-summary) { color: #64748B !important; }
+.dashboard-page :is(.badge,.system-status-badge,.election-state-badge,.overview-tag) { border-radius: 4px !important; box-shadow: none !important; }
+.dashboard-page .election-state-badge { background: #F8FAFC; color: #0F172A; }
+.dashboard-page :is(.election-state-badge.is-active,.badge.bg-success,.system-status-badge.is-high) { background: #F0FDF4 !important; color: #166534 !important; }
+.dashboard-page :is(.badge.bg-warning,.system-status-badge.is-low) { background: #FFFBEB !important; color: #92400E !important; }
+.dashboard-page :is(.badge.bg-danger,.system-status-badge.is-offline) { background: #FEF2F2 !important; color: #991B1B !important; }
+.dashboard-page .system-status-badge .status-dot { background: currentColor !important; box-shadow: none !important; }
+.dashboard-page .dashboard-secondary .compact-calendar { max-height: none; }
+.dashboard-page .dashboard-secondary .compact-calendar .card-body { padding: 8px 12px !important; grid-template-rows: auto auto minmax(0,1fr); gap: 4px; }
+.dashboard-page .activities-heading { min-height: 28px; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid table { border: 1px solid #CBD5E1; border-collapse: collapse; width: 100%; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid :is(th,td) { border-right: 1px solid #CBD5E1; border-bottom: 1px solid #CBD5E1; padding: 1px; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid :is(th,td):last-child { border-right: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid tbody tr:last-child td { border-bottom: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid tbody tr:nth-child(even) { background: #F8FAFC; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day { border-radius: 4px !important; width: 100%; height: 100%; min-height: 20px; margin: 0; color: #0F172A; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day:is(.is-today,.is-selected) { background: #1E4DB7 !important; color: #FFFFFF !important; border-bottom: 2px solid #F5B301; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day:hover { background: #1E4DB7; color: #FFFFFF; }
+.dashboard-page .turnout-data :is(td,th) { padding: 6px 8px; border-bottom: 1px solid #CBD5E1; }
+.dashboard-page .turnout-data tbody tr:nth-child(even) { background: #F8FAFC; }
+.dashboard-page :is(.turnout-totals-button,.activity-type-option.active) { color: #1E4DB7; }
+.dashboard-page :focus-visible { outline: 2px solid #1E4DB7; outline-offset: 2px; }
+@media(max-width:768px) {
+ .dashboard-page .dashboard-secondary .compact-calendar { min-height: 280px; }
+ .dashboard-page .election-banner .election-countdown > .text-center { padding: 4px 10px !important; }
+}
