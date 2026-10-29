@@ -479,3 +479,10 @@ body.dashboard-page {
   .dashboard-page .dashboard-secondary .compact-calendar { height: auto; min-height: 320px; }
   .dashboard-page .election-banner #vwInfo .text-muted { display: flex; margin-right: 0; }
 }
+
+/* Discreet double-click access: the total-voters metric stays visually static. */
+.dashboard-page #totalVotersCard,
+.dashboard-page #totalVotersCard:hover,
+.dashboard-page #totalVotersCard:focus {
+  cursor: default; transform: none !important; box-shadow: none !important; transition: none;
+}

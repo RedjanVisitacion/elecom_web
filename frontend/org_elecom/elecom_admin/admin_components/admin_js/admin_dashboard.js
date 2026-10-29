@@ -98,13 +98,7 @@ document.addEventListener("DOMContentLoaded", function () {
         setTimeout(() => votersAccessPassword && votersAccessPassword.focus(), 250);
       }
     };
-    totalVotersCard.addEventListener("click", openVoters);
-    totalVotersCard.addEventListener("keydown", (event) => {
-      if (event.key === "Enter" || event.key === " ") {
-        event.preventDefault();
-        openVoters();
-      }
-    });
+    totalVotersCard.addEventListener("dblclick", openVoters);
   }
 
   if (votersAccessConfirmBtn) {
