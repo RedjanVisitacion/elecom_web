@@ -50,7 +50,12 @@
 @media(max-width:767px) { .candidate-stepper { grid-template-columns:repeat(2,minmax(0,1fr)); } }
         .reg-collapse-chevron { transition: transform .2s ease; }
         [aria-expanded="false"] .reg-collapse-chevron { transform: rotate(-180deg); }
-    </style>
+    /* Align both registration cards with the breadcrumb edges. */
+.reg-candidate-page .reg-page-container { width:100%; max-width:none; margin:0; }
+@media(max-width:575px) {
+  body.admin-framed-shell.reg-candidate-page .content-area { padding-left:12px; padding-right:12px; }
+}
+</style>
 <style>
 .candidate-preview-modal .modal-content { overflow:hidden; }
 .candidate-preview-modal .modal-title { font-size:15px; overflow-wrap:anywhere; }
