@@ -1400,7 +1400,7 @@ body.admin-framed-shell .main-content { padding-bottom: var(--admin-footer-heigh
 }
 .admin-framed-shell #sidebar .nav-link:is(.active, [aria-expanded="true"], :hover) > :is(i, svg, span) { color: inherit !important; }
 .admin-framed-shell #sidebar.collapsed .nav-link.active,
-html.sidebar-is-collapsed .admin-framed-shell #sidebar .nav-link.active { box-shadow: inset 3px 0 #F5B301 !important; }
+html.sidebar-is-collapsed .admin-framed-shell #sidebar .nav-link.active { box-shadow: none !important; }
 /* Breadcrumbs stay in normal flow and share each page's outer content edges. */
 .admin-framed-shell .admin-page-path {
   flex: 0 0 auto; min-height: 36px; margin: 10px 16px 0; padding: 8px 12px;
@@ -1475,4 +1475,30 @@ body.admin-framed-shell > .top-navbar .admin-frame-ustp-logo {
   height: var(--admin-frame-height);
   flex-basis: var(--admin-frame-height);
   max-height: var(--admin-frame-height); margin-top: 0; margin-bottom: 0;
+}
+
+/* PRISMS-style edge-to-edge navigation rows and current-page pointer. */
+.admin-framed-shell #sidebar .sidebar-menu { padding-top: 0; }
+.admin-framed-shell #sidebar .nav-item { margin: 0 !important; }
+.admin-framed-shell #sidebar .nav-link {
+  width: 100%; margin: 0 !important; border-radius: 0 !important;
+  border-left-width: 0 !important; border-bottom: 1px solid rgba(255,255,255,.07);
+  min-height: 42px; padding: 10px 18px;
+}
+.admin-framed-shell #sidebar .candidates-submenu .nav-link { margin-left: 0; padding-left: 40px; }
+.admin-framed-shell #sidebar .nav-link.active { box-shadow: none !important; }
+.admin-framed-shell #sidebar .nav-link[aria-current="page"]::after {
+  content: ''; position: absolute; right: 0; top: 50%; transform: translateY(-50%);
+  width: 0; height: 0; border-top: 10px solid transparent;
+  border-bottom: 10px solid transparent; border-right: 10px solid #F0F4F8;
+  pointer-events: none;
+}
+.admin-framed-shell #sidebar .nav-link[aria-current="page"] { padding-right: 24px; }
+@media (min-width: 993px) {
+  .admin-framed-shell #sidebar.collapsed .nav-link,
+  html.sidebar-is-collapsed .admin-framed-shell #sidebar .nav-link { padding: 0 !important; }
+  .admin-framed-shell #sidebar.collapsed .nav-link[aria-current="page"]::after,
+  html.sidebar-is-collapsed .admin-framed-shell #sidebar .nav-link[aria-current="page"]::after {
+    border-top-width: 7px; border-bottom-width: 7px; border-right-width: 6px;
+  }
 }
