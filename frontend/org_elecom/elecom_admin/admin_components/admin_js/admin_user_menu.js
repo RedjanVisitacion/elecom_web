@@ -115,7 +115,7 @@
     const yearFormat = new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", year: "numeric" });
     const updateFooterClock = () => {
       const now = new Date();
-      copyright.textContent = `© ${yearFormat.format(now)} ELECOM`;
+      copyright.textContent = `PENTACODE © ${yearFormat.format(now)} ELECOM OROQUIETA`;
       clock.dateTime = now.toISOString();
       clock.textContent = dateFormat.format(now);
     };
