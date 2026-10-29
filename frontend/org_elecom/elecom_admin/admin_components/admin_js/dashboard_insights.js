@@ -28,6 +28,7 @@
         }, fill: true, cubicInterpolationMode: "monotone", tension: 0.35, pointRadius: 0, pointHoverRadius: 5, pointHitRadius: 12, spanGaps: false }] },
         options: {
           responsive: true, maintainAspectRatio: false,
+          layout: { padding: { top: 0, right: 4, bottom: 0, left: 0 } },
           animation: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? false : { duration: 350 },
           interaction: { mode: "index", intersect: false },
           plugins: { legend: { display: false }, tooltip: { backgroundColor: "#0F172A", cornerRadius: 4, titleFont: { family: "JetBrains Mono" }, bodyFont: { family: "JetBrains Mono" }, padding: 8, callbacks: {
@@ -35,8 +36,8 @@
             label: (item) => `${item.parsed.y.toLocaleString()} votes cast in this hour`,
           } } },
           scales: {
-            x: { grid: { display: false }, ticks: { maxTicksLimit: 5, minRotation: 0, maxRotation: 0, color: "#64748b", font: { family: "JetBrains Mono", size: 10 } }, title: { display: true, text: "Election hours - Philippine time", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } } },
-            y: { beginAtZero: true, min: 0, suggestedMax: 100, grid: { display: false }, ticks: { precision: 0, color: "#64748b", font: { family: "JetBrains Mono", size: 10 } }, title: { display: true, text: "Votes cast per hour", color: "#64748b", font: { family: "JetBrains Mono", size: 10 } } },
+            x: { border: { display: false }, grid: { display: false, drawTicks: false, drawOnChartArea: false }, ticks: { autoSkip: true, padding: 6, maxTicksLimit: 5, minRotation: 0, maxRotation: 0, color: "#64748b", font: { family: "JetBrains Mono", size: 11, weight: "500" } }, title: { display: true, text: "Election hours - Philippine time", color: "#64748b", font: { family: "JetBrains Mono", size: 11, weight: "500" } } },
+            y: { beginAtZero: true, min: 0, grace: "10%", border: { display: false }, grid: { display: false, drawTicks: false, drawOnChartArea: false }, ticks: { maxTicksLimit: 5, padding: 6, precision: 0, color: "#64748b", font: { family: "JetBrains Mono", size: 11, weight: "500" } }, title: { display: true, text: "Votes cast per hour", color: "#64748b", font: { family: "JetBrains Mono", size: 11, weight: "500" } } },
           },
         },
       });

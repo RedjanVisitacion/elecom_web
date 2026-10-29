@@ -486,3 +486,35 @@ body.dashboard-page {
 .dashboard-page #totalVotersCard:focus {
   cursor: default; transform: none !important; box-shadow: none !important; transition: none;
 }
+
+/* Compact institutional dashboard: integrated countdown and close-set data. */
+.dashboard-page .content-area { padding-top: 8px; padding-bottom: 8px; gap: 8px; }
+.dashboard-page .dashboard-overview { gap: 8px; }
+.dashboard-page .dashboard-stats { --bs-gutter-x: 8px; }
+.dashboard-page .dashboard-stats .card-body { padding: 8px 10px !important; gap: 8px; }
+.dashboard-page .dashboard-stats .card-body .h3 { font-size: 24px !important; line-height: 1.1; }
+.dashboard-page .dashboard-stats .small.text-muted { margin-bottom: 3px; }
+.dashboard-page .stat-icon { width: 32px; height: 32px; flex-basis: 32px; }
+.dashboard-page .stat-icon i { font-size: 16px !important; }
+.dashboard-page .election-banner .card-body { padding: 8px 12px !important; }
+.dashboard-page .election-countdown > .text-center {
+  background: transparent !important; box-shadow: none !important;
+  border: 0 !important; border-left: 1px solid rgba(255,255,255,.2) !important;
+  border-radius: 0 !important; padding: 3px 14px; backdrop-filter: none;
+}
+.dashboard-page .election-countdown .fw-bold { color: #FFFFFF !important; }
+.dashboard-page .election-banner .btn-light { border-radius: 6px !important; padding: 8px 14px; }
+.dashboard-page .election-banner #vwInfo { margin-top: 6px; padding-top: 4px; }
+.dashboard-page .dashboard-grid { gap: 10px; }
+.dashboard-page .turnout-card .card-body { padding: 8px 10px !important; }
+.dashboard-page .turnout-card .overview-card-heading { margin-bottom: 2px; gap: 8px; }
+.dashboard-page .turnout-card .overview-card-heading h2 { margin: 0 !important; font-size: 14px; }
+.dashboard-page .turnout-card .mountain-turnout-percent { font-size: 32px; }
+.dashboard-page .turnout-card .mountain-turnout-summary { margin: 2px 0 4px; font-size: 11px; line-height: 1.4; }
+.dashboard-page .turnout-line-wrap { min-height: 140px; margin: 0; }
+.dashboard-page .turnout-card .chart-caption { margin: 4px 0; font-size: 10px; line-height: 1.4; }
+.dashboard-page .turnout-data { font-size: 10px; }
+@media (max-width: 767.98px) {
+  .dashboard-page .dashboard-stats { --bs-gutter-y: 8px; }
+  .dashboard-page .turnout-line-wrap { height: 210px; min-height: 180px; }
+}
