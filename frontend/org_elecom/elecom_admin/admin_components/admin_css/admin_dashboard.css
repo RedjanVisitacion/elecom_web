@@ -1338,9 +1338,5 @@ body.admin-framed-shell.dashboard-page .content-area { flex: 1 1 auto; height: a
   .admin-framed-shell .admin-frame-title { font-size: 12px; }
 }
 
-/* Keep the profile identity visible in the desktop masthead. */
-@media (min-width: 993px) {
-  .admin-framed-shell > .top-navbar .user-trigger-details { display: block; text-align: left; max-width: 220px; }
-  .admin-framed-shell > .top-navbar .user-name { color: #FFFFFF; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .admin-framed-shell > .top-navbar .user-role { color: #FFFFFF; font-size: 10px; opacity: .8; }
-}
+/* Show identity in the profile dropdown; keep its top-bar trigger compact. */
+.admin-framed-shell > .top-navbar .user-trigger-details { display: none; }
