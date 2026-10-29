@@ -3,7 +3,7 @@
   USTP Brand Theme: Deep Royal Blue + Yellow accent + Inter font
   Updated: 2026-09-20 — USTP redesign
 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 /* =============================================
    Design Tokens
@@ -1543,3 +1543,40 @@ html.sidebar-candidates-open .admin-framed-shell #sidebar [href="#candidatesSubm
 @keyframes elecom-toast-in { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
 @media (max-width: 575px) { .elecom-toast-region { right: 12px; } }
 @media (prefers-reduced-motion: reduce) { .elecom-toast { animation: none; } }
+
+/* Carry the dashboard visual language through every framed admin workspace. */
+body.admin-framed-shell {
+  --font-family-base: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --brand-primary: #0A2463;
+  --accent: #1E4DB7;
+  --bg-body: #F0F4F8;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 8px;
+  --radius-xl: 8px;
+  --shadow-1: none;
+  --shadow-2: none;
+  --shadow-3: none;
+  background: #F0F4F8;
+  color: #0F172A;
+  font-family: var(--font-family-base);
+  font-size: 13px;
+}
+.admin-framed-shell :is(button, input, select, textarea) { font-family: inherit; }
+body.admin-framed-shell .content-area { background: #F0F4F8; padding-left: 16px; padding-right: 16px; }
+.admin-framed-shell .content-area :is(.card, .election-card, .backup-panel, .transparency-card, .transparency-panel),
+.admin-framed-shell :is(.modal-content, .dropdown-menu) {
+  border: 1px solid #CBD5E1 !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+.admin-framed-shell .content-area .card:hover { transform: none !important; box-shadow: none !important; }
+.admin-framed-shell .content-area :is(.section-head h2, .backup-panel h2, .panel-head h2) {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0F172A;
+}
+.admin-framed-shell :is(.election-meta strong, .transparency-card > strong) {
+  font-family: 'JetBrains Mono', monospace;
+  font-variant-numeric: tabular-nums;
+}
