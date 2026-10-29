@@ -421,7 +421,23 @@ body.dashboard-page {
 .dashboard-page :is(.card,.modal-content,.dropdown-menu,.activity-type-menu) { border: 1px solid #CBD5E1 !important; border-radius: 8px !important; box-shadow: none !important; }
 .dashboard-page .card:hover { transform: none !important; box-shadow: none !important; }
 .dashboard-page .card::before,.dashboard-page .card::after { content: none !important; }
-.dashboard-page .content-area .card.election-hero-card { background: #0A2463 !important; color: #FFFFFF !important; border-color: #0A2463 !important; }
+/* Campus photo occupies the right half and fades into the institutional navy. */
+.dashboard-page .content-area .card.election-hero-card {
+  background-color: #0A2463 !important;
+  background-image:
+    linear-gradient(90deg, #0A2463 0%, #0A2463 42%, rgba(10,36,99,.94) 48%, rgba(10,36,99,.65) 60%, rgba(10,36,99,.48) 100%),
+    url('/static/assets/ustp-front.png') !important;
+  background-size: 100% 100%, 58% auto !important;
+  background-position: center, right 52% !important;
+  background-repeat: no-repeat !important;
+  color: #FFFFFF !important;
+  border-color: #0A2463 !important;
+}
+@media (max-width: 767.98px) {
+  .dashboard-page .content-area .card.election-hero-card {
+    background-size: 100% 100%, auto 100% !important;
+  }
+}
 .dashboard-page .election-banner .text-center { background: transparent !important; border: 0 !important; border-left: 1px solid rgba(255,255,255,.16) !important; border-radius: 0 !important; box-shadow: none !important; padding: 4px 16px; }
 .dashboard-page .election-countdown { gap: 0 !important; }
 .dashboard-page .election-banner .text-center { backdrop-filter: none; }
