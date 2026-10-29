@@ -20,7 +20,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261029-navigation-path1">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261029-slate-sidebar1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261029-calendar-expanded1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 </head>
 <body data-admin-page="admin_dashboard.html" class="theme-elecom dashboard-page">
@@ -178,6 +178,7 @@
                                 <a href="/static/org_elecom/elecom_admin/elecom_elections.html" class="btn btn-light text-primary fw-semibold">Manage</a>
                             </div>
                         </div>
+                        <div id="vwInfo" class="small election-schedule" style="display:none;"><div class="text-muted">Start: <span id="vwStartText"></span></div><div class="text-muted">End: <span id="vwEndText"></span></div><div class="text-muted">Status: <span id="vwStatusText"></span></div></div>
                     </div>
                 </div>
             </div>
@@ -253,11 +254,7 @@
                             </div>
                         </section>
                     </div>
-                    <aside class="dashboard-secondary" aria-label="Election schedule and activities">
-                        <section class="card window-card" aria-labelledby="windowTitle"><div class="card-body">
-                            <span class="overview-eyebrow">ELECTION SCHEDULE</span><h2 id="windowTitle">Voting window</h2>
-                            <div id="vwInfo" class="small" style="display:none;"><div class="text-muted">Start: <span id="vwStartText"></span></div><div class="text-muted">End: <span id="vwEndText"></span></div><div class="text-muted">Status: <span id="vwStatusText"></span></div></div>
-                        </div></section>
+                    <aside class="dashboard-secondary" aria-label="Election activities">
                         <section class="card compact-calendar" aria-labelledby="activitiesTitle">
                             <div class="card-body d-flex flex-column">
                                 <div class="activities-heading">

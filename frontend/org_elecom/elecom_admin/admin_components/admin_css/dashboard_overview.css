@@ -461,3 +461,21 @@ body.dashboard-page {
  .dashboard-page .dashboard-secondary .compact-calendar { min-height: 280px; }
  .dashboard-page .election-banner .election-countdown > .text-center { padding: 4px 10px !important; }
 }
+
+/* Schedule belongs to the election header; activities fill the right column. */
+.dashboard-page .dashboard-secondary { grid-template-rows: minmax(0, 1fr); }
+.dashboard-page .election-banner #vwInfo {
+  margin-top: 8px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.16);
+  font-family: 'JetBrains Mono'; font-size: 10px; line-height: 18px;
+}
+.dashboard-page .election-banner #vwInfo .text-muted {
+  display: inline-flex; align-items: baseline; gap: 6px; margin-right: 20px;
+  color: rgba(255,255,255,.75) !important; white-space: nowrap;
+}
+.dashboard-page .election-banner #vwInfo span { color: #FFFFFF; }
+.dashboard-page .dashboard-secondary .compact-calendar { height: 100%; max-height: none; }
+@media (max-width: 767.98px) {
+  .dashboard-page .dashboard-secondary { grid-template-rows: auto; }
+  .dashboard-page .dashboard-secondary .compact-calendar { height: auto; min-height: 320px; }
+  .dashboard-page .election-banner #vwInfo .text-muted { display: flex; margin-right: 0; }
+}
