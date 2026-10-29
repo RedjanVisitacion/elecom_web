@@ -1502,3 +1502,15 @@ body.admin-framed-shell > .top-navbar .admin-frame-ustp-logo {
     border-top-width: 7px; border-bottom-width: 7px; border-right-width: 6px;
   }
 }
+
+/* Distinguish an open group from the actual current page, as in PRISMS. */
+.admin-framed-shell #sidebar .nav-link[data-bs-toggle="collapse"][aria-expanded="true"]:not(.active) {
+  background: #2C3542 !important; color: #B4BCC8 !important;
+}
+.admin-framed-shell #sidebar .candidates-submenu .nav-link:hover {
+  background: #2C3542 !important; color: #FFFFFF !important;
+}
+.admin-framed-shell #sidebar .candidates-submenu .nav-link:is(.active, [aria-current="page"]) {
+  background: #293F3C !important; color: #FFFFFF !important;
+}
+.admin-framed-shell #sidebar .candidates-submenu .nav-link[aria-current="page"]::after { content: none; }
