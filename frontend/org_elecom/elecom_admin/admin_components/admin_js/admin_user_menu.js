@@ -1,4 +1,30 @@
 (function () {
+  // Keep institutional branding independent of the navigation width.
+  const initInstitutionalFrame = () => {
+    const sidebar = document.getElementById("sidebar");
+    const topNav = document.querySelector(".top-navbar");
+    if (!sidebar || !topNav || !document.querySelector('link[href*="admin_dashboard.css"]') || topNav.querySelector(".admin-frame-brand")) return;
+    const brand = document.createElement("div");
+    brand.className = "admin-frame-brand";
+    const sourceLogo = sidebar.querySelector(".logo-container img, .sidebar-header img");
+    const logo = sourceLogo ? sourceLogo.cloneNode(false) : document.createElement("img");
+    logo.removeAttribute("id");
+    logo.className = "admin-frame-logo";
+    logo.src = sourceLogo?.getAttribute("src") || "/static/assets/elecom.png";
+    logo.alt = "ELECOM";
+    const name = document.createElement("span");
+    name.className = "admin-frame-title";
+    name.textContent = "Electoral Commission";
+    brand.append(logo, name);
+    topNav.prepend(brand);
+    document.body.classList.add("admin-framed-shell");
+    document.body.prepend(topNav);
+  };
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initInstitutionalFrame);
+  } else {
+    initInstitutionalFrame();
+  }
   // Mobile navigation must work on every page, independently of dashboard code.
   const initMobileSidebar = () => {
     const sidebar = document.getElementById("sidebar");

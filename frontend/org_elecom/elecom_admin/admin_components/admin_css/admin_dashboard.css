@@ -3,7 +3,7 @@
   USTP Brand Theme: Deep Royal Blue + Yellow accent + Inter font
   Updated: 2026-09-20 — USTP redesign
 */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
 /* =============================================
    Design Tokens
@@ -1276,4 +1276,71 @@ textarea.form-control { min-height: 120px; resize: vertical; }
 @media (max-width: 992px) {
   .sidebar { z-index: 1050 !important; }
   .sidebar-overlay { z-index: 1040; }
+}
+
+
+/* PRISMS-style frame: full-width masthead, navigation underneath. */
+body.admin-framed-shell {
+  display: block; --font-family-base: 'Plus Jakarta Sans';
+  --admin-frame-height: 56px; --sidebar-width: 235px; --sidebar-mini-width: 48px;
+}
+body.admin-framed-shell > .top-navbar {
+  position: fixed; inset: 0 0 auto 0; width: 100%; height: var(--admin-frame-height);
+  min-height: var(--admin-frame-height); margin: 0; padding: 0 16px 0 12px;
+  display: flex; flex-wrap: nowrap; gap: 12px; background: #0A2463 !important;
+  border: 0; border-radius: 0; box-shadow: none !important; color: #FFFFFF; z-index: 1030;
+}
+.admin-framed-shell .admin-frame-brand { display: flex; align-items: center; gap: 12px; min-width: 0; margin-right: auto; }
+.admin-framed-shell .admin-frame-logo { width: 40px; height: 40px; object-fit: contain; flex: 0 0 40px; }
+.admin-framed-shell .admin-frame-title { color: #FFFFFF; font-family: 'Plus Jakarta Sans'; font-size: 18px; font-weight: 700; line-height: 1.2; white-space: nowrap; }
+.admin-framed-shell > .top-navbar #userMenuMount { flex: 0 0 auto; margin-left: 0; }
+.admin-framed-shell > .top-navbar :is(.notif-bell, #userMenuToggle, .menu-toggle) { color: #FFFFFF !important; }
+.admin-framed-shell > .top-navbar :is(.notif-bell, #userMenuToggle):hover { background: #1E4DB7; }
+body.admin-framed-shell #sidebar {
+  top: var(--admin-frame-height); bottom: 0; height: calc(100dvh - var(--admin-frame-height));
+  min-height: 0; margin: 0; background: #0A2463; border-radius: 0; box-shadow: none;
+}
+.admin-framed-shell #sidebar .sidebar-header { min-height: 38px; padding: 3px 8px; border-bottom: 1px solid rgba(255,255,255,.16); }
+.admin-framed-shell #sidebar .sidebar-header-content { flex-direction: row; justify-content: flex-end; gap: 0; }
+.admin-framed-shell #sidebar .logo-container { display: none; }
+.admin-framed-shell #sidebar .sidebar-collapse-toggle { width: 30px; height: 30px; flex-basis: 30px; font-size: 20px; border-radius: 4px; }
+body.admin-framed-shell .main-content {
+  display: flex; flex-direction: column; padding-top: var(--admin-frame-height);
+  min-height: 100dvh; box-sizing: border-box;
+}
+body.admin-framed-shell.dashboard-page .main-content { height: 100dvh; min-height: 0; }
+body.admin-framed-shell.dashboard-page .content-area { flex: 1 1 auto; height: auto; min-height: 0; }
+.admin-framed-shell .sidebar-overlay { top: var(--admin-frame-height); }
+@media (min-width: 993px) {
+  body.admin-framed-shell .main-content { margin-left: var(--sidebar-width); }
+  body.admin-framed-shell.sidebar-collapsed .main-content,
+  html.sidebar-is-collapsed body.admin-framed-shell .main-content { margin-left: var(--sidebar-mini-width); }
+  .admin-framed-shell :is(#sidebar.collapsed, #sidebar) .sidebar-header-content { flex-direction: row; }
+  .admin-framed-shell #sidebar.collapsed .sidebar-header,
+  html.sidebar-is-collapsed .admin-framed-shell #sidebar .sidebar-header { padding: 3px 8px; }
+  .admin-framed-shell #sidebar.collapsed .nav-link,
+  html.sidebar-is-collapsed .admin-framed-shell #sidebar .nav-link { margin-left: 0; margin-right: 0; border-radius: 0; }
+}
+@media (max-width: 992px) {
+  body.admin-framed-shell .main-content { margin-left: 0; }
+  body.admin-framed-shell > .top-navbar .menu-toggle { order: -1; flex: 0 0 30px; margin: 0; }
+  .admin-framed-shell .admin-frame-title { font-size: 14px; overflow: hidden; text-overflow: ellipsis; }
+  .admin-framed-shell .admin-frame-brand { flex: 1 1 auto; gap: 8px; }
+  .admin-framed-shell .admin-frame-logo { width: 32px; height: 32px; flex-basis: 32px; }
+}
+@media (max-width: 768px) {
+  body.admin-framed-shell.dashboard-page .main-content { display: block; overflow-y: auto; }
+  body.admin-framed-shell.dashboard-page .content-area { height: auto; overflow: visible; }
+}
+@media (max-width: 575px) {
+  body.admin-framed-shell > .top-navbar { gap: 6px; padding: 0 8px; }
+  .admin-framed-shell > .top-navbar .system-status-badge { display: none; }
+  .admin-framed-shell .admin-frame-title { font-size: 12px; }
+}
+
+/* Keep the profile identity visible in the desktop masthead. */
+@media (min-width: 993px) {
+  .admin-framed-shell > .top-navbar .user-trigger-details { display: block; text-align: left; max-width: 220px; }
+  .admin-framed-shell > .top-navbar .user-name { color: #FFFFFF; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .admin-framed-shell > .top-navbar .user-role { color: #FFFFFF; font-size: 10px; opacity: .8; }
 }
