@@ -19,6 +19,28 @@
     topNav.prepend(brand);
     document.body.classList.add("admin-framed-shell");
     document.body.prepend(topNav);
+    const footer = document.createElement("footer");
+    footer.className = "admin-frame-footer";
+    const copyright = document.createElement("span");
+    const clock = document.createElement("time");
+    clock.className = "admin-footer-clock";
+    clock.setAttribute("aria-label", "Philippine date and time");
+    const dateFormat = new Intl.DateTimeFormat("en-PH", {
+      timeZone: "Asia/Manila", month: "short", day: "2-digit", year: "numeric",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true,
+    });
+    const yearFormat = new Intl.DateTimeFormat("en-PH", { timeZone: "Asia/Manila", year: "numeric" });
+    const updateFooterClock = () => {
+      const now = new Date();
+      copyright.textContent = `© ${yearFormat.format(now)} ELECOM`;
+      clock.dateTime = now.toISOString();
+      clock.textContent = dateFormat.format(now);
+    };
+    updateFooterClock();
+    window.setInterval(() => { if (!document.hidden) updateFooterClock(); }, 1000);
+    document.addEventListener("visibilitychange", () => { if (!document.hidden) updateFooterClock(); });
+    footer.append(copyright, clock);
+    document.body.append(footer);
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initInstitutionalFrame);

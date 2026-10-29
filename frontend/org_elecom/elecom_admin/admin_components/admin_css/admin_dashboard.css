@@ -1344,3 +1344,22 @@ body.admin-framed-shell.dashboard-page .content-area { flex: 1 1 auto; height: a
 /* PRISMS-inspired slate navigation in expanded, mini, and mobile modes. */
 .admin-framed-shell #sidebar .sidebar-header { background: #364150 !important; }
 .admin-framed-shell #sidebar .nav-section-label { color: #B4BCC8; }
+
+/* Compact full-width institutional footer; reserve space so nothing is covered. */
+body.admin-framed-shell { --admin-footer-height: 28px; }
+.admin-framed-shell .admin-frame-footer {
+  position: fixed; inset: auto 0 0; height: var(--admin-footer-height); z-index: 1030;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 0 16px; background: #28313C; color: #CBD5E1;
+  border-top: 1px solid rgba(255,255,255,.1); font-size: 11px; line-height: 1;
+}
+.admin-framed-shell .admin-footer-clock { color: #FFFFFF; font-variant-numeric: tabular-nums; white-space: nowrap; }
+body.admin-framed-shell #sidebar {
+  bottom: var(--admin-footer-height);
+  height: calc(100dvh - var(--admin-frame-height) - var(--admin-footer-height));
+}
+body.admin-framed-shell .main-content { padding-bottom: var(--admin-footer-height); }
+.admin-framed-shell .sidebar-overlay { bottom: var(--admin-footer-height); }
+@media (max-width: 575px) {
+  .admin-framed-shell .admin-frame-footer { padding: 0 8px; gap: 8px; font-size: 10px; }
+}
