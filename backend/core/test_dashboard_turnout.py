@@ -32,6 +32,14 @@ class DashboardTurnoutTests(unittest.TestCase):
         self.assertEqual(len(result["hourly"]), 24)
         self.assertEqual(result["hourly"][-1]["hour"], "2026-10-07T14:00:00+08:00")
 
+    def test_empty_hourly_query_zero_fills_the_reporting_period(self):
+        self.cursor.fetchall.return_value = []
+        result = self.load()
+        self.assertEqual(len(result["hourly"]), 24)
+        self.assertTrue(all(item["count"] == 0 for item in result["hourly"]))
+        self.assertTrue(all(not item["withheld"] for item in result["hourly"]))
+        self.assertEqual(result["activity"], [])
+
     def test_small_counts_are_withheld_and_never_become_activity(self):
         for count in range(1, 5):
             with self.subTest(count=count):

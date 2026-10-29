@@ -11,20 +11,25 @@
     const turnout = data.turnout;
     const start = Date.parse(data.election?.start_at), end = Date.parse(data.election?.end_at);
     const hourly = (Array.isArray(turnout?.hourly) ? turnout.hourly : []).filter(item => {
+      if (!item || typeof item !== "object") return false;
       const hour = Date.parse(item.hour);
       return Number.isFinite(hour) && (!Number.isFinite(start) || hour + 3600000 > start) && (!Number.isFinite(end) || hour < end);
     });
     const values = hourly.map(item => {
-      if (item.withheld || item.count == null || item.count === "") return null;
+      if (item.withheld || !["number", "string"].includes(typeof item.count) || String(item.count).trim() === "") return null;
       const count = Number(item.count);
       return Number.isFinite(count) && count >= 0 ? count : null;
     });
     const historical = turnout?.scope === "historical";
     const labels = hourly.map(item => historical ? timestamp(item.hour) : clock(item.hour));
     const peak = values.reduce((highest, count) => Math.max(highest, count || 0), 0);
-    const canPlot = values.some(count => Number.isFinite(count)) && !!window.Chart;
+    // The API zero-fills hours without matching ballot rows. A zero-only
+    // response is not evidence of a recorded trend. Preserve real zeroes
+    // beside positive observations, and keep withheld values as gaps.
+    const hasWithheld = hourly.some(item => item.withheld);
+    const canPlot = peak > 0 && !!window.Chart;
     const state = document.getElementById("turnoutActivityState");
-    if (state) state.textContent = canPlot ? (peak > 0 ? "Reported hours" : "Zero votes reported") : "Unavailable";
+    if (state) state.textContent = canPlot ? (hasWithheld ? "Some hours withheld" : "Reported hours") : hasWithheld ? "Privacy protected" : "Unavailable";
     if (plot) plot.hidden = !canPlot;
     if (empty) empty.hidden = canPlot;
     if (canPlot && canvas) {
@@ -75,19 +80,20 @@
       chart.update("none");
     } else {
       if (chart) { chart.destroy(); chart = null; }
-      let title, message;
+      const title = "Hourly activity unavailable";
+      let message;
       if (!turnout) {
-        title = "Hourly turnout unavailable"; message = "Hourly counts have not loaded. The available overall turnout is shown above.";
+        message = "Hourly records were not returned. Overall participation remains visible above.";
       } else if (!hourly.length) {
-        title = "Hourly activity not available"; message = "No completed-hour records are available for this election. Overall participation remains visible.";
-      } else if (values.some(count => Number.isFinite(count)) && !window.Chart) {
-        title = "Chart could not load"; message = "Refresh the page to reload the turnout chart.";
-      } else if (hourly.some(item => item.withheld)) {
-        title = "Hourly counts are protected"; message = "Small hourly counts are withheld for privacy. Withheld values are not plotted as zero.";
+        message = "No hourly records fall within this reporting period. Overall participation is counted separately.";
+      } else if (peak > 0 && !window.Chart) {
+        message = "The hourly chart could not load. Refresh the page to try again; participation totals are unaffected.";
+      } else if (hasWithheld) {
+        message = "Some hourly counts are withheld for privacy. Zero-filled hours alone do not show a recorded trend.";
       } else if (values.some(count => count === 0)) {
-        title = "No votes in the reported hours"; message = "The reported hourly counts are genuinely zero. Overall participation is shown separately.";
+        message = "No ballot activity was returned for these hours. Election-wide participation is counted separately.";
       } else {
-        title = "Waiting for hourly data"; message = "The available records do not contain reportable hourly counts yet.";
+        message = "The response does not contain usable hourly counts. Overall participation remains visible above.";
       }
       const titleElement = document.getElementById("turnoutEmptyTitle"), messageElement = document.getElementById("turnoutEmptyMessage");
       if (titleElement) titleElement.textContent = title;
@@ -95,7 +101,9 @@
     }
     if (caption) {
       const through = Number.isFinite(Date.parse(turnout?.through)) ? ` through ${timestamp(turnout.through)}` : "";
-      caption.textContent = !turnout ? "Hourly turnout is unavailable." : historical ? "Historical completed-hour counts. Small counts are withheld; gaps are not zero votes." : `Completed hourly intervals${through}. Small counts are withheld; gaps are not zero votes.`;
+      caption.textContent = !canPlot
+        ? (historical ? "Hourly view: election schedule, Philippine time. Overall turnout is counted separately." : "Hourly activity covers the displayed period; overall turnout is election-scoped.")
+        : historical ? "Historical completed-hour counts. Small counts are withheld; gaps are not zero votes." : `Completed hourly intervals${through}. Small counts are withheld; gaps are not zero votes.`;
     }
     // Preserve nonvisual access to the actual reported counts without a visible footer link.
     const tableWrap = document.getElementById("turnoutDataTable");
@@ -120,7 +128,7 @@
     const title = document.getElementById("turnoutEmptyTitle");
     const message = document.getElementById("turnoutEmptyMessage");
     if (title && title.textContent === "Loading hourly activity") {
-      title.textContent = "Hourly activity could not load";
+      title.textContent = "Hourly activity unavailable";
       if (message) message.textContent = "The dashboard will retry automatically. No voting activity has been estimated.";
     }
   });

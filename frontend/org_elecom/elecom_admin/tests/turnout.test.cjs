@@ -52,28 +52,51 @@ test('missing hourly data keeps participation and an honest empty state', () => 
   assert.equal(s.element('turnoutPlot').hidden, true); assert.equal(s.element('turnoutEmpty').hidden, false);
   assert.match(s.element('turnoutEmptyTitle').textContent, /unavailable/); assert.equal(s.element('turnoutRingCount').textContent, '31');
 });
-test('genuine zero hours produce a real zero line', () => {
-  const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([hour(0)]) });
-  assert.equal(s.element('turnoutPlot').hidden, false); assert.equal(s.chart.data.datasets[0].data[0], 0);
-  assert.equal(s.element('turnoutActivityState').textContent, 'Zero votes reported');
+test('zero-filled hours do not imply zero overall participation or a recorded trend', () => {
+  const s = setup(); s.render({ total_cast_votes: 31, total_voters: 1643 });
+  s.handlers['elecom:dashboard']({ detail: payload([hour(0), hour(0)]) });
+  assert.equal(s.element('turnoutPlot').hidden, true);
+  assert.equal(s.element('turnoutEmptyTitle').textContent, 'Hourly activity unavailable');
+  assert.equal(s.element('turnoutActivityState').textContent, 'Unavailable');
+  assert.equal(s.element('turnoutPercent').textContent, '1.9%');
+  assert.equal(s.element('turnoutProgressFill').style.width, `${31 / 1643 * 100}%`);
 });
 test('withheld and unavailable counts stay gaps beside real observations', () => {
-  const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([hour(null, { withheld: true }), hour(7), hour(null)]) });
-  assert.equal(JSON.stringify(s.chart.data.datasets[0].data), '[null,7,null]'); assert.equal(s.chart.data.datasets[0].spanGaps, false);
+  const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([hour(null, { withheld: true }), hour(7), hour(0), hour(null)]) });
+  assert.equal(JSON.stringify(s.chart.data.datasets[0].data), '[null,7,0,null]'); assert.equal(s.chart.data.datasets[0].spanGaps, false);
 });
 test('fully withheld hours never become a fabricated line', () => {
   const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([hour(null, { withheld: true })]) });
-  assert.equal(s.element('turnoutPlot').hidden, true); assert.match(s.element('turnoutEmptyTitle').textContent, /protected/);
+  assert.equal(s.element('turnoutPlot').hidden, true); assert.equal(s.element('turnoutEmptyTitle').textContent, 'Hourly activity unavailable'); assert.equal(s.element('turnoutActivityState').textContent, 'Privacy protected');
 });
 test('closed election activity is constrained to its schedule', () => {
   const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([hour(5), { hour: '2026-10-30T08:00:00+08:00', count: 12 }]) });
   assert.equal(JSON.stringify(s.chart.data.datasets[0].data), '[5]'); assert.match(s.element('turnoutLineCaption').textContent, /Historical/);
 });
 test('initial API error removes the indefinite loading message', () => {
-  const s = setup(); s.handlers['elecom:dashboard-error'](); assert.match(s.element('turnoutEmptyTitle').textContent, /could not load/);
+  const s = setup(); s.handlers['elecom:dashboard-error'](); assert.equal(s.element('turnoutEmptyTitle').textContent, 'Hourly activity unavailable');
 });
 test('missing chart library reports unavailable instead of zero activity', () => {
-  const s = setup(); s.window.Chart = null; s.handlers['elecom:dashboard']({ detail: payload([hour(0)]) });
-  assert.equal(s.element('turnoutPlot').hidden, true); assert.equal(s.element('turnoutEmptyTitle').textContent, 'Chart could not load');
+  const s = setup(); s.window.Chart = null; s.handlers['elecom:dashboard']({ detail: payload([hour(5)]) });
+  assert.equal(s.element('turnoutPlot').hidden, true); assert.equal(s.element('turnoutEmptyTitle').textContent, 'Hourly activity unavailable'); assert.match(s.element('turnoutEmptyMessage').textContent, /chart could not load/);
+});
+test('withheld activity mixed with padded zeroes never claims zero votes', () => {
+  const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([hour(0), hour(null, { withheld: true })]) });
+  assert.equal(s.element('turnoutPlot').hidden, true); assert.equal(s.element('turnoutActivityState').textContent, 'Privacy protected');
+  assert.match(s.element('turnoutEmptyMessage').textContent, /withheld for privacy/);
+});
+test('out-of-period observations are filtered without changing overall turnout', () => {
+  const s = setup(); s.render({ total_cast_votes: 31, total_voters: 1643 });
+  s.handlers['elecom:dashboard']({ detail: payload([{ hour: '2026-10-14T09:00:00+08:00', count: 31 }, hour(0)]) });
+  assert.equal(s.element('turnoutPlot').hidden, true); assert.equal(s.element('turnoutPercent').textContent, '1.9%');
+});
+test('invalid values are unavailable instead of being coerced to zero', () => {
+  const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([null, hour(false), hour(' '), hour(-1)]) });
+  assert.equal(s.element('turnoutPlot').hidden, true); assert.match(s.element('turnoutEmptyMessage').textContent, /usable hourly counts/);
+});
+test('real observations show accurately labelled hours and preserve genuine zeroes', () => {
+  const s = setup(); s.handlers['elecom:dashboard']({ detail: payload([hour(5), hour(0)]) });
+  assert.equal(s.element('turnoutPlot').hidden, false); assert.equal(s.element('turnoutActivityState').textContent, 'Reported hours');
+  assert.equal(JSON.stringify(s.chart.data.datasets[0].data), '[5,0]');
 });
 console.log(`${tests} turnout tests passed.`);
