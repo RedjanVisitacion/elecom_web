@@ -1387,3 +1387,8 @@ body.admin-framed-shell .main-content { padding-bottom: var(--admin-footer-heigh
   .admin-framed-shell .admin-frame-footer .system-status-badge { font-size: 9px; gap: 3px; }
   .admin-framed-shell .admin-frame-footer .admin-footer-clock { font-size: 9px; }
 }
+
+/* Continuous navigation list, without category headings or their spacing. */
+.admin-framed-shell #sidebar :is(.nav-section-label, .category-header) {
+  display: none !important;
+}
