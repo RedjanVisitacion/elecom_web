@@ -1363,3 +1363,23 @@ body.admin-framed-shell .main-content { padding-bottom: var(--admin-footer-heigh
 @media (max-width: 575px) {
   .admin-framed-shell .admin-frame-footer { padding: 0 8px; gap: 8px; font-size: 10px; }
 }
+
+/* Quiet network status beside the footer clock. */
+.admin-framed-shell .admin-frame-footer .system-status-badge {
+  display: inline-flex; align-items: center; gap: 4px; margin-left: auto;
+  padding: 0; border: 0; border-radius: 0; background: transparent !important;
+  box-shadow: none !important; font-size: 10px; line-height: 1; white-space: nowrap;
+}
+.admin-framed-shell .admin-frame-footer .system-status-badge .status-text { display: inline; }
+.admin-framed-shell .admin-frame-footer .system-status-badge .status-dot {
+  width: 4px; height: 4px; border-radius: 50%; background: currentColor !important;
+  box-shadow: none !important; animation: none;
+}
+.admin-framed-shell .admin-frame-footer .system-status-badge.is-high { color: #BBDEC9 !important; }
+.admin-framed-shell .admin-frame-footer .system-status-badge.is-low { color: #F5D88D !important; }
+.admin-framed-shell .admin-frame-footer .system-status-badge.is-offline { color: #F2B8B5 !important; }
+@media (max-width: 575px) {
+  .admin-framed-shell .admin-frame-footer { gap: 6px; }
+  .admin-framed-shell .admin-frame-footer .system-status-badge { font-size: 9px; gap: 3px; }
+  .admin-framed-shell .admin-frame-footer .admin-footer-clock { font-size: 9px; }
+}

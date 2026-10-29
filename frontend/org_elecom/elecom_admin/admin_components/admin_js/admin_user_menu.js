@@ -866,9 +866,12 @@
     mount.innerHTML = buildMarkup();
 
     const topNav = mount.closest(".top-navbar");
-    let networkBadge = topNav ? topNav.querySelector(".system-status-badge") : null;
-    if (!networkBadge && topNav) {
-      networkBadge = buildNetworkBadge();
+    const footer = document.querySelector(".admin-frame-footer");
+    let networkBadge = footer?.querySelector(".system-status-badge") || topNav?.querySelector(".system-status-badge");
+    if (!networkBadge && topNav) networkBadge = buildNetworkBadge();
+    if (networkBadge && footer) {
+      footer.insertBefore(networkBadge, footer.querySelector(".admin-footer-clock"));
+    } else if (networkBadge && topNav) {
       topNav.insertBefore(networkBadge, mount);
     }
     const networkText = networkBadge ? networkBadge.querySelector(".status-text") : null;
@@ -883,7 +886,7 @@
       bells.forEach((el) => {
         if (!mount.contains(el)) el.remove();
       });
-      if (document.body.classList.contains("dashboard-page") && networkBadge) {
+      if (!footer && document.body.classList.contains("dashboard-page") && networkBadge) {
         topNav.insertBefore(networkBadge, mount);
       }
     }
