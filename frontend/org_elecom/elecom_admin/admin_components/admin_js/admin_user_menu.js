@@ -144,20 +144,59 @@
     document.documentElement.classList.remove("sidebar-candidates-open");
     menuScroll?.addEventListener("scroll", saveSidebarState, { passive: true });
     const loading = document.getElementById("adminNavigationLoading");
+    let navigationPending = false, slowLoadingTimer = null, navigationFocus = null;
+    const inertElements = [];
     const clearLoading = () => {
+      navigationPending = false;
+      clearTimeout(slowLoadingTimer);
       if (loading) loading.hidden = true;
       main?.removeAttribute("aria-busy");
+      for (const element of inertElements.splice(0)) element.inert = false;
+      if (navigationFocus?.isConnected) navigationFocus.focus({ preventScroll: true });
+      navigationFocus = null;
     };
+    const startLoading = () => {
+      if (!loading) return;
+      navigationPending = true;
+      navigationFocus = document.activeElement;
+      loading.querySelector(".admin-loading-detail").textContent = "Please wait while we open the next page. No need to click again.";
+      const cancel = loading.querySelector(".admin-loading-cancel");
+      cancel.hidden = true;
+      loading.hidden = false;
+      main?.setAttribute("aria-busy", "true");
+      for (const element of document.body.children) {
+        if (element !== loading && element instanceof HTMLElement && !element.inert && !["SCRIPT", "STYLE"].includes(element.tagName)) {
+          element.inert = true;
+          inertElements.push(element);
+        }
+      }
+      loading.focus({ preventScroll: true });
+      slowLoadingTimer = setTimeout(() => {
+        loading.querySelector(".admin-loading-detail").textContent = "Taking longer than usual. Your connection or the server may be slow. Please wait, or cancel to stay on this page.";
+        cancel.hidden = false;
+      }, 8000);
+    };
+    loading?.querySelector(".admin-loading-cancel")?.addEventListener("click", () => {
+      window.stop();
+      clearLoading();
+    });
     document.addEventListener("click", event => {
+      if (navigationPending && !loading?.contains(event.target)) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        return;
+      }
       if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
       const link = event.target.closest("a[href]");
       if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self") || link.hasAttribute("data-bs-toggle")) return;
       const url = new URL(link.href, window.location.href);
       if (url.origin !== window.location.origin || url.href === window.location.href) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
       if (!url.pathname.startsWith("/g/") && !url.pathname.startsWith("/static/org_elecom/elecom_admin/")) return;
       saveSidebarState();
-      if (loading) loading.hidden = false;
-      main?.setAttribute("aria-busy", "true");
+      startLoading();
+      // Other handlers may cancel a link; release the overlay in that case.
+      queueMicrotask(() => { if (event.defaultPrevented) clearLoading(); });
     }, true);
     window.addEventListener("load", clearLoading, { once: true });
     window.addEventListener("pageshow", clearLoading);
