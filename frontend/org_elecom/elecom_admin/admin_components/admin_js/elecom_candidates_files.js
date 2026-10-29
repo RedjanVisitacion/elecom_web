@@ -52,7 +52,7 @@
       const actions = document.createElement('div'); actions.className = 'file-document-actions';
       if (href) {
         const open = document.createElement('button'); open.type = 'button';
-        open.addEventListener('click', () => openDocument(kind));
+        open.addEventListener('click', () => openDocument(kind, label));
         open.className = 'files-control'; open.textContent = 'Open'; open.setAttribute('aria-label', `Open ${label}`); actions.append(open);
       }
       if (kind === 'certificate') { el.append(actions); grid.append(el); return; }
@@ -182,14 +182,68 @@
   });
   window.addEventListener('pagehide', () => { stopPolling(); if (filesRequest) filesRequest.abort(); });
   window.addEventListener('pageshow', () => { startPolling(); });
-  function openDocument(kind) {
+  const previewElement = document.getElementById('candidatePreviewModal');
+  const previewModal = new bootstrap.Modal(previewElement);
+  const previewFrame = document.getElementById('candidatePreviewFrame');
+  const previewStatus = document.getElementById('candidatePreviewStatus');
+  const previewRetry = document.getElementById('candidatePreviewRetry');
+  let previewRequest = null, previewUrl = '', previewEndpoint = '', previewOpener = null;
+  function clearPreview() {
+    if (previewRequest) previewRequest.abort();
+    previewRequest = null;
+    previewFrame.hidden = true;
+    previewFrame.removeAttribute('src');
+    if (previewUrl) URL.revokeObjectURL(previewUrl);
+    previewUrl = '';
+  }
+  previewElement.addEventListener('hide.bs.modal', clearPreview);
+  previewElement.addEventListener('hidden.bs.modal', () => {
+    previewEndpoint = '';
+    if (previewOpener?.isConnected) previewOpener.focus();
+  });
+  async function loadPreview() {
+    clearPreview();
+    previewStatus.hidden = false;
+    previewStatus.textContent = 'Loading document…';
+    previewRetry.hidden = true;
+    const controller = new AbortController();
+    previewRequest = controller;
+    const timeout = setTimeout(() => controller.abort(), 30000);
+    try {
+      const response = await fetch(previewEndpoint, { credentials: 'same-origin', cache: 'no-store', signal: controller.signal });
+      if (!response.ok) throw new Error('The document could not be loaded. Please try again.');
+      const blob = await response.blob();
+      if (!['application/pdf', 'image/jpeg', 'image/png'].includes(blob.type.split(';')[0])) {
+        throw new Error('This file cannot be previewed. Please check the uploaded document.');
+      }
+      if (previewRequest !== controller) return;
+      previewUrl = URL.createObjectURL(blob);
+      previewFrame.src = previewUrl;
+      previewFrame.hidden = false;
+      previewStatus.hidden = true;
+    } catch (error) {
+      if (previewRequest !== controller) return;
+      previewStatus.textContent = error.name === 'AbortError' ? 'The document took too long to load. Please try again.' : error.message;
+      previewRetry.hidden = false;
+    } finally {
+      clearTimeout(timeout);
+      if (previewRequest === controller) previewRequest = null;
+    }
+  }
+  previewRetry.addEventListener('click', loadPreview);
+  function openDocument(kind, label) {
     if (!candidate) return;
     const params = new URLSearchParams({ id: candidate.id, source: candidate.source, election_id: candidate.election_id || '', kind });
     // Use authenticated same-origin endpoints and their readable filename headers.
     const endpoint = kind === 'certificate'
       ? `/api/admin/candidate-applications/${encodeURIComponent(candidate.id)}/certificate/`
       : `/api/admin/candidates/document/preview/?${params}`;
-    window.location.assign(endpoint);
+    previewOpener = document.activeElement;
+    document.getElementById('candidatePreviewTitle').textContent = `${label} — ${name(candidate)}`;
+    previewFrame.title = label;
+    previewEndpoint = endpoint;
+    previewModal.show();
+    loadPreview();
   }
   const dialogElement = document.getElementById('candidateDocumentModal');
   const dialog = new bootstrap.Modal(dialogElement);
