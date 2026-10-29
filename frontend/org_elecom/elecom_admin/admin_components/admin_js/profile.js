@@ -8,6 +8,43 @@ document.addEventListener("DOMContentLoaded", function () {
   const profileSuccess = document.getElementById("profileSuccess");
   const profileGrid = document.getElementById("profileGrid");
   const profileLoading = document.getElementById("profileLoading");
+  const sectionTitles = { overview: "ACCOUNT OVERVIEW", information: "PROFILE INFORMATION", settings: "PROFILE ACCOUNT", help: "HELP" };
+  const clearFeedback = () => {
+    if (profileError) profileError.style.display = "none";
+    if (profileSuccess) profileSuccess.style.display = "none";
+  };
+  document.querySelectorAll("[data-profile-section]").forEach(button => {
+    button.addEventListener("click", () => {
+      const section = button.dataset.profileSection;
+      document.querySelectorAll("[data-profile-panel]").forEach(panel => { panel.hidden = panel.dataset.profilePanel !== section; });
+      document.querySelectorAll("[data-profile-section]").forEach(item => {
+        if (item === button) item.setAttribute("aria-current", "page");
+        else item.removeAttribute("aria-current");
+      });
+      document.getElementById("profileSectionTitle").textContent = sectionTitles[section];
+      document.getElementById("profileSettingsTabs").hidden = section !== "settings";
+      clearFeedback();
+    });
+  });
+  const settingsTabs = [...document.querySelectorAll("[data-settings-tab]")];
+  const selectSettingsTab = button => {
+    document.querySelectorAll("[data-settings-panel]").forEach(panel => { panel.hidden = panel.dataset.settingsPanel !== button.dataset.settingsTab; });
+    settingsTabs.forEach(item => { item.setAttribute("aria-selected", String(item === button)); item.tabIndex = item === button ? 0 : -1; });
+    clearFeedback();
+  };
+  settingsTabs.forEach((button, index) => {
+    button.addEventListener("click", () => selectSettingsTab(button));
+    button.addEventListener("keydown", event => {
+      let next;
+      if (event.key === "ArrowRight") next = (index + 1) % settingsTabs.length;
+      else if (event.key === "ArrowLeft") next = (index + settingsTabs.length - 1) % settingsTabs.length;
+      else if (event.key === "Home") next = 0;
+      else if (event.key === "End") next = settingsTabs.length - 1;
+      else return;
+      event.preventDefault(); selectSettingsTab(settingsTabs[next]); settingsTabs[next].focus();
+    });
+  });
+
 
   const profileHeaderName = document.getElementById("profileHeaderName");
   const profileAvatarImg = document.getElementById("profileAvatarImg");
@@ -147,6 +184,7 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error(data.error || "Failed to change password.");
       }
 
+      document.getElementById("profilePasswordForm")?.reset();
       showSuccess("Password changed.");
 
       if (changePasswordModalEl && window.bootstrap) {
@@ -166,10 +204,10 @@ document.addEventListener("DOMContentLoaded", function () {
   const showError = (msg) => {
     if (profileSuccess) profileSuccess.style.display = "none";
     if (profileLoading) profileLoading.style.display = "none";
-    if (profileGrid) profileGrid.style.display = "none";
     if (!profileError) return;
     profileError.textContent = msg || "Failed to load profile.";
     profileError.style.display = "block";
+    if (profileGrid && profileGrid.style.display === "none") document.getElementById("profileRetry").hidden = false;
   };
 
   const showSuccess = (msg) => {
@@ -180,24 +218,24 @@ document.addEventListener("DOMContentLoaded", function () {
   };
 
   const showEditInfoError = (msg) => {
-    if (!editInfoError) return;
+    if (!editInfoError) { showError(msg || "Failed to save."); return; }
     editInfoError.textContent = msg || "Failed to save.";
     editInfoError.style.display = "block";
   };
 
   const clearEditInfoError = () => {
-    if (!editInfoError) return;
+    if (!editInfoError) { if (profileError) profileError.style.display = "none"; return; }
     editInfoError.style.display = "none";
   };
 
   const showChangePasswordError = (msg) => {
-    if (!changePasswordError) return;
+    if (!changePasswordError) { showError(msg || "Failed to change password."); return; }
     changePasswordError.textContent = msg || "Failed to change password.";
     changePasswordError.style.display = "block";
   };
 
   const clearChangePasswordError = () => {
-    if (!changePasswordError) return;
+    if (!changePasswordError) { if (profileError) profileError.style.display = "none"; return; }
     changePasswordError.style.display = "none";
   };
 
@@ -242,8 +280,8 @@ document.addEventListener("DOMContentLoaded", function () {
         throw new Error(data.error || "Failed to update profile.");
       }
 
-      if (pfEmail) pfEmail.value = data.email || "";
-      if (pfPhone) pfPhone.value = data.phone || "";
+      setValue(pfEmail, data.email || "");
+      setValue(pfPhone, data.phone || "");
 
       showSuccess("Information updated.");
 
@@ -314,19 +352,21 @@ document.addEventListener("DOMContentLoaded", function () {
     });
   }
 
-  if (btnSaveEditInfo) {
-    btnSaveEditInfo.addEventListener("click", (e) => {
-      e.preventDefault();
-      saveEditInfo();
-    });
-  }
-
-  if (btnSaveChangePassword) {
-    btnSaveChangePassword.addEventListener("click", (e) => {
-      e.preventDefault();
-      saveChangePassword();
-    });
-  }
+  document.getElementById("profileContactForm").addEventListener("submit", event => {
+    event.preventDefault();
+    if (!btnSaveEditInfo.disabled) saveEditInfo();
+  });
+  document.getElementById("profilePasswordForm").addEventListener("submit", event => {
+    event.preventDefault();
+    if (!btnSaveChangePassword.disabled) saveChangePassword();
+  });
+  const resetContact = () => {
+    editEmail.value = pfEmail?.value || "";
+    editPhone.value = pfPhone?.value || "";
+    clearFeedback();
+  };
+  document.getElementById("cancelContact").addEventListener("click", resetContact);
+  document.getElementById("cancelPassword").addEventListener("click", () => { document.getElementById("profilePasswordForm").reset(); clearFeedback(); });
 
   const getCloudinarySignature = async (type) => {
     const url = `${window.location.origin}/api/admin/cloudinary/signature/?type=${encodeURIComponent(type)}`;
@@ -384,6 +424,12 @@ document.addEventListener("DOMContentLoaded", function () {
   const setValue = (el, value) => {
     if (!el) return;
     el.value = value || "";
+    const keys = { pf_full_name: "name", pf_student_id: "id", pf_course: "course", pf_year_section: "year", pf_email: "email", pf_phone: "phone", pf_created_at: "created" };
+    const key = keys[el.id];
+    if (key) document.querySelectorAll('[data-profile-value="' + key + '"]').forEach(item => {
+      if (item.tagName === "INPUT") item.value = value || "";
+      else item.textContent = value || "Not provided";
+    });
   };
 
   const fmtCreatedAt = (val) => {
@@ -391,7 +437,7 @@ document.addEventListener("DOMContentLoaded", function () {
     try {
       const d = new Date(val);
       if (!Number.isFinite(d.getTime())) return String(val);
-      return d.toLocaleString();
+      return d.toLocaleString("en-PH", { timeZone: "Asia/Manila", dateStyle: "medium", timeStyle: "short" });
     } catch (e) {
       return String(val);
     }
@@ -439,6 +485,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     const roleText = String(user.role || student.role || "").trim();
     if (profileSubtitle) profileSubtitle.textContent = roleText;
+    document.querySelectorAll('[data-profile-value="role"]').forEach(item => { if (item.tagName === "INPUT") item.value = roleText; else item.textContent = roleText || "Not provided"; });
 
     const photoUrl = (user && user.photo_url) ? String(user.photo_url) : "";
     setAvatar(photoUrl);
@@ -464,16 +511,43 @@ document.addEventListener("DOMContentLoaded", function () {
 
     if (profileLoading) profileLoading.style.display = "none";
     if (profileGrid) profileGrid.style.display = "flex";
+    resetContact();
+    resetPhotoPreview();
   };
 
-  if (btnChangeProfilePhoto && profilePhotoFile) {
-    btnChangeProfilePhoto.addEventListener("click", () => {
-      profilePhotoFile.click();
-    });
-  }
+  let photoPreviewUrl = null;
+  const photoPreview = document.getElementById("profilePhotoPreview");
+  const previewIcon = document.getElementById("profilePhotoPreviewIcon");
+  const resetPhotoPreview = () => {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    photoPreviewUrl = null;
+    profilePhotoFile.value = "";
+    btnChangeProfilePhoto.disabled = true;
+    const url = profileAvatarImg && profileAvatarImg.style.display !== "none" ? profileAvatarImg.src : "";
+    photoPreview.style.display = url ? "block" : "none";
+    if (url) photoPreview.src = url;
+    else photoPreview.removeAttribute("src");
+    previewIcon.style.display = url ? "none" : "block";
+  };
+  profilePhotoFile.addEventListener("change", () => {
+    if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl);
+    photoPreviewUrl = null; clearFeedback();
+    const file = profilePhotoFile.files[0];
+    if (!file) { resetPhotoPreview(); return; }
+    if (!file.type.startsWith("image/")) { resetPhotoPreview(); showError("Please select an image file."); return; }
+    photoPreviewUrl = URL.createObjectURL(file);
+    photoPreview.src = photoPreviewUrl;
+    photoPreview.style.display = "block"; previewIcon.style.display = "none";
+    btnChangeProfilePhoto.disabled = false;
+  });
+  document.getElementById("cancelPhoto").addEventListener("click", () => { resetPhotoPreview(); clearFeedback(); });
+  document.getElementById("profileRetry").addEventListener("click", () => { document.getElementById("profileRetry").hidden = true; loadProfile(); });
+  window.addEventListener("pagehide", () => { if (photoPreviewUrl) URL.revokeObjectURL(photoPreviewUrl); });
 
   if (profilePhotoFile) {
-    profilePhotoFile.addEventListener("change", async () => {
+    document.getElementById("profilePhotoForm").addEventListener("submit", async event => {
+      event.preventDefault();
+      if (btnChangeProfilePhoto.disabled) return;
       const file = profilePhotoFile.files && profilePhotoFile.files[0];
       if (!file) return;
 
@@ -506,10 +580,10 @@ document.addEventListener("DOMContentLoaded", function () {
         // Restore button regardless of outcome
         if (btnChangeProfilePhoto) {
           btnChangeProfilePhoto.disabled = false;
-          btnChangeProfilePhoto.innerHTML = '<i class="bi bi-camera me-2"></i>Change photo';
+          btnChangeProfilePhoto.textContent = 'Save photo';
         }
         try {
-          profilePhotoFile.value = "";
+          resetPhotoPreview();
         } catch (e) {
           // ignore
         }

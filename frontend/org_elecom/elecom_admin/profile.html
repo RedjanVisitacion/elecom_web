@@ -20,8 +20,9 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261029-chevron-alignment1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/profile.css?v=20261029-profile-layout1">
 </head>
-<body data-admin-page="profile.html" class="admin-framed-shell theme-elecom">
+<body data-admin-page="profile.html" class="admin-framed-shell theme-elecom admin-profile-page">
 <nav class="top-navbar"><div class="admin-frame-brand"><img class="admin-frame-ustp-logo" src="/static/assets/ustp-logo.png" alt="USTP"><img class="admin-frame-logo" src="/static/assets/elecom.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
             <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
             <div id="userMenuMount"></div>
@@ -79,167 +80,67 @@
     <div class="main-content">
 
 
-        <div class="content-area">
-            <div class="profile-fb-header mb-3">
-                <div class="profile-fb-cover">
-                    <div class="profile-cover-menu" id="profileCoverMenu">
-                        <button type="button" class="profile-cover-menu-btn" id="profileCoverMenuBtn" aria-label="Profile menu">
-                            <i class="bi bi-three-dots-vertical" aria-hidden="true"></i>
-                        </button>
-                        <div class="profile-cover-menu-dropdown card shadow-sm border-0" id="profileCoverMenuDropdown" style="display:none;">
-                            <div class="card-body p-2">
-                                <a href="#" class="dropdown-item" id="profileCoverChangePassword">Change Password</a>
-                                <a href="#" class="dropdown-item" id="profileCoverEditInfo">Edit Information</a>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="profile-fb-body">
-                    <div class="profile-fb-identity">
-                        <div class="profile-fb-avatar">
-                            <img id="profileAvatarImg" src="" alt="" style="display:none;">
-                            <i id="profileAvatarIcon" class="bi bi-person-circle" style="font-size:72px; color:#6b7280;"></i>
-                        </div>
-
-                        <div class="profile-fb-title">
-                            <div class="fw-semibold fs-4" id="profileHeaderName">Profile</div>
-                            <div class="text-muted" id="profileSubtitle">Account information</div>
-                        </div>
-                    </div>
-
-                    <div class="profile-fb-actions">
-                        <input id="profilePhotoFile" type="file" accept="image/*" style="display:none;">
-                        <button type="button" class="btn btn-light border" id="btnChangeProfilePhoto">
-                            <i class="bi bi-camera me-2"></i>Change photo
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <div class="card shadow-sm border-0">
-                <div class="card-body">
-                    <div class="alert alert-success" id="profileSuccess" style="display:none;"></div>
-
-                    <div class="alert alert-danger" id="profileError" style="display:none;"></div>
-
-                    <div class="row g-3" id="profileGrid" style="display:none;">
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_full_name" readonly>
-                                <label for="pf_full_name">Full Name</label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_student_id" readonly>
-                                <label for="pf_student_id">Student ID</label>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_course" readonly>
-                                <label for="pf_course">Course</label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_year_section" readonly>
-                                <label for="pf_year_section">Year &amp; Section</label>
-                            </div>
-                        </div>
-
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_email" readonly>
-                                <label for="pf_email">Email</label>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_phone" readonly>
-                                <label for="pf_phone">Phone</label>
-                            </div>
-                        </div>
-
-                        <div class="col-md-4">
-                            <div class="form-floating">
-                                <input type="text" class="form-control" id="pf_created_at" readonly>
-                                <label for="pf_created_at">Created At</label>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="text-muted" id="profileLoading">Loading...</div>
-                </div>
-            </div>
-        </div>
+<div class="content-area profile-content">
+ <div class="profile-layout">
+  <aside class="profile-identity-panel" aria-label="Profile navigation">
+   <div class="profile-identity"><div class="profile-portrait"><img id="profileAvatarImg" alt="Your profile photo" style="display:none;"><i id="profileAvatarIcon" class="bi bi-person" aria-hidden="true"></i></div>
+    <h1 id="profileHeaderName">Your profile</h1><p class="profile-identity-id" data-profile-value="id">&mdash;</p><p id="profileSubtitle">Account</p>
+   </div>
+   <nav class="profile-section-nav" aria-label="Profile sections"><button type="button" class="profile-section-link" data-profile-section="overview" aria-controls="profile-overview" aria-current="page"><i class="bi bi-house-door" aria-hidden="true"></i>Overview</button><button type="button" class="profile-section-link" data-profile-section="information" aria-controls="profile-information"><i class="bi bi-person" aria-hidden="true"></i>Profile Information</button><button type="button" class="profile-section-link" data-profile-section="settings" aria-controls="profile-settings"><i class="bi bi-gear" aria-hidden="true"></i>Account Settings</button><button type="button" class="profile-section-link" data-profile-section="help" aria-controls="profile-help"><i class="bi bi-question-circle" aria-hidden="true"></i>Help</button></nav>
+  </aside>
+  <section class="profile-workspace" aria-labelledby="profileSectionTitle">
+   <header class="profile-workspace-header"><h2 id="profileSectionTitle">ACCOUNT OVERVIEW</h2>
+    <div class="profile-settings-tabs" id="profileSettingsTabs" role="tablist" aria-label="Account settings" hidden>
+     <button type="button" id="tab-account" role="tab" aria-selected="true" aria-controls="settings-account" data-settings-tab="account">User Account Info</button>
+     <button type="button" id="tab-photo" role="tab" aria-selected="false" aria-controls="settings-photo" tabindex="-1" data-settings-tab="photo">Change Photo</button>
+     <button type="button" id="tab-password" role="tab" aria-selected="false" aria-controls="settings-password" tabindex="-1" data-settings-tab="password">Change Password</button>
     </div>
-
-    <div class="modal fade" id="changePasswordModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Change Password</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger" id="changePasswordError" style="display:none;"></div>
-
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="cp_old_password" placeholder="Old Password">
-                        <label for="cp_old_password">Old Password</label>
-                    </div>
-
-                    <div class="form-floating mb-3">
-                        <input type="password" class="form-control" id="cp_new_password" placeholder="New Password">
-                        <label for="cp_new_password">New Password</label>
-                    </div>
-
-                    <div class="form-floating">
-                        <input type="password" class="form-control" id="cp_confirm_password" placeholder="Confirm Password">
-                        <label for="cp_confirm_password">Confirm Password</label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="btnSaveChangePassword">Save</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="modal fade" id="editInfoModal" tabindex="-1" aria-hidden="true">
-        <div class="modal-dialog modal-dialog-centered">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Edit Information</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="alert alert-danger" id="editInfoError" style="display:none;"></div>
-
-                    <div class="form-floating mb-3">
-                        <input type="email" class="form-control" id="edit_email" placeholder="Email">
-                        <label for="edit_email">Email</label>
-                    </div>
-
-                    <div class="form-floating">
-                        <input type="text" class="form-control" id="edit_phone" placeholder="Phone">
-                        <label for="edit_phone">Phone</label>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-light" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-primary" id="btnSaveEditInfo">Save</button>
-                </div>
-            </div>
-        </div>
+   </header>
+   <div class="profile-feedback" id="profileError" role="alert" style="display:none;"></div><div class="profile-feedback is-success" id="profileSuccess" role="status" style="display:none;"></div>
+   <div id="profileLoading" class="profile-loading" role="status">Loading your profile...</div><button type="button" class="profile-button secondary" id="profileRetry" hidden>Try again</button>
+   <div id="profileGrid" class="profile-panel-container" style="display:none;">
+    <section id="profile-overview" data-profile-panel="overview">
+     <p class="profile-intro">Your ELECOM account at a glance.</p><dl class="profile-overview-grid"><div><dt>Student ID</dt><dd data-profile-value="id">&mdash;</dd></div><div><dt>Account role</dt><dd data-profile-value="role">&mdash;</dd></div><div><dt>Course / Department</dt><dd data-profile-value="course">&mdash;</dd></div><div><dt>Year &amp; section</dt><dd data-profile-value="year">&mdash;</dd></div></dl>
+     <h3 class="profile-subheading">CONTACT INFORMATION</h3><dl class="profile-contact-list"><div><dt>Email</dt><dd data-profile-value="email">&mdash;</dd></div><div><dt>Phone</dt><dd data-profile-value="phone">&mdash;</dd></div><div><dt>Account created</dt><dd data-profile-value="created">&mdash;</dd></div></dl>
+    </section>
+    <section id="profile-information" data-profile-panel="information" hidden><p class="profile-intro">Your registered ELECOM account information.</p><div class="profile-form-grid"><label class="profile-field"><span>Full name</span><input id="pf_full_name" type="text" data-profile-value="name" readonly ></label><label class="profile-field"><span>Student ID</span><input id="pf_student_id" type="text" data-profile-value="id" readonly ></label><label class="profile-field"><span>Course / Department</span><input id="pf_course" type="text" data-profile-value="course" readonly ></label><label class="profile-field"><span>Year &amp; section</span><input id="pf_year_section" type="text" data-profile-value="year" readonly ></label><label class="profile-field"><span>Email</span><input id="pf_email" type="text" data-profile-value="email" readonly ></label><label class="profile-field"><span>Phone</span><input id="pf_phone" type="text" data-profile-value="phone" readonly ></label><label class="profile-field"><span>Account role</span><input type="text" data-profile-value="role" readonly ></label><label class="profile-field"><span>Account created</span><input id="pf_created_at" type="text" data-profile-value="created" readonly ></label></div></section>
+    <section id="profile-settings" data-profile-panel="settings" hidden>
+     <div id="settings-account" role="tabpanel" aria-labelledby="tab-account" data-settings-panel="account">
+      <form id="profileContactForm"><div class="profile-form-grid"><label class="profile-field"><span>Student ID</span><input type="text" data-profile-value="id" readonly ></label><label class="profile-field"><span>Full name</span><input type="text" data-profile-value="name" readonly ></label>
+       <label class="profile-field"><span>Email</span><input type="email" id="edit_email" autocomplete="email" maxlength="255"></label>
+       <label class="profile-field"><span>Phone</span><input type="tel" id="edit_phone" autocomplete="tel" maxlength="32"></label><label class="profile-field"><span>Course / Department</span><input type="text" data-profile-value="course" readonly ></label><label class="profile-field"><span>Account role</span><input type="text" data-profile-value="role" readonly ></label></div>
+       <p class="profile-hint">You can update your email address and phone number here.</p><div class="profile-actions"><button type="submit" class="profile-button" id="btnSaveEditInfo">Save changes</button><button type="button" class="profile-button secondary" id="cancelContact">Cancel</button></div>
+      </form>
+     </div>
+     <div id="settings-photo" role="tabpanel" aria-labelledby="tab-photo" data-settings-panel="photo" hidden>
+      <form id="profilePhotoForm"><div class="profile-photo-preview"><img id="profilePhotoPreview" alt="Profile photo preview" style="display:none;"><i class="bi bi-person" id="profilePhotoPreviewIcon" aria-hidden="true"></i></div>
+       <label class="profile-file-label" for="profilePhotoFile">Select image</label><input type="file" id="profilePhotoFile" accept="image/*"><p class="profile-hint">Select an image, review the preview, then save your photo.</p>
+       <div class="profile-actions"><button type="submit" class="profile-button" id="btnChangeProfilePhoto" disabled>Save photo</button><button type="button" class="profile-button secondary" id="cancelPhoto">Cancel</button></div>
+      </form>
+     </div>
+     <div id="settings-password" role="tabpanel" aria-labelledby="tab-password" data-settings-panel="password" hidden>
+      <form id="profilePasswordForm" class="profile-password-form">
+       <label class="profile-field"><span>Current password</span><input type="password" id="cp_old_password" autocomplete="current-password" required></label>
+       <label class="profile-field"><span>New password</span><input type="password" id="cp_new_password" autocomplete="new-password" minlength="6" required></label>
+       <label class="profile-field"><span>Confirm new password</span><input type="password" id="cp_confirm_password" autocomplete="new-password" minlength="6" required></label>
+       <div class="profile-actions"><button type="submit" class="profile-button" id="btnSaveChangePassword">Change password</button><button type="button" class="profile-button secondary" id="cancelPassword">Cancel</button></div>
+      </form>
+     </div>
+    </section>
+    <section id="profile-help" data-profile-panel="help" hidden>
+     <details class="profile-help-item" open><summary>How do I change my password?</summary><p>Open Account Settings, choose Change Password, enter your current password, then enter and confirm your new password. Select Change password to save.</p></details>
+     <details class="profile-help-item"><summary>How do I change my profile photo?</summary><p>Open Account Settings and choose Change Photo. Select an image, check the preview, then select Save photo.</p></details>
+     <details class="profile-help-item"><summary>Which account details can I update?</summary><p>In Account Settings, use User Account Info to update your email address and phone number. Your registered name, Student ID, course and account role are displayed as read-only information.</p></details>
+    </section>
+   </div>
+  </section>
+ </div>
+</div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js" integrity="sha384-FKyoEForCGlyvwx9Hj09JcYn3nv7wiPVlz7YYwJrWVcXK/BmnVDxM+D2scQbITxI" crossorigin="anonymous"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261029-ustp-masthead1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/profile.js?v=20260922-photo-upload-spinner"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/profile.js?v=20261029-profile-layout1"></script>
 <div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-spinner" aria-hidden="true"></span>Loading page...</div></div>
 <noscript><span id="admin-page-ready" hidden></span></noscript>
 </body>
