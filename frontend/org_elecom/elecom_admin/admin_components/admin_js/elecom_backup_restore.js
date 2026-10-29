@@ -16,7 +16,7 @@
   // Shared mobile navigation is initialized by admin_user_menu.js.
 
   const showAlert = (message, type) => {
-    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "backup", type: type === "error" ? "error" : "success", title: 'Backup & Restore', duration: 4000 });
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "backup", type: ["error", "warning", "info", "success"].includes(type) ? type : "info", title: 'Backup & Restore', duration: type === "error" ? 8000 : 5000 });
     const inline = $("backupAlert");
     if (inline) { inline.textContent = ""; inline.classList.add("d-none"); }
     if (!message) return;
@@ -189,7 +189,6 @@
   };
 
   const refreshAll = async () => {
-    showAlert("", "success");
     try {
       await Promise.all([loadHistory(), loadSettings()]);
     } catch (error) {
@@ -198,7 +197,7 @@
   };
 
   const createBackup = async (type) => {
-    showAlert("", "success");
+    showAlert("Creating your backup. Please wait…", "info");
     setProgress(true, "Generating backup file...");
     document.querySelectorAll("[data-backup-type]").forEach((btn) => { btn.disabled = true; });
     try {
@@ -211,9 +210,9 @@
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok) throw new Error(data.error || "Backup failed.");
-      showAlert(`Backup created: ${data.backup.name}`, "success");
       page = 1;
       await refreshAll();
+      showAlert(`Backup created: ${data.backup.name}`, "success");
     } catch (error) {
       showAlert(error.message, "error");
       await loadHistory().catch(() => {});
@@ -275,6 +274,7 @@
     }
     pendingRestoreForm.set("password", password.value.trim());
     const confirmBtn = $("confirmRestoreBtn");
+    showAlert("Restoring the backup. Please keep this page open…", "info");
     setButtonLoading(confirmBtn, true, "Restoring");
     if (confirmBtn) confirmBtn.disabled = true;
     try {
@@ -296,8 +296,8 @@
       if (form) form.reset();
       const label = $("backupFileLabel");
       if (label) label.textContent = "Choose backup file";
-      showAlert("Backup restored successfully.", "success");
       await refreshAll();
+      showAlert("Backup restored successfully.", "success");
     } catch (restoreError) {
       if (error) error.textContent = restoreError.message;
       showAlert(restoreError.message, "error");
@@ -329,8 +329,10 @@
         showAlert(data.error || "Failed to save settings.", "error");
         return;
       }
-      showAlert("Auto backup settings saved.", "success");
       await Promise.all([loadHistory(), loadSettings()]);
+      showAlert("Auto backup settings saved.", "success");
+    } catch (error) {
+      showAlert(error.message || "Failed to save settings.", "error");
     } finally {
       setButtonLoading(saveBtn, false);
       if (saveBtn) saveBtn.disabled = false;
@@ -384,6 +386,7 @@
         showAlert("No backup is available to download yet.", "error");
         return;
       }
+      showAlert("Download requested. Check your browser downloads.", "info");
       window.location.href = `/backup/download/${latestBackup.id}/`;
     });
     $("openRestoreCard")?.addEventListener("click", () => {
@@ -420,6 +423,9 @@
         createBackup("postgres");
         return;
       }
+      if (event.target.closest(".download-action")) {
+        showAlert("Download requested. Check your browser downloads.", "info");
+      }
       const deleteBtn = event.target.closest(".delete-backup-btn");
       if (deleteBtn) {
         openDeleteConfirm(deleteBtn.dataset.id);
@@ -431,7 +437,7 @@
         formData.set("backup_id", restoreBtn.dataset.id || "");
         formData.set("scope", "database");
         openRestoreConfirm(formData);
-        showAlert(`Confirm your password to restore ${restoreBtn.dataset.name}.`, "success");
+        showAlert(`Confirm your password to restore ${restoreBtn.dataset.name}.`, "info");
       }
     });
     setupUploadDropZone();
