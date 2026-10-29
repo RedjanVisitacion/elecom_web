@@ -1514,3 +1514,15 @@ body.admin-framed-shell > .top-navbar .admin-frame-ustp-logo {
   background: #293F3C !important; color: #FFFFFF !important;
 }
 .admin-framed-shell #sidebar .candidates-submenu .nav-link[aria-current="page"]::after { content: none; }
+
+/* Dropdown chevrons share the hamburger's right-hand 30px alignment column. */
+.admin-framed-shell #sidebar .nav-link[data-bs-toggle="collapse"] { padding-right: 46px; }
+.admin-framed-shell #sidebar .nav-link[data-bs-toggle="collapse"] .chevron {
+  position: absolute; right: 8px; top: 50%; width: 30px; height: 20px;
+  display: inline-flex; align-items: center; justify-content: center;
+  margin: 0 !important; font-size: 12px; transform: translateY(-50%) rotate(180deg);
+}
+.admin-framed-shell #sidebar .nav-link[data-bs-toggle="collapse"][aria-expanded="true"] .chevron,
+html.sidebar-candidates-open .admin-framed-shell #sidebar [href="#candidatesSubmenu"] .chevron {
+  transform: translateY(-50%) rotate(90deg);
+}
