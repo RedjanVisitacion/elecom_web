@@ -188,11 +188,25 @@
   const previewStatus = document.getElementById('candidatePreviewStatus');
   const previewRetry = document.getElementById('candidatePreviewRetry');
   let previewRequest = null, previewUrl = '', previewEndpoint = '', previewOpener = null;
+  let previewPdfTask = null, previewRenderTask = null, previewLibraryPromise;
+  function previewLibrary() {
+    if (!previewLibraryPromise) {
+      previewLibraryPromise = import('/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.min.js').then(lib => {
+        lib.GlobalWorkerOptions.workerSrc = '/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.worker.min.js';
+        return lib;
+      }).catch(error => { previewLibraryPromise = null; throw error; });
+    }
+    return previewLibraryPromise;
+  }
   function clearPreview() {
     if (previewRequest) previewRequest.abort();
     previewRequest = null;
     previewFrame.hidden = true;
-    previewFrame.removeAttribute('src');
+    previewFrame.replaceChildren();
+    if (previewRenderTask) previewRenderTask.cancel();
+    previewRenderTask = null;
+    if (previewPdfTask) previewPdfTask.destroy().catch(() => {});
+    previewPdfTask = null;
     if (previewUrl) URL.revokeObjectURL(previewUrl);
     previewUrl = '';
   }
@@ -217,13 +231,53 @@
         throw new Error('This file cannot be previewed. Please check the uploaded document.');
       }
       if (previewRequest !== controller) return;
-      previewUrl = URL.createObjectURL(blob);
-      previewFrame.src = previewUrl;
-      previewFrame.hidden = false;
-      previewStatus.hidden = true;
+      clearTimeout(timeout);
+      if (blob.type.split(';')[0] === 'application/pdf') {
+        const lib = await previewLibrary();
+        const bytes = await blob.arrayBuffer();
+        if (previewRequest !== controller) return;
+        const task = lib.getDocument({ data: bytes, isEvalSupported: false });
+        previewPdfTask = task;
+        const pdf = await task.promise;
+        if (previewRequest !== controller) return;
+        previewFrame.hidden = false;
+        previewFrame.scrollTop = 0;
+        for (let number = 1; number <= pdf.numPages; number++) {
+          const page = await pdf.getPage(number);
+          if (previewRequest !== controller) return;
+          const base = page.getViewport({ scale: 1 });
+          const width = Math.max(240, previewFrame.clientWidth);
+          const scale = Math.min(width / base.width * Math.min(window.devicePixelRatio || 1, 1.5), Math.sqrt(2000000 / (base.width * base.height)));
+          const viewport = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width);
+          canvas.height = Math.ceil(viewport.height);
+          canvas.setAttribute('role', 'img');
+          canvas.setAttribute('aria-label', `${previewFrame.title}, page ${number} of ${pdf.numPages}`);
+          const render = page.render({ canvasContext: canvas.getContext('2d'), viewport });
+          previewRenderTask = render;
+          await render.promise;
+          if (previewRequest !== controller) return;
+          previewRenderTask = null;
+          previewFrame.append(canvas);
+          page.cleanup();
+          previewStatus.hidden = true;
+        }
+      } else {
+        previewUrl = URL.createObjectURL(blob);
+        const image = document.createElement('img');
+        image.alt = previewFrame.title;
+        image.src = previewUrl;
+        previewFrame.replaceChildren(image);
+        previewFrame.hidden = false;
+        previewFrame.scrollTop = 0;
+        previewStatus.hidden = true;
+      }
     } catch (error) {
       if (previewRequest !== controller) return;
       previewStatus.textContent = error.name === 'AbortError' ? 'The document took too long to load. Please try again.' : error.message;
+      previewFrame.hidden = true;
+      previewStatus.hidden = false;
       previewRetry.hidden = false;
     } finally {
       clearTimeout(timeout);
