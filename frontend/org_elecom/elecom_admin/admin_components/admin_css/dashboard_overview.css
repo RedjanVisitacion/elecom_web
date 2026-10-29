@@ -561,3 +561,16 @@ body.dashboard-page {
   height: 100%;
   font-weight: 700;
 }
+
+/* Make the entire date cell clickable and highlight it edge to edge. */
+.dashboard-page .compact-calendar #activitiesCalendarGrid td { padding: 0; }
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day {
+  width: 100%;
+  height: 100%;
+  max-height: none;
+  min-height: 0;
+  border-radius: 0 !important;
+}
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day:focus-visible {
+  outline-offset: -2px;
+}
