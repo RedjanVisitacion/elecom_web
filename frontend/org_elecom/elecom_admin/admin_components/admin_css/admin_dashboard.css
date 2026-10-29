@@ -1416,3 +1416,22 @@ html.sidebar-is-collapsed .admin-framed-shell #sidebar .nav-link.active { box-sh
 @media (max-width: 575px) {
   .admin-framed-shell .admin-page-path { margin-left: 12px; margin-right: 12px; font-size: 11px; }
 }
+
+/* First-paint state and content-only navigation feedback. */
+html.sidebar-candidates-open:not(.sidebar-is-collapsed) #sidebar #candidatesSubmenu { display: block; }
+@media (max-width: 992px) { html.sidebar-candidates-open #sidebar #candidatesSubmenu { display: block; } }
+html.sidebar-candidates-open #sidebar [href="#candidatesSubmenu"] .chevron { transform: rotate(90deg); }
+.admin-framed-shell .admin-navigation-loading { position: fixed; top: var(--admin-frame-height); bottom: var(--admin-footer-height); left: var(--sidebar-width); right: 0; z-index: 1020; display: flex; align-items: center; justify-content: center; background: rgba(240,244,248,.9); }
+.admin-framed-shell .admin-navigation-loading[hidden] { display: none !important; }
+.admin-navigation-loading-message { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border: 1px solid #CBD5E1; border-radius: 8px; background: #FFFFFF; color: #0F172A; font-size: 13px; }
+.admin-loading-spinner { width: 16px; height: 16px; border: 2px solid #CBD5E1; border-top-color: #1E4DB7; border-radius: 50%; animation: admin-loading-spin .8s linear infinite; }
+@keyframes admin-loading-spin { to { transform: rotate(360deg); } }
+@media (min-width: 993px) { .admin-framed-shell.sidebar-collapsed .admin-navigation-loading, html.sidebar-is-collapsed .admin-framed-shell .admin-navigation-loading { left: var(--sidebar-mini-width); } }
+@media (max-width: 992px) { .admin-framed-shell .admin-navigation-loading { left: 0; } }
+@media (prefers-reduced-motion: reduce) { .admin-loading-spinner { animation: none; } }
+@view-transition { navigation: auto; }
+.admin-framed-shell > .top-navbar { view-transition-name: admin-masthead; }
+.admin-framed-shell #sidebar { view-transition-name: admin-sidebar; }
+.admin-framed-shell > .admin-frame-footer { view-transition-name: admin-footer; }
+::view-transition-old(root), ::view-transition-new(root), ::view-transition-old(admin-masthead), ::view-transition-new(admin-masthead), ::view-transition-old(admin-sidebar), ::view-transition-new(admin-sidebar), ::view-transition-old(admin-footer), ::view-transition-new(admin-footer) { animation: none; }
+::view-transition-group(admin-masthead), ::view-transition-group(admin-sidebar), ::view-transition-group(admin-footer) { animation: none; }

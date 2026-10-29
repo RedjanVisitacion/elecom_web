@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <script>
         try {
+            if (sessionStorage.getItem('elecomCandidatesExpanded') === 'true') document.documentElement.classList.add('sidebar-candidates-open');
             if (localStorage.getItem('sidebarCollapsed') === 'true') {
                 document.documentElement.classList.add('sidebar-is-collapsed');
             }
@@ -16,7 +17,7 @@
     <link rel="apple-touch-icon" href="/static/assets/elecom.png?v=3">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261029-navigation-path1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261029-stable-navigation1">
     <style>
         .search-hero {
             display: flex;
@@ -171,7 +172,11 @@
         }
     </style>
 </head>
-<body data-admin-page="search_results.html" class="theme-elecom">
+<body data-admin-page="search_results.html" class="admin-framed-shell theme-elecom">
+<nav class="top-navbar"><div class="admin-frame-brand"><img class="admin-frame-logo" src="/static/assets/elecom.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
+            <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
+            <div id="userMenuMount"></div>
+        </nav>
 
     <div class="sidebar-overlay" id="sidebarOverlay"></div>
 
@@ -217,10 +222,7 @@
     </div>
 
     <div class="main-content">
-        <nav class="top-navbar">
-            <button class="menu-toggle" id="menuToggle"><i class="bi bi-list"></i></button>
-            <div id="userMenuMount"></div>
-        </nav>
+
 
         <div class="content-area">
             <!-- Hero search -->
@@ -405,7 +407,8 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261029-navigation-path1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261029-stable-navigation1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/search_results.js?v=20261004-cascade-selects"></script>
+<div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-spinner" aria-hidden="true"></span>Loading page...</div></div>
 </body>
 </html>

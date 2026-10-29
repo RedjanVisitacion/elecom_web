@@ -3,7 +3,8 @@
   const initInstitutionalFrame = () => {
     const sidebar = document.getElementById("sidebar");
     const topNav = document.querySelector(".top-navbar");
-    if (!sidebar || !topNav || !document.querySelector('link[href*="admin_dashboard.css"]') || topNav.querySelector(".admin-frame-brand")) return;
+    if (!sidebar || !topNav || !document.querySelector('link[href*="admin_dashboard.css"]')) return;
+    if (!topNav.querySelector(".admin-frame-brand")) {
     const brand = document.createElement("div");
     brand.className = "admin-frame-brand";
     const sourceLogo = sidebar.querySelector(".logo-container img, .sidebar-header img");
@@ -17,8 +18,9 @@
     name.textContent = "Electoral Commission";
     brand.append(logo, name);
     topNav.prepend(brand);
+    }
     document.body.classList.add("admin-framed-shell");
-    document.body.prepend(topNav);
+    if (topNav.parentElement !== document.body) document.body.prepend(topNav);
     const main = document.querySelector(".main-content");
     const page = document.body.dataset.adminPage;
     const pages = {
@@ -118,6 +120,45 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) updateFooterClock(); });
     footer.append(copyright, clock);
     document.body.append(footer);
+    const submenu = sidebar.querySelector(".candidates-submenu");
+    const menuScroll = sidebar.querySelector(".sidebar-menu");
+    const saveSidebarState = () => {
+      try {
+        if (submenu) sessionStorage.setItem("elecomCandidatesExpanded", String(submenu.classList.contains("show")));
+        if (menuScroll) sessionStorage.setItem("elecomSidebarScroll", String(menuScroll.scrollTop));
+      } catch (e) { /* Storage may be unavailable. */ }
+    };
+    try {
+      if (submenu && sessionStorage.getItem("elecomCandidatesExpanded") === "true") submenu.classList.add("show");
+      if (menuScroll) menuScroll.scrollTop = Number(sessionStorage.getItem("elecomSidebarScroll")) || 0;
+    } catch (e) { /* Keep template defaults. */ }
+    if (submenu) {
+      sidebar.querySelector('[href="#' + submenu.id + '"]')?.setAttribute("aria-expanded", String(submenu.classList.contains("show")));
+      submenu.addEventListener("shown.bs.collapse", saveSidebarState);
+      submenu.addEventListener("hidden.bs.collapse", saveSidebarState);
+    }
+    document.documentElement.classList.remove("sidebar-candidates-open");
+    menuScroll?.addEventListener("scroll", saveSidebarState, { passive: true });
+    const loading = document.getElementById("adminNavigationLoading");
+    const clearLoading = () => {
+      if (loading) loading.hidden = true;
+      main?.removeAttribute("aria-busy");
+    };
+    document.addEventListener("click", event => {
+      if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
+      const link = event.target.closest("a[href]");
+      if (!link || link.hasAttribute("download") || (link.target && link.target !== "_self") || link.hasAttribute("data-bs-toggle")) return;
+      const url = new URL(link.href, window.location.href);
+      if (url.origin !== window.location.origin || url.href === window.location.href) return;
+      if (!url.pathname.startsWith("/g/") && !url.pathname.startsWith("/static/org_elecom/elecom_admin/")) return;
+      saveSidebarState();
+      if (loading) loading.hidden = false;
+      main?.setAttribute("aria-busy", "true");
+    }, true);
+    window.addEventListener("load", clearLoading, { once: true });
+    window.addEventListener("pageshow", clearLoading);
+    window.addEventListener("pagehide", saveSidebarState);
+
   };
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", initInstitutionalFrame);
@@ -403,6 +444,7 @@
       const link = e.target.closest("a[href]");
       if (!link) return;
       const href = link.getAttribute("href") || "";
+      if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey || link.hasAttribute("download") || (link.target && link.target !== "_self")) return;
       if (!isAdminStaticPage(href)) return;
       // Raw static href still present — intercept and navigate via secure route
       e.preventDefault();
