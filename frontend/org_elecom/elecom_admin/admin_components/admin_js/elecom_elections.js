@@ -219,6 +219,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function showAlert(message, type) {
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "elections", type: type === "success" ? "success" : type === "warning" ? "warning" : "error", title: 'Election Management', duration: 5000 });
     if (!alertEl) return;
     if (message && type === 'success' && window.bootstrap?.Toast) {
       const toast = document.getElementById('electionSuccessToast');

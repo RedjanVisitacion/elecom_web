@@ -860,6 +860,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function candidateToast(message, title = 'Candidate updated', error = false) {
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "candidates", type: error ? "error" : "success", title: title, duration: error ? 0 : 6000 });
     const toast = document.getElementById('candidateChangeToast');
     document.getElementById('candidateToastTitle').textContent = title;
     document.getElementById('candidateToastMessage').textContent = message;

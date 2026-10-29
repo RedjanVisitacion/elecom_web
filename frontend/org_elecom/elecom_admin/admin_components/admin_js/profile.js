@@ -10,6 +10,7 @@ document.addEventListener("DOMContentLoaded", function () {
   const profileLoading = document.getElementById("profileLoading");
   const sectionTitles = { overview: "ACCOUNT OVERVIEW", information: "PROFILE INFORMATION", settings: "PROFILE ACCOUNT", help: "HELP" };
   const clearFeedback = () => {
+    window.ElecomToast?.dismiss("profile-feedback");
     if (profileError) profileError.style.display = "none";
     if (profileSuccess) profileSuccess.style.display = "none";
   };
@@ -204,17 +205,22 @@ document.addEventListener("DOMContentLoaded", function () {
   const showError = (msg) => {
     if (profileSuccess) profileSuccess.style.display = "none";
     if (profileLoading) profileLoading.style.display = "none";
-    if (!profileError) return;
-    profileError.textContent = msg || "Failed to load profile.";
-    profileError.style.display = "block";
     if (profileGrid && profileGrid.style.display === "none") document.getElementById("profileRetry").hidden = false;
+    if (window.ElecomToast) {
+      if (profileError) profileError.style.display = "none";
+      window.ElecomToast.error(msg || "Failed to load profile.", { id: "profile-feedback" });
+      return;
+    }
+    if (profileError) { profileError.textContent = msg || "Failed to load profile."; profileError.style.display = "block"; }
   };
-
   const showSuccess = (msg) => {
     if (profileError) profileError.style.display = "none";
-    if (!profileSuccess) return;
-    profileSuccess.textContent = msg || "Saved.";
-    profileSuccess.style.display = "block";
+    if (window.ElecomToast) {
+      if (profileSuccess) profileSuccess.style.display = "none";
+      window.ElecomToast.success(msg || "Saved.", { id: "profile-feedback" });
+      return;
+    }
+    if (profileSuccess) { profileSuccess.textContent = msg || "Saved."; profileSuccess.style.display = "block"; }
   };
 
   const showEditInfoError = (msg) => {

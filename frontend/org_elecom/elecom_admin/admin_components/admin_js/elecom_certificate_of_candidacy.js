@@ -131,6 +131,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   function message(text, error = false) {
+    if (window.ElecomToast) return window.ElecomToast.show(text, { id: "coc", type: error ? "error" : "success", title: 'Certificate of Candidacy', duration: error ? 0 : 6000 });
     const toast = document.getElementById('cocToast');
     const previous = bootstrap.Toast.getInstance(toast);
     if (!text) { previous?.hide(); return; }

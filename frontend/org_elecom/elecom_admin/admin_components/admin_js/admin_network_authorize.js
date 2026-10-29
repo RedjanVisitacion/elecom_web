@@ -302,6 +302,7 @@ function escapeHtml(value) {
 }
 
 function showNotification(message, type = "info") {
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "network", type: type, title: 'Network Authorization', duration: type === "error" ? 0 : 6000 });
   const element = document.getElementById('networkToast');
   const error = type === 'error';
   element.dataset.type = type;

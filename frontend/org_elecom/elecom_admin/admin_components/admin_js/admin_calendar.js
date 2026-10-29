@@ -241,7 +241,7 @@
             await deleteEvent(Number(btn.dataset.id));
             await loadEvents();
           } catch (e) {
-            alert(e.message || "Failed to delete.");
+            (window.ElecomToast ? window.ElecomToast.error : window.alert)(e.message || "Failed to delete.");
             btn.disabled = false;
           }
         });

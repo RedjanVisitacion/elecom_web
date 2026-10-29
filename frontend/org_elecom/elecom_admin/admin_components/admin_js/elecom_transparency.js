@@ -104,6 +104,7 @@ document.addEventListener("DOMContentLoaded", function () {
   }
 
   function showLedgerToast(message, isError = false) {
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "ledger", type: isError ? "error" : "success", title: 'Transparency Logs', duration: 5000 });
     const element = document.getElementById("ledgerToast");
     text(document.getElementById("ledgerToastMessage"), message);
     element.classList.toggle("text-bg-danger", isError);

@@ -16,6 +16,7 @@
   // Shared mobile navigation is initialized by admin_user_menu.js.
 
   const showAlert = (message, type) => {
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "backup", type: type === "error" ? "error" : "success", title: 'Backup & Restore', duration: 4000 });
     const inline = $("backupAlert");
     if (inline) { inline.textContent = ""; inline.classList.add("d-none"); }
     if (!message) return;

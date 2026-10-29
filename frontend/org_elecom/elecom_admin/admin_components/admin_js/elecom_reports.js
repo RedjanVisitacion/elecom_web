@@ -218,6 +218,7 @@ document.addEventListener('DOMContentLoaded', function(){
   }
 
   function showAlert(msg, type='danger') {
+    if (window.ElecomToast) return window.ElecomToast.show(msg, { id: "reports", type: type === "danger" ? "error" : type === "success" ? "success" : "info", title: 'Generate Reports', duration: 4000 });
     if (alertBox) { alertBox.classList.add('d-none'); alertBox.textContent = ''; }
     const element = document.getElementById('reportToast');
     if (!msg) {

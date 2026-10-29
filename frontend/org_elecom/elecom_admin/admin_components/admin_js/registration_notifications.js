@@ -1,5 +1,6 @@
 window.RegistrationNotifications = {
   show(type, message) {
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "registration", type: type, title: 'Candidate Registration', duration: type === "error" || /security code/i.test(message) ? 0 : 6000 });
     const element = document.getElementById('registrationToast');
     const error = type === 'error';
     document.getElementById('registrationToastTitle').textContent = error ? 'Please check registration' : type === 'warning' ? 'Party availability' : 'Changes saved';

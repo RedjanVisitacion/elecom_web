@@ -231,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const res = await fetch(API_BASE + 'update/', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify(payload) });
       const d = await res.json().catch(() => ({}));
       if (d && d.ok) { editModal.hide(); doSearch(); }
-      else { alert(d && d.error ? d.error : 'Failed to save changes.'); }
+      else { (window.ElecomToast ? window.ElecomToast.error : window.alert)(d && d.error ? d.error : 'Failed to save changes.'); }
     });
   }
 
@@ -253,7 +253,7 @@ document.addEventListener('DOMContentLoaded', function () {
       const res = await fetch(API_BASE + 'delete/', { method:'POST', headers:{'Content-Type':'application/json'}, credentials:'same-origin', body: JSON.stringify({ id }) });
       const d = await res.json().catch(() => ({}));
       if (d && d.ok) { deleteModal.hide(); doSearch(); }
-      else { alert(d && d.error ? d.error : 'Failed to unregister candidate.'); }
+      else { (window.ElecomToast ? window.ElecomToast.error : window.alert)(d && d.error ? d.error : 'Failed to unregister candidate.'); }
     });
   }
 

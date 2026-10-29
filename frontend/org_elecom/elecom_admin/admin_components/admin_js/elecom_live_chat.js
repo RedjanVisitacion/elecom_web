@@ -196,10 +196,10 @@ document.addEventListener('DOMContentLoaded', () => {
           renderConvList();
         }
       } else {
-        alert(data.error || 'Could not update takeover state.');
+        (window.ElecomToast ? window.ElecomToast.error : window.alert)(data.error || 'Could not update takeover state.');
       }
     } catch (_) {
-      alert('Network error. Please try again.');
+      (window.ElecomToast ? window.ElecomToast.error : window.alert)('Network error. Please try again.');
     } finally {
       takeoverBusy = false;
       if (takeoverBtn) takeoverBtn.disabled = false;
@@ -522,11 +522,11 @@ document.addEventListener('DOMContentLoaded', () => {
         // Refresh conversation list snippet
         loadConversations();
       } else {
-        alert(data.error || 'Failed to send message.');
+        (window.ElecomToast ? window.ElecomToast.error : window.alert)(data.error || 'Failed to send message.');
       }
     } catch (_) {
       setTypingIndicator(false);
-      alert('Network error. Please try again.');
+      (window.ElecomToast ? window.ElecomToast.error : window.alert)('Network error. Please try again.');
     } finally {
       setTypingIndicator(false);
       sending = false;

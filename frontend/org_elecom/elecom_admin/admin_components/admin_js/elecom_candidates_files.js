@@ -116,6 +116,7 @@
     status.textContent = grid.children.length ? `${grid.children.length} item${grid.children.length === 1 ? '' : 's'}` : query ? 'No matching items in this folder.' : 'No candidates in this organization for the selected election.';
   }
   function notify(message, error = false) {
+    if (window.ElecomToast) return window.ElecomToast.show(message, { id: "files", type: error ? "error" : "success", title: 'Candidate Files', duration: error ? 0 : 6000 });
     const element = document.getElementById('filesToast');
     document.getElementById('filesToastTitle').textContent = error ? 'Please check Candidate Files' : 'Candidate Files updated';
     document.getElementById('filesToastBody').textContent = message;
