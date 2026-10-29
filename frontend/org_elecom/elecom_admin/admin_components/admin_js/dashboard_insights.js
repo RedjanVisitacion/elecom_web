@@ -22,7 +22,9 @@
     const historical = turnout?.scope === "historical";
     const labels = hourly.map(item => historical ? timestamp(item.hour) : clock(item.hour));
     const peak = values.reduce((highest, count) => Math.max(highest, count || 0), 0);
-    const canPlot = peak > 0 && !!window.Chart;
+    const canPlot = values.some(count => Number.isFinite(count)) && !!window.Chart;
+    const state = document.getElementById("turnoutActivityState");
+    if (state) state.textContent = canPlot ? (peak > 0 ? "Reported hours" : "Zero votes reported") : "Unavailable";
     if (plot) plot.hidden = !canPlot;
     if (empty) empty.hidden = canPlot;
     if (canPlot && canvas) {
@@ -37,7 +39,7 @@
             fade.addColorStop(0, "rgba(10,36,99,0.08)");
             fade.addColorStop(1, "rgba(10,36,99,0)");
             return fade;
-          }, fill: true, cubicInterpolationMode: "monotone", tension: .35,
+          }, fill: true, tension: 0,
           pointRadius: 2, pointBackgroundColor: "#0A2463", pointBorderWidth: 0,
           pointHoverRadius: 4, pointHitRadius: 12, spanGaps: false,
         }] },
@@ -59,7 +61,7 @@
               ticks: { autoSkip: true, padding: 6, maxTicksLimit: 5, minRotation: 0, maxRotation: 0, color: "#64748B", font: { family: "JetBrains Mono", size: 11, weight: "500" } },
               title: { display: true, text: "Election hours - Philippine time", color: "#64748B", font: { family: "JetBrains Mono", size: 11 } },
             },
-            y: { beginAtZero: true, min: 0, max: Math.max(1, peak * 1.15), border: { display: false }, grid: { display: false, drawTicks: false },
+            y: { beginAtZero: true, min: 0, max: Math.max(1, Math.ceil(peak * 1.15)), border: { display: false }, grid: { display: false, drawTicks: false },
               ticks: { maxTicksLimit: 5, padding: 6, precision: 0, color: "#64748B", font: { family: "JetBrains Mono", size: 11, weight: "500" } },
               title: { display: true, text: "Votes cast per hour", color: "#64748B", font: { family: "JetBrains Mono", size: 11 } },
             },
@@ -69,7 +71,7 @@
       chart.$hourly = hourly;
       chart.data.labels = labels;
       chart.data.datasets[0].data = values;
-      chart.options.scales.y.max = Math.max(1, peak * 1.15);
+      chart.options.scales.y.max = Math.max(1, Math.ceil(peak * 1.15));
       chart.update("none");
     } else {
       if (chart) { chart.destroy(); chart = null; }
@@ -77,13 +79,13 @@
       if (!turnout) {
         title = "Hourly turnout unavailable"; message = "Hourly counts have not loaded. The available overall turnout is shown above.";
       } else if (!hourly.length) {
-        title = "No completed hours to display"; message = "No completed-hour records are available for this election yet.";
-      } else if (peak > 0 && !window.Chart) {
+        title = "Hourly activity not available"; message = "No completed-hour records are available for this election. Overall participation remains visible.";
+      } else if (values.some(count => Number.isFinite(count)) && !window.Chart) {
         title = "Chart could not load"; message = "Refresh the page to reload the turnout chart.";
       } else if (hourly.some(item => item.withheld)) {
-        title = "No reportable hourly trend yet"; message = "Small hourly counts are withheld for privacy. Withheld values are not plotted as zero.";
+        title = "Hourly counts are protected"; message = "Small hourly counts are withheld for privacy. Withheld values are not plotted as zero.";
       } else if (values.some(count => count === 0)) {
-        title = "No hourly activity to plot"; message = "All reported completed-hour counts are zero. Overall turnout is shown above.";
+        title = "No votes in the reported hours"; message = "The reported hourly counts are genuinely zero. Overall participation is shown separately.";
       } else {
         title = "Waiting for hourly data"; message = "The available records do not contain reportable hourly counts yet.";
       }
@@ -112,4 +114,14 @@
     }
   };
   window.addEventListener("elecom:dashboard", event => render(event.detail));
+  window.addEventListener("elecom:dashboard-error", () => {
+    const state = document.getElementById("turnoutActivityState");
+    if (state) state.textContent = chart ? "Last loaded hours" : "Unavailable";
+    const title = document.getElementById("turnoutEmptyTitle");
+    const message = document.getElementById("turnoutEmptyMessage");
+    if (title && title.textContent === "Loading hourly activity") {
+      title.textContent = "Hourly activity could not load";
+      if (message) message.textContent = "The dashboard will retry automatically. No voting activity has been estimated.";
+    }
+  });
 })();

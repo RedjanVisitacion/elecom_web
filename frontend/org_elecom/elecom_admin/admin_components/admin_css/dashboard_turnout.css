@@ -1,0 +1,46 @@
+/* Voter Turnout only. Surrounding dashboard cards retain their layout. */
+body.dashboard-page .turnout-card .card-body { display:grid; grid-template-rows:auto auto auto auto minmax(92px,1fr) auto auto; gap:7px; padding:12px !important; }
+body.dashboard-page .turnout-card .overview-card-heading { align-items:center; gap:12px; }
+body.dashboard-page .turnout-card .overview-card-heading h2 { margin:2px 0 0 !important; font-size:15px; }
+body.dashboard-page .turnout-card .mountain-turnout-percent { color:#0A2463 !important; font-size:34px; line-height:1; letter-spacing:-1px; }
+body.dashboard-page .turnout-card .mountain-turnout-summary { color:#475569; font-size:11px; line-height:1.4; margin:0; }
+.turnout-card .turnout-progress { height:7px; border-radius:999px; background:#E8EDF5; overflow:hidden; margin:1px 0 5px; }
+.turnout-card .turnout-progress > span { display:block; height:100%; width:0; border-radius:inherit; background:#0A2463; }
+.turnout-card .turnout-activity-heading { display:flex; justify-content:space-between; align-items:center; gap:8px; flex-wrap:wrap; color:#334155; font-size:11px; font-weight:600; }
+.turnout-card .turnout-activity-heading i { color:#64748B; margin-right:3px; }
+.turnout-card .turnout-activity-state { background:#F1F5F9; color:#64748B; border-radius:4px; font-size:10px; font-weight:500; padding:3px 6px; }
+body.dashboard-page .turnout-card .turnout-empty { display:flex; flex-direction:row; align-items:center; justify-content:center; gap:24px; padding:16px; border:1px solid #E2E8F0; border-radius:8px; background:#FAFBFD; }
+.turnout-card .turnout-participation-ring { --participation:0%; flex:0 0 112px; width:112px; height:112px; border-radius:50%; padding:8px; background:conic-gradient(#0A2463 var(--participation),#E2E8F0 0); }
+.turnout-card .turnout-participation-ring > div { display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px; width:100%; height:100%; border-radius:50%; background:#FAFBFD; text-align:center; }
+body.dashboard-page .turnout-card .turnout-participation-ring strong { font-family:'JetBrains Mono',monospace; color:#0A2463; font-size:24px; font-weight:600; line-height:1; }
+.turnout-card .turnout-participation-ring span { max-width:64px; font-size:9px; line-height:1.35; color:#64748B; }
+.turnout-card .turnout-empty-copy { max-width:35ch; min-width:0; }
+body.dashboard-page .turnout-card .turnout-empty-copy > strong { display:block; margin-bottom:6px; color:#0F172A; font-size:13px; font-weight:600; }
+body.dashboard-page .turnout-card .turnout-empty-copy > p { font-size:11px; line-height:1.6; color:#64748B; margin:0; }
+body.dashboard-page .turnout-card .chart-caption { font-size:10px; color:#64748B; line-height:1.45; margin:0; }
+body.dashboard-page .turnout-card .chart-status { font-size:11px; line-height:1.5; color:#92400E; background:#FFFBEB; border-left:3px solid #F5B301; padding:6px 8px; margin:0; }
+@media(max-width:767.98px) {
+ body.dashboard-page .turnout-card .card-body { grid-template-rows:auto auto auto auto 220px auto auto; }
+ body.dashboard-page .turnout-card .mountain-turnout-percent { font-size:30px; }
+ body.dashboard-page .turnout-card .turnout-empty { gap:16px; padding:12px; }
+}
+@media(max-width:420px) {
+ body.dashboard-page .turnout-card .turnout-empty { flex-direction:column; gap:12px; text-align:center; }
+ .turnout-card .turnout-participation-ring { width:92px; height:92px; flex-basis:92px; padding:7px; }
+ body.dashboard-page .turnout-card .turnout-participation-ring strong { font-size:21px; }
+}
+@media(max-height:720px) and (min-width:768px) {
+ body.dashboard-page .turnout-card .turnout-empty { padding:8px 12px; gap:16px; }
+ .turnout-card .turnout-participation-ring { width:80px; height:80px; flex-basis:80px; padding:6px; }
+ body.dashboard-page .turnout-card .turnout-participation-ring strong { font-size:20px; }
+}
+
+/* Keep the adjacent calendar's existing 280px tablet row unchanged. */
+@media(min-width:768px) and (max-width:991.98px) {
+ body.dashboard-page .turnout-card .card-body { grid-template-rows:auto auto auto auto minmax(64px,1fr) auto auto; gap:4px; padding:10px !important; }
+ body.dashboard-page .turnout-card .turnout-empty { min-height:0; padding:8px; gap:12px; }
+ .turnout-card .turnout-participation-ring { width:64px; height:64px; flex-basis:64px; padding:5px; }
+ body.dashboard-page .turnout-card .turnout-participation-ring strong { font-size:18px; }
+ body.dashboard-page .turnout-card .turnout-empty-copy > p { font-size:10px; line-height:1.4; }
+ body.dashboard-page .turnout-card .turnout-empty-copy > strong { font-size:12px; margin-bottom:4px; }
+}

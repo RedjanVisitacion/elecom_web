@@ -26,6 +26,7 @@
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261029-calendar-hover1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_mobile.css?v=20261029-responsive1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_turnout.css?v=20261029-turnout1">
 </head>
 <body data-admin-page="elecom_dashboard.html" class="admin-framed-shell theme-elecom dashboard-page">
 <nav class="top-navbar"><div class="admin-frame-brand"><img class="admin-frame-ustp-logo" src="/static/assets/ustp-logo.png" alt="USTP"><img class="admin-frame-logo" src="/static/assets/elecom.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
@@ -252,9 +253,14 @@
                                     <strong id="turnoutPercent" class="mountain-turnout-percent">--</strong>
                                 </div>
                                 <p id="turnoutSummary" class="mountain-turnout-summary">Loading election totals...</p>
+                                <div id="turnoutProgress" class="turnout-progress" role="progressbar" aria-label="Overall voter participation" aria-valuemin="0" aria-valuemax="100" aria-valuetext="Loading participation totals"><span id="turnoutProgressFill"></span></div>
+                                <div class="turnout-activity-heading"><span><i class="bi bi-bar-chart" aria-hidden="true"></i> Hourly voting activity</span><span id="turnoutActivityState" class="turnout-activity-state">Loading</span></div>
                                 <div class="turnout-chart-region">
                                     <div class="turnout-plot" id="turnoutPlot" hidden><canvas id="turnoutLineChart" role="img" aria-label="Hourly votes cast during election hours" aria-describedby="turnoutLineCaption"></canvas></div>
-                                    <div class="turnout-empty" id="turnoutEmpty" role="status"><strong id="turnoutEmptyTitle">Loading hourly turnout</strong><p id="turnoutEmptyMessage">Fetching the reported election activity...</p></div>
+                                    <div class="turnout-empty" id="turnoutEmpty" role="status">
+                                      <div class="turnout-participation-ring" id="turnoutParticipationRing" aria-hidden="true"><div><strong id="turnoutRingCount">—</strong><span>voters participated</span></div></div>
+                                      <div class="turnout-empty-copy"><strong id="turnoutEmptyTitle">Loading hourly activity</strong><p id="turnoutEmptyMessage">Overall participation and hourly activity will appear when the election data loads.</p></div>
+                                    </div>
                                 </div>
                                 <p id="turnoutLineCaption" class="chart-caption">Loading hourly turnout...</p>
                                 <div class="turnout-data-accessible" id="turnoutDataTable"></div>
@@ -485,8 +491,8 @@
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_toasts.js?v=20261029-toasts1"></script>
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261029-navigation-cache1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/dashboard_insights.js?v=20261029-chart-container1"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261029-voters-doubleclick1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/dashboard_insights.js?v=20261029-turnout1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261029-turnout1"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261029-toasts1"></script>
 <div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-emblem" aria-hidden="true"><img src="/static/assets/no_bg_elecom.png?v=20261029-favicon1" alt=""></span><strong>Loading…</strong><p class="admin-loading-detail">Please wait while we open the next page. No need to click again.</p><button type="button" class="btn btn-outline-secondary btn-sm admin-loading-cancel" hidden>Cancel navigation</button></div></div>

@@ -54,3 +54,19 @@ def load_dashboard_turnout(connection, vote_filter, vote_params, now, election=N
         "through": end.isoformat(), "timezone": "Asia/Manila",
         "minimum_bucket_size": MIN_PUBLIC_BUCKET,
     }
+
+
+def load_dashboard_participation(connection, vote_filter, vote_params):
+    """Count unique ballot submitters, not ballot rows, for turnout only."""
+    with connection.cursor() as cur:
+        cur.execute(
+            f"""SELECT
+                (SELECT COUNT(*) FROM users WHERE role = %s),
+                COUNT(DISTINCT v.student_id)
+                FROM votes v WHERE ({vote_filter})""",
+            ["student", *vote_params],
+        )
+        row = cur.fetchone()
+    if row is None:
+        raise ValueError("Participation totals unavailable")
+    return {"total_voters": int(row[0]), "total_cast_votes": int(row[1])}

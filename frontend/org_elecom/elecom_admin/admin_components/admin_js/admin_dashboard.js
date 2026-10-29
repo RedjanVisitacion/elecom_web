@@ -505,16 +505,32 @@ document.addEventListener("DOMContentLoaded", function () {
     return num.toLocaleString();
   };
 
+  let turnoutHasTotals = false;
   const renderTurnout = (metrics) => {
-    const total = Math.max(0, Number(metrics.total_voters) || 0);
-    const cast = Math.max(0, Number(metrics.total_cast_votes) || 0);
-    const percent = total ? Math.min(100, Math.max(0, cast / total * 100)) : 0;
+    const total = Number(metrics?.total_voters), cast = Number(metrics?.total_cast_votes);
+    const valid = metrics && metrics.total_voters != null && metrics.total_cast_votes != null && Number.isFinite(total) && Number.isFinite(cast) && total >= 0 && cast >= 0;
+    const progress = document.getElementById("turnoutProgress");
+    if (!valid) {
+      if (!turnoutHasTotals) {
+        setText(document.getElementById("turnoutPercent"), "—");
+        setText(document.getElementById("turnoutSummary"), "Participation totals are unavailable.");
+        progress?.removeAttribute("aria-valuenow");
+        progress?.setAttribute("aria-valuetext", "Participation totals are unavailable");
+      }
+      return false;
+    }
+    turnoutHasTotals = true;
+    const percent = total ? cast / total * 100 : 0;
+    const visualPercent = Math.min(100, Math.max(0, percent));
     setText(document.getElementById("turnoutPercent"), `${percent.toFixed(1)}%`);
     setText(document.getElementById("turnoutSummary"), `${fmt(cast)} voted / ${fmt(total)} total voters`);
-    const progress = document.getElementById("turnoutProgress");
-    progress?.setAttribute("aria-valuenow", percent.toFixed(1));
+    setText(document.getElementById("turnoutRingCount"), fmt(cast));
+    document.getElementById("turnoutParticipationRing")?.style.setProperty("--participation", `${visualPercent}%`);
+    const fill = document.getElementById("turnoutProgressFill");
+    if (fill) fill.style.width = `${visualPercent}%`;
+    progress?.setAttribute("aria-valuenow", visualPercent.toFixed(1));
     progress?.setAttribute("aria-valuetext", `${percent.toFixed(1)} percent turnout; ${fmt(cast)} voted out of ${fmt(total)} total voters`);
-
+    return true;
   };
 
   let dashboardLoading = false;
@@ -542,15 +558,19 @@ document.addEventListener("DOMContentLoaded", function () {
       setElectionTexts(e);
       setElectionScheduleDetails(e);
       startCountdown({ start_at: e.start_at, end_at: e.end_at });
-      renderTurnout(m);
+      const participationAvailable = renderTurnout(data.participation);
       window.dispatchEvent(new CustomEvent("elecom:dashboard", { detail: data }));
       const status = document.getElementById("turnoutChartStatus");
-      if (status) status.hidden = true;
+      if (status) {
+        status.hidden = participationAvailable;
+        if (!participationAvailable) status.textContent = turnoutHasTotals ? "Participation refresh unavailable. Showing the last loaded totals." : "Participation totals could not load. Retrying automatically.";
+      }
     } catch (e) {
+      renderTurnout(null);
       window.dispatchEvent(new Event("elecom:dashboard-error"));
       const status = document.getElementById("turnoutChartStatus");
       if (status) {
-        status.textContent = "Refresh unavailable. Previously loaded totals may be out of date.";
+        status.textContent = turnoutHasTotals ? "Refresh unavailable. Showing the last loaded turnout; it may be out of date." : "Turnout could not load. Retrying automatically.";
         status.hidden = false;
       }
     } finally {

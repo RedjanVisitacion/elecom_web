@@ -50,7 +50,7 @@ from elecom_voting.models import (
 )
 
 from .names import identity_row, normalize_middle_name
-from .dashboard_turnout import load_dashboard_turnout
+from .dashboard_turnout import load_dashboard_turnout, load_dashboard_participation
 from .dashboard_activity import load_dashboard_activity
 
 from . import facepp_service
@@ -1944,6 +1944,13 @@ def admin_dashboard_api(request):
     except Exception:
         pass
 
+    participation = None
+    try:
+        participation_filter, participation_params = _current_vote_filter("v")
+        participation = load_dashboard_participation(connection, participation_filter, participation_params)
+    except Exception:
+        logger.exception("Failed to load unique dashboard participation")
+
     turnout = None
     try:
         turnout_filter, turnout_params = _current_vote_filter("v")
@@ -1963,6 +1970,7 @@ def admin_dashboard_api(request):
                 "total_not_voted": int(total_not_voted),
             },
             "election": election,
+            "participation": participation,
             "turnout": turnout,
             "activity": activity,
         }
