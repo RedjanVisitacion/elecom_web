@@ -1,0 +1,71 @@
+/* Shared narrow-screen layout for ELECOM administration. */
+@media (max-width: 767.98px) {
+  body.admin-framed-shell .main-content,
+  body.admin-framed-shell .content-area { min-width:0; max-width:100%; }
+  body.admin-framed-shell .content-area :is(.card,.card-body,.row > *,form) { min-width:0; }
+  .admin-framed-shell :is(.table-responsive,.backup-table-wrap,.ledger-table-wrap) { max-width:100%; overflow-x:auto; overscroll-behavior-x:contain; }
+  .admin-framed-shell .modal-dialog { min-width:0; }
+  .admin-framed-shell .modal-header { gap:8px; }
+  .admin-framed-shell .modal-title { min-width:0; overflow-wrap:anywhere; }
+  .admin-framed-shell .modal-header .btn-close { flex-shrink:0; }
+  .admin-framed-shell .modal-footer { flex-wrap:wrap; gap:8px; }
+  body.dashboard-page .dashboard-overview,
+  body.dashboard-page .dashboard-grid,
+  body.dashboard-page .dashboard-secondary { min-width:0; }
+  body.dashboard-page .dashboard-grid { grid-template-columns:minmax(0,1fr); }
+  body.dashboard-page .dashboard-stats .card-body > div { min-width:0; }
+  body.dashboard-page .dashboard-stats .small.text-muted { overflow-wrap:anywhere; }
+  body.dashboard-page .election-countdown { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); width:100%; flex-wrap:nowrap; gap:0 !important; }
+  body.dashboard-page .election-banner .election-countdown > .text-center { min-width:0 !important; padding:4px !important; }
+  body.dashboard-page .election-banner #vwInfo .text-muted { flex-wrap:wrap; white-space:normal; gap:2px 6px; }
+  body.dashboard-page .election-banner #vwInfo { overflow-wrap:anywhere; }
+  body.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day { min-width:0; }
+}
+@media (max-width:575px) {
+  body.admin-framed-shell { --admin-footer-height:calc(48px + env(safe-area-inset-bottom,0px)); }
+  body.admin-framed-shell > .top-navbar { padding-left:8px; padding-right:8px; gap:6px; }
+  .admin-framed-shell > .top-navbar .menu-toggle { width:32px; min-width:32px; flex-basis:32px; padding:0; }
+  .admin-framed-shell .admin-frame-brand { min-width:0; gap:6px; }
+  .admin-framed-shell .admin-frame-ustp-logo { width:36px; height:36px; flex-basis:36px; }
+  .admin-framed-shell .admin-frame-logo { width:28px; height:28px; flex-basis:28px; }
+  .admin-framed-shell .top-navbar .top-navbar-actions { gap:2px; }
+  .admin-framed-shell .top-navbar :is(.notif-bell,.admin-search-btn) { width:32px; height:36px; flex:0 0 32px; }
+  .admin-framed-shell .top-navbar .admin-hidden-notif-action { width:10px; margin:0; padding:0; }
+  .admin-framed-shell #userMenuToggle { padding:2px; }
+  .admin-framed-shell #userMenuToggle .user-avatar { width:32px; height:32px; }
+  .admin-framed-shell #userAvatarImg { width:100% !important; height:100% !important; }
+  .admin-framed-shell .top-navbar :is(.user-dropdown,.admin-notif-dropdown) { position:fixed; top:calc(var(--admin-frame-height) + 6px); right:8px; width:min(320px,calc(100vw - 16px)); max-height:calc(100dvh - var(--admin-frame-height) - var(--admin-footer-height) - 20px); overflow-y:auto; }
+  body.admin-framed-shell .admin-frame-footer { display:grid; grid-template-columns:minmax(0,1fr) auto; grid-template-rows:auto auto; align-content:center; gap:4px 6px; height:var(--admin-footer-height); padding:5px 8px calc(5px + env(safe-area-inset-bottom,0px)); font-size:9px; line-height:1.2; }
+  .admin-framed-shell .admin-frame-footer > span:first-child { grid-column:1 / -1; overflow-wrap:anywhere; }
+  .admin-framed-shell .admin-frame-footer .system-status-badge { grid-row:2; grid-column:1; justify-self:end; margin:0; }
+  .admin-framed-shell .admin-frame-footer .admin-footer-clock { grid-row:2; grid-column:2; font-size:9px; }
+  body.admin-framed-shell .content-area { padding-left:12px; padding-right:12px; }
+  .admin-framed-shell #sidebar { width:min(235px,calc(100vw - 32px)); }
+  .admin-framed-shell .admin-page-path { overflow-wrap:anywhere; }
+  .admin-framed-shell .admin-page-path ol { row-gap:4px; }
+  .admin-framed-shell .content-area :is(.form-control,.form-select) { max-width:100%; min-width:0; }
+  .admin-framed-shell .files-search-group { width:100%; }
+  .admin-framed-shell .files-search-wrap { min-width:0; flex-basis:100%; }
+  .admin-framed-shell :is(.files-election,#filesScope) { width:100%; flex:1 1 100%; }
+  .admin-framed-shell .files-navigation { min-width:0; max-width:100%; }
+  .admin-framed-shell .file-document-actions { flex-wrap:wrap; }
+  .admin-framed-shell #candidatePreviewModal .modal-footer { padding:10px !important; }
+  .admin-framed-shell #candidatePreviewModal .files-preview-controls { gap:4px; }
+  .admin-framed-shell .coc-viewer-controls { flex-wrap:wrap; }
+  .admin-framed-shell .chat-list-pane { min-width:0; }
+  .admin-framed-shell .chat-input-bar textarea { min-width:0; }
+  .admin-framed-shell .chat-thread-header .thread-name { overflow-wrap:anywhere; }
+  .admin-framed-shell .takeover-banner { flex-wrap:wrap; }
+  .admin-framed-shell .chat-bubble-inner { max-width:calc(100% - 40px); min-width:0; }
+  .admin-framed-shell .reg-page-container { max-width:100%; }
+}
+@media (max-width:420px) {
+  .admin-framed-shell .admin-frame-title { display:none; }
+  body.dashboard-page .dashboard-stats .card-body { gap:6px; padding:8px !important; }
+  body.dashboard-page .dashboard-stats .card-body .h3 { font-size:22px !important; }
+}
+@media (max-width:340px) {
+  body.dashboard-page .dashboard-stats > div { width:100%; flex:0 0 100%; }
+  .admin-framed-shell .files-grid:not(.files-list) { grid-template-columns:minmax(0,1fr); }
+  .admin-framed-shell #candidatePreviewModal .files-preview-controls { flex:1 1 100%; }
+}
