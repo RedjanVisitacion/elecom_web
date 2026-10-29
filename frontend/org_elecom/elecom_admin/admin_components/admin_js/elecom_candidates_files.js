@@ -31,7 +31,7 @@
     const el = document.createElement(href && !kind ? 'a' : action ? 'button' : 'div');
     el.className = `file-tile${href || missing ? ' document' : ''}${missing ? ' missing' : ''}`;
     if (action) { el.type = 'button'; el.addEventListener('click', action); }
-    if (href && !kind) { el.href = href; el.target = '_blank'; el.rel = 'noopener noreferrer'; }
+    if (href && !kind) { el.href = href; }
     const graphic = document.createElement('i'); graphic.className = `bi ${icon}`; graphic.setAttribute('aria-hidden', 'true');
     const title = document.createElement('strong'); title.textContent = label;
     const meta = document.createElement('small'); meta.textContent = detail;
@@ -189,7 +189,7 @@
     const endpoint = kind === 'certificate'
       ? `/api/admin/candidate-applications/${encodeURIComponent(candidate.id)}/certificate/`
       : `/api/admin/candidates/document/preview/?${params}`;
-    window.open(endpoint, '_blank', 'noopener,noreferrer');
+    window.location.assign(endpoint);
   }
   const dialogElement = document.getElementById('candidateDocumentModal');
   const dialog = new bootstrap.Modal(dialogElement);
