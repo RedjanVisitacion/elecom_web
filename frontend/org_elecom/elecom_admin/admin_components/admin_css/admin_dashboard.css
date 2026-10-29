@@ -1446,3 +1446,25 @@ html.sidebar-candidates-open #sidebar [href="#candidatesSubmenu"] .chevron { tra
 ::view-transition-new(root) { animation: admin-page-reveal 120ms ease-out both; }
 @keyframes admin-page-reveal { from { opacity: 0; } to { opacity: 1; } }
 @media (prefers-reduced-motion: reduce) { ::view-transition-new(root) { animation: none; } }
+
+/* Institutional masthead: USTP and ELECOM seals with reference-style small caps. */
+.admin-framed-shell .admin-frame-brand { gap: 10px; }
+.admin-framed-shell .admin-frame-ustp-logo {
+  display: block; width: 48px; height: 48px; flex: 0 0 48px;
+  object-fit: contain; background: #FFFFFF;
+}
+.admin-framed-shell .admin-frame-title {
+  font-family: 'Times New Roman', Times, serif; font-variant: small-caps;
+  font-weight: 400; font-size: 24px; letter-spacing: 0; line-height: 1.1;
+}
+@media (max-width: 992px) {
+  .admin-framed-shell .admin-frame-brand { gap: 8px; }
+  .admin-framed-shell .admin-frame-ustp-logo { width: 36px; height: 36px; flex-basis: 36px; }
+  .admin-framed-shell .admin-frame-title { font-size: 18px; }
+}
+@media (max-width: 575px) {
+  .admin-framed-shell .admin-frame-brand { gap: 6px; }
+  .admin-framed-shell .admin-frame-ustp-logo { width: 32px; height: 32px; flex-basis: 32px; }
+  .admin-framed-shell .admin-frame-logo { width: 28px; height: 28px; flex-basis: 28px; }
+  .admin-framed-shell .admin-frame-title { font-size: 16px; }
+}

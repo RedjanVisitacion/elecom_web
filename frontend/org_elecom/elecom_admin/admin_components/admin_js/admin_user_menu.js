@@ -16,7 +16,11 @@
     const name = document.createElement("span");
     name.className = "admin-frame-title";
     name.textContent = "Electoral Commission";
-    brand.append(logo, name);
+    const ustpLogo = document.createElement("img");
+    ustpLogo.className = "admin-frame-ustp-logo";
+    ustpLogo.src = "/static/assets/ustp-logo.png";
+    ustpLogo.alt = "USTP";
+    brand.append(ustpLogo, logo, name);
     topNav.prepend(brand);
     }
     document.body.classList.add("admin-framed-shell");
