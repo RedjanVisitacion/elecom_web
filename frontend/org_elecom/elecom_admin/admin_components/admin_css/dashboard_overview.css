@@ -546,3 +546,18 @@ body.dashboard-page {
 @media (max-width: 767.98px) {
   .dashboard-page .turnout-card .card-body { grid-template-rows: auto auto 200px auto; }
 }
+
+/* PRISMS-style today marker fills the entire calendar cell. */
+.dashboard-page .compact-calendar #activitiesCalendarGrid td:has(.acal-day.is-today) {
+  background: #FFF59D;
+  padding: 0;
+}
+.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day.is-today {
+  background: #FFF59D !important;
+  color: #0F172A !important;
+  border: 0;
+  border-radius: 0 !important;
+  max-height: none;
+  height: 100%;
+  font-weight: 700;
+}
