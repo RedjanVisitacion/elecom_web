@@ -187,6 +187,39 @@
   const previewFrame = document.getElementById('candidatePreviewFrame');
   const previewStatus = document.getElementById('candidatePreviewStatus');
   const previewRetry = document.getElementById('candidatePreviewRetry');
+  const previewZoomOut = document.getElementById('candidatePreviewZoomOut');
+  const previewZoomIn = document.getElementById('candidatePreviewZoomIn');
+  const previewZoomLabel = document.getElementById('candidatePreviewZoomLabel');
+  const previewDownload = document.getElementById('candidatePreviewDownload');
+  let previewZoom = 1, previewReady = false, previewFileName = '';
+  function updatePreviewZoom() {
+    previewZoomLabel.textContent = `${Math.round(previewZoom * 100)}%`;
+    previewZoomOut.disabled = !previewReady || previewZoom <= 0.5;
+    previewZoomIn.disabled = !previewReady || previewZoom >= 3;
+    for (const page of previewFrame.children) page.style.width = `${previewZoom * 100}%`;
+  }
+  function changePreviewZoom(delta) {
+    if (!previewReady) return;
+    const previous = previewZoom;
+    previewZoom = Math.max(0.5, Math.min(3, Math.round((previewZoom + delta) * 100) / 100));
+    const ratio = previewZoom / previous;
+    const top = (previewFrame.scrollTop + previewFrame.clientHeight / 2) * ratio - previewFrame.clientHeight / 2;
+    const left = (previewFrame.scrollLeft + previewFrame.clientWidth / 2) * ratio - previewFrame.clientWidth / 2;
+    updatePreviewZoom();
+    previewFrame.scrollTop = top;
+    previewFrame.scrollLeft = left;
+  }
+  previewZoomOut.addEventListener('click', () => changePreviewZoom(-0.25));
+  previewZoomIn.addEventListener('click', () => changePreviewZoom(0.25));
+  previewDownload.addEventListener('click', () => {
+    if (!previewUrl) return;
+    const link = document.createElement('a');
+    link.href = previewUrl;
+    link.download = previewDownload.dataset.fileName;
+    document.body.append(link);
+    link.click();
+    link.remove();
+  });
   let previewRequest = null, previewUrl = '', previewEndpoint = '', previewOpener = null;
   let previewPdfTask = null, previewRenderTask = null, previewLibraryPromise;
   function previewLibrary() {
@@ -201,6 +234,11 @@
   function clearPreview() {
     if (previewRequest) previewRequest.abort();
     previewRequest = null;
+    previewReady = false;
+    previewZoom = 1;
+    updatePreviewZoom();
+    previewDownload.disabled = true;
+    delete previewDownload.dataset.fileName;
     previewFrame.hidden = true;
     previewFrame.replaceChildren();
     if (previewRenderTask) previewRenderTask.cancel();
@@ -232,6 +270,10 @@
       }
       if (previewRequest !== controller) return;
       clearTimeout(timeout);
+      previewUrl = URL.createObjectURL(blob);
+      const extension = blob.type.startsWith('image/png') ? 'png' : blob.type.startsWith('image/jpeg') ? 'jpg' : 'pdf';
+      previewDownload.dataset.fileName = `${previewFileName}.${extension}`;
+      previewDownload.disabled = false;
       if (blob.type.split(';')[0] === 'application/pdf') {
         const lib = await previewLibrary();
         const bytes = await blob.arrayBuffer();
@@ -264,7 +306,6 @@
           previewStatus.hidden = true;
         }
       } else {
-        previewUrl = URL.createObjectURL(blob);
         const image = document.createElement('img');
         image.alt = previewFrame.title;
         image.src = previewUrl;
@@ -273,6 +314,8 @@
         previewFrame.scrollTop = 0;
         previewStatus.hidden = true;
       }
+      previewReady = true;
+      updatePreviewZoom();
     } catch (error) {
       if (previewRequest !== controller) return;
       previewStatus.textContent = error.name === 'AbortError' ? 'The document took too long to load. Please try again.' : error.message;
@@ -295,6 +338,7 @@
     previewOpener = document.activeElement;
     document.getElementById('candidatePreviewTitle').textContent = `${label} — ${name(candidate)}`;
     previewFrame.title = label;
+    previewFileName = `${label}_${name(candidate)}`.replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').replace(/\s+/g, '_').slice(0, 150);
     previewEndpoint = endpoint;
     previewModal.show();
     loadPreview();

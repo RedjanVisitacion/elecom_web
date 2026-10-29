@@ -74,3 +74,7 @@
 .files-preview-pages canvas + canvas { border-top:1px solid #CBD5E1; }
 .files-preview-pages img { display:block; width:100%; height:100%; object-fit:contain; }
 @media(max-width:575px) { #candidatePreviewModal .files-preview-body { height:auto; flex:1; } }
+
+.files-preview-controls { display:flex; align-items:center; gap:8px; }
+.files-preview-controls output { min-width:44px; text-align:center; font-variant-numeric:tabular-nums; font-size:12px; }
+.files-preview-pages :is(canvas,img) { max-width:none; height:auto; margin-left:auto; margin-right:auto; }
