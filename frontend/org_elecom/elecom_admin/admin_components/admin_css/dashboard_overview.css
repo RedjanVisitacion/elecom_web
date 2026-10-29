@@ -412,7 +412,7 @@ body.dashboard-page {
  background: #F0F4F8; color: #0F172A; font-family: 'Plus Jakarta Sans'; font-size: 13px;
 }
 .dashboard-page :is(button,input,select,textarea) { font-family: inherit; }
-.dashboard-page :is(.sidebar,.sidebar-header) { background: #0A2463 !important; box-shadow: none !important; border-radius: 0; }
+.dashboard-page :is(.sidebar,.sidebar-header) { background: #364150 !important; box-shadow: none !important; border-radius: 0; }
 .dashboard-page .sidebar { top: 0; bottom: 0; margin: 0; }
 .dashboard-page .top-navbar { margin: 0; border-radius: 0; border-bottom: 1px solid #CBD5E1; box-shadow: none !important; }
 .dashboard-page .sidebar .nav-link { border-radius: 4px; font-size: 12px; }

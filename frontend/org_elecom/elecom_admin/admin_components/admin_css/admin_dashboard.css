@@ -1298,7 +1298,7 @@ body.admin-framed-shell > .top-navbar {
 .admin-framed-shell > .top-navbar :is(.notif-bell, #userMenuToggle):hover { background: #1E4DB7; }
 body.admin-framed-shell #sidebar {
   top: var(--admin-frame-height); bottom: 0; height: calc(100dvh - var(--admin-frame-height));
-  min-height: 0; margin: 0; background: #0A2463; border-radius: 0; box-shadow: none;
+  min-height: 0; margin: 0; background: #364150 !important; border-radius: 0; box-shadow: none;
 }
 .admin-framed-shell #sidebar .sidebar-header { min-height: 38px; padding: 3px 8px; border-bottom: 1px solid rgba(255,255,255,.16); }
 .admin-framed-shell #sidebar .sidebar-header-content { flex-direction: row; justify-content: flex-end; gap: 0; }
@@ -1340,3 +1340,7 @@ body.admin-framed-shell.dashboard-page .content-area { flex: 1 1 auto; height: a
 
 /* Show identity in the profile dropdown; keep its top-bar trigger compact. */
 .admin-framed-shell > .top-navbar .user-trigger-details { display: none; }
+
+/* PRISMS-inspired slate navigation in expanded, mini, and mobile modes. */
+.admin-framed-shell #sidebar .sidebar-header { background: #364150 !important; }
+.admin-framed-shell #sidebar .nav-section-label { color: #B4BCC8; }
