@@ -19,6 +19,83 @@
     topNav.prepend(brand);
     document.body.classList.add("admin-framed-shell");
     document.body.prepend(topNav);
+    const main = document.querySelector(".main-content");
+    const page = document.body.dataset.adminPage;
+    const pages = {
+      "admin_dashboard.html": ["Dashboard"],
+      "elecom_dashboard.html": ["Dashboard"],
+      "elecom_elections.html": ["Election Management"],
+      "elecom_election_date.html": ["Election Management"],
+      "elecom_candidates.html": ["Candidates", "List Candidates"],
+      "elecom_register_candidate.html": ["Candidates", "Register Candidate"],
+      "elecom_candidates_files.html": ["Candidates", "Candidate Files"],
+      "elecom_certificate_of_candidacy.html": ["Candidates", "Certificate of Candidacy"],
+      "elecom_network_authorize.html": ["Network Authorization"],
+      "elecom_results.html": ["Election Results"],
+      "elecom_reports.html": ["Generate Reports"],
+      "elecom_transparency.html": ["Transparency Logs"],
+      "elecom_backup_restore.html": ["Backup & Restore"],
+      "elecom_live_chat.html": ["Live Support Chat"],
+      "elecom_voters.html": ["Voters"],
+      "elecom_reset.html": ["Developer Options"],
+      "profile.html": ["Profile"],
+      "search_results.html": ["Search Candidates"],
+    };
+    const path = pages[page] || [document.title.replace(/\s*[-|]\s*ELECOM.*$/i, "").trim() || "Administration"];
+    if (main && !main.querySelector(".admin-page-path")) {
+      const trail = document.createElement("nav");
+      trail.className = "admin-page-path";
+      trail.setAttribute("aria-label", "Breadcrumb");
+      const list = document.createElement("ol");
+      const homeItem = document.createElement("li");
+      const home = document.createElement("a");
+      home.href = "/static/org_elecom/elecom_admin/admin_dashboard.html";
+      const icon = document.createElement("i");
+      icon.className = "bi bi-house-door";
+      icon.setAttribute("aria-hidden", "true");
+      home.append(icon, document.createTextNode("Home"));
+      homeItem.append(home);
+      list.append(homeItem);
+      path.forEach((label, index) => {
+        const item = document.createElement("li");
+        if (index === path.length - 1) {
+          item.textContent = label;
+          item.setAttribute("aria-current", "page");
+        } else {
+          const link = document.createElement("a");
+          link.href = "/static/org_elecom/elecom_admin/elecom_candidates.html";
+          link.textContent = label;
+          item.append(link);
+        }
+        list.append(item);
+      });
+      trail.append(list);
+      main.prepend(trail);
+    }
+    // Use template identity because production routes contain opaque secure tokens.
+    const canonicalPage = page === "elecom_dashboard.html" ? "admin_dashboard.html" : page === "elecom_election_date.html" ? "elecom_elections.html" : page;
+    if (canonicalPage) {
+      sidebar.querySelectorAll(".nav-link").forEach(link => {
+        link.classList.remove("active");
+        link.removeAttribute("aria-current");
+      });
+      const current = Array.from(sidebar.querySelectorAll("a.nav-link[href]")).find(link => {
+        const href = link.getAttribute("href");
+        return !href.startsWith("#") && new URL(href, window.location.href).pathname.split("/").pop() === canonicalPage;
+      });
+      if (current) {
+        current.classList.add("active");
+        current.setAttribute("aria-current", "page");
+        const group = current.closest(".candidates-submenu");
+        if (group) {
+          group.classList.add("show");
+          const toggle = sidebar.querySelector('[href="#' + group.id + '"]');
+          toggle?.classList.add("active");
+          toggle?.setAttribute("aria-expanded", "true");
+        }
+      }
+    }
+
     const footer = document.createElement("footer");
     footer.className = "admin-frame-footer";
     const copyright = document.createElement("span");

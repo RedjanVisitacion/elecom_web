@@ -1392,3 +1392,27 @@ body.admin-framed-shell .main-content { padding-bottom: var(--admin-footer-heigh
 .admin-framed-shell #sidebar :is(.nav-section-label, .category-header) {
   display: none !important;
 }
+
+/* One visual language for selected pages, expanded navigation, and hover. */
+.admin-framed-shell #sidebar .nav-link:is(.active, [aria-expanded="true"], :hover) {
+  color: #FFFFFF !important; background: #1E4DB7 !important;
+  border-left-color: #F5B301 !important; box-shadow: none !important;
+}
+.admin-framed-shell #sidebar .nav-link:is(.active, [aria-expanded="true"], :hover) > :is(i, svg, span) { color: inherit !important; }
+.admin-framed-shell #sidebar.collapsed .nav-link.active,
+html.sidebar-is-collapsed .admin-framed-shell #sidebar .nav-link.active { box-shadow: inset 3px 0 #F5B301 !important; }
+/* Breadcrumbs stay in normal flow and share each page's outer content edges. */
+.admin-framed-shell .admin-page-path {
+  flex: 0 0 auto; min-height: 36px; margin: 10px 16px 0; padding: 8px 12px;
+  background: #FFFFFF; border: 1px solid #CBD5E1; border-radius: 8px;
+  color: #64748B; font-size: 12px; line-height: 18px;
+}
+.admin-framed-shell .admin-page-path ol { display: flex; align-items: center; flex-wrap: wrap; gap: 0; padding: 0; margin: 0; list-style: none; }
+.admin-framed-shell .admin-page-path li { display: inline-flex; align-items: center; min-width: 0; }
+.admin-framed-shell .admin-page-path li + li::before { content: '\203A'; margin: 0 8px; color: #64748B; }
+.admin-framed-shell .admin-page-path a { display: inline-flex; align-items: center; gap: 6px; color: #64748B; text-decoration: none; }
+.admin-framed-shell .admin-page-path a:hover { color: #1E4DB7; }
+.admin-framed-shell .admin-page-path [aria-current="page"] { color: #0F172A; }
+@media (max-width: 575px) {
+  .admin-framed-shell .admin-page-path { margin-left: 12px; margin-right: 12px; font-size: 11px; }
+}
