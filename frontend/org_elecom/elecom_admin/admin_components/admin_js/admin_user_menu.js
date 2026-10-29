@@ -158,6 +158,13 @@
     window.addEventListener("load", clearLoading, { once: true });
     window.addEventListener("pageshow", clearLoading);
     window.addEventListener("pagehide", saveSidebarState);
+    // Release the incoming document only after its visible frame is initialized.
+    if (!document.getElementById("admin-page-ready")) {
+      const ready = document.createElement("span");
+      ready.id = "admin-page-ready";
+      ready.hidden = true;
+      document.body.append(ready);
+    }
 
   };
   if (document.readyState === "loading") {

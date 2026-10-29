@@ -1435,3 +1435,14 @@ html.sidebar-candidates-open #sidebar [href="#candidatesSubmenu"] .chevron { tra
 .admin-framed-shell > .admin-frame-footer { view-transition-name: admin-footer; }
 ::view-transition-old(root), ::view-transition-new(root), ::view-transition-old(admin-masthead), ::view-transition-new(admin-masthead), ::view-transition-old(admin-sidebar), ::view-transition-new(admin-sidebar), ::view-transition-old(admin-footer), ::view-transition-new(admin-footer) { animation: none; }
 ::view-transition-group(admin-masthead), ::view-transition-group(admin-sidebar), ::view-transition-group(admin-footer) { animation: none; }
+
+/* Keep the existing page visible while the next document initializes. */
+.admin-framed-shell .admin-navigation-loading {
+  background: transparent; pointer-events: none; align-items: flex-start;
+  justify-content: flex-end; padding: 10px 16px;
+}
+.admin-framed-shell .admin-navigation-loading-message { padding: 8px 12px; font-size: 12px; }
+::view-transition-old(root) { animation: none; }
+::view-transition-new(root) { animation: admin-page-reveal 120ms ease-out both; }
+@keyframes admin-page-reveal { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { ::view-transition-new(root) { animation: none; } }
