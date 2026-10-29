@@ -146,7 +146,9 @@
     const loading = document.getElementById("adminNavigationLoading");
     let navigationPending = false, slowLoadingTimer = null, navigationFocus = null;
     const inertElements = [];
+    let navigationRevision = 0;
     const clearLoading = () => {
+      navigationRevision++;
       navigationPending = false;
       clearTimeout(slowLoadingTimer);
       if (loading) loading.hidden = true;
@@ -156,10 +158,12 @@
       navigationFocus = null;
     };
     const startLoading = () => {
+      navigationRevision++;
       if (!loading) return;
       navigationPending = true;
+      loading.dataset.navigationRevision = String(navigationRevision);
       navigationFocus = document.activeElement;
-      loading.querySelector(".admin-loading-detail").textContent = "Please wait while we open the next page. No need to click again.";
+      loading.querySelector(".admin-loading-detail").textContent = "Please wait while preparing this page…";
       const cancel = loading.querySelector(".admin-loading-cancel");
       cancel.hidden = true;
       loading.hidden = false;
@@ -180,6 +184,11 @@
       window.stop();
       clearLoading();
     });
+    window.ElecomNavigation = {
+      start: startLoading, clear: clearLoading,
+      current: () => navigationRevision,
+      isCurrent: revision => navigationPending && navigationRevision === revision,
+    };
     document.addEventListener("click", event => {
       if (navigationPending && !loading?.contains(event.target)) {
         event.preventDefault();
@@ -196,10 +205,10 @@
       saveSidebarState();
       startLoading();
       // Other handlers may cancel a link; release the overlay in that case.
-      queueMicrotask(() => { if (event.defaultPrevented) clearLoading(); });
+      queueMicrotask(() => { if (event.defaultPrevented && !event.elecomSecureNavigation) clearLoading(); });
     }, true);
-    window.addEventListener("load", clearLoading, { once: true });
-    window.addEventListener("pageshow", clearLoading);
+    window.addEventListener("load", () => { if (!navigationPending) clearLoading(); }, { once: true });
+    window.addEventListener("pageshow", event => { if (event.persisted || !navigationPending) clearLoading(); });
     window.addEventListener("pagehide", saveSidebarState);
     // Release the incoming document only after its visible frame is initialized.
     if (!document.getElementById("admin-page-ready")) {
@@ -366,9 +375,56 @@
   const ADMIN_HASH_KEY = "elecom_admin_page_hash";
   const ADMIN_ROUTE_PREFIX = "/g/";
   const secureRouteCache = new Map();
+  const secureRouteExpiry = new Map();
+  const secureRouteRequests = new Map();
+  const SECURE_ROUTE_CACHE_KEY = "elecom_admin_navigation_cache_v1";
+  const SECURE_ROUTE_TTL = 60000;
+  const getSecureRouteForPage = async (page, queryString = "") => {
+    const safePage = String(page || "").trim();
+    if (!safePage) return "";
+    const key = `${safePage}${queryString || ""}`;
+    if ((secureRouteExpiry.get(key) || 0) > Date.now()) return secureRouteCache.get(key);
+    secureRouteCache.delete(key);
+    try {
+      const scope = sessionStorage.getItem(ADMIN_HASH_KEY);
+      const saved = JSON.parse(sessionStorage.getItem(SECURE_ROUTE_CACHE_KEY) || "null");
+      const entry = scope && saved?.scope === scope ? saved.entries?.[key] : null;
+      if (entry && entry.expires > Date.now() && entry.expires <= Date.now() + SECURE_ROUTE_TTL) {
+        const parsed = new URL(entry.url, window.location.origin);
+        if (parsed.origin === window.location.origin && parsed.pathname.startsWith(ADMIN_ROUTE_PREFIX)) {
+          secureRouteCache.set(key, parsed.href);
+          secureRouteExpiry.set(key, entry.expires);
+          return parsed.href;
+        }
+      }
+    } catch (_) { /* Storage may be unavailable. Fetch a fresh signed route. */ }
+    if (secureRouteRequests.has(key)) return secureRouteRequests.get(key);
+    const request = requestSecureRouteForPage(safePage, queryString).then(url => {
+      if (!url) return url;
+      const expires = Date.now() + SECURE_ROUTE_TTL;
+      secureRouteExpiry.set(key, expires);
+      try {
+        const scope = sessionStorage.getItem(ADMIN_HASH_KEY);
+        if (scope) {
+          let saved = JSON.parse(sessionStorage.getItem(SECURE_ROUTE_CACHE_KEY) || "null");
+          if (saved?.scope !== scope) saved = { scope, entries: {} };
+          saved.entries[key] = { url, expires };
+          for (const entryKey of Object.keys(saved.entries)) {
+            if (saved.entries[entryKey].expires <= Date.now()) delete saved.entries[entryKey];
+          }
+          sessionStorage.setItem(SECURE_ROUTE_CACHE_KEY, JSON.stringify(saved));
+        }
+      } catch (_) { /* Navigation still works without browser storage. */ }
+      return url;
+    }).finally(() => secureRouteRequests.delete(key));
+    secureRouteRequests.set(key, request);
+    return request;
+  };
 
   const toLogin = () => {
     try {
+      sessionStorage.removeItem(SECURE_ROUTE_CACHE_KEY);
+      sessionStorage.removeItem(ADMIN_HASH_KEY);
       sessionStorage.removeItem("elecom_role");
       sessionStorage.removeItem("elecom_user");
       sessionStorage.removeItem("elecom_user_id");
@@ -439,11 +495,10 @@
     }
   };
 
-  const getSecureRouteForPage = async (page, queryString = "") => {
+  const requestSecureRouteForPage = async (page, queryString = "") => {
     const safePage = String(page || "").trim();
     if (!safePage) return "";
     const cacheKey = `${safePage}${queryString || ""}`;
-    if (secureRouteCache.has(cacheKey)) return secureRouteCache.get(cacheKey);
 
     const url = new URL(API_ADMIN_PAGE_TOKEN, window.location.origin);
     url.searchParams.set("page", safePage);
@@ -498,10 +553,14 @@
       if (!isAdminStaticPage(href)) return;
       // Raw static href still present — intercept and navigate via secure route
       e.preventDefault();
+      e.elecomSecureNavigation = true;
+      // Keep the loader active while obtaining a signed route.
+      const revision = window.ElecomNavigation?.current();
       const page = getAdminPageNameFromHref(href);
       const parsed = new URL(href, window.location.origin);
       try {
         const secureUrl = await getSecureRouteForPage(page, parsed.search);
+        if (window.ElecomNavigation && !window.ElecomNavigation.isCurrent(revision)) return;
         if (secureUrl) {
           link.setAttribute("href", secureUrl);
           window.location.href = secureUrl;
@@ -510,6 +569,7 @@
           window.location.href = "/static/org_elecom/elecom_admin/admin_dashboard.html";
         }
       } catch (err) {
+        if (window.ElecomNavigation && !window.ElecomNavigation.isCurrent(revision)) return;
         window.location.href = "/static/org_elecom/elecom_admin/admin_dashboard.html";
       }
     }, true); // capture phase so we intercept before the browser follows href
