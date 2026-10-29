@@ -1468,3 +1468,11 @@ html.sidebar-candidates-open #sidebar [href="#candidatesSubmenu"] .chevron { tra
   .admin-framed-shell .admin-frame-logo { width: 28px; height: 28px; flex-basis: 28px; }
   .admin-framed-shell .admin-frame-title { font-size: 16px; }
 }
+
+/* USTP seal meets both masthead edges, with a subtle 1px overhang. */
+body.admin-framed-shell > .top-navbar .admin-frame-ustp-logo {
+  width: calc(var(--admin-frame-height) + 2px);
+  height: calc(var(--admin-frame-height) + 2px);
+  flex-basis: calc(var(--admin-frame-height) + 2px);
+  max-height: none; margin-top: -1px; margin-bottom: -1px;
+}
