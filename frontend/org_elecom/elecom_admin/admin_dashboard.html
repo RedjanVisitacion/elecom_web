@@ -23,7 +23,7 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261029-toasts1">
-    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261029-compact-dashboard1">
+    <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/dashboard_overview.css?v=20261029-chart-container1">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
 </head>
 <body data-admin-page="admin_dashboard.html" class="admin-framed-shell theme-elecom dashboard-page">
@@ -251,9 +251,12 @@
                                     <strong id="turnoutPercent" class="mountain-turnout-percent">--</strong>
                                 </div>
                                 <p id="turnoutSummary" class="mountain-turnout-summary">Loading election totals...</p>
-                                <div class="turnout-line-wrap"><canvas id="turnoutLineChart" role="img" aria-label="Hourly votes cast during election hours"></canvas></div>
+                                <div class="turnout-chart-region">
+                                    <div class="turnout-plot" id="turnoutPlot" hidden><canvas id="turnoutLineChart" role="img" aria-label="Hourly votes cast during election hours" aria-describedby="turnoutLineCaption"></canvas></div>
+                                    <div class="turnout-empty" id="turnoutEmpty" role="status"><strong id="turnoutEmptyTitle">Loading hourly turnout</strong><p id="turnoutEmptyMessage">Fetching the reported election activity...</p></div>
+                                </div>
                                 <p id="turnoutLineCaption" class="chart-caption">Loading hourly turnout...</p>
-                                <details class="turnout-data"><summary>View chart data</summary><div id="turnoutDataTable"></div></details>
+                                <div class="turnout-data-accessible" id="turnoutDataTable"></div>
                                 <p id="turnoutChartStatus" class="chart-status" role="status" hidden></p>
                             </div>
                         </section>
@@ -481,7 +484,7 @@
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_toasts.js?v=20261029-toasts1"></script>
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261029-ustp-masthead1"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.5.1/dist/chart.umd.min.js"></script>
-    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/dashboard_insights.js?v=20261029-compact-dashboard1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/dashboard_insights.js?v=20261029-chart-container1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_dashboard.js?v=20261029-voters-doubleclick1"></script>
     <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_calendar.js?v=20261029-toasts1"></script>
