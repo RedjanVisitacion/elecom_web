@@ -112,7 +112,7 @@
   body.admin-framed-shell { --admin-footer-height:0px; }
   body.admin-framed-shell .admin-frame-footer { display:none; }
   body.admin-framed-shell:has(#sidebar.active) > .top-navbar .menu-toggle {
-    visibility:hidden; pointer-events:none;
+    display:none;
   }
   body.admin-framed-shell #sidebar {
     bottom:0; height:calc(100dvh - var(--admin-frame-height));
