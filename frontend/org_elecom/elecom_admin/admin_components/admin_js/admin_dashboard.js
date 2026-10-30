@@ -137,6 +137,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
   document.querySelectorAll(".sidebar .nav-link").forEach((link) => {
     link.addEventListener("click", function () {
+      if (link.matches('[data-bs-toggle="collapse"]')) return;
       if (window.innerWidth <= 992 && sidebar && sidebarOverlay) {
         sidebar.classList.remove("active");
         sidebarOverlay.classList.remove("active");
