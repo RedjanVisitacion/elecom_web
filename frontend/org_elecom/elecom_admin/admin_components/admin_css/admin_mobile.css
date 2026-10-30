@@ -107,3 +107,31 @@
   .admin-framed-shell .admin-frame-brand { gap:3px; }
   .admin-framed-shell .admin-frame-logo { width:24px; flex-basis:24px; }
 }
+/* Mobile drawer: keep the masthead steady and use the full screen height. */
+@media (max-width: 992px) {
+  body.admin-framed-shell { --admin-footer-height:0px; }
+  body.admin-framed-shell .admin-frame-footer { display:none; }
+  body.admin-framed-shell:has(#sidebar.active) > .top-navbar .menu-toggle {
+    visibility:hidden; pointer-events:none;
+  }
+  body.admin-framed-shell #sidebar {
+    bottom:0; height:calc(100dvh - var(--admin-frame-height));
+    transition:transform 240ms cubic-bezier(.22,1,.36,1);
+    overscroll-behavior-y:contain;
+  }
+  .admin-framed-shell .sidebar-overlay {
+    display:block; bottom:0; opacity:0; visibility:hidden; pointer-events:none;
+    transition:opacity 200ms ease, visibility 200ms ease;
+  }
+  .admin-framed-shell .sidebar-overlay.active {
+    opacity:1; visibility:visible; pointer-events:auto;
+  }
+  body.admin-framed-shell:has(#sidebar.active) .main-content { overflow:hidden; }
+  body.admin-framed-shell.dashboard-page .main-content {
+    padding-bottom:calc(16px + env(safe-area-inset-bottom,0px));
+  }
+}
+@media (max-width: 992px) and (prefers-reduced-motion: reduce) {
+  body.admin-framed-shell #sidebar,
+  .admin-framed-shell .sidebar-overlay { transition:none; }
+}
