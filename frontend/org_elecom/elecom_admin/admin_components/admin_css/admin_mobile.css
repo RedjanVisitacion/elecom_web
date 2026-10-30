@@ -69,3 +69,41 @@
   .admin-framed-shell .files-grid:not(.files-list) { grid-template-columns:minmax(0,1fr); }
   .admin-framed-shell #candidatePreviewModal .files-preview-controls { flex:1 1 100%; }
 }
+
+/* Touch-sized navigation and a naturally scrolling dashboard on phones/tablets. */
+@media (max-width: 992px) {
+  body.admin-framed-shell #sidebar { width:min(280px,calc(100vw - 48px)); }
+  .admin-framed-shell #sidebar .nav-link { min-height:44px; padding-top:10px; padding-bottom:10px; font-size:14px; }
+  .admin-framed-shell #sidebar .sidebar-collapse-toggle { width:44px; height:44px; flex-basis:44px; }
+  .admin-framed-shell > .top-navbar .menu-toggle { width:44px; min-width:44px; height:44px; flex-basis:44px; }
+  .admin-framed-shell .top-navbar :is(.notif-bell,.admin-search-btn) { width:44px; height:44px; flex:0 0 44px; }
+  body.admin-framed-shell.dashboard-page .main-content { display:block; height:100dvh; overflow-y:auto; overscroll-behavior-y:contain; padding-bottom:calc(var(--admin-footer-height) + 16px); }
+  body.admin-framed-shell.dashboard-page .content-area { display:flex; flex-direction:column; height:auto; overflow:visible; gap:12px; }
+  body.dashboard-page .dashboard-overview { display:flex; flex-direction:column; gap:12px; }
+  body.dashboard-page .dashboard-grid { grid-template-columns:minmax(0,1fr); gap:12px; }
+  body.dashboard-page .dashboard-stats > div { width:50%; flex:0 0 50%; }
+  body.dashboard-page .dashboard-stats { --bs-gutter-y:8px; }
+  body.dashboard-page .turnout-card { height:auto; }
+  body.dashboard-page .turnout-card .card-body { grid-template-rows:auto auto auto auto minmax(240px,auto) auto auto; }
+  body.dashboard-page .turnout-card .turnout-chart-region { min-height:240px; }
+  body.dashboard-page .dashboard-secondary .compact-calendar { height:auto; min-height:380px; max-height:none; }
+  body.dashboard-page .dashboard-secondary .compact-calendar .card-body { grid-template-rows:auto auto minmax(280px,1fr); gap:8px; padding:12px !important; }
+  body.dashboard-page .compact-calendar :is(#calPrevMonth,#calNextMonth,#btnNewCalEvent) { min-width:44px; min-height:44px; height:44px; }
+  body.dashboard-page .compact-calendar #calMonthLabel { font-size:14px; }
+  body.dashboard-page .compact-calendar #activitiesCalendarGrid .acal-day { min-height:36px; font-size:12px; }
+}
+@media (max-width: 600px) {
+  body.dashboard-page .election-banner-layout { grid-template-columns:minmax(0,1fr); gap:12px !important; }
+  body.dashboard-page .election-banner-layout > * { min-width:0; }
+  body.dashboard-page .election-banner .election-countdown { width:100%; }
+  body.dashboard-page .election-banner .btn-light { min-height:44px; width:100%; font-size:14px; }
+  body.dashboard-page .election-banner .fw-semibold.fs-5 { font-size:18px !important; }
+  body.dashboard-page .election-banner #vwInfo .text-muted { font-size:12px !important; white-space:normal; }
+  body.dashboard-page .election-banner #vwInfo span { display:inline; }
+  body.dashboard-page .dashboard-stats .small.text-muted { font-size:11px !important; }
+}
+@media (max-width: 340px) {
+  body.dashboard-page .dashboard-stats > div { width:100%; flex-basis:100%; }
+  .admin-framed-shell .admin-frame-brand { gap:3px; }
+  .admin-framed-shell .admin-frame-logo { width:24px; flex-basis:24px; }
+}
