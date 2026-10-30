@@ -135,3 +135,27 @@
   body.admin-framed-shell #sidebar,
   .admin-framed-shell .sidebar-overlay { transition:none; }
 }
+/* Network records become labeled cards instead of compressed columns. */
+@media (max-width: 600px) {
+  body.network-page-body .network-page { min-width:0; }
+  body.network-page-body :is(.network-panel,.logs-card) { padding:12px; }
+  body.network-page-body .network-notice { padding:12px; gap:12px; font-size:14px; line-height:1.6; }
+  body.network-page-body .network-notice > div { min-width:0 !important; }
+  body.network-page-body .authorized-grid { display:grid; grid-template-columns:minmax(0,1fr); border:0; }
+  body.network-page-body .authorized-form { padding:12px 0; }
+  body.network-page-body :is(.network-input,#logSearchInput) { min-height:44px; font-size:16px; }
+  body.network-page-body :is(.network-add-btn,.use-current-ip-btn) { min-height:44px; }
+  body.network-page-body .logs-card { margin-top:16px; }
+  body.network-page-body .logs-card h5 { font-size:18px; line-height:1.4; }
+  body.network-page-body .network-table-wrap { overflow:visible; max-height:none; }
+  body.network-page-body :is(.authorized-network-table,#accessLogsTable) { display:block; width:100% !important; min-width:0; table-layout:auto; }
+  body.network-page-body :is(.authorized-network-table,#accessLogsTable) thead { position:absolute; width:1px; height:1px; overflow:hidden; clip-path:inset(50%); }
+  body.network-page-body :is(#authorizedNetworksBody,#accessLogsBody) { display:grid; gap:12px; }
+  body.network-page-body :is(#authorizedNetworksBody,#accessLogsBody) tr { display:block; min-width:0; padding:8px 12px; border:1px solid #DCE4EF; border-radius:8px; background:#F8FAFC; }
+  body.network-page-body :is(#authorizedNetworksBody,#accessLogsBody) td { display:flex; justify-content:space-between; align-items:center; gap:12px; width:100%; padding:8px 0; border:0; background:transparent; font-size:13px; overflow-wrap:anywhere; box-shadow:none; }
+  body.network-page-body :is(#authorizedNetworksBody,#accessLogsBody) td[data-label]::before { content:attr(data-label); flex:0 0 76px; color:#475569; font-size:12px; font-weight:600; text-align:left; }
+  body.network-page-body :is(#authorizedNetworksBody,#accessLogsBody) td[colspan] { justify-content:center; }
+  body.network-page-body .delete-network-btn { display:inline-flex; align-items:center; justify-content:center; min-width:44px; min-height:44px; border:1px solid #FECACA; border-radius:6px; }
+  body.network-page-body #logPageStatus { flex-basis:100%; margin-bottom:4px; }
+  body.network-page-body :is(#logPrevious,#logNext) { min-height:44px; flex:1; }
+}

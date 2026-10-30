@@ -181,11 +181,11 @@ function renderAuthorizedNetworks(networks) {
 
     return `
       <tr>
-        <td>${escapeHtml(formatDate(network.created_at || network.updated_at))}</td>
-        <td>${escapeHtml(network.network_ip || "")}</td>
-        <td>${escapeHtml(network.ssid || "N/A")}</td>
-        <td><span class="badge ${statusClass}" data-network-status>${escapeHtml(status)}</span></td>
-        <td class="text-center">
+        <td data-label="Added">${escapeHtml(formatDate(network.created_at || network.updated_at))}</td>
+        <td data-label="Network IP">${escapeHtml(network.network_ip || "")}</td>
+        <td data-label="SSID">${escapeHtml(network.ssid || "N/A")}</td>
+        <td data-label="Status"><span class="badge ${statusClass}" data-network-status>${escapeHtml(status)}</span></td>
+        <td class="text-center" data-label="Actions">
           <button type="button" class="delete-network-btn" data-delete-network="${escapeHtml(network.id)}" aria-label="Delete network">
             <i class="bi bi-trash"></i>
           </button>
@@ -260,10 +260,10 @@ function renderAccessLogs() {
 
   tbody.innerHTML = logs.map((log) => `
     <tr>
-      <td>${escapeHtml(formatDateTime(log.timestamp))}</td>
-      <td>${escapeHtml(log.student_id || "N/A")}</td>
-      <td><code>${escapeHtml(log.ip_address || "")}</code></td>
-      <td>
+      <td data-label="Time">${escapeHtml(formatDateTime(log.timestamp))}</td>
+      <td data-label="Student ID">${escapeHtml(log.student_id || "N/A")}</td>
+      <td data-label="IP Address"><code>${escapeHtml(log.ip_address || "")}</code></td>
+      <td data-label="Status">
         <span class="badge ${log.allowed ? "bg-success" : "bg-danger"}">
           ${log.allowed ? "Allowed" : "Blocked"}
         </span>
