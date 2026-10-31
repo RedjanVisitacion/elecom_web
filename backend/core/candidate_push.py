@@ -67,6 +67,7 @@ def register_push_token_api(request):
             ON CONFLICT (token) DO UPDATE
             SET student_id = EXCLUDED.student_id, updated_at = NOW()
         """, [token, student])
+    request.session['_elecom_push_token'] = token
     return JsonResponse({"ok": True})
 
 
@@ -78,6 +79,8 @@ def unregister_push_token_api(request):
         return error
     with connection.cursor() as cur:
         cur.execute("DELETE FROM mobile_push_tokens WHERE token = %s AND student_id = %s", [token, student])
+    if request.session.get('_elecom_push_token') == token:
+        request.session.pop('_elecom_push_token', None)
     return JsonResponse({"ok": True})
 
 

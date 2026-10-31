@@ -1,3 +1,4 @@
+from .account_sessions import account_sessions_api, account_sessions_logout_api, account_session_status_api
 from .developer_gallery import developer_gallery_api
 from .candidate_certificates import candidate_certificate_api
 from .candidate_push import register_push_token_api, unregister_push_token_api
@@ -208,6 +209,9 @@ urlpatterns = [
     path('api/mobile/election/window/', election_window_api, name='mobile_election_window_api'),
     path('api/mobile/account/presence/', account_presence_api, name='mobile_account_presence_api'),
     path('api/mobile/account/logout/', account_logout_api, name='mobile_account_logout_api'),
+    path('api/mobile/account/session/', account_session_status_api, name='mobile_session_status'),
+    path('api/mobile/account/sessions/', account_sessions_api, name='mobile_account_sessions'),
+    path('api/mobile/account/sessions/logout/', account_sessions_logout_api, name='mobile_sessions_logout'),
     path('api/mobile/ballot/', eligible_ballot_api, name='mobile_eligible_ballot_api'),
     path('api/mobile/vote/status/', vote_status_api, name='mobile_vote_status_api'),
     path('api/mobile/vote/receipt/', vote_receipt_api, name='mobile_vote_receipt_api'),

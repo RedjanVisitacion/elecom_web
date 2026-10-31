@@ -49,6 +49,7 @@ from elecom_voting.models import (
     MobileTutorialState,
 )
 
+from .account_sessions import start_account_session, revoke_account_sessions, end_current_session
 from .names import identity_row, normalize_middle_name
 from .dashboard_turnout import load_dashboard_turnout, load_dashboard_participation
 from .dashboard_activity import load_dashboard_activity
@@ -834,8 +835,7 @@ def login_view(request, admin_only=False):
     if not session_student_id:
         session_student_id = str(int(user.id))
 
-    request.session["student_id"] = session_student_id
-    request.session["role"] = role
+    start_account_session(request, session_student_id, role, user.password_hash)
     if str(user.role or "").strip().lower() == "student":
         try:
             with connection.cursor() as cur:
@@ -962,10 +962,7 @@ def account_logout_api(request):
     student_id = (request.session.get("student_id") or "").strip()
     if student_id:
         _mark_student_account_offline(student_id)
-    try:
-        request.session.flush()
-    except Exception:
-        request.session.clear()
+    end_current_session(request)
     return JsonResponse({"ok": True})
 
 
@@ -1858,17 +1855,25 @@ def account_profile_password_api(request):
         hashed = bcrypt.hashpw(new_password.encode("utf-8"), bcrypt.gensalt())
         hashed_str = hashed.decode("utf-8")
 
-        with connection.cursor() as cur:
-            cur.execute(
-                """
-                UPDATE users
-                SET password_hash = %s
-                WHERE student_id::text = %s
-                """,
-                [hashed_str, student_id],
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                cur.execute(
+                    """
+                    UPDATE users
+                    SET password_hash = %s
+                    WHERE student_id::text = %s
+                    """,
+                    [hashed_str, student_id],
+                )
+            revoke_account_sessions(student_id, request)
+        try:
+            _insert_user_notification_for_student(
+                student_id=student_id, notif_type="account", title="Password Updated",
+                body="Your password was changed. All devices were signed out.",
             )
-
-        return JsonResponse({"ok": True})
+        except Exception:
+            logger.exception("Unable to save password-change notification")
+        return JsonResponse({"ok": True, "session_ended": True})
     except Exception as e:
         if getattr(settings, "DEBUG", False):
             return JsonResponse({"ok": False, "error": str(e)}, status=500)
@@ -11893,13 +11898,15 @@ def forgot_password_reset_password_api(request):
     import bcrypt as _bcrypt
     pw_hash = _bcrypt.hashpw(new_password.encode(), _bcrypt.gensalt()).decode()
 
-    with connection.cursor() as cur:
-        cur.execute(
-            "UPDATE users SET password_hash = %s WHERE student_id = %s",
-            [pw_hash, student_id],
-        )
+    with transaction.atomic():
+        with connection.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET password_hash = %s WHERE student_id = %s",
+                [pw_hash, student_id],
+            )
+        revoke_account_sessions(student_id, request)
 
-    return JsonResponse({"ok": True})
+    return JsonResponse({"ok": True, "session_ended": True})
 
 
 # ─────────────────────────────────────────────────────────────────────────────

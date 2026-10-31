@@ -17,6 +17,7 @@ class WebLoginTests(unittest.TestCase):
         self.verify = Mock(return_value=True)
         self.ns = {
             '_ensure_auth_identity_tables': Mock(), '_verify_password': self.verify,
+            'start_account_session': lambda request, identity, role, password_hash: request.session.update(student_id=identity, role=role),
             'ElecomUser': SimpleNamespace(objects=SimpleNamespace(filter=lambda **kwargs: SimpleNamespace(first=lambda: self.user))),
             'json': __import__('json'), 'connection': MagicMock(), 'logger': Mock(),
             'settings': SimpleNamespace(APP_UPDATE_APK_URL='https://example.com/elecom.apk'),
