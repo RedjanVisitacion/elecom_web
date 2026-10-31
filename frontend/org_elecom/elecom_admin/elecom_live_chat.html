@@ -344,7 +344,30 @@
             .chat-back-button { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 32px; height: 32px; padding: 0; }
             .chat-thread-header { flex-wrap: wrap; gap: 8px; padding: 10px; }
             .chat-thread-header .thread-identity { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-            .chat-thread-header > .ms-auto { flex-wrap: wrap; }
+            /* Give the identity its own row; actions must not squeeze the name. */
+            .chat-thread-header { display: grid; grid-template-columns: 32px 40px minmax(0, 1fr); }
+            .chat-thread-header .thread-identity { grid-column: 3; }
+            .chat-thread-header .thread-actions {
+                grid-column: 1 / -1;
+                width: 100%;
+                margin-left: 0 !important;
+                justify-content: flex-end;
+                flex-wrap: wrap;
+            }
+            .chat-thread-header .takeover-badge { grid-column: 1 / -1; justify-self: start; margin-left: 0 !important; }
+            .chat-thread-header .thread-name { overflow-wrap: break-word; }
+            .chat-thread-header .thread-id { overflow-wrap: anywhere; }
+            .chat-thread-header .btn-takeover { min-height: 44px; }
+            .live-chat-page :is(.chat-shell, .chat-list-pane, .chat-thread-pane, #activeThread, .chat-messages) { min-width: 0; max-width: 100%; }
+            .chat-list-pane { min-width: 0; }
+            .chat-conv-item > .flex-grow-1 { min-width: 0; }
+            .chat-conv-name { overflow-wrap: anywhere; }
+            .chat-messages { padding: 12px 10px; }
+            .chat-bubble-inner { min-width: 0; max-width: calc(100% - 40px); }
+            .chat-input-bar { padding: 10px; gap: 8px; }
+            .chat-input-bar textarea { min-width: 0; font-size: 16px; }
+            .takeover-banner { flex-wrap: wrap; padding: 8px 10px; }
+            .takeover-banner-release { min-height: 44px; }
             .chat-input-bar { padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
         }
         .typing-indicator {
@@ -470,7 +493,7 @@
                         <span class="takeover-badge ms-2" id="takeoverBadge" style="display:none;">
                             <i class="bi bi-person-check me-1"></i>Admin Active
                         </span>
-                        <div class="ms-auto d-flex gap-2 align-items-center">
+                        <div class="thread-actions ms-auto d-flex gap-2 align-items-center">
                             <button class="btn-takeover btn-takeover-take" id="takeoverBtn" title="Suppress EleVote AI and reply as Admin">
                                 <i class="bi bi-person-check me-1"></i>Take Over
                             </button>
