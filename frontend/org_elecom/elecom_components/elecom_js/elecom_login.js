@@ -39,6 +39,18 @@
 
   if (year) year.textContent = String(new Date().getFullYear());
 
+  const loginUrl = new URL(window.location.href);
+  if (loginUrl.searchParams.get("session_ended") === "1") {
+    for (const key of ["elecom_role", "elecom_user", "elecom_user_id", "elecom_admin_page_hash", "elecom_admin_navigation_cache_v1"]) {
+      try { sessionStorage.removeItem(key); } catch (_) { /* Storage may be disabled. */ }
+    }
+    loginUrl.searchParams.delete("session_ended");
+    window.history.replaceState(null, "", loginUrl.pathname + loginUrl.search + loginUrl.hash);
+    window.ElecomToast.info("Your session has ended. Please sign in again.", {
+      title: "Session ended", id: "session-ended", duration: 8000,
+    });
+  }
+
   const saveTermsDraft = () => {
     try {
       sessionStorage.setItem(

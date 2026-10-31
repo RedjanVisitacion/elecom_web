@@ -421,7 +421,7 @@
     return request;
   };
 
-  const toLogin = () => {
+  const toLogin = (sessionEnded = false) => {
     try {
       sessionStorage.removeItem(SECURE_ROUTE_CACHE_KEY);
       sessionStorage.removeItem(ADMIN_HASH_KEY);
@@ -432,8 +432,27 @@
       // ignore
     }
     const base = window.location.origin;
-    window.location.href = `${base}/login/`;
+    window.location.replace(`${base}/login/${sessionEnded ? "?session_ended=1" : ""}`);
   };
+
+  // Only a confirmed unauthenticated response ends the browser session.
+  let checkingSession = false;
+  const checkAccountSession = async () => {
+    if (checkingSession || document.visibilityState === "hidden") return;
+    checkingSession = true;
+    try {
+      const response = await fetch("/api/mobile/account/session/", {
+        credentials: "same-origin", cache: "no-store",
+      });
+      if (response.status === 401) toLogin(true);
+    } catch (_) {
+      // A connection failure does not mean the account has been logged out.
+    } finally { checkingSession = false; }
+  };
+  setInterval(checkAccountSession, 30000);
+  document.addEventListener("visibilitychange", checkAccountSession);
+  window.addEventListener("pageshow", checkAccountSession);
+  checkAccountSession();
 
   const escapeHtml = (s) => {
     return String(s || "")
@@ -643,7 +662,7 @@
       });
       const data = await resp.json().catch(() => ({}));
       if (!resp.ok || !data.ok || !data.token || !data.secure_url) {
-        toLogin();
+        toLogin(resp.status === 401 || resp.status === 403);
         return;
       }
 

@@ -838,3 +838,12 @@ dart format --output=none --set-exit-if-changed .
 
 - Backup & Restore previously overrode shared sidebar styles with pill-shaped links, extra shadows, and icon movement. Those page-specific sidebar overrides were removed from `elecom_backup_restore.css`; use `admin_dashboard.css` for the same active indicator, rounded corners, spacing, and hover behavior as other admin screens. Its HTML CSS reference was bumped to `?v=20261027-sidebar-consistency1` and deployment was confirmed.
 - Git's **detected dubious ownership** error on the user's moved/differently owned checkout was resolved with `git config --global --add safe.directory G:/elecom_web`. Trust only the explicitly owned checkout; do not use a wildcard trust exception. This Git issue was separate from the backup format and restore memory bugs.
+
+
+## Expired web sessions (2026-11-01)
+
+- Protected admin HTML routes (`admin_secure_page_view` for `/g/.../` and `_serve_admin_static_page`) redirect missing sessions to `/login/?session_ended=1` with no-store instead of rendering JSON Forbidden. Authenticated non-admin permission denials remain enforced; API responses retain their JSON contract.
+- `admin_user_menu.js` checks `/api/mobile/account/session/` every 30 seconds while visible and on pageshow/visibility return. Only a confirmed 401 triggers the session-ended redirect; network failures do not. Normal manual logout does not show the expiry toast.
+- Login loads the existing `admin_toasts.js`, clears stale identity/navigation storage, displays the fixed Session ended toast once, and removes the query marker with history.replaceState. Login CSS includes the shared toast appearance.
+- Shared script references and login assets were bumped to `20261101-session-ended1`. Deploy backend/frontend changes, collect static assets, and restart Gunicorn; no migration or APK rebuild needed. Local changes alone do not establish production deployment.
+- Regression checks: `python -m unittest core.test_web_session_redirect core.test_web_login` (9 passed); node --check for login/admin_user_menu scripts; isolated login-toast behavior checked both marker-present and normal-login cases. Full Django check still requires resolving the existing local face-service numpy dependency.

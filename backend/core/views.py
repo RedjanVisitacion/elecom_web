@@ -27,7 +27,7 @@ from .backup_sql import inspect_sql, sanitize_data_sql
 from decimal import Decimal
 from datetime import datetime, timedelta, timezone as dt_timezone
 
-from django.http import FileResponse, HttpResponse, JsonResponse
+from django.http import FileResponse, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import render
 from django.db import connection, transaction
 from django.middleware.csrf import get_token
@@ -299,6 +299,10 @@ def _normalize_admin_html(html: str) -> str:
 
 
 def _serve_admin_static_page(request, page: str):
+    if not request.session.get("student_id"):
+        response = HttpResponseRedirect("/login/?session_ended=1")
+        response["Cache-Control"] = "no-store"
+        return response
     forbidden = _require_admin(request)
     if forbidden:
         return forbidden
@@ -4838,6 +4842,10 @@ def admin_page_token_api(request):
 
 @require_http_methods(["GET"])
 def admin_secure_page_view(request, token):
+    if not request.session.get("student_id"):
+        response = HttpResponseRedirect("/login/?session_ended=1")
+        response["Cache-Control"] = "no-store"
+        return response
     forbidden = _require_admin(request)
     if forbidden:
         return forbidden
