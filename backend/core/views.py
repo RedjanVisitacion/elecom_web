@@ -2050,11 +2050,12 @@ def election_window_api(request):
             f"SELECT COUNT(*) FROM candidates_registration WHERE {candidate_count_filter}",
             candidate_count_params,
         )
-        total_cast_votes = safe_scalar("SELECT COUNT(*) FROM votes")
-        if not int(total_cast_votes):
-            total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM vote_items")
-        if not int(total_cast_votes):
-            total_cast_votes = safe_scalar("SELECT COUNT(DISTINCT voter_id) FROM votes")
+        # Match the admin dashboard: archived ballots must not affect mobile turnout.
+        vote_count_filter, vote_count_params = _current_vote_filter()
+        total_cast_votes = safe_scalar(
+            f"SELECT COUNT(*) FROM votes WHERE {vote_count_filter}",
+            vote_count_params,
+        )
     except Exception:
         pass
 
