@@ -62,9 +62,15 @@
 
 /* Account sessions use the shared navy/blue profile palette. */
 .account-session-actions { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
-.account-session-card { border:1px solid #CBD5E1; border-radius:8px; padding:16px; margin:12px 0; background:#fff; color:#0F172A; }
-.account-session-card h4 { font-size:15px; margin:0 0 8px; overflow-wrap:anywhere; }
-.account-session-card p { margin:5px 0; font-size:13px; overflow-wrap:anywhere; }
+#accountSessionsList { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; align-items:stretch; }
+.account-session-card { display:flex; flex-direction:column; min-width:0; border:1px solid #CBD5E1; border-radius:8px; padding:14px; background:#fff; color:#0F172A; }
+.account-session-card > button { align-self:flex-end; margin-top:auto; }
+.account-session-card > p:last-of-type { margin-bottom:12px; }
+#sessionsStatus:empty { display:none; }
+#settings-sessions .profile-intro { margin-bottom:10px; }
+@media(max-width:1050px) { #accountSessionsList { grid-template-columns:minmax(0,1fr); } }
+.account-session-card h4 { font-size:14px; font-weight:600; margin:0 0 6px; overflow-wrap:anywhere; }
+.account-session-card p { margin:4px 0; font-size:12px; line-height:1.5; overflow-wrap:anywhere; }
 .account-session-current { color:#2563EB; font-weight:700; }
 .account-session-dialog { width:min(440px,calc(100vw - 32px)); border:1px solid #CBD5E1; border-radius:8px; padding:24px; color:#0F172A; background:white; }
 .account-session-dialog::backdrop { background:rgb(15 23 42 / 50%); }
