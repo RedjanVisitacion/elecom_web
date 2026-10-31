@@ -59,3 +59,14 @@
 @media(max-width:1200px) { .profile-layout { grid-template-columns: 240px minmax(0,1fr); gap: 14px; } .profile-workspace { padding: 16px; } .profile-workspace-header { align-items: flex-start; flex-direction: column; gap: 0; } }
 @media(max-width:767px) { .profile-layout { grid-template-columns: minmax(0,1fr); } .profile-identity { padding: 20px 16px; } .profile-portrait { width: 100px; height: 100px; margin-bottom: 12px; } .profile-section-nav { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); padding: 0; } .profile-section-link { font-size: 12px; } .profile-workspace { min-height: 0; } }
 @media(max-width:480px) { .profile-form-grid,.profile-overview-grid { grid-template-columns: minmax(0,1fr); } .profile-settings-tabs button { font-size: 10px; padding-left: 7px; padding-right: 7px; } .profile-contact-list > div { grid-template-columns: minmax(0,1fr); gap: 5px; } }
+
+/* Account sessions use the shared navy/blue profile palette. */
+.account-session-actions { display:flex; flex-wrap:wrap; gap:10px; margin:14px 0; }
+.account-session-card { border:1px solid #CBD5E1; border-radius:8px; padding:16px; margin:12px 0; background:#fff; color:#0F172A; }
+.account-session-card h4 { font-size:15px; margin:0 0 8px; overflow-wrap:anywhere; }
+.account-session-card p { margin:5px 0; font-size:13px; overflow-wrap:anywhere; }
+.account-session-current { color:#2563EB; font-weight:700; }
+.account-session-dialog { width:min(440px,calc(100vw - 32px)); border:1px solid #CBD5E1; border-radius:8px; padding:24px; color:#0F172A; background:white; }
+.account-session-dialog::backdrop { background:rgb(15 23 42 / 50%); }
+.account-session-dialog h2 { font-size:20px; margin-bottom:12px; }
+.account-session-dialog p { font-size:14px; }
