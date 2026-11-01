@@ -5,3 +5,4 @@ venv/
 media/
 staticfiles/
 backend/backup/admin_backups/
+.env.*

@@ -11,6 +11,7 @@
   const monthLabelEl  = document.getElementById("calMonthLabel");
   const prevBtn       = document.getElementById("calPrevMonth");
   const nextBtn       = document.getElementById("calNextMonth");
+  const todayBtn      = document.getElementById("calToday");
   const newEventBtn   = document.getElementById("btnNewCalEvent");
 
   const dayEventsWrap = document.getElementById("calDayEvents");
@@ -34,7 +35,7 @@
   if (!gridEl) return; // not on dashboard page
 
   /* ── State ────────────────────────────────────────────────────────────── */
-  const today    = new Date();
+  let today      = new Date();
   let curYear    = today.getFullYear();
   let curMonth   = today.getMonth(); // 0-indexed
   let allEvents  = [];               // events for current displayed month
@@ -47,7 +48,7 @@
 
   const dateKey = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
 
-  const todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+  let todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
 
   /** Group events by their date key (event may span multiple days via end_date) */
   const buildEventMap = (events) => {
@@ -584,6 +585,19 @@
       if (curMonth > 11) { curMonth = 0; curYear++; }
       selectedKey = null;
       hideDayEvents();
+      loadEvents();
+    });
+  }
+
+  if (todayBtn) {
+    todayBtn.addEventListener("click", () => {
+      today = new Date();
+      todayKey = dateKey(today.getFullYear(), today.getMonth(), today.getDate());
+      curYear = today.getFullYear();
+      curMonth = today.getMonth();
+      selectedKey = null;
+      hideDayEvents();
+      renderGrid();
       loadEvents();
     });
   }
