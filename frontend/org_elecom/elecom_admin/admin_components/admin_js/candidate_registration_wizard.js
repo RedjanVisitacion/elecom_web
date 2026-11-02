@@ -30,6 +30,13 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   const validateStep = index => {
+    const candidateError=window.AdminCandidateCoc?.eligibilityError();
+    if (candidateError) {
+      show(0); document.getElementById('studentLookup').focus();
+      status.textContent=candidateError;
+      window.RegistrationNotifications.show('error',candidateError);
+      return false;
+    }
     if (index === 0 && !form.elements.student_id.value.trim()) {
       show(index); document.getElementById('studentLookup').focus();
       status.textContent = 'Search for and select a student before continuing.';

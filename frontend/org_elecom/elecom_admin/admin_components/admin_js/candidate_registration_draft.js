@@ -54,7 +54,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       window.CandidateRegistrationWizard.restoreDraft(draft.wizard);
       if (draft.party) await window.AdminCandidatePartyPicker.restoreDraft(draft.party);
       controls.filter(el => el.type==='file' && el.files.length && el.id!=='candidateSignatureFile').forEach(el => el.dispatchEvent(new Event('change',{bubbles:true})));
-      window.RegistrationNotifications.show('success','Your unfinished registration has been restored.');
+      await window.AdminCandidateCoc.checkRestoredCandidate();
+      if (!window.AdminCandidateCoc.eligibilityError()) window.RegistrationNotifications.show('success','Your unfinished registration has been restored.');
     }
   } catch { warning(); }
   finally { restoring=false; form.inert=false; }

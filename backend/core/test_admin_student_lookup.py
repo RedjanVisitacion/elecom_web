@@ -7,11 +7,11 @@ import unittest
 from unittest.mock import Mock
 
 class StudentLookupTests(unittest.TestCase):
-    def endpoint(self, forbidden=None):
+    def endpoint(self, forbidden=None, candidate=None):
         node=next(n for n in ast.parse(Path(__file__).with_name('views.py').read_text(encoding='utf-8-sig')).body if isinstance(n,ast.FunctionDef) and n.name=='admin_candidate_students_api')
         node.decorator_list=[]
         cur=Mock();cur.fetchall.return_value=[('test-id','Test','','Student','BSIT','1','A','test@example.invalid','test-contact','')]
-        env=dict(__name__='core.views', _require_admin=Mock(return_value=forbidden),connection=SimpleNamespace(cursor=lambda:nullcontext(cur)),JsonResponse=lambda value:dict(value))
+        env=dict(_ensure_election_scoped_tables=Mock(), _active_election_id=lambda:12, _official_candidate_for_student=Mock(return_value=candidate), __name__='core.views', _require_admin=Mock(return_value=forbidden),connection=SimpleNamespace(cursor=lambda:nullcontext(cur)),JsonResponse=lambda value:dict(value))
         exec(compile(ast.Module(body=[node],type_ignores=[]),'<student lookup>','exec'),env)
         return env['admin_candidate_students_api'],cur
 
@@ -45,3 +45,14 @@ class StudentLookupTests(unittest.TestCase):
         response = endpoint(SimpleNamespace(GET={'q': 'admin-test'}))
         self.assertEqual(response['students'][0]['student_id'], 'admin-test')
         self.assertEqual(response['students'][0]['allowed_organizations'], ['USG', 'SITE'])
+
+    def test_existing_candidate_flagged_with_position(self):
+        candidate={'id':7,'organization':'USG','position':'BSIT Representative'}
+        endpoint,cur=self.endpoint(candidate=candidate)
+        response=endpoint(SimpleNamespace(GET={'q':'test-id'}))
+        self.assertEqual(response['students'][0]['official_candidate'],candidate)
+
+    def test_unregistered_account_remains_available(self):
+        endpoint,cur=self.endpoint()
+        response=endpoint(SimpleNamespace(GET={'q':'test-id'}))
+        self.assertIsNone(response['students'][0]['official_candidate'])

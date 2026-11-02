@@ -6,7 +6,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const profilePhoto = document.getElementById('selectedProfilePhoto');
   const organizationSelect = form.elements.organization;
   const programSelect = form.elements.program;
-  let accountProgram = '', allowedOrganizations = [];
+  let accountProgram = '', allowedOrganizations = [], candidateError = '';
   programSelect.disabled = true;
   const applyEligibility = () => {
     for (const option of organizationSelect.options) {
@@ -42,7 +42,12 @@ document.addEventListener('DOMContentLoaded', () => {
   let signed = false, drawing = false, debounce, controller, previewUrl;
   const notify = message => window.RegistrationNotifications.show('error', message);
   const fill = (name,value) => { const el = form.elements.namedItem(name); if (el) el.value = value || ''; };
+  const candidateMessage = student => student.official_candidate
+    ? `This student is already a candidate for ${student.official_candidate.organization} ? ${student.official_candidate.position} in the current election. Select another student.` : '';
   const chooseStudent = (student) => {
+    const error=candidateMessage(student);
+    if (error) { notify(error); return; }
+    candidateError='';
     accountProgram = student.program || '';
     allowedOrganizations = student.allowed_organizations || [];
     for (const name of ['student_id','first_name','middle_name','last_name','program','email','contact_number']) fill(name,student[name]);
@@ -77,6 +82,12 @@ document.addEventListener('DOMContentLoaded', () => {
         for (const student of data.students) {
           const button = document.createElement('button'); button.type='button'; button.className='list-group-item list-group-item-action';
           button.textContent = `${student.first_name} ${student.middle_name || ''} ${student.last_name} — ${student.student_id} · ${student.program || ''}`;
+          const existing=candidateMessage(student);
+          if (existing) {
+            button.textContent += ` ? Already a candidate: ${student.official_candidate.organization}, ${student.official_candidate.position}`;
+            button.disabled=true;
+            button.classList.add('text-danger');
+          }
           button.addEventListener('click', () => chooseStudent(student)); results.append(button);
         }
         if (!data.students.length) results.textContent='No matching student accounts.';
@@ -219,6 +230,23 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.AdminCandidateCoc = {
     augment,
+    eligibilityError: () => candidateError,
+    checkRestoredCandidate: async () => {
+      const id=form.elements.student_id.value.trim();
+      if (!id) return;
+      candidateError='Checking candidate registration. Please wait.';
+      try {
+        const response=await fetch(`/api/admin/candidates/students/?q=${encodeURIComponent(id)}`,{credentials:'same-origin',cache:'no-store'});
+        const data=await response.json();
+        if (!response.ok || !data.ok) throw new Error('Could not check candidate registration. Reload this page to retry.');
+        const student=data.students.find(student => student.student_id===id);
+        candidateError=student ? candidateMessage(student) : 'This account is no longer available. Select another student.';
+      } catch { candidateError='Could not check candidate registration. Reload this page to retry.'; }
+      if (candidateError) {
+        document.getElementById('studentProfileSummary').textContent=candidateError;
+        notify(candidateError);
+      }
+    },
     draftState: () => ({accountProgram, allowedOrganizations, signed, signature:signed ? canvas.toDataURL('image/png') : '', search:search.value, summary:document.getElementById('studentProfileSummary').textContent}),
     restoreDraft: async state => {
       accountProgram=state.accountProgram || ''; allowedOrganizations=state.allowedOrganizations || []; applyEligibility();
@@ -230,7 +258,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }
     },
     hasSignature: () => signed,
-    reset: () => {accountProgram='';allowedOrganizations=[];applyEligibility();clear(); profilePhoto.value='';photoInput.required=true;search.value='';results.replaceChildren();document.getElementById('studentProfileSummary').textContent='';},
+    reset: () => {candidateError='';accountProgram='';allowedOrganizations=[];applyEligibility();clear(); profilePhoto.value='';photoInput.required=true;search.value='';results.replaceChildren();document.getElementById('studentProfileSummary').textContent='';},
     showCertificate: data => {const link=document.getElementById('registeredCocLink');if(data.certificate_url){link.href=data.certificate_url;link.classList.remove('d-none');}}
   };
   applyEligibility();

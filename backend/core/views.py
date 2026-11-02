@@ -8627,6 +8627,8 @@ def admin_candidate_students_api(request):
     query = str(request.GET.get('q') or '').strip()[:100]
     if len(query) < 2:
         return JsonResponse({'ok': True, 'students': []})
+    _ensure_election_scoped_tables()
+    election_id = _active_election_id()
     with connection.cursor() as cur:
         cur.execute("""
             SELECT u.student_id::text, COALESCE(s.first_name,u.first_name,''),
@@ -8641,6 +8643,9 @@ def admin_candidate_students_api(request):
         """, ['%'+query+'%', '%'+query+'%'])
         keys = ['student_id','first_name','middle_name','last_name','program','year','section','email','contact_number','photo_url']
         students = [dict(zip(keys,row)) for row in cur.fetchall()]
+        for student in students:
+            student['official_candidate'] = _official_candidate_for_student(
+                cur, election_id=election_id, student_id=student['student_id'])
     from .candidate_eligibility import normalize_program, allowed_organizations
     for student in students:
         student['program'] = normalize_program(student['program']) or student['program']
