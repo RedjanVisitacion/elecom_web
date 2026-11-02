@@ -36,3 +36,12 @@ class StudentLookupTests(unittest.TestCase):
         endpoint,cur=self.endpoint()
         self.assertEqual(endpoint(SimpleNamespace(GET={'q':'a'})),{'ok':True,'students':[]})
         cur.execute.assert_not_called()
+
+    def test_admin_account_can_appear_in_candidate_search(self):
+        endpoint, cur = self.endpoint()
+        cur.fetchall.side_effect = lambda: [] if 'u.role' in cur.execute.call_args.args[0] else [(
+            'admin-test', 'Test', '', 'Admin', 'BSIT', '4', 'A', '', '', ''
+        )]
+        response = endpoint(SimpleNamespace(GET={'q': 'admin-test'}))
+        self.assertEqual(response['students'][0]['student_id'], 'admin-test')
+        self.assertEqual(response['students'][0]['allowed_organizations'], ['USG', 'SITE'])

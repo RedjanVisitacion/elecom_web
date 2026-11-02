@@ -18,7 +18,7 @@ def allowed_organizations(program):
 def validate_student_eligibility(cur, payload):
     cur.execute("""SELECT COALESCE(s.course,u.department,'') FROM users u
         LEFT JOIN student s ON s.id_number::text=u.student_id::text
-        WHERE u.student_id::text=%s AND LOWER(COALESCE(u.role,''))='student'""", [str(payload.get('student_id') or '').strip()])
+        WHERE u.student_id::text=%s""", [str(payload.get('student_id') or '').strip()])
     row = cur.fetchone()
     if not row:
         raise ValueError('Select an existing student account to register this candidate.')

@@ -29,3 +29,17 @@ class EligibilityTests(unittest.TestCase):
     def test_missing_profile_program_requires_account_correction(self):
         with self.assertRaises(ValueError):
             self.validate(saved='')
+
+    def test_account_role_does_not_restrict_candidate_eligibility(self):
+        cur = Mock()
+        # Model a database account whose role would fail a student-only filter.
+        cur.fetchone.side_effect = lambda: None if 'u.role' in cur.execute.call_args.args[0] else ('BSIT',)
+        self.assertEqual(validate_student_eligibility(cur, dict(
+            student_id='admin-test', program='BSIT', organization='SITE', position='President'
+        )), 'BSIT')
+
+    def test_unknown_account_still_rejected(self):
+        cur = Mock()
+        cur.fetchone.return_value = None
+        with self.assertRaisesRegex(ValueError, 'existing student account'):
+            validate_student_eligibility(cur, {'student_id': 'unknown'})

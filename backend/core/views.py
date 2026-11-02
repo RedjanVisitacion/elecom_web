@@ -8635,8 +8635,7 @@ def admin_candidate_students_api(request):
                    COALESCE(s.section,u.section,''), COALESCE(s.email,u.email,''),
                    COALESCE(s.phone_number,u.phone,''), COALESCE(u.photo_url,'')
             FROM users u LEFT JOIN student s ON s.id_number::text=u.student_id::text
-            WHERE LOWER(COALESCE(u.role,''))='student'
-              AND (u.student_id::text ILIKE %s OR
+            WHERE (u.student_id::text ILIKE %s OR
                    CONCAT_WS(' ',COALESCE(s.first_name,u.first_name),COALESCE(s.middle_name,u.middle_name),COALESCE(s.last_name,u.last_name)) ILIKE %s)
             ORDER BY COALESCE(s.last_name,u.last_name),u.student_id LIMIT 15
         """, ['%'+query+'%', '%'+query+'%'])
