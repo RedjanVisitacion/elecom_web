@@ -180,8 +180,41 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!response.ok) { const data=await response.json();throw new Error(data.error || 'COC preview failed.'); }
       if (previewUrl) URL.revokeObjectURL(previewUrl);
       previewUrl=URL.createObjectURL(await response.blob());
-      document.getElementById('adminCocPreviewFrame').src=previewUrl;
+      const frame=document.getElementById('adminCocPreviewFrame');
+      const download=document.getElementById('adminCocPreviewDownload');
+      download.href=previewUrl;
+      frame.replaceChildren();
+      frame.textContent='Loading document?';
+      frame.setAttribute('aria-busy','true');
       bootstrap.Modal.getOrCreateInstance(document.getElementById('adminCocPreviewModal')).show();
+      let pdfTask;
+      try {
+        const lib=await import('/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.min.js');
+        lib.GlobalWorkerOptions.workerSrc='/static/org_elecom/elecom_admin/admin_components/vendor/pdfjs-4.10.38/pdf.worker.min.js';
+        pdfTask=lib.getDocument({data:new Uint8Array(await (await fetch(previewUrl)).arrayBuffer())});
+        const pdf=await pdfTask.promise;
+        frame.replaceChildren();
+        for (let number=1;number<=pdf.numPages;number++) {
+          const page=await pdf.getPage(number);
+          const viewport=page.getViewport({scale:2});
+          const pageCanvas=document.createElement('canvas');
+          pageCanvas.width=Math.ceil(viewport.width);
+          pageCanvas.height=Math.ceil(viewport.height);
+          pageCanvas.style.cssText='display:block;width:100%;height:auto;background:white;margin-bottom:8px;';
+          pageCanvas.setAttribute('role','img');
+          pageCanvas.setAttribute('aria-label',`Certificate of Candidacy, page ${number} of ${pdf.numPages}`);
+          await page.render({canvasContext:pageCanvas.getContext('2d'),viewport}).promise;
+          frame.append(pageCanvas);
+          page.cleanup();
+        }
+        frame.parentElement.scrollTop=0;
+      } catch (error) {
+        frame.textContent='Unable to display this document. Use the download icon to save the PDF.';
+        throw error;
+      } finally {
+        frame.setAttribute('aria-busy','false');
+        if (pdfTask) await pdfTask.destroy();
+      }
     } catch(error) {notify(error.message);} finally {previewButton.disabled=false;}
   });
   window.AdminCandidateCoc = {
