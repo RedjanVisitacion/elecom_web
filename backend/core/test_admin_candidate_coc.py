@@ -62,3 +62,22 @@ class AdminCocTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'already has a filing'):
             archive_direct_registration(cur,self.payload(),7,'admin',{})
         self.assertEqual(cur.execute.call_count,1)
+
+    def test_removed_approved_filing_allows_new_archive_without_overwriting_history(self):
+        cur=Mock()
+        def row():
+            sql,params=cur.execute.call_args.args
+            if sql.startswith('SELECT'):
+                # An old approved filing exists in this election but is archived.
+                self.assertIn("status <> 'approved'",sql)
+                self.assertEqual(params,[7,'test-123','USG','President'])
+                return None
+            return (43,)
+        cur.fetchone.side_effect=row
+        with patch('core.candidate_certificates.save_certificate') as save, patch('core.coc_management.issue_certificate'), patch('core.coc_chairperson_signatures.finalize_certificate'):
+            result=archive_direct_registration(cur,self.payload(),7,'admin',{'pdf':b'new'})
+        self.assertEqual(result,43)
+        self.assertEqual(save.call_args.args[1],43)
+        for call in cur.execute.call_args_list:
+            self.assertNotIn('UPDATE candidate_applications',call.args[0])
+            self.assertNotIn('DELETE',call.args[0])

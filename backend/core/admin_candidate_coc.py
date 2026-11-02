@@ -99,7 +99,10 @@ def archive_direct_registration(cur, payload, election_id, reviewer, certificate
     from .candidate_certificates import save_certificate
     from .coc_management import issue_certificate
     from .coc_chairperson_signatures import finalize_certificate
-    cur.execute('SELECT id FROM candidate_applications WHERE election_id=%s AND student_id=%s AND organization=%s AND position=%s',
+    # The caller locks/checks the official roster before inserting the candidate.
+    # An approved filing without that roster entry is a removed candidacy's archive,
+    # which must remain intact and must not prevent a new registration.
+    cur.execute("SELECT id FROM candidate_applications WHERE election_id=%s AND student_id=%s AND organization=%s AND position=%s AND status <> 'approved'",
                 [election_id,payload['student_id'],payload['organization'],payload['position']])
     if cur.fetchone():
         raise ValueError('This student already has a filing for this position. Review that filing instead.')
