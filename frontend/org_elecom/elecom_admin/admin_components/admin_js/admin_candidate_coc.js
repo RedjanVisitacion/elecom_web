@@ -43,7 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const notify = message => window.RegistrationNotifications.show('error', message);
   const fill = (name,value) => { const el = form.elements.namedItem(name); if (el) el.value = value || ''; };
   const candidateMessage = student => student.official_candidate
-    ? `This student is already a candidate for ${student.official_candidate.organization} ? ${student.official_candidate.position} in the current election. Select another student.` : '';
+    ? `This student is already a candidate for ${student.official_candidate.organization} - ${student.official_candidate.position} in the current election. Select another student.` : '';
   const chooseStudent = (student) => {
     const error=candidateMessage(student);
     if (error) { notify(error); return; }
@@ -84,7 +84,7 @@ document.addEventListener('DOMContentLoaded', () => {
           button.textContent = `${student.first_name} ${student.middle_name || ''} ${student.last_name} — ${student.student_id} · ${student.program || ''}`;
           const existing=candidateMessage(student);
           if (existing) {
-            button.textContent += ` ? Already a candidate: ${student.official_candidate.organization}, ${student.official_candidate.position}`;
+            button.textContent += ` | Already a candidate: ${student.official_candidate.organization}, ${student.official_candidate.position}`;
             button.disabled=true;
             button.classList.add('text-danger');
           }
@@ -195,7 +195,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const download=document.getElementById('adminCocPreviewDownload');
       download.href=previewUrl;
       frame.replaceChildren();
-      frame.textContent='Loading document?';
+      frame.textContent='Loading document...';
       frame.setAttribute('aria-busy','true');
       bootstrap.Modal.getOrCreateInstance(document.getElementById('adminCocPreviewModal')).show();
       let pdfTask;
