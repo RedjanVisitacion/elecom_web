@@ -75,9 +75,9 @@ document.addEventListener('DOMContentLoaded', () => {
     image.hidden = true;
     shared.querySelector('p').textContent = 'Shared logo preview is unavailable. The saved party logo will still be used.';
   });
-  const load = async () => {
+  const load = async (preferred) => {
     const version = ++requestVersion;
-    const previous = selectedParty()?.name;
+    const previous = typeof preferred === 'string' ? preferred : selectedParty()?.name;
     const requestedOrganization = organization.value;
     status.textContent = 'Loading existing parties…';
     try {
@@ -105,6 +105,13 @@ document.addEventListener('DOMContentLoaded', () => {
   organization.addEventListener('change', () => {updateCapacity();load();});
   position.addEventListener('change', updateCapacity);
   form.addEventListener('reset', () => queueMicrotask(() => {select.value='';sync();load();}));
-  window.AdminCandidatePartyPicker = {sync};
+  window.AdminCandidatePartyPicker = {
+    sync,
+    draftState: () => ({party:selectedParty()?.name || '', isNew:select.value==='new', name:name.value}),
+    restoreDraft: async state => {
+      await load(state.party || '');
+      if (state.isNew) { select.value='new'; sync(); name.value=state.name || ''; }
+    }
+  };
   sync(); load();
 });

@@ -219,6 +219,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   window.AdminCandidateCoc = {
     augment,
+    draftState: () => ({accountProgram, allowedOrganizations, signed, signature:signed ? canvas.toDataURL('image/png') : '', search:search.value, summary:document.getElementById('studentProfileSummary').textContent}),
+    restoreDraft: async state => {
+      accountProgram=state.accountProgram || ''; allowedOrganizations=state.allowedOrganizations || []; applyEligibility();
+      search.value=state.search || ''; document.getElementById('studentProfileSummary').textContent=state.summary || '';
+      photoInput.required=!profilePhoto.value;
+      if (state.signed && state.signature) {
+        const image=new Image(); image.src=state.signature; await image.decode();
+        ctx.clearRect(0,0,canvas.width,canvas.height); ctx.drawImage(image,0,0); signed=true;
+      }
+    },
     hasSignature: () => signed,
     reset: () => {accountProgram='';allowedOrganizations=[];applyEligibility();clear(); profilePhoto.value='';photoInput.required=true;search.value='';results.replaceChildren();document.getElementById('studentProfileSummary').textContent='';},
     showCertificate: data => {const link=document.getElementById('registeredCocLink');if(data.certificate_url){link.href=data.certificate_url;link.classList.remove('d-none');}}

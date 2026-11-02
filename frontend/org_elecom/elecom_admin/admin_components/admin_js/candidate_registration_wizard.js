@@ -110,6 +110,15 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   form.addEventListener('reset', () => queueMicrotask(() => { membershipCount = 1; membershipRows.forEach(row => window.CandidateMemberships.clear(row)); updateMemberships(); }));
   updateMemberships();
-  window.CandidateRegistrationWizard = { validateAll };
+  window.CandidateRegistrationWizard = {
+    validateAll,
+    draftState: () => ({current,reached,membershipCount}),
+    restoreDraft: state => {
+      membershipCount=Math.max(1,Math.min(membershipRows.length,Number(state.membershipCount)||1));
+      updateMemberships();
+      reached=Math.max(0,Math.min(steps.length-1,Number(state.reached)||0));
+      show(Math.max(0,Math.min(reached,Number(state.current)||0)));
+    }
+  };
   show(0);
 });
