@@ -1,4 +1,4 @@
-﻿"""Exercise the mobile endpoint against archived/current ballots without Django startup."""
+"""Exercise the mobile endpoint against archived/current ballots without Django startup."""
 import ast
 from datetime import datetime, timezone
 from pathlib import Path
@@ -41,6 +41,7 @@ class MobileTurnoutTests(unittest.TestCase):
         self.ns = dict(
             connection=SimpleNamespace(cursor=Cursor),
             _active_election_id=lambda: 2,
+            get_filing_background=Mock(return_value=None),
             _mark_student_account_seen=Mock(),
             _ensure_user_notifications_table=Mock(),
             _maybe_emit_election_broadcast_notifications=Mock(),
@@ -54,6 +55,13 @@ class MobileTurnoutTests(unittest.TestCase):
 
     def metrics(self):
         return self.ns['election_window_api'](SimpleNamespace(session={'student_id': 'test'}))['metrics']
+
+    def test_filing_background_is_scoped_to_returned_election(self):
+        url = 'https://res.cloudinary.com/demo/image/upload/card.jpg'
+        self.ns['get_filing_background'].return_value = url
+        result = self.ns['election_window_api'](SimpleNamespace(session={'student_id': 'test'}))
+        self.assertEqual(result['filing_card_background'], url)
+        self.ns['get_filing_background'].assert_called_once_with(2)
 
     def test_new_election_excludes_archived_and_legacy_votes(self):
         self.assertEqual(self.metrics()['total_cast_votes'], 0)

@@ -15,6 +15,9 @@ whitenoise>=6.0.0
 # Cloudinary (candidate photos, party logos, face enrollment archives)
 cloudinary>=1.36.0
 
+# Image validation and metadata removal for administrative artwork uploads
+Pillow>=10.0
+
 # HTTP / utilities
 requests>=2.31.0
 six>=1.17.0

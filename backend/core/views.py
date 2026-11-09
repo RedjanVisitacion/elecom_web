@@ -1,4 +1,5 @@
 from __future__ import annotations
+from .election_appearance import get_filing_background
 
 from .coc_chairperson_signatures import finalize_certificate
 from .coc_management import settings_response, template_response, issue_certificate
@@ -2061,6 +2062,7 @@ def election_window_api(request):
     return JsonResponse({
         "ok": True,
         "election": election,
+        "filing_card_background": get_filing_background(election["window_id"]),
         "server_now": timezone.now().isoformat(),
         "metrics": {
             "total_voters": int(total_voters),
