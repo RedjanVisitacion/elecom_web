@@ -1459,7 +1459,7 @@ html.sidebar-candidates-open #sidebar [href="#candidatesSubmenu"] .chevron { tra
 .admin-framed-shell .admin-frame-brand { gap: 10px; }
 .admin-framed-shell .admin-frame-ustp-logo {
   display: block; width: 48px; height: 48px; flex: 0 0 48px;
-  object-fit: contain; background: #FFFFFF;
+  object-fit: contain; background: transparent;
 }
 .admin-framed-shell .admin-frame-title {
   font-family: 'Times New Roman', Times, serif; font-variant: small-caps;
