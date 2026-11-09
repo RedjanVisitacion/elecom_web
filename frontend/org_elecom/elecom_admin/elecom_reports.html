@@ -81,7 +81,7 @@
           <div class="report-builder-header">
             <div>
               <h4 class="mb-1">Generate Election Report</h4>
-              <p class="mb-0">Choose all elections or a specific year, then export a report.</p>
+              <p class="mb-0">Choose an election, organization, and date range, then export a report.</p>
             </div>
           </div>
           <div id="alertBox" class="alert alert-danger d-none mb-3"></div>
@@ -91,6 +91,16 @@
                 <label class="form-label">Election Scope</label>
                 <select class="form-select" id="reportElectionSelect">
                   <option value="">All elections</option>
+                </select>
+              </div>
+              <div class="col-12">
+                <label for="reportOrganizationSelect" class="form-label">Organization</label>
+                <select class="form-select" id="reportOrganizationSelect">
+                  <option value="">All organizations</option>
+                  <option value="USG">USG — University Student Government</option>
+                  <option value="SITE">SITE — Information Technology</option>
+                  <option value="PAFE">PAFE — Future Educators</option>
+                  <option value="AFPROTECHS">AFPROTECHS — Food Processing Technology</option>
                 </select>
               </div>
               <div class="col-12">
@@ -141,6 +151,7 @@
             </div>
             <div class="report-summary-metrics">
               <div><span>Selected Election</span><strong class="summary-value" id="summaryElection">All elections</strong></div>
+              <div><span>Organization</span><strong class="summary-value" id="summaryOrganization">All organizations</strong></div>
               <div><span>Date Coverage</span><strong class="summary-value" id="summaryDates">All time</strong></div>
               <div><span>Export Format</span><strong class="summary-value" id="summaryFormat">PDF</strong></div>
               <div><span>Estimated Records</span><strong class="summary-value" id="summaryRecords">Ready</strong></div>
@@ -200,7 +211,7 @@
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_toasts.js?v=20261029-toasts1"></script>
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261109-header-logo1"></script>
   <script src="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.js"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20261029-toasts1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/elecom_reports.js?v=20261109-org-filter1"></script>
 <div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-emblem" aria-hidden="true"><img src="/static/assets/no_bg_elecom.png?v=20261029-favicon1" alt=""></span><strong>Loading…</strong><p class="admin-loading-detail">Please wait while we open the next page. No need to click again.</p><button type="button" class="btn btn-outline-secondary btn-sm admin-loading-cancel" hidden>Cancel navigation</button></div></div>
 <noscript><span id="admin-page-ready" hidden></span></noscript>
 </body>

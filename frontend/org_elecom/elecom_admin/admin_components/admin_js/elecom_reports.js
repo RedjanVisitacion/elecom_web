@@ -81,6 +81,7 @@ document.addEventListener('DOMContentLoaded', function(){
   const clearBtn = document.getElementById('clearDates');
   const applyWinBtn = document.getElementById('applyWindow');
   const reportElectionSelect = document.getElementById('reportElectionSelect');
+  const organizationSelect = document.getElementById('reportOrganizationSelect');
   const alertBox = document.getElementById('alertBox');
   const fmtCards = Array.from(document.querySelectorAll('.format-card'));
   const previewCard = document.getElementById('reportPreviewCard');
@@ -94,6 +95,9 @@ document.addEventListener('DOMContentLoaded', function(){
   const routeElectionMatch = window.location.pathname.match(/\/elections\/(\d+)\/reports\/?$/);
   const pageScope = (pageParams.get('scope') || '').toLowerCase();
   let selectedElectionId = pageScope === 'all' ? '' : (pageParams.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : ''));
+  let selectedOrganization = pageParams.get('organization') || '';
+  if (!['', 'USG', 'SITE', 'PAFE', 'AFPROTECHS'].includes(selectedOrganization)) selectedOrganization = '';
+  if (organizationSelect) organizationSelect.value = selectedOrganization;
   let loadedElections = [];
   let selectedFormat = 'pdf';
   let estimateTimer = null;
@@ -127,6 +131,10 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function formatDateTime(d = new Date()){
     return d.toLocaleString([], { year:'numeric', month:'short', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+  }
+
+  function organizationLabel(){
+    return selectedOrganization ? orgDisplayName(selectedOrganization) : 'All organizations';
   }
 
   function reportScopeLabel(){
@@ -163,6 +171,7 @@ document.addEventListener('DOMContentLoaded', function(){
 
   function updateSummaryPanel(data){
     setText(summaryElection, reportScopeLabel());
+    setText(document.getElementById('summaryOrganization'), organizationLabel());
     setText(summaryDates, dateCoverageLabel());
     setText(summaryFormat, selectedFormatLabel());
     setText(summaryStatus, selectedElectionStatus());
@@ -186,6 +195,7 @@ document.addEventListener('DOMContentLoaded', function(){
     } else {
       url.searchParams.set('scope', 'all');
     }
+    if (selectedOrganization) url.searchParams.set('organization', selectedOrganization);
     return url;
   }
 
@@ -352,8 +362,20 @@ document.addEventListener('DOMContentLoaded', function(){
     }
   });
 
+  organizationSelect?.addEventListener('change', () => {
+    selectedOrganization = organizationSelect.value;
+    const url = new URL(window.location.href);
+    if (selectedOrganization) url.searchParams.set('organization', selectedOrganization);
+    else url.searchParams.delete('organization');
+    window.history.pushState({}, '', url.toString());
+    scheduleSummaryEstimate();
+    if (previewCard && !previewCard.classList.contains('d-none')) refreshPreview().catch(() => showAlert('Unable to load the report preview.'));
+  });
+
   window.addEventListener('popstate', () => {
     const params = new URLSearchParams(window.location.search);
+    selectedOrganization = params.get('organization') || '';
+    if (organizationSelect) organizationSelect.value = selectedOrganization;
     const scope = (params.get('scope') || '').toLowerCase();
     selectedElectionId = scope === 'all' ? '' : (params.get('election_id') || (routeElectionMatch ? routeElectionMatch[1] : ''));
     if (reportElectionSelect) reportElectionSelect.value = selectedElectionId;
@@ -620,6 +642,8 @@ document.addEventListener('DOMContentLoaded', function(){
           <div class="official-range">
             <span>Election Scope</span>
             <strong>${escapeHtml(scopeText)}</strong>
+            <span>Organization</span>
+            <strong>${escapeHtml(organizationLabel())}</strong>
             <span>Date Range</span>
             <strong>${escapeHtml(rangeText)}</strong>
           </div>
@@ -724,6 +748,7 @@ document.addEventListener('DOMContentLoaded', function(){
     rows.push(line);
     rows.push(`Generated At    : ${formatDateTime()}`);
     rows.push(`Election Scope  : ${reportScopeLabel()}`);
+    rows.push(`Organization    : ${organizationLabel()}`);
     rows.push(`Date Coverage   : ${rangeText}`);
     rows.push('');
 
@@ -797,6 +822,7 @@ document.addEventListener('DOMContentLoaded', function(){
     const rows = [];
 
     rows.push([
+      'Organization Scope',
       'Election Scope',
       'Date Range',
       'Generated At',
@@ -816,6 +842,7 @@ document.addEventListener('DOMContentLoaded', function(){
     enriched.candidates.forEach((candidate, index) => {
       const votes = Number(candidate.votes || 0);
       rows.push([
+        organizationLabel(),
         reportScopeLabel(),
         rangeText,
         formatDateTime(),
@@ -1094,6 +1121,7 @@ document.addEventListener('DOMContentLoaded', function(){
     drawPdfHeader(doc, 'ELECOM Election Report', subtitle, logoDataUrl);
 
     const summaryRows = [
+      { label: 'Organization', value: organizationLabel() },
       { label: 'Election Scope', value: reportScopeLabel() },
       { label: 'Date Range', value: rangeText },
       { label: 'Voted', value: enriched.totals.distinct_voters || 0 },
@@ -1311,6 +1339,7 @@ document.addEventListener('DOMContentLoaded', function(){
     startEl.disabled = isLoading;
     endEl.disabled = isLoading;
     if (reportElectionSelect) reportElectionSelect.disabled = isLoading;
+    if (organizationSelect) organizationSelect.disabled = isLoading;
     const genBtn = document.getElementById('btnGenerateReport');
     const prevBtn = document.getElementById('previewBtn');
     genBtn.disabled = isLoading;

@@ -10718,6 +10718,15 @@ def admin_reports_summary_api(request):
     if forbidden:
         return forbidden
 
+    organization = (request.GET.get("organization") or "").strip().upper()
+    if organization == "AFPRO":
+        organization = "AFPROTECHS"
+    if organization not in {"", "USG", "SITE", "PAFE", "AFPROTECHS"}:
+        return JsonResponse({"ok": False, "error": "Invalid organization."}, status=400)
+    # Normalize historical AFPRO naming consistently in candidate and ballot filters.
+    def org_expression(alias):
+        return f"CASE WHEN UPPER(TRIM(COALESCE({alias}.organization, 'USG'))) = 'AFPRO' THEN 'AFPROTECHS' ELSE UPPER(TRIM(COALESCE({alias}.organization, 'USG'))) END"
+
     _ensure_votes_tables()
     _ensure_election_scoped_tables()
     election_scope = (request.GET.get("scope") or "").strip().lower()
@@ -10783,6 +10792,10 @@ def admin_reports_summary_api(request):
         where_votes += " AND v.created_at < %s"
         params.append(end_dt_exclusive)
 
+    if organization:
+        where_votes += f" AND EXISTS (SELECT 1 FROM vote_items oi JOIN candidates_registration oc ON oc.id = oi.candidate_id WHERE oi.vote_id = v.id AND {org_expression('oc')} = %s)"
+        params.append(organization)
+
     # totals
     try:
         with connection.cursor() as cur:
@@ -10798,7 +10811,17 @@ def admin_reports_summary_api(request):
         distinct_voters = 0
     try:
         with connection.cursor() as cur:
-            cur.execute("SELECT COUNT(*) FROM users WHERE COALESCE(role, '') ILIKE 'student'")
+            voter_where = "COALESCE(role, '') ILIKE 'student'"
+            voter_params = []
+            department_patterns = {
+                "SITE": ["%BSIT%", "%B.S.I.T%", "%INFORMATION TECHNOLOGY%"],
+                "PAFE": ["%BTLED%", "%B.T.L.E.D%", "%LIVELIHOOD%"],
+                "AFPROTECHS": ["%BFPT%", "%B.F.P.T%", "%FOOD PROCESS%"],
+            }
+            if organization in department_patterns:
+                voter_where += " AND (" + " OR ".join(["UPPER(COALESCE(department, '')) LIKE %s"] * 3) + ")"
+                voter_params = department_patterns[organization]
+            cur.execute("SELECT COUNT(*) FROM users WHERE " + voter_where, voter_params)
             total_voters = int(cur.fetchone()[0] or 0)
     except Exception:
         total_voters = 0
@@ -10812,6 +10835,11 @@ def admin_reports_summary_api(request):
             vote_item_filter, vote_params = "1=1", []
         else:
             vote_item_filter, vote_params = _current_vote_filter("v", requested_election_id)
+        if all_elections:
+            election_where, election_params = "1=1", []
+        if organization:
+            election_where += f" AND {org_expression('c')} = %s"
+            election_params.append(organization)
         vote_where_parts = [vote_item_filter]
         if start_dt:
             vote_where_parts.append("v.created_at >= %s")
@@ -10858,6 +10886,7 @@ def admin_reports_summary_api(request):
     return JsonResponse(
         {
             "ok": True,
+            "organization": organization or None,
             "range": {"start": start or None, "end": end or None},
             "scope": "all" if all_elections else "election",
             "election_id": None if all_elections else (requested_election_id or _active_election_id()),
