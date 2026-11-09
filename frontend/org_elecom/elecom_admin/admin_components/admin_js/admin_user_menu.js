@@ -368,7 +368,7 @@
   }
 
   const API_PROFILE = "/api/account/profile/";
-  const API_ADMIN_ALERTS = "/api/admin/notifications/alerts/";
+  const API_ADMIN_ALERTS = "/api/admin/notifications/alerts/?limit=50";
   const API_ADMIN_PAGE_TOKEN = "/api/admin/page-token/";
   const API_ADMIN_VERIFY_PASSWORD = "/api/admin/developer/verify-password/";
   const ADMIN_ALERT_SEEN_KEY = "elecom_admin_seen_alert_ids";
@@ -421,7 +421,15 @@
     return request;
   };
 
-  const toLogin = (sessionEnded = false) => {
+  const toLogin = async (sessionEnded = false) => {
+    try { await Promise.race([window.ElecomAdminNotifications?.disable(), new Promise((_, reject) => setTimeout(() => reject(new Error('Notification unlink timed out')), 5000))]); } catch (_) { /* Expired sessions are removed by the worker. */ }
+    if (!sessionEnded) {
+      try {
+        const response = await fetch('/api/mobile/account/session/', { credentials: 'same-origin', cache: 'no-store', signal: AbortSignal.timeout(8000) });
+        const data = await response.json();
+        await fetch('/api/mobile/account/logout/', { method: 'POST', credentials: 'same-origin', signal: AbortSignal.timeout(8000), headers: { 'X-CSRFToken': data.csrf_token || document.cookie.split('; ').find(v => v.startsWith('csrftoken='))?.slice(10) || '' } });
+      } catch (_) { /* Local logout remains available offline. */ }
+    }
     try {
       sessionStorage.removeItem(SECURE_ROUTE_CACHE_KEY);
       sessionStorage.removeItem(ADMIN_HASH_KEY);
@@ -715,6 +723,10 @@
         <i class="bi bi-shield-exclamation"></i>
       </div>
     </div>
+    <div class="px-3 py-2 border-bottom d-flex flex-wrap gap-2 align-items-center">
+      <label class="small"><input type="checkbox" id="adminInAppAlerts" checked> In-app alerts</label>
+      <button type="button" class="btn btn-sm btn-outline-primary" id="adminBrowserPush" disabled>Enable browser push</button>
+    </div>
     <div class="admin-notif-list" id="adminNotifList">
       <div class="admin-notif-empty">No admin alerts right now.</div>
     </div>
@@ -959,6 +971,7 @@
       const data = await resp.json();
       if (!data || !data.ok) return;
       renderAdminAlerts({ ...els, data });
+      window.ElecomAdminNotifications?.receive(data.notifications);
     } catch (e) {
       // Retain the last successful notification list on transient failures.
     } finally {
@@ -1340,6 +1353,13 @@
       });
     }
 
+    window.ElecomAdminNotifications?.init();
+    document.addEventListener('elecom:admin-alerts-refresh', () => loadAdminAlerts({
+      listEl: adminNotifList, summaryEl: adminNotifSummary, countEl: adminNotifCount,
+    }));
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadAdminAlerts({ listEl: adminNotifList, summaryEl: adminNotifSummary, countEl: adminNotifCount });
+    });
     loadAccountProfileName({ displayName, menuName });
     loadAdminAlerts({
       listEl: adminNotifList,

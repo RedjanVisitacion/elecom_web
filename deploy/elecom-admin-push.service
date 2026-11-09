@@ -1,0 +1,17 @@
+[Unit]
+Description=ELECOM administrative browser push delivery
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=elecom
+Group=elecom
+WorkingDirectory=/var/www/elecom/backend
+Environment=HOME=/var/lib/elecom
+Environment=OMP_NUM_THREADS=1
+Environment=OPENBLAS_NUM_THREADS=1
+ExecStart=/var/www/elecom/venv/bin/python manage.py deliver_admin_push
+TimeoutStartSec=120
+UMask=0027
+NoNewPrivileges=true

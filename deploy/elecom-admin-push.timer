@@ -1,0 +1,11 @@
+[Unit]
+Description=Check ELECOM administrative alerts every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+RandomizedDelaySec=5
+Unit=elecom-admin-push.service
+
+[Install]
+WantedBy=timers.target

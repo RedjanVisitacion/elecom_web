@@ -340,3 +340,7 @@ TEXTBEE_API_KEY = os.getenv("TEXTBEE_API_KEY", "")
 TEXTBEE_DEVICE_ID = os.getenv("TEXTBEE_DEVICE_ID", "")
 # Android subscription ID from the TextBee app, NOT a zero/one-based SIM slot.
 TEXTBEE_SIM_SUBSCRIPTION_ID = os.getenv("TEXTBEE_SIM_SUBSCRIPTION_ID", "")
+
+# Public Firebase web-app config only; Admin SDK credentials stay server-side.
+ADMIN_FIREBASE_WEB_CONFIG = os.getenv("ADMIN_FIREBASE_WEB_CONFIG", "{}")
+ADMIN_FIREBASE_VAPID_KEY = os.getenv("ADMIN_FIREBASE_VAPID_KEY", "")

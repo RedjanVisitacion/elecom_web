@@ -1472,238 +1472,228 @@ def elevote_chat_api(request):
 @require_http_methods(["GET"])
 def admin_app_rating_notifications_api(request):
     forbidden = _require_admin(request)
-    if forbidden:
+    if forbidden is not None:
         return forbidden
-
     try:
-        limit_raw = request.GET.get("limit", "10")
         try:
-            limit = int(limit_raw)
-        except Exception:
+            limit = max(1, min(int(request.GET.get("limit", "10")), 50))
+        except (ValueError, TypeError):
             limit = 10
-        limit = max(1, min(limit, 50))
+        notifications = collect_admin_alerts(limit)
+        response = JsonResponse({"ok": True, "notifications": notifications,
+            "latest_id": notifications[0]["id"] if notifications else "",
+            "total_count": len(notifications),
+            "critical_count": sum(item.get("severity") == "critical" for item in notifications),
+            "warning_count": sum(item.get("severity") == "warning" for item in notifications)})
+        response['Cache-Control'] = 'private, no-store'
+        return response
+    except Exception:
+        return JsonResponse({"ok": False, "error": "Failed to load admin notifications."}, status=500)
 
-        def admin_iso(dt_obj):
-            if not dt_obj:
-                return None
+
+def collect_admin_alerts(limit=50):
+    def admin_iso(dt_obj):
+        if not dt_obj:
+            return None
+        try:
+            if timezone.is_naive(dt_obj):
+                dt_obj = timezone.make_aware(dt_obj, timezone.get_current_timezone())
+            return dt_obj.astimezone(ZoneInfo("Asia/Manila")).isoformat()
+        except Exception:
             try:
-                if timezone.is_naive(dt_obj):
-                    dt_obj = timezone.make_aware(dt_obj, timezone.get_current_timezone())
-                return dt_obj.astimezone(ZoneInfo("Asia/Manila")).isoformat()
+                return dt_obj.isoformat()
             except Exception:
-                try:
-                    return dt_obj.isoformat()
-                except Exception:
-                    return None
+                return None
 
-        def alert_id(kind: str, *parts) -> str:
-            raw = "|".join([kind, *[str(p or "") for p in parts]])
-            return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
+    def alert_id(kind: str, *parts) -> str:
+        raw = "|".join([kind, *[str(p or "") for p in parts]])
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
 
-        notifications = []
+    notifications = []
 
-        def add_alert(kind, severity, title, body, created_at=None, icon="bi-bell", href=""):
-            notifications.append(
-                {
-                    "id": alert_id(kind, severity, title, body, created_at),
-                    "type": kind,
-                    "severity": severity,
-                    "title": title,
-                    "body": body,
-                    "created_at": admin_iso(created_at),
-                    "icon": icon,
-                    "href": href,
-                }
-            )
-
-        _ensure_candidate_applications_table()
-        _ensure_backup_tables()
-        _ensure_votes_tables()
-        _ensure_vote_blocks_table()
-        _ensure_vote_item_change_audit_table()
-
-        with connection.cursor() as cur:
-            cur.execute(
-                """
-                SELECT id, student_id, first_name, last_name, organization, position,
-                       status, created_at, requirements_submitted_at
-                FROM candidate_applications
-                WHERE status IN ('pending', 'requirements_review')
-                  AND COALESCE(election_id, 0) = COALESCE(%s, 0)
-                ORDER BY COALESCE(requirements_submitted_at, created_at) DESC, id DESC
-                LIMIT 50
-                """, [_current_election_id() or None],
-            )
-            for application in cur.fetchall():
-                app_id, student_id, first_name, last_name, org, position, stage, created, submitted = application
-                candidate_name = " ".join(str(part or "").strip() for part in (first_name, last_name)).strip() or str(student_id)
-                final_review = stage == "requirements_review"
-                add_alert(
-                    "candidate_requirements_review" if final_review else "candidate_initial_review",
-                    "action",
-                    f"Supporting documents ready: {candidate_name}" if final_review else f"New candidate filing: {candidate_name}",
-                    f"{student_id} - {org} {position}. " + ("Review the three supporting documents for final approval." if final_review else "Review the initial application.") + f" Filing #{app_id}.",
-                    submitted or created if final_review else created,
-                    "bi-file-earmark-check" if final_review else "bi-person-check",
-                    "/static/org_elecom/elecom_admin/elecom_register_candidate.html#pendingFilingsCollapse",
-                )
-
-            cur.execute(
-                """
-                SELECT COUNT(*), MAX(created_at)
-                FROM admin_backups
-                WHERE LOWER(COALESCE(status, '')) NOT IN ('completed', 'success', 'successful')
-                  AND created_at >= NOW() - INTERVAL '24 hours'
-                """
-            )
-            row = cur.fetchone()
-            failed_backups = int(row[0] or 0) if row else 0
-            if failed_backups:
-                add_alert(
-                    "backup_failed",
-                    "critical",
-                    f"{failed_backups} backup attempt(s) failed",
-                    "Check Backup & Restore so election records stay protected.",
-                    row[1] if row else None,
-                    "bi-database-exclamation",
-                    "/static/org_elecom/elecom_admin/elecom_backup_restore.html",
-                )
-
-            cur.execute(
-                """
-                SELECT enabled, frequency, last_attempt_at, last_attempt_error
-                FROM admin_backup_settings
-                WHERE id = 1
-                """
-            )
-            settings_row = cur.fetchone()
-            if settings_row and settings_row[0] and settings_row[3]:
-                add_alert(
-                    "backup_auto_error",
-                    "warning",
-                    "Automatic backup needs attention",
-                    str(settings_row[3])[:180],
-                    settings_row[2],
-                    "bi-database-x",
-                    "/static/org_elecom/elecom_admin/elecom_backup_restore.html",
-                )
-
-            cur.execute(
-                """
-                SELECT MAX(created_at)
-                FROM admin_backups
-                WHERE LOWER(COALESCE(status, '')) IN ('completed', 'success', 'successful')
-                """
-            )
-            latest_backup_row = cur.fetchone()
-            latest_backup_at = latest_backup_row[0] if latest_backup_row else None
-            if not latest_backup_at:
-                add_alert(
-                    "backup_missing",
-                    "warning",
-                    "No successful backup yet",
-                    "Create a backup before election activity increases.",
-                    timezone.now(),
-                    "bi-database",
-                    "/static/org_elecom/elecom_admin/elecom_backup_restore.html",
-                )
-
-            cur.execute(
-                """
-                SELECT id, vote_id, vote_data_hash, submitted_at
-                FROM vote_blocks
-                ORDER BY id DESC
-                LIMIT 200
-                """
-            )
-            block_rows = cur.fetchall() or []
-            changed_votes = 0
-            missing_votes = 0
-            latest_tamper_at = None
-            for block_id, vote_id, vote_data_hash, submitted_at in block_rows:
-                if not vote_id:
-                    continue
-                cur.execute(
-                    """
-                    SELECT position, candidate_id
-                    FROM vote_items
-                    WHERE vote_id = %s
-                    ORDER BY position ASC, candidate_id ASC, id ASC
-                    """,
-                    [vote_id],
-                )
-                item_rows = cur.fetchall() or []
-                if not item_rows:
-                    missing_votes += 1
-                    latest_tamper_at = latest_tamper_at or submitted_at
-                    continue
-                live_hash = _vote_data_hash_from_vote_item_rows(item_rows)
-                if vote_data_hash and live_hash != str(vote_data_hash):
-                    changed_votes += 1
-                    latest_tamper_at = latest_tamper_at or submitted_at
-            if changed_votes or missing_votes:
-                parts = []
-                if changed_votes:
-                    parts.append(f"{changed_votes} changed")
-                if missing_votes:
-                    parts.append(f"{missing_votes} missing")
-                add_alert(
-                    "transparency_tamper",
-                    "critical",
-                    "Transparency ledger is modified",
-                    f"Vote integrity issue detected: {', '.join(parts)} block(s). Open Transparency to inspect the affected rows.",
-                    latest_tamper_at,
-                    "bi-shield-exclamation",
-                    "/static/org_elecom/elecom_admin/elecom_transparency.html",
-                )
-
-            _ensure_network_authorization_tables(cur)
-            cur.execute(
-                """
-                SELECT COUNT(*), MAX(created_at)
-                FROM network_access_attempts
-                WHERE LOWER(COALESCE(status, '')) = 'blocked'
-                  AND created_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
-                """
-            )
-            row = cur.fetchone()
-            blocked_network = int(row[0] or 0) if row else 0
-            if blocked_network:
-                add_alert(
-                    "network_blocked",
-                    "warning",
-                    f"{blocked_network} blocked network attempt(s)",
-                    "Review Network Authorize logs if voters are being blocked unexpectedly.",
-                    row[1] if row else None,
-                    "bi-wifi-off",
-                    "/static/org_elecom/elecom_admin/elecom_network_authorize.html",
-                )
-
-        severity_order = {"critical": 0, "warning": 1, "action": 2, "info": 3}
-        notifications.sort(
-            key=lambda item: (
-                severity_order.get(item.get("severity"), 9),
-                item.get("created_at") or "",
-            ),
-            reverse=False,
-        )
-        notifications = notifications[:limit]
-        latest_id = notifications[0]["id"] if notifications else ""
-
-        return JsonResponse(
+    def add_alert(kind, severity, title, body, created_at=None, icon="bi-bell", href=""):
+        notifications.append(
             {
-                "ok": True,
-                "notifications": notifications,
-                "latest_id": latest_id,
-                "total_count": len(notifications),
-                "critical_count": sum(1 for item in notifications if item.get("severity") == "critical"),
-                "warning_count": sum(1 for item in notifications if item.get("severity") == "warning"),
+                "id": alert_id(kind, severity, title, body, created_at),
+                "type": kind,
+                "severity": severity,
+                "title": title,
+                "body": body,
+                "created_at": admin_iso(created_at),
+                "icon": icon,
+                "href": href,
             }
         )
-    except Exception as e:
-        if getattr(settings, "DEBUG", False):
-            return JsonResponse({"ok": False, "error": str(e)}, status=500)
-        return JsonResponse({"ok": False, "error": "Failed to load admin notifications."}, status=500)
+
+    _ensure_candidate_applications_table()
+    _ensure_backup_tables()
+    _ensure_votes_tables()
+    _ensure_vote_blocks_table()
+    _ensure_vote_item_change_audit_table()
+
+    with connection.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, student_id, first_name, last_name, organization, position,
+                   status, created_at, requirements_submitted_at
+            FROM candidate_applications
+            WHERE status IN ('pending', 'requirements_review')
+              AND COALESCE(election_id, 0) = COALESCE(%s, 0)
+            ORDER BY COALESCE(requirements_submitted_at, created_at) DESC, id DESC
+            LIMIT 50
+            """, [_current_election_id() or None],
+        )
+        for application in cur.fetchall():
+            app_id, student_id, first_name, last_name, org, position, stage, created, submitted = application
+            candidate_name = " ".join(str(part or "").strip() for part in (first_name, last_name)).strip() or str(student_id)
+            final_review = stage == "requirements_review"
+            add_alert(
+                "candidate_requirements_review" if final_review else "candidate_initial_review",
+                "action",
+                f"Supporting documents ready: {candidate_name}" if final_review else f"New candidate filing: {candidate_name}",
+                f"{student_id} - {org} {position}. " + ("Review the three supporting documents for final approval." if final_review else "Review the initial application.") + f" Filing #{app_id}.",
+                submitted or created if final_review else created,
+                "bi-file-earmark-check" if final_review else "bi-person-check",
+                "/static/org_elecom/elecom_admin/elecom_register_candidate.html#pendingFilingsCollapse",
+            )
+
+        cur.execute(
+            """
+            SELECT COUNT(*), MAX(created_at)
+            FROM admin_backups
+            WHERE LOWER(COALESCE(status, '')) NOT IN ('completed', 'success', 'successful')
+              AND created_at >= NOW() - INTERVAL '24 hours'
+            """
+        )
+        row = cur.fetchone()
+        failed_backups = int(row[0] or 0) if row else 0
+        if failed_backups:
+            add_alert(
+                "backup_failed",
+                "critical",
+                f"{failed_backups} backup attempt(s) failed",
+                "Check Backup & Restore so election records stay protected.",
+                row[1] if row else None,
+                "bi-database-exclamation",
+                "/static/org_elecom/elecom_admin/elecom_backup_restore.html",
+            )
+
+        cur.execute(
+            """
+            SELECT enabled, frequency, last_attempt_at, last_attempt_error
+            FROM admin_backup_settings
+            WHERE id = 1
+            """
+        )
+        settings_row = cur.fetchone()
+        if settings_row and settings_row[0] and settings_row[3]:
+            add_alert(
+                "backup_auto_error",
+                "warning",
+                "Automatic backup needs attention",
+                str(settings_row[3])[:180],
+                settings_row[2],
+                "bi-database-x",
+                "/static/org_elecom/elecom_admin/elecom_backup_restore.html",
+            )
+
+        cur.execute(
+            """
+            SELECT MAX(created_at)
+            FROM admin_backups
+            WHERE LOWER(COALESCE(status, '')) IN ('completed', 'success', 'successful')
+            """
+        )
+        latest_backup_row = cur.fetchone()
+        latest_backup_at = latest_backup_row[0] if latest_backup_row else None
+        if not latest_backup_at:
+            add_alert(
+                "backup_missing",
+                "warning",
+                "No successful backup yet",
+                "Create a backup before election activity increases.",
+                None,
+                "bi-database",
+                "/static/org_elecom/elecom_admin/elecom_backup_restore.html",
+            )
+
+        cur.execute(
+            """
+            SELECT id, vote_id, vote_data_hash, submitted_at
+            FROM vote_blocks
+            ORDER BY id DESC
+            LIMIT 200
+            """
+        )
+        block_rows = cur.fetchall() or []
+        changed_votes = 0
+        missing_votes = 0
+        latest_tamper_at = None
+        for block_id, vote_id, vote_data_hash, submitted_at in block_rows:
+            if not vote_id:
+                continue
+            cur.execute(
+                """
+                SELECT position, candidate_id
+                FROM vote_items
+                WHERE vote_id = %s
+                ORDER BY position ASC, candidate_id ASC, id ASC
+                """,
+                [vote_id],
+            )
+            item_rows = cur.fetchall() or []
+            if not item_rows:
+                missing_votes += 1
+                latest_tamper_at = latest_tamper_at or submitted_at
+                continue
+            live_hash = _vote_data_hash_from_vote_item_rows(item_rows)
+            if vote_data_hash and live_hash != str(vote_data_hash):
+                changed_votes += 1
+                latest_tamper_at = latest_tamper_at or submitted_at
+        if changed_votes or missing_votes:
+            parts = []
+            if changed_votes:
+                parts.append(f"{changed_votes} changed")
+            if missing_votes:
+                parts.append(f"{missing_votes} missing")
+            add_alert(
+                "transparency_tamper",
+                "critical",
+                "Transparency ledger is modified",
+                f"Vote integrity issue detected: {', '.join(parts)} block(s). Open Transparency to inspect the affected rows.",
+                latest_tamper_at,
+                "bi-shield-exclamation",
+                "/static/org_elecom/elecom_admin/elecom_transparency.html",
+            )
+
+        _ensure_network_authorization_tables(cur)
+        cur.execute(
+            """
+            SELECT COUNT(*), MAX(created_at)
+            FROM network_access_attempts
+            WHERE LOWER(COALESCE(status, '')) = 'blocked'
+              AND created_at >= CURRENT_TIMESTAMP - INTERVAL '24 hours'
+            """
+        )
+        row = cur.fetchone()
+        blocked_network = int(row[0] or 0) if row else 0
+        if blocked_network:
+            add_alert(
+                "network_blocked",
+                "warning",
+                f"{blocked_network} blocked network attempt(s)",
+                "Review Network Authorize logs if voters are being blocked unexpectedly.",
+                row[1] if row else None,
+                "bi-wifi-off",
+                "/static/org_elecom/elecom_admin/elecom_network_authorize.html",
+            )
+
+    severity_order = {"critical": 0, "warning": 1, "action": 2, "info": 3}
+    # Newest first within each severity, so recent filings remain visible.
+    notifications.sort(key=lambda item: item.get("created_at") or "", reverse=True)
+    notifications.sort(key=lambda item: severity_order.get(item.get("severity"), 9))
+    notifications = notifications[:limit]
+    return notifications
 
 
 @csrf_exempt
