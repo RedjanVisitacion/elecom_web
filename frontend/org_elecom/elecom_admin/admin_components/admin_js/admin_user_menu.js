@@ -31,6 +31,7 @@
       "admin_dashboard.html": ["Dashboard"],
       "elecom_dashboard.html": ["Dashboard"],
       "elecom_elections.html": ["Election Management"],
+      "elecom_mobile_appearance.html": ["Mobile App Appearance"],
       "elecom_election_date.html": ["Election Management"],
       "elecom_candidates.html": ["Candidates", "List Candidates"],
       "elecom_register_candidate.html": ["Candidates", "Register Candidate"],

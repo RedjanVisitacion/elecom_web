@@ -1,8 +1,8 @@
-#filingAppearanceModal .filing-card-preview { position:relative; width:100%; max-width:520px; aspect-ratio:2.22; overflow:hidden; border-radius:8px; background:#08265f; }
-#filingAppearanceModal .filing-card-preview > img { width:100%; height:100%; object-fit:cover; display:block; }
-#filingAppearanceModal .filing-card-shade { position:absolute; inset:0; background:linear-gradient(90deg,rgba(3,26,75,.8),rgba(11,50,118,.6) 46%,rgba(11,50,118,.13) 72%,transparent); }
-#filingAppearanceModal .filing-card-copy { position:absolute; inset:16px; width:50%; display:flex; flex-direction:column; justify-content:space-between; color:white; }
-#filingAppearanceModal .filing-card-copy strong { font-size:18px; }
-#filingAppearanceModal .filing-card-copy p { font-size:12px; line-height:1.35; margin:5px 0; }
-#filingAppearanceModal .filing-card-button { background:white; color:#0c2c66; border-radius:6px; padding:8px 12px; font-size:12px; align-self:flex-start; font-weight:600; }
-@media(max-width:575px) { #filingAppearanceModal .filing-card-copy { inset:12px; } #filingAppearanceModal .filing-card-copy strong { font-size:15px; } #filingAppearanceModal .filing-card-copy p { font-size:10px; } #filingAppearanceModal .filing-card-button { font-size:11px; padding:6px 10px; } }
+#filingAppearancePanel .filing-card-preview { position:relative; width:100%; max-width:520px; aspect-ratio:2.22; overflow:hidden; border-radius:8px; background:#08265f; }
+#filingAppearancePanel .filing-card-preview > img { width:100%; height:100%; object-fit:cover; display:block; }
+#filingAppearancePanel .filing-card-shade { position:absolute; inset:0; background:linear-gradient(90deg,rgba(3,26,75,.8),rgba(11,50,118,.6) 46%,rgba(11,50,118,.13) 72%,transparent); }
+#filingAppearancePanel .filing-card-copy { position:absolute; inset:16px; width:50%; display:flex; flex-direction:column; justify-content:space-between; color:white; }
+#filingAppearancePanel .filing-card-copy strong { font-size:18px; }
+#filingAppearancePanel .filing-card-copy p { font-size:12px; line-height:1.35; margin:5px 0; }
+#filingAppearancePanel .filing-card-button { background:white; color:#0c2c66; border-radius:6px; padding:8px 12px; font-size:12px; align-self:flex-start; font-weight:600; }
+@media(max-width:575px) { #filingAppearancePanel .filing-card-copy { inset:12px; } #filingAppearancePanel .filing-card-copy strong { font-size:15px; } #filingAppearancePanel .filing-card-copy p { font-size:10px; } #filingAppearancePanel .filing-card-button { font-size:11px; padding:6px 10px; } }

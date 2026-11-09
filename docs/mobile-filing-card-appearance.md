@@ -1,6 +1,6 @@
 # Mobile candidacy filing-card background
 
-In Election Management, each saved election has a Mobile App Appearance button. The modal contains a live card preview, upload chooser, Save changes, and Reset to default. Uploads affect only that election and do not change its schedule, candidacy rules or any student records.
+Open Mobile App Appearance from the admin sidebar, directly below Election Management. Choose an election, then use the inline card preview, upload chooser, Save changes, and Reset to default. The current election is selected initially. Uploads affect only that election and do not change its schedule, candidacy rules or any student records.
 
 A custom image replaces the five-slide bundled filing-card carousel with one Ready to Serve? card. The File now action and readable dark overlay remain. Reset removes the stored override and restores the bundled carousel. The preview shows a representative default slide, not the entire carousel.
 

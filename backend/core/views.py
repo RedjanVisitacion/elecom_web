@@ -247,6 +247,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "admin_dashboard.html",
     "elecom_register_candidate.html",
     "elecom_elections.html",
+    "elecom_mobile_appearance.html",
     "elecom_election_date.html",
     "elecom_candidates.html",
     "elecom_candidates_files.html",

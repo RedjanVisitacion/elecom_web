@@ -1,6 +1,7 @@
 /* Election-specific mobile filing-card background editor. */
 (() => {
-  const modal = document.getElementById('filingAppearanceModal');
+  const modal = document.getElementById('filingAppearancePanel');
+  const electionSelect = document.getElementById('appearanceElectionSelect');
   if (!modal) return;
   const form = document.getElementById('filingAppearanceForm');
   const input = document.getElementById('filingBackgroundFile');
@@ -13,6 +14,7 @@
   const endpoint = () => `/api/admin/elections/${encodeURIComponent(electionId)}/appearance/`;
   const notice = (text, error = false) => { message.textContent = text; message.className = error ? 'text-danger small mb-3' : 'text-muted small mb-3'; };
   const busy = value => {
+    electionSelect.disabled = value || !electionSelect.options.length;
     loading = value; input.disabled = value; save.disabled = value || !input.files.length;
     reset.disabled = value;
     modal.querySelectorAll('[data-bs-dismiss]').forEach(button => { button.disabled = value; });
@@ -33,15 +35,36 @@
     } catch (error) { notice(error.message, true); csrfToken = null; }
     finally { busy(false); if (!csrfToken) { save.disabled = true; reset.disabled = true; input.disabled = true; } }
   };
-  document.addEventListener('click', event => {
-    const button = event.target.closest('[data-filing-appearance]');
-    if (!button || loading) return;
-    electionId = button.dataset.filingAppearance; csrfToken = null;
-    document.getElementById('filingAppearanceElection').textContent = button.dataset.electionName || `Election #${electionId}`;
-    releasePreview(); form.reset(); setPreview(fallback);
-    bootstrap.Modal.getOrCreateInstance(modal, { backdrop: 'static' }).show();
-    load();
+  electionSelect.addEventListener('change', () => {
+    if (input.files.length && !window.confirm('Discard the unsaved image preview and change election?')) {
+      electionSelect.value = String(electionId); return;
+    }
+    electionId = electionSelect.value; csrfToken = null;
+    releasePreview(); form.reset(); setPreview(fallback); load();
   });
+  (async () => {
+    busy(true); notice('Loading elections...');
+    try {
+      const response = await fetch('/api/admin/elections/', { credentials: 'same-origin', cache: 'no-store' });
+      const data = await response.json();
+      if (!response.ok || !data.ok) throw new Error(data.error || 'Unable to load elections.');
+      const elections = data.elections || [];
+      electionSelect.replaceChildren();
+      if (!elections.length) {
+        notice('Create an election in Election Management before customizing its filing card.');
+        loading = false; return;
+      }
+      elections.forEach(election => {
+        const option = document.createElement('option'); option.value = String(election.id);
+        option.textContent = `${election.name || 'Election #' + election.id}${election.school_year ? ' (' + election.school_year + ')' : ''}${election.is_active ? ' - Current' : ''}`;
+        electionSelect.append(option);
+      });
+      const requested = new URLSearchParams(window.location.search).get('election_id');
+      const selected = elections.find(election => String(election.id) === requested) || elections.find(election => election.is_active) || elections[0];
+      electionId = String(selected.id); electionSelect.value = electionId;
+      await load();
+    } catch (error) { notice(error.message, true); loading = false; }
+  })();
   input.addEventListener('change', () => {
     releasePreview(); const file = input.files[0];
     if (!file) { setPreview(savedUrl); save.disabled = true; return; }
@@ -77,5 +100,5 @@
     } catch (error) { notice(error.message, true); }
     finally { busy(false); }
   });
-  modal.addEventListener('hidden.bs.modal', releasePreview);
+  window.addEventListener('pagehide', releasePreview);
 })();

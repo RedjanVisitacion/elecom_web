@@ -350,7 +350,6 @@ document.addEventListener('DOMContentLoaded', function(){
           </div>
         </div>
         <div class="election-actions">
-          <button type="button" class="btn btn-sm btn-outline-primary" data-filing-appearance="${escapeHtml(election.id)}" data-election-name="${escapeHtml(election.name)}"><i class="bi bi-image"></i> Mobile App Appearance</button>
           ${election.is_active ? `<a class="btn btn-sm btn-outline-dark" href="${editUrl}" data-edit-election="${escapeHtml(election.id)}"><i class="bi bi-pencil-square"></i> Edit Dates</a>` : ''}
           <a class="btn btn-sm btn-outline-dark" href="${resultsUrl}"><i class="bi bi-graph-up"></i> Results</a>
           <a class="btn btn-sm btn-dark" href="${reportsUrl}"><i class="bi bi-file-earmark-bar-graph"></i> Reports</a>
