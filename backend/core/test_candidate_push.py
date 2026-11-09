@@ -101,13 +101,17 @@ class PushTests(unittest.TestCase):
         ns["_messaging"] = lambda: SimpleNamespace(
             MulticastMessage=lambda **kwargs: kwargs,
             AndroidConfig=lambda **kwargs: kwargs,
+            AndroidNotification=lambda **kwargs: kwargs,
+            Notification=lambda **kwargs: kwargs,
             send_each_for_multicast=send,
         )
         self.assertTrue(ns["deliver_candidate_push"](12))
         self.assertEqual(messages[0]["tokens"], ["new"])
         self.assertEqual(messages[0]["data"]["notification_id"], "12")
         self.assertEqual(messages[0]["data"]["student_id"], "student")
-        self.assertNotIn("notification", messages[0])
+        self.assertEqual(messages[0]["notification"], {"title": "Approved", "body": "Body"})
+        self.assertEqual(messages[0]["android"]["notification"]["channel_id"], "elecom_general_notifications")
+        self.assertEqual(messages[0]["android"]["notification"]["tag"], "elecom_12")
         self.assertEqual(messages[0]["android"]["priority"], "high")
 
     def test_calendar_and_election_push_preserve_notification_type(self):
@@ -119,6 +123,8 @@ class PushTests(unittest.TestCase):
             ns["_messaging"] = lambda: SimpleNamespace(
                 MulticastMessage=lambda **kw: kw,
                 AndroidConfig=lambda **kw: kw,
+                AndroidNotification=lambda **kw: kw,
+                Notification=lambda **kw: kw,
                 send_each_for_multicast=lambda m: (messages.append(m) or SimpleNamespace(
                     responses=[SimpleNamespace(success=True)])),
             )
@@ -132,6 +138,8 @@ class PushTests(unittest.TestCase):
         ns["_messaging"] = lambda: SimpleNamespace(
             MulticastMessage=lambda **kwargs: kwargs,
             AndroidConfig=lambda **kwargs: kwargs,
+            AndroidNotification=lambda **kwargs: kwargs,
+            Notification=lambda **kwargs: kwargs,
             UnregisteredError=UnregisteredError,
             send_each_for_multicast=lambda _: SimpleNamespace(responses=[
                 SimpleNamespace(success=False, exception=UnregisteredError()),

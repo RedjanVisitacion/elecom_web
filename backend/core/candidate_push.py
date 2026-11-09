@@ -97,9 +97,10 @@ def queue_candidate_push(*, notification_id, student_id, title, body):
 def _try_delivery(notification_id):
     try:
         deliver_candidate_push(notification_id)
-    except Exception:
-        # In-app notifications and admin decisions succeed even if FCM is unavailable.
-        logger.warning("Candidate push delivery deferred for notification %s", notification_id)
+    except Exception as error:
+        # Log only the exception class, never tokens, credentials or message bodies.
+        logger.warning("Candidate push delivery deferred for notification %s (%s)",
+                       notification_id, type(error).__name__)
 
 
 def _messaging():
@@ -145,7 +146,15 @@ def deliver_candidate_push(notification_id):
                     tokens=batch,
                     data={"notification_id": str(notification_id), "student_id": str(student),
                           "type": notif_type, "title": title, "body": body},
-                    android=messaging.AndroidConfig(priority="high", ttl=timedelta(days=1)),
+                    # Let Android show the alert even when Flutter is not running.
+                    notification=messaging.Notification(title=title, body=body),
+                    android=messaging.AndroidConfig(
+                        priority="high", ttl=timedelta(days=1),
+                        notification=messaging.AndroidNotification(
+                            channel_id="elecom_general_notifications",
+                            tag=f"elecom_{notification_id}", sound="default",
+                        ),
+                    ),
                 )
                 result = messaging.send_each_for_multicast(message)
                 for token, response in zip(batch, result.responses):
