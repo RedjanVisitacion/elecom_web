@@ -1616,3 +1616,14 @@ body.admin-framed-shell #adminNavigationLoading {
 
 #adminNavigationLoading .admin-navigation-loading-message:has(.admin-loading-cancel:not([hidden])) { width:min(100%,330px); }
 #adminNavigationLoading .admin-navigation-loading-message:has(.admin-loading-cancel:not([hidden])) .admin-loading-detail { display:block; }
+
+/* Balance the ELECOM mark with the USTP mark in the topbar. */
+body.admin-framed-shell > .top-navbar .admin-frame-logo {
+  width: var(--admin-frame-height); height: var(--admin-frame-height);
+  flex: 0 0 var(--admin-frame-height); object-fit: contain;
+}
+@media (max-width: 992px) {
+  body.admin-framed-shell > .top-navbar .admin-frame-logo {
+    width: 36px; height: 40px; flex-basis: 36px;
+  }
+}
