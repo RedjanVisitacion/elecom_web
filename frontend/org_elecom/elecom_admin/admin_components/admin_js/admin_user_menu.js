@@ -11,7 +11,7 @@
     const logo = sourceLogo ? sourceLogo.cloneNode(false) : document.createElement("img");
     logo.removeAttribute("id");
     logo.className = "admin-frame-logo";
-    logo.src = sourceLogo?.getAttribute("src") || "/static/assets/elecom.png";
+    logo.src = "/static/assets/elecom-header.png";
     logo.alt = "ELECOM";
     const name = document.createElement("span");
     name.className = "admin-frame-title";
