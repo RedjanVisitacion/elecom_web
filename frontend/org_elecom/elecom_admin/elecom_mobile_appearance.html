@@ -24,7 +24,7 @@
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/elecom_elections.css?v=20261011-school-year1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_mobile.css?v=20261031-all-pages5">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261110-appearance-sidebar1">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261110-slideshow1">
 </head>
 <body data-admin-page="elecom_mobile_appearance.html" class="admin-framed-shell theme-elecom mobile-appearance-page">
 <nav class="top-navbar d-flex align-items-center gap-3"><div class="admin-frame-brand"><img class="admin-frame-ustp-logo" src="/static/assets/ustp-logo.png" alt="USTP"><img class="admin-frame-logo" src="/static/assets/elecom-header.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
@@ -81,29 +81,55 @@
       <section class="card border-0 shadow-sm" id="filingAppearancePanel" aria-labelledby="filingAppearanceTitle">
         <div class="card-body p-3 p-lg-4">
           <h4 id="filingAppearanceTitle">Mobile App Appearance</h4>
-          <p class="text-muted">Customize the candidacy filing card shown on the mobile Home screen.</p>
+          <p class="text-muted">Customize each slide in the mobile candidacy filing slideshow.</p>
           <div class="mb-4" style="max-width:600px">
             <label for="appearanceElectionSelect" class="form-label fw-semibold">Election</label>
             <select class="form-select" id="appearanceElectionSelect" disabled><option>Loading elections...</option></select>
-            <p class="text-muted small mt-2 mb-0">Changes apply only to the selected election. The mobile app shows the current election's background.</p>
+            <p class="text-muted small mt-2 mb-0">Changes apply only to the selected election. The mobile app shows the current election's slideshow.</p>
           </div>
           <form id="filingAppearanceForm">
+            <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+              <div><h5 class="mb-1">Candidacy Filing Slideshow</h5><p class="text-muted small mb-0">Edit, add, remove or reorder up to 10 slides. Save to publish the slideshow.</p></div>
+              <button type="button" class="btn btn-outline-primary" id="addFilingSlide" disabled><i class="bi bi-plus-lg"></i> Add slide</button>
+            </div>
             <div class="row g-4">
-              <div class="col-12 col-lg-7">
-                <h5>Candidacy Filing Card</h5>
-                <p class="text-muted small">Preview how the background fits behind the filing text and button.</p>
-                <div class="filing-card-preview"><img id="filingBackgroundPreview" src="/static/assets/filing-card-default.png" alt="Filing-card background preview"><div class="filing-card-shade"></div><div class="filing-card-copy"><div><strong>Ready to Serve?</strong><p>Submit your details and campaign platform for review.</p></div><span class="filing-card-button"><i class="bi bi-person-check"></i> File now</span></div></div>
-              </div>
-              <div class="col-12 col-lg-5">
-                <label for="filingBackgroundFile" class="form-label fw-semibold">Background image</label>
-                <input class="form-control" type="file" id="filingBackgroundFile" accept="image/jpeg,image/png,image/webp" disabled>
-                <p class="text-muted small mt-2">JPG, PNG or WebP, up to 5 MB. Recommended: 1600 x 720 pixels. Keep the left side clear for text; the image may be cropped to fit.</p>
-                <p id="filingAppearanceMessage" class="text-muted small mb-3" role="status" aria-live="polite"></p>
-                <div class="d-flex flex-wrap gap-2">
-                  <button type="submit" class="btn btn-primary" id="saveFilingAppearance" disabled>Save changes</button>
-                  <button type="button" class="btn btn-outline-secondary" id="resetFilingAppearance" disabled>Reset to default</button>
+              <div class="col-12 col-xl-7">
+                <div class="filing-card-preview"><img id="filingBackgroundPreview" src="/static/assets/filing-slides/0.png" alt="Selected filing slide preview"><div class="filing-card-shade"></div><div class="filing-card-copy"><div><strong id="filingPreviewTitle">Lead the Change</strong><p id="filingPreviewSubtitle">File your candidacy and let ELECOM check your eligibility.</p></div><span class="filing-card-button"><i class="bi bi-person-check"></i> File now</span></div></div>
+                <div class="d-flex flex-wrap align-items-center gap-2 mt-3">
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="filingPreviewPrevious" aria-label="Previous slide" disabled><i class="bi bi-chevron-left"></i></button>
+                  <span class="small" id="filingSlideCounter" aria-live="polite">Loading slides...</span>
+                  <button type="button" class="btn btn-sm btn-outline-secondary" id="filingPreviewNext" aria-label="Next slide" disabled><i class="bi bi-chevron-right"></i></button>
+                  <button type="button" class="btn btn-sm btn-outline-primary" id="filingPreviewPlay" disabled>Play preview</button>
                 </div>
+                <div id="filingSlideList" class="filing-slide-list mt-3" role="group" aria-label="Choose a slide"></div>
               </div>
+              <div class="col-12 col-xl-5">
+                <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+                  <h6 id="filingEditorTitle" class="mb-0">Edit slide</h6>
+                  <div class="d-flex gap-1">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="moveFilingSlideUp" aria-label="Move slide earlier" disabled><i class="bi bi-arrow-up"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="moveFilingSlideDown" aria-label="Move slide later" disabled><i class="bi bi-arrow-down"></i></button>
+                    <button type="button" class="btn btn-sm btn-outline-danger" id="removeFilingSlide" disabled>Remove</button>
+                  </div>
+                </div>
+                <label for="filingBackgroundFile" class="form-label">Slide image</label>
+                <input class="form-control" type="file" id="filingBackgroundFile" accept="image/jpeg,image/png,image/webp" disabled>
+                <p class="text-muted small mt-2 mb-2">JPG, PNG or WebP, up to 5 MB each. Recommended: 1600 x 720 pixels. Keep space on the left for text.</p>
+                <button type="button" class="btn btn-sm btn-outline-secondary mb-3" id="restoreFilingSlideImage" disabled>Use default image</button>
+                <label for="filingSlidePreset" class="form-label d-block">Provided text and default design</label>
+                <select class="form-select mb-3" id="filingSlidePreset" disabled></select>
+                <div class="form-check mb-3"><input class="form-check-input" type="checkbox" id="filingUseDefaultText" checked disabled><label class="form-check-label" for="filingUseDefaultText">Use provided text</label></div>
+                <label class="form-label" for="filingSlideTitle">Title <span id="filingTitleCount" class="text-muted small"></span></label>
+                <input class="form-control mb-3" id="filingSlideTitle" maxlength="60" disabled>
+                <label class="form-label" for="filingSlideSubtitle">Description <span id="filingSubtitleCount" class="text-muted small"></span></label>
+                <textarea class="form-control" id="filingSlideSubtitle" rows="3" maxlength="160" disabled></textarea>
+                <p class="text-muted small mt-2">Uncheck Use provided text to write your own. The File now action stays the same.</p>
+              </div>
+            </div>
+            <p id="filingAppearanceMessage" class="text-muted small mt-3" role="status" aria-live="polite"></p>
+            <div class="d-flex flex-wrap gap-2 pt-3 border-top">
+              <button type="submit" class="btn btn-primary" id="saveFilingAppearance" disabled>Save slideshow</button>
+              <button type="button" class="btn btn-outline-secondary" id="resetFilingAppearance" disabled>Restore all default slides</button>
             </div>
           </form>
         </div>
@@ -117,6 +143,6 @@
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261110-appearance-sidebar1"></script>
 <div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-emblem" aria-hidden="true"><img src="/static/assets/no_bg_elecom.png?v=20261029-favicon1" alt=""></span><strong>Loading…</strong><p class="admin-loading-detail">Please wait while we open the next page. No need to click again.</p><button type="button" class="btn btn-outline-secondary btn-sm admin-loading-cancel" hidden>Cancel navigation</button></div></div>
 <noscript><span id="admin-page-ready" hidden></span></noscript>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/election_appearance.js?v=20261110-appearance-sidebar1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/election_appearance.js?v=20261110-slideshow1"></script>
 </body>
 </html>

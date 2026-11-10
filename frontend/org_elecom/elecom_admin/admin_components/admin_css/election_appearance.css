@@ -6,3 +6,13 @@
 #filingAppearancePanel .filing-card-copy p { font-size:12px; line-height:1.35; margin:5px 0; }
 #filingAppearancePanel .filing-card-button { background:white; color:#0c2c66; border-radius:6px; padding:8px 12px; font-size:12px; align-self:flex-start; font-weight:600; }
 @media(max-width:575px) { #filingAppearancePanel .filing-card-copy { inset:12px; } #filingAppearancePanel .filing-card-copy strong { font-size:15px; } #filingAppearancePanel .filing-card-copy p { font-size:10px; } #filingAppearancePanel .filing-card-button { font-size:11px; padding:6px 10px; } }
+
+#filingAppearancePanel .filing-slide-list { display:flex; flex-direction:column; gap:6px; max-height:270px; overflow-y:auto; }
+#filingAppearancePanel .filing-slide-choice { border:1px solid #dbe4f2; border-radius:6px; background:white; color:#12305b; padding:10px 12px; text-align:left; font-size:13px; }
+#filingAppearancePanel .filing-slide-choice.is-selected { background:#edf3ff; border-color:#2563eb; color:#143e9d; font-weight:600; }
+#filingAppearancePanel .filing-card-copy p { text-transform:none; }
+#filingAppearancePanel .filing-card-preview { max-width:none; }
+#filingAppearancePanel .filing-card-copy strong { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+#filingAppearancePanel .filing-card-copy p { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
+
+#filingAppearancePanel .text-muted { text-transform:none; letter-spacing:normal; }

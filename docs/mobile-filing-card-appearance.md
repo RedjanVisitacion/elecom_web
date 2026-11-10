@@ -1,25 +1,31 @@
-# Mobile candidacy filing-card background
+# Mobile candidacy filing slideshow
 
-Open Mobile App Appearance from the admin sidebar, directly below Election Management. Choose an election, then use the inline card preview, upload chooser, Save changes, and Reset to default. The current election is selected initially. Uploads affect only that election and do not change its schedule, candidacy rules or any student records.
+Open Mobile App Appearance in the admin sidebar. The current election is selected initially; choose another election to edit its slideshow independently. Editing another election does not change the current mobile Home screen.
 
-A custom image replaces the five-slide bundled filing-card carousel with one Ready to Serve? card. The File now action and readable dark overlay remain. Reset removes the stored override and restores the bundled carousel. The preview shows a representative default slide, not the entire carousel.
+The editor starts with the app's five provided slides. Select a slide to change its image, select a provided design/text preset, or uncheck Use provided text to write a custom title and description. Add slide creates another editable slide; arrows change its order, and Remove deletes it from the draft. Keep between 1 and 10 slides. Titles are limited to 60 characters and descriptions to 160. Text may be clipped to fit the card, so inspect the preview and keep copy concise.
 
-## Image rules and storage
+Play preview rotates every four seconds. The preview's File now button is illustrative; the real mobile button retains the existing candidacy filing action. Uploaded images, text and ordering are draft changes until Save slideshow publishes the entire ordered list. Switching elections or leaving warns about unsaved edits. Restore all default slides, after confirmation, immediately restores the five bundled images and provided text for that election.
 
-JPG, PNG and WebP are accepted, up to 5 MB. Both dimensions must be between 100 and 4096 pixels. Recommended artwork is 1600 x 720 (roughly 2.22:1), with clear space on the left for text. The image fills the card and can crop at the edges. The server verifies the actual image, applies EXIF orientation, strips metadata, resizes within 1600 x 1600 and re-encodes it as JPEG. File extensions and browser MIME types alone are not trusted.
+## Images and security
 
-Images use the existing server-side Cloudinary configuration. No Cloudinary credentials are added to Flutter or the browser. Each upload receives a fresh Cloudinary URL, avoiding stale image caches. Replaced Cloudinary files are retained; resetting the card removes only the election's database reference, not remote files that could be referenced elsewhere.
+JPG, PNG and WebP are accepted, up to 5 MB each and 15 MB of new uploads per save. Both dimensions must be between 100 and 4096 pixels. Recommended artwork: 1600 x 720 with clear space on the left. The server checks actual image content, applies EXIF orientation, strips metadata, resizes within 1600 x 1600 and re-encodes as JPEG. All files are validated before remote uploads begin. Database publication happens only after every upload succeeds; a failed save preserves the previous slideshow, although already-uploaded orphan images can remain at Cloudinary.
 
-Admin API: GET/POST/DELETE /api/admin/elections/<id>/appearance/. It requires an admin session, an existing election, and CSRF for changes. POST accepts multipart background. Arbitrary remote URLs are not accepted. GET and save/reset responses are private/no-store. Upload/save failure preserves the existing appearance record.
+Credentials remain server-side. Existing saved Cloudinary URLs can be retained; arbitrary new remote image URLs are rejected. Image uploads use the existing Cloudinary configuration. Images are not deleted from Cloudinary when replaced/removed/reset, so references elsewhere are not destroyed. Frontend text uses textContent, and mobile uses plain Text widgets.
 
-The election_mobile_appearance table is created by migration elecom_voting.0018_election_mobile_appearance. The admin endpoint also creates it idempotently for compatibility with the repository's existing system-table setup. Reading an old deployment before the table exists falls back to the bundled card. The mobile election-window response adds filing_card_background for the same window_id it returns, without modifying turnout queries.
+## API and compatibility
 
-## Deployment and validation
+Admin GET/POST/DELETE /api/admin/elections/<id>/appearance/ requires an admin session, an existing election and CSRF for mutations. GET returns slides, defaults and a CSRF token. POST accepts multipart slides (JSON ordered array) and image_<slide-id> files. Each slide includes id, default_index (0-4), use_default_text, title, subtitle and image_url (null for a bundled image). The server supplies the actual provided text when use_default_text is true. DELETE removes the override and returns all defaults.
 
-Deploy the backend and frontend files, install current requirements if needed, run manage.py migrate, collectstatic --noinput, then restart Gunicorn. The frontend script version was bumped. Existing Firebase and Cloudinary settings are unchanged.
+Migration elecom_voting.0019_election_filing_slideshow adds nullable JSONB slides to the existing election_mobile_appearance table. Old single-background settings become one editable Ready to Serve? slide without losing the image. The previous single-image API and filing_card_background response remain for compatibility. Before the new schema is installed, the slideshow reader safely falls back to defaults.
 
-Build/install an updated Flutter app once. The dashboard uses its existing three-second foreground refresh, pull-to-refresh and resume refresh to obtain the background. Later artwork changes require no new APK. When offline, the last successfully fetched configuration remains in memory; if the remote image cannot load, a bundled background is displayed. This does not add persistent offline image caching.
+The mobile election-window response adds filing_card_slides for the same window_id. The new app renders the ordered slides, retaining bundled image fallbacks, dots, swiping and four-second auto-advance. Polling identical slide data does not reset the carousel. Updates are picked up through the existing foreground, pull-to-refresh and resume refresh. Persistent offline image caching is not added.
 
-Run manage.py test core.test_election_appearance core.test_mobile_turnout --noinput and manage.py check. On mobile, run flutter test test/candidate_application_promo_test.dart, then flutter analyze. Syntax-check election_appearance.js and elecom_elections.js with node --check.
+## Deployment and verification
 
-The tests use mocked image hosting/database access; they do not establish a live Cloudinary upload or production device refresh. Verify a real image save, mobile update, election isolation and reset after deployment.
+Deploy backend/frontend changes, run manage.py migrate, collectstatic --noinput, restart Gunicorn, and hard-refresh the browser. New editor JS/CSS versions were bumped and all five default previews are supplied as static assets. Build/install the updated Flutter app once; later slideshow changes do not require another APK.
+
+Backend checks: manage.py test core.test_filing_slideshow core.test_election_appearance core.test_mobile_turnout --noinput; manage.py check.
+Browser editor: node frontend/tests/filing_slideshow.test.cjs; node --check on election_appearance.js.
+Mobile: flutter test test/candidate_application_promo_test.dart; flutter analyze.
+
+The tests use mocked database/hosting/browser APIs. After deployment verify a real multi-image save, custom text, slide order, automatic mobile refresh, reset and offline image fallback. Passing tests do not establish production upload/device behavior.

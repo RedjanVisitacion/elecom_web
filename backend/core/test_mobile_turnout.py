@@ -42,6 +42,7 @@ class MobileTurnoutTests(unittest.TestCase):
             connection=SimpleNamespace(cursor=Cursor),
             _active_election_id=lambda: 2,
             get_filing_background=Mock(return_value=None),
+            get_filing_slides=Mock(return_value=[]),
             _mark_student_account_seen=Mock(),
             _ensure_user_notifications_table=Mock(),
             _maybe_emit_election_broadcast_notifications=Mock(),
