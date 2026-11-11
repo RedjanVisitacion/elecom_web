@@ -11,6 +11,27 @@
   const save = el('saveFilingAppearance'), reset = el('resetFilingAppearance');
   let slides = [], defaults = [], selected = 0, electionId, csrfToken, loading = false, dirty = false, timer;
   const files = new Map(), urls = new Map();
+  const confirmElement = el('filingConfirmModal');
+  const confirmDialog = new bootstrap.Modal(confirmElement);
+  let confirmationPending = false;
+  const askConfirmation = (heading, detail, action) => new Promise(resolve => {
+    if (confirmationPending) { resolve(false); return; }
+    confirmationPending = true;
+    stop();
+    el('filingConfirmTitle').textContent = heading;
+    el('filingConfirmDescription').textContent = detail;
+    const accept = el('filingConfirmAccept');
+    accept.textContent = action;
+    let accepted = false;
+    const onAccept = () => { accepted = true; confirmDialog.hide(); };
+    accept.addEventListener('click', onAccept);
+    confirmElement.addEventListener('hidden.bs.modal', () => {
+      accept.removeEventListener('click', onAccept);
+      confirmationPending = false;
+      resolve(accepted);
+    }, { once: true });
+    confirmDialog.show();
+  });
   const endpoint = () => `/api/admin/elections/${encodeURIComponent(electionId)}/appearance/`;
   const defaultImage = index => `/static/assets/filing-slides/${index}.png`;
   const notice = (text, error = false) => { message.textContent = text; message.className = error ? 'text-danger small mt-3' : 'text-muted small mt-3'; };
@@ -76,8 +97,8 @@
     } catch (error) { notice(error.message, true); }
     finally { busy(false); }
   };
-  electionSelect.addEventListener('change', () => {
-    if (dirty && !window.confirm('Discard unsaved slideshow changes and switch election?')) { electionSelect.value = String(electionId); return; }
+  electionSelect.addEventListener('change', async () => {
+    if (dirty && !(await askConfirmation('Switch election?', 'Your unsaved slideshow changes will be discarded.', 'Discard and switch'))) { electionSelect.value = String(electionId); return; }
     electionId = electionSelect.value; load();
   });
   el('addFilingSlide').addEventListener('click', () => {
@@ -86,8 +107,8 @@
     slides.push({ ...base, id: 'slide-' + (window.crypto?.randomUUID?.() || Date.now() + '-' + Math.random().toString(36).slice(2)) });
     selected = slides.length - 1; input.value = ''; changed();
   });
-  el('removeFilingSlide').addEventListener('click', () => {
-    if (loading || slides.length <= 1 || !window.confirm('Remove this slide from the draft?')) return;
+  el('removeFilingSlide').addEventListener('click', async () => {
+    if (loading || slides.length <= 1 || !(await askConfirmation('Remove slide?', 'Remove this slide from your draft? Publish with Save slideshow when you are ready.', 'Remove slide'))) return;
     clearFile(slides[selected].id); slides.splice(selected, 1); selected = Math.min(selected, slides.length - 1); input.value = ''; changed();
   });
   const move = offset => {
@@ -147,7 +168,7 @@
     finally { busy(false); }
   });
   reset.addEventListener('click', async () => {
-    if (loading || !csrfToken || !window.confirm('Restore all five original slides and their default text for this election? Unsaved edits will be discarded.')) return;
+    if (loading || !csrfToken || !(await askConfirmation('Restore default slides?', 'This replaces the saved slideshow for this election with the five original slides and discards unsaved edits.', 'Restore defaults'))) return;
     stop(); busy(true);
     try {
       const response = await fetch(endpoint(), { method: 'DELETE', credentials: 'same-origin', headers: { 'X-CSRFToken': csrfToken } });
