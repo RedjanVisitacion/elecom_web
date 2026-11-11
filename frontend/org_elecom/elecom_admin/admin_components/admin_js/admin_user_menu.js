@@ -31,7 +31,8 @@
       "admin_dashboard.html": ["Dashboard"],
       "elecom_dashboard.html": ["Dashboard"],
       "elecom_elections.html": ["Election Management"],
-      "elecom_mobile_appearance.html": ["Mobile App Appearance"],
+      "elecom_mobile_appearance.html": ["Mobile App Appearance", "Filing Cards"],
+      "elecom_omnibus_appearance.html": ["Mobile App Appearance", "Omnibus Code"],
       "elecom_election_date.html": ["Election Management"],
       "elecom_candidates.html": ["Candidates", "List Candidates"],
       "elecom_register_candidate.html": ["Candidates", "Register Candidate"],
@@ -125,7 +126,7 @@
     document.addEventListener("visibilitychange", () => { if (!document.hidden) updateFooterClock(); });
     footer.append(copyright, clock);
     document.body.append(footer);
-    const submenu = sidebar.querySelector(".candidates-submenu");
+    const submenu = sidebar.querySelector("#candidatesSubmenu");
     const menuScroll = sidebar.querySelector(".sidebar-menu");
     const saveSidebarState = () => {
       try {

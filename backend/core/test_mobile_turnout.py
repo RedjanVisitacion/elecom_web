@@ -43,6 +43,7 @@ class MobileTurnoutTests(unittest.TestCase):
             _active_election_id=lambda: 2,
             get_filing_background=Mock(return_value=None),
             get_filing_slides=Mock(return_value=[]),
+            get_omnibus_pages=Mock(return_value=[]),
             _mark_student_account_seen=Mock(),
             _ensure_user_notifications_table=Mock(),
             _maybe_emit_election_broadcast_notifications=Mock(),
@@ -63,6 +64,7 @@ class MobileTurnoutTests(unittest.TestCase):
         result = self.ns['election_window_api'](SimpleNamespace(session={'student_id': 'test'}))
         self.assertEqual(result['filing_card_background'], url)
         self.ns['get_filing_background'].assert_called_once_with(2)
+        self.ns['get_omnibus_pages'].assert_called_once_with(2)
 
     def test_new_election_excludes_archived_and_legacy_votes(self):
         self.assertEqual(self.metrics()['total_cast_votes'], 0)

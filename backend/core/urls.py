@@ -1,3 +1,4 @@
+from .omnibus_appearance import omnibus_appearance_api
 from .election_appearance import election_appearance_api
 from .admin_browser_push import browser_push_api, browser_push_worker
 from .account_sessions import account_sessions_api, account_sessions_logout_api, account_session_status_api
@@ -117,6 +118,7 @@ def home_redirect(request):
     return redirect('/login/')
 
 urlpatterns = [
+    path('api/admin/elections/<int:election_id>/omnibus/', omnibus_appearance_api, name='election_omnibus_appearance'),
     path('api/admin/elections/<int:election_id>/appearance/', election_appearance_api, name='election_mobile_appearance'),
     path('admin-notifications-sw.js', browser_push_worker, name='admin_browser_push_worker'),
     path('api/admin/notifications/browser-push/', browser_push_api, name='admin_browser_push'),
