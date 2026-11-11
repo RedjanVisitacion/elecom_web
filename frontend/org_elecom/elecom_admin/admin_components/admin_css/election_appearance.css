@@ -16,3 +16,18 @@
 #filingAppearancePanel .filing-card-copy p { display:-webkit-box; -webkit-line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 
 #filingAppearancePanel .text-muted { text-transform:none; letter-spacing:normal; }
+
+/* Keep the selected slide visible beside the editor on wide screens. */
+@media (min-width:1200px) {
+  #filingAppearancePanel .filing-preview-column {
+    position:sticky;
+    top:calc(var(--admin-frame-height, 56px) + 12px);
+    align-self:flex-start;
+  }
+  #filingAppearancePanel .filing-card-preview { max-height:35dvh; }
+  #filingAppearancePanel .filing-slide-list {
+    max-height:clamp(100px, 22dvh, 220px);
+    overscroll-behavior-y:contain;
+    scrollbar-gutter:stable;
+  }
+}
