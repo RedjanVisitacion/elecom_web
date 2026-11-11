@@ -1,6 +1,7 @@
 from __future__ import annotations
 from .election_appearance import get_filing_background, get_filing_slides
 from .omnibus_appearance import get_omnibus_pages
+from .topbar_appearance import get_topbar_background
 
 from .coc_chairperson_signatures import finalize_certificate
 from .coc_management import settings_response, template_response, issue_certificate
@@ -250,6 +251,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "elecom_elections.html",
     "elecom_mobile_appearance.html",
     "elecom_omnibus_appearance.html",
+    "elecom_topbar_appearance.html",
     "elecom_election_date.html",
     "elecom_candidates.html",
     "elecom_candidates_files.html",
@@ -2068,6 +2070,7 @@ def election_window_api(request):
         "filing_card_background": get_filing_background(election["window_id"]),
         "filing_card_slides": get_filing_slides(election["window_id"]),
         "omnibus_pages": get_omnibus_pages(election["window_id"]),
+        "topbar_background": get_topbar_background(election["window_id"]),
         "server_now": timezone.now().isoformat(),
         "metrics": {
             "total_voters": int(total_voters),

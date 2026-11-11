@@ -12,10 +12,11 @@
     active = true;
     const originalFocus = document.activeElement;
     const image = new Image(), url = URL.createObjectURL(file);
-    const portrait = kind === 'omnibus';
-    canvas.width = portrait ? 1131 : 1600; canvas.height = portrait ? 1600 : 720;
-    el('appearanceCropTitle').textContent = portrait ? 'Crop Omnibus page' : 'Crop filing card';
+    const portrait = kind === 'omnibus', topbar = kind === 'topbar';
+    canvas.width = portrait ? 1131 : topbar ? 1560 : 1600; canvas.height = portrait ? 1600 : topbar ? 680 : 720;
+    el('appearanceCropTitle').textContent = portrait ? 'Crop Omnibus page' : topbar ? 'Crop top bar background' : 'Crop filing card';
     el('appearanceCropHelp').textContent = portrait ? 'Portrait page · 1131 × 1600. Drag to position the document, then zoom to select the area. Keep full image preserves every edge.' : 'Filing card · 1600 × 720. Drag to position the image and zoom to select the area. Keep the left side clear for text.';
+    if (topbar) el('appearanceCropHelp').textContent = 'Top bar · 1560 × 680. Drag or use arrow keys to position the background, then adjust zoom. Keep the greeting area clear.';
     el('appearanceCropOriginal').hidden = !portrait;
     let result = null, zoom = 1, offsetX = 0, offsetY = 0, pointer = null, encoding = false, closed = false;
     range.value = '1'; apply.disabled = false;

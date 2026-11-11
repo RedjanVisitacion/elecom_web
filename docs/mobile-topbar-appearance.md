@@ -1,0 +1,9 @@
+﻿# Mobile top bar background
+
+Mobile App Appearance > Top Bar Background configures the mobile Home greeting background per election. The current election is selected initially. Selecting an image opens a local crop dialog at 1560 x 680 (the 390 x 170 reference header ratio). Drag or use arrow keys to position, adjust zoom, then use the cropped image. Save background publishes; Restore default immediately resets the selected election after the styled confirmation. Greetings, profile photo and icons remain the existing mobile controls. The preview contains illustrative student details.
+
+Admin GET/POST/DELETE /api/admin/elections/<id>/topbar/ requires an authenticated administrator and an existing election; writes require CSRF. POST multipart background uses existing real-image validation: JPG/PNG/WebP up to 5 MB, dimensions 100–4096, EXIF correction, metadata stripping and JPEG re-encoding. Cloudinary credentials stay server-side. The mobile response topbar_background comes from the same election as the election-window response. Invalid URLs and absent configuration fall back to the bundled campus image. Failed uploads preserve the last saved setting. Replaced images are retained at Cloudinary.
+
+Deploy the web commit, apply migration 0021_election_topbar_appearance, collect static files and restart Gunicorn. Update the mobile app once; future background changes need no rebuild. Mobile refresh uses the existing dashboard polling/resume flow and keeps the last successful settings in memory on request failure. Download failures show the bundled image. There is no persistent offline image cache. Production upload and phone rendering remain to be verified after deployment.
+
+Checks: core.test_topbar_appearance, existing appearance/turnout suites; frontend/tests/topbar_appearance.test.cjs and appearance_image_crop.test.cjs; Flutter home_header_background_test.dart and existing carousel tests.

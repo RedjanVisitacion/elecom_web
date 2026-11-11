@@ -33,6 +33,7 @@
       "elecom_elections.html": ["Election Management"],
       "elecom_mobile_appearance.html": ["Mobile App Appearance", "Filing Cards"],
       "elecom_omnibus_appearance.html": ["Mobile App Appearance", "Omnibus Code"],
+      "elecom_topbar_appearance.html": ["Mobile App Appearance", "Top Bar Background"],
       "elecom_election_date.html": ["Election Management"],
       "elecom_candidates.html": ["Candidates", "List Candidates"],
       "elecom_register_candidate.html": ["Candidates", "Register Candidate"],

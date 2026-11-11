@@ -1,4 +1,4 @@
-﻿const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const nodes={},draws=[];
 const node=()=>({handlers:{},value:'1',addEventListener(name,fn){this.handlers[name]=fn},removeEventListener(name){delete this.handlers[name]},focus(){},getBoundingClientRect(){return {width:800,height:360}},setPointerCapture(){}});
 const context={fillRect(){},drawImage(...args){draws.push(args)}};
@@ -17,6 +17,7 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../org_elecom/elecom_adm
  assert.equal(cropped.type,'image/jpeg');assert.equal(cropped.name,'source-cropped.jpg');
  const second=window.ElecomImageCrop(original,'omnibus');assert.equal(canvas.width,1131);assert.equal(canvas.height,1600);
  nodes.appearanceCropOriginal.handlers.click();assert.equal(await second,original);
+ const header=window.ElecomImageCrop(original,'topbar');assert.equal(canvas.width,1560);assert.equal(canvas.height,680);nodes.appearanceCropApply.handlers.click();await header;
  const third=window.ElecomImageCrop(original);nodes.appearanceCropModal.handlers['hidden.bs.modal']();assert.equal(await third,null);
  console.log('Crop checks passed: filing frame, zoom, keyboard positioning, JPEG output, portrait/full image, cancel.');
 })().catch(error=>{console.error(error);process.exitCode=1});

@@ -44,8 +44,8 @@
   body.admin-framed-shell.mobile-appearance-page .content-area {
     display:flex; flex:1 1 0; min-height:0; overflow:hidden; padding:12px 16px !important;
   }
-  .mobile-appearance-page :is(#filingAppearancePanel,#omnibusPanel) { width:100%; min-width:0; min-height:0; margin:0; flex:1; }
-  .mobile-appearance-page :is(#filingAppearancePanel,#omnibusPanel) > .card-body {
+  .mobile-appearance-page :is(#filingAppearancePanel,#omnibusPanel,#topbarPanel) { width:100%; min-width:0; min-height:0; margin:0; flex:1; }
+  .mobile-appearance-page :is(#filingAppearancePanel,#omnibusPanel,#topbarPanel) > .card-body {
     display:flex; flex-direction:column; min-height:0; overflow:hidden; padding:16px !important;
   }
   .mobile-appearance-page .card-body > h4 { font-size:20px; margin-bottom:4px; }
@@ -64,7 +64,7 @@
   .mobile-appearance-page .appearance-editor { overflow-y:auto; overscroll-behavior-y:contain; scrollbar-gutter:stable; padding-right:8px; }
   .mobile-appearance-page .omnibus-preview-column { display:flex; align-items:center; justify-content:center; overflow:hidden; background:#eef2f7; }
   #omnibusPreview { width:100% !important; height:100%; max-height:100% !important; object-fit:contain; }
-  .mobile-appearance-page :is(#filingAppearanceMessage,#omnibusMessage) { flex-shrink:0; margin:8px 0 !important; min-height:18px; }
+  .mobile-appearance-page :is(#filingAppearanceMessage,#omnibusMessage,#topbarMessage) { flex-shrink:0; margin:8px 0 !important; min-height:18px; }
   .mobile-appearance-page .appearance-actions { flex-shrink:0; padding-top:8px !important; margin-bottom:0 !important; }
 }
 
@@ -103,3 +103,13 @@
 @media (min-width:1200px) and (min-height:600px) {
   #omnibusPanel .omnibus-preview-column { overflow-y:auto; }
 }
+
+.topbar-phone-preview { width:390px; max-width:100%; margin-inline:auto; }
+.topbar-mobile-header { width:100%; aspect-ratio:390/170; position:relative; overflow:hidden; background:#0c1e70; }
+#topbarPreview { display:block; width:100%; height:100%; object-fit:cover; object-position:center; }
+.topbar-mobile-shade { position:absolute; inset:0; background:linear-gradient(rgba(0,0,0,.1),rgba(0,0,0,.3)); }
+.topbar-preview-greeting { position:absolute; inset:40px 18px auto; display:flex; gap:12px; align-items:center; color:#fff; }
+.topbar-preview-greeting small { display:block; font-size:11px; }.topbar-preview-greeting strong { display:block; font-size:16px; }
+.topbar-preview-avatar { width:48px; height:48px; border-radius:50%; border:2px solid #f5c518; background:rgba(255,255,255,.15); display:grid; place-items:center; font-size:26px; }
+#topbarPanel .text-muted { text-transform:none; letter-spacing:normal; }
+@media (min-width:1200px) and (min-height:600px) { .mobile-appearance-page .topbar-preview-column { overflow-y:auto; } }
