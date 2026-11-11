@@ -1,5 +1,78 @@
 # ELECOM Web & Backend — Secure Election Platform 🗳️
 
+## Mobile appearance and notification work (2026-11-12)
+
+### Working style and current paths
+
+- User prefers guided deployment **one command at a time**, waiting for their output/screenshot. Distinguish local `PS G:\elecom_web>` / `PS G:\elecom_mobile>` from remote `root@elecom-servers:/var/www/elecom#`. Remote repository is `/var/www/elecom`, NOT `/var/www/elecom/web`.
+- Current local repositories: `G:\elecom_mobile` (Flutter) and `G:\elecom_web` (Django/backend and admin frontend). Production backend `/var/www/elecom/backend`; Python `/var/www/elecom/venv/bin/python`; static destination `/var/www/elecom_static`; service `gunicorn`. Verify current Git state before changing or deploying anything. The user's older path examples are historical.
+- User wants native-looking ELECOM dialogs, **not `window.confirm` browser popups**. Filing/Omnibus/top bar confirmations now use Bootstrap modals. Keep cancellation, keyboard dismissal/focus handling, and explicit save semantics. Browser-managed unsaved-page navigation warnings remain where needed.
+- User wants appearance editors to fit the desktop admin frame, retain visible Save controls, and preview actual mobile proportions. Do not squeeze previews vertically to fill available space. Internal editor/list scrolling is deliberate; smaller screens retain normal page scrolling.
+
+### Implemented appearance settings and files
+
+- Sidebar **Mobile App Appearance** is a Bootstrap dropdown with **Filing Cards**, **Omnibus Code**, and **Top Bar Background**. Navigation is duplicated across admin HTML pages and `sidebar.html`; keep copies consistent. Files:
+  - `frontend/org_elecom/elecom_admin/elecom_mobile_appearance.html`
+  - `frontend/org_elecom/elecom_admin/elecom_omnibus_appearance.html`
+  - `frontend/org_elecom/elecom_admin/elecom_topbar_appearance.html`
+- New pages must be added to `backend/core/views.py` `_ADMIN_PAGE_ALLOWLIST` and the breadcrumb map in `admin_components/admin_js/admin_user_menu.js`. Signed admin navigation rejects unknown pages by redirecting to Dashboard. Restart old Gunicorn workers after deploying allowlist/backend changes.
+- `admin_user_menu.js` must select `#candidatesSubmenu` explicitly for Candidates expansion persistence; selecting the first `.candidates-submenu` now incorrectly selects the Appearance group. Active Appearance pages expand their own group.
+- Shared stylesheet: `admin_components/admin_css/election_appearance.css`. Dedicated scripts: `election_appearance.js`, `omnibus_appearance.js`, `topbar_appearance.js`, and shared `appearance_image_crop.js`. Bump asset query versions after changes so cached JS/CSS do not conflict with new HTML.
+- All three settings are **per election**. Admin defaults to current election but can edit another independently. Mobile reads the same election ID returned by `election_window_api`; do not pick a different election for appearance or change turnout scoping.
+
+### Filing cards
+
+- Backend `core/election_appearance.py`; admin GET/POST/DELETE `/api/admin/elections/<id>/appearance/`; mobile election-window fields `filing_card_background` (legacy) and `filing_card_slides`.
+- Migrations `0018_election_mobile_appearance` creates the table; `0019_election_filing_slideshow` adds JSONB `slides`. Migration reverse operations intentionally do not drop data. Legacy single-image settings convert to one editable Ready to Serve slide; preserve compatibility.
+- Editor supports 1–10 ordered slides: add, remove, reorder, per-slide image, provided design/text preset, default-image restore, provided/custom title and description. Limits: title 60, description 160 characters. `use_default_text` is authoritative server-side. Save publishes the complete draft; Restore all defaults immediately resets the selected election after confirmation.
+- Five defaults match Flutter assets in `assets/candidates_model/` and web `frontend/assets/filing-slides/0.png` through `4.png`: Lead the Change; Your Voice, Your Run; Ready to Serve?; Be on the Ballot; Make It Official. Their original descriptions are in backend `DEFAULT_SLIDES` and Flutter widget. Do not replace filing button behavior when changing copy.
+- Flutter `widgets/candidate_application_promo.dart` accepts remote `slides` plus legacy `backgroundImageUrl`; falls back to bundled images and uses centered cover. Preserve original 4-second auto-slide, dots/swipe, and File now action. **Compare list content, not identity**, in `didUpdateWidget`: dashboard foreground polling creates new lists every ~3 seconds; identity comparison resets the carousel before its 4-second advance.
+- Real mobile filing aspect ratio is **2.22:1**. Admin preview uses up to 358px width, the corresponding unsquashed height, 15px title / 10px description, 32px button and matching left-copy area/gradient. Desktop list sits beside the preview; editor fields scroll separately. Do not restore the previous full-width, compressed-height preview.
+
+### Omnibus Code
+
+- Backend `core/omnibus_appearance.py`; migration `0020_election_omnibus_pages`; table `election_omnibus_pages`; admin GET/POST/DELETE `/api/admin/elections/<id>/omnibus/`; mobile field `omnibus_pages`.
+- Ordered page entries: `id`, `default_index` (0–13 or null for new uploads), `image_url`. Defaults are the 14 original `assets/omnibus/page01.jpg` through `page14.jpg`; web copies under `frontend/assets/omnibus/`.
+- Admin supports adding multiple files in numeric filename order, replacing selected image, reorder, remove, restore originals, and explicit Save Omnibus pages. Keep 1–30 pages; each new page needs a validated upload. No arbitrary external image URLs.
+- Flutter `widgets/omnibus_code_carousel.dart`: `pages` resolves trusted Cloudinary images or bundled defaults; custom images are used by **both carousel and full-screen zoom reader**. Missing/invalid configuration falls back to original pages. Actual changed page paths reset carousel position; identical refreshes must not reset it.
+- Real mobile carousel shows **two pages side by side, 200px high**, with centered `BoxFit.cover`, 8px gap and paired-page dots. Admin preview now matches this at a 358px reference width, highlights selected page and displays its paired neighbor. An odd final page is centered. Do not use a single enlarged `object-fit:contain` image as the mobile carousel preview; full-screen reader is a separate presentation.
+
+### Top Bar Background (latest feature)
+
+- Backend `core/topbar_appearance.py`; migration **`0021_election_topbar_appearance`**; table `election_topbar_appearance`; admin GET/POST/DELETE `/api/admin/elections/<id>/topbar/`; mobile field `topbar_background`.
+- Admin page offers election selection, upload/crop, phone-sized preview with sample greeting/icons, Save background and styled Restore default confirmation. Selected images remain drafts until saved. Restore immediately resets selected election.
+- Flutter `widgets/home_header_background.dart` is used inside `_buildHomeHeader` in `student_dashboard.dart`. Header remains **170 logical pixels high**, centered `BoxFit.cover`, with existing greeting/avatar/search/notification controls and dark gradient. Reference admin preview is 390 × 170; crop exports 1560 × 680.
+- Default is `assets/USTP PICS/USTP_FRONT.png`, web copy `frontend/assets/mobile-topbar-default.png`. Network loading/errors and untrusted URLs fall back to the bundled campus image. Only background changes; do not redesign existing Home header controls.
+- `student_dashboard.dart` refreshes `_topbarBackground`, `_omnibusPages`, and filing configuration through its existing election-window refresh/resume flow. Failed requests retain last successful in-memory configuration. Custom remote images have no guaranteed persistent offline cache.
+
+### Crop dialog, upload security and publication
+
+- `appearance_image_crop.js` opens a styled modal after selecting local files: drag positioning, arrow-key positioning on focused canvas, zoom slider, Reset crop, Cancel and Use cropped image. Exports JPEG locally before upload. Local object URLs are revoked; canceled crops do not enter the draft. Guards prevent late canceled exports from affecting another dialog.
+- Filing crop 1600 × 720; Omnibus portrait crop 1131 × 1600 with **Keep full image** to avoid clipping document edges; top bar crop 1560 × 680. Multiple Omnibus uploads are processed one crop dialog at a time; Cancel skips that file. Cropping alone does not publish anything.
+- Image pipeline validates actual Pillow image bytes (JPG/PNG/WebP), maximum 5MB per image, dimensions 100–4096 each side, EXIF orientation, stripped metadata and JPEG re-encoding within 1600 × 1600. Filing/Omnibus saves limit new uploads to 15MB total. Cloudinary credentials remain backend-only.
+- APIs require an administrator session, an existing election and CSRF for writes; private/no-store responses. Saved image URLs may be retained only for the selected election; new URLs must come from upload. Mobile accepts only HTTPS `res.cloudinary.com` URLs. Avoid introducing credentials or arbitrary remote URL fields.
+- Validate all files before uploads; publish database settings only after all uploads succeed. Upload failure preserves the saved setting, though orphaned newly uploaded Cloudinary assets can remain. Replacement/removal/reset does not delete remote assets that might still be referenced.
+
+### Deployment evidence, known fixes and next verification
+
+- User screenshots confirmed web pushes/pulls, migrations **0018 OK**, static collection, and Gunicorn restarts. Slideshow and Omnibus editors subsequently loaded and displayed saved/default/custom images in production screenshots. This is evidence of those displayed screens, not comprehensive device/upload verification.
+- Do **not** infer migrations 0019/0020/0021 applied from Git pull alone; request/check output or `showmigrations` when relevant. The latest Top Bar Background implementation passed local tests; **its production deployment, migration0021, real upload and phone rendering were not verified in this session**. Check Git status/log before assuming anything is still uncommitted or already pushed; user often commits between turns.
+- A new sidebar item redirecting to Dashboard previously occurred with old Gunicorn allowlist code; restart after deploying backend changes. “Loading elections…” or huge unstyled previews occurred when new HTML loaded old collected JS/CSS; run collectstatic and hard refresh. Do not blame all loading failures on cache without checking response/logs.
+- Appearance page originally inherited `<html class="election-viewport">` and `elecom_elections.css`, which set `overflow:hidden` for the Election Management viewport. Removed both from Appearance pages to restore scrolling; later added scoped desktop workspace scrolling. Do not reintroduce that class/stylesheet.
+- Remote steps (guide separately, one at a time after local commit/push): `git -C /var/www/elecom pull origin main`; `/var/www/elecom/venv/bin/python /var/www/elecom/backend/manage.py migrate`; same Python/manage.py `collectstatic --noinput`; `sudo systemctl restart gunicorn`; `sudo systemctl is-active gunicorn`; browser Ctrl+Shift+R. Leave untracked `venv-python310/` alone. No need to reinstall dependencies or modify .env for CSS/JS changes.
+- Initial mobile support for remote slideshow/Omnibus/top bar requires an updated app build/run. Once supported, later admin image/text edits need no APK rebuild. Editor-only layout/crop/dialog changes need neither database migration nor APK rebuild. Do not claim a release APK was built; none was built by this appearance work.
+- Final local checks: **39 backend tests passed** across `core.test_topbar_appearance`, `core.test_omnibus_appearance`, `core.test_election_appearance`, `core.test_filing_slideshow`, `core.test_mobile_turnout`; Django system check passed. Node suites `topbar_appearance.test.cjs`, `appearance_image_crop.test.cjs`, `omnibus_appearance.test.cjs`, `filing_slideshow.test.cjs` passed. **9 Flutter tests passed** across header, Omnibus and filing tests. New header widget analyzer clean. Earlier full Flutter analysis had existing unrelated findings; do not call whole repo analysis clean.
+- Docs: `docs/mobile-filing-card-appearance.md`, `docs/mobile-omnibus-appearance.md`, `docs/mobile-topbar-appearance.md` in web repo. Tests use mocked uploads; actual production crop/upload/phone rendering still need end-to-end checks.
+
+### Related notification context (do not confuse with appearance)
+
+- Mobile push was repaired using ignored `android/app/google-services.json` for Firebase project `elecom-359a2`, Android ID `com.elecom.mobile`. Server SDK key configured privately at `/etc/elecom/firebase-admin.json`. Never commit/bundle service-account files; accidental exposed key rotation was advised but not verified. Public Firebase web configuration/VAPID key are different from server private keys; avoid repeating their values in memory files.
+- Background mobile notification was shown on the phone Home screen. Swiped-away/reboot cases were not conclusively verified. Android Settings Force stop blocks delivery until reopen; permission/internet/OEM battery restrictions matter.
+- Admin notifications implemented via `core/admin_browser_push.py`, `deliver_admin_push` management command and shared `admin_notifications.js`; opt-in browser push plus in-app bell/toasts. `deploy/elecom-admin-push.service` / `.timer` were installed/enabled; journal showed successful worker execution with 0 batches. That does not prove a browser subscribed or received a real filing alert.
+- Admin feed covers submitted pending candidacies, supporting documents requiring review, and existing operational alerts (backup/transparency/network). Opening the filing form alone is not a submission. Background timer checks about once a minute; visible in-app feed polls about every 10 seconds. Desktop push is generic to avoid disclosing student details.
+- Use existing private environment setup and authorized tests; do not send test SMS/messages without explicit authorization. Process `active`, API queue acceptance and screenshot UI visibility are not equivalent to end-to-end notification delivery.
+
+
 [![Django](https://img.shields.io/badge/Django-6.0-green.svg)](https://www.djangoproject.com/)
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14%2B-336791.svg)](https://www.postgresql.org/)
