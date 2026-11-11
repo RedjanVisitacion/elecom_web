@@ -130,12 +130,18 @@
   });
   title.addEventListener('input', () => { slides[selected].title = title.value; changed(); });
   subtitle.addEventListener('input', () => { slides[selected].subtitle = subtitle.value; changed(); });
-  input.addEventListener('change', () => {
-    const file = input.files[0]; if (!file) return;
+  input.addEventListener('change', async () => {
+    let file = input.files[0]; if (!file) return;
     if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024) {
       input.value = ''; notice('Choose a JPG, PNG or WebP image up to 5 MB.', true); return;
     }
-    const id = slides[selected].id; clearFile(id); files.set(id, file); urls.set(id, URL.createObjectURL(file)); changed();
+    const id = slides[selected].id;
+    stop(); busy(true);
+    file = await window.ElecomImageCrop(file, 'filing');
+    busy(false);
+    input.value = '';
+    if (!file) return;
+    clearFile(id); files.set(id, file); urls.set(id, URL.createObjectURL(file)); changed();
   });
   el('restoreFilingSlideImage').addEventListener('click', () => {
     const active = slides[selected]; clearFile(active.id); active.image_url = null; input.value = ''; changed();

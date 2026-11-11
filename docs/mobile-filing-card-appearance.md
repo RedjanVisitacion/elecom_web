@@ -29,3 +29,6 @@ Browser editor: node frontend/tests/filing_slideshow.test.cjs; node --check on e
 Mobile: flutter test test/candidate_application_promo_test.dart; flutter analyze.
 
 The tests use mocked database/hosting/browser APIs. After deployment verify a real multi-image save, custom text, slide order, automatic mobile refresh, reset and offline image fallback. Passing tests do not establish production upload/device behavior.
+
+
+Image framing: selecting an upload opens the shared crop dialog. Drag or focus the canvas and use arrow keys to position; adjust Zoom or Reset crop. Filing cards export JPEG at 1600 x 720. Omnibus offers a portrait 1131 x 1600 crop or Keep full image to avoid clipping document edges. Multiple Omnibus selections are framed one at a time; Cancel skips that image. Accepted crops still require Save to publish. The server validates the exported image using the existing upload rules. Cropping is performed locally in the browser, before upload. No migration or APK rebuild is needed for this editor-only crop feature.

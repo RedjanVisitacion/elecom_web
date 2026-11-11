@@ -1,4 +1,4 @@
-﻿/* Omnibus images remain a draft until explicitly published. */
+/* Omnibus images remain a draft until explicitly published. */
 (() => {
   const el = id => document.getElementById(id);
   if (!el('omnibusPanel')) return;
@@ -55,17 +55,23 @@
     if (dirty && !(await ask('Switch election?', 'Unsaved Omnibus changes will be discarded.', 'Discard and switch'))) { election.value = String(electionId); return; }
     electionId = election.value; await load();
   });
-  const readFiles = (input, replacing) => {
+  const readFiles = async (input, replacing) => {
     const incoming = [...input.files].sort((a,b) => a.name.localeCompare(b.name, undefined, { numeric:true }));
     if (!incoming.length || loading) return;
     if ((!replacing && pages.length + incoming.length > 30) || incoming.some(file => !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 5 * 1024 * 1024)) { message('Keep up to 30 pages, with JPG, PNG or WebP images up to 5 MB each.', true); input.value = ''; return; }
-    incoming.forEach(file => {
+    let added = 0;
+    loading = true; render();
+    for (const original of incoming) {
+      const file = await window.ElecomImageCrop(original, 'omnibus');
+      if (!file) continue;
       const page = replacing ? pages[selected] : {id:'page-' + crypto.randomUUID(),default_index:null,image_url:null};
-      if (!replacing) pages.push(page);
+      if (!replacing) { pages.push(page); added++; }
       release(page.id); files.set(page.id,file); urls.set(page.id,URL.createObjectURL(file));
-    });
-    if (!replacing) selected = pages.length - incoming.length;
-    input.value = ''; changed();
+    }
+    if (!replacing && added) selected = pages.length - added;
+    loading = false;
+    input.value = '';
+    if (added || (replacing && files.has(pages[selected].id))) changed(); else render();
   };
   el('omnibusFiles').addEventListener('change', event => readFiles(event.target, false));
   el('omnibusReplace').addEventListener('change', event => readFiles(event.target, true));

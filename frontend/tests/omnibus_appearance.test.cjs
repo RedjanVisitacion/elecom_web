@@ -1,4 +1,4 @@
-﻿const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict'), path = require('node:path');
+const fs = require('node:fs'), vm = require('node:vm'), assert = require('node:assert/strict'), path = require('node:path');
 const defaults = Array.from({length:14}, (_,index)=>({id:'default-'+index,default_index:index,image_url:null}));
 const nodes={}, calls=[];
 function node(){return {value:'',files:[],children:[],handlers:{},addEventListener(name,fn){this.handlers[name]=fn},removeEventListener(name){delete this.handlers[name]},setAttribute(){},append(child){this.children.push(child)},replaceChildren(){this.children=[]}};}
@@ -22,5 +22,13 @@ vm.runInNewContext(fs.readFileSync(path.join(__dirname,'../org_elecom/elecom_adm
  assert.equal(nodes.omnibusPages.children.length,13);
  const reset=nodes.omnibusReset.handlers.click(); nodes.filingConfirmAccept.handlers.click(); await reset;
  assert.equal(nodes.omnibusPages.children.length,14);
+ const file=new File(['image'],'scan.png',{type:'image/png'});
+ context.window.ElecomImageCrop=async()=>null;
+ nodes.omnibusFiles.files=[file];
+ await nodes.omnibusFiles.handlers.change({target:nodes.omnibusFiles});
+ assert.equal(nodes.omnibusPages.children.length,14);
+ context.window.ElecomImageCrop=async(original,kind)=>{assert.equal(kind,'omnibus');return original};
+ await nodes.omnibusFiles.handlers.change({target:nodes.omnibusFiles});
+ assert.equal(nodes.omnibusPages.children.length,15);
  console.log('Omnibus editor passed: load, reorder, scoped publish, cancel, remove, restore.');
 })().catch(error=>{console.error(error);process.exitCode=1});

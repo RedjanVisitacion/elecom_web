@@ -23,7 +23,7 @@
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261109-balanced-logos1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_mobile.css?v=20261031-all-pages5">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261111-sticky-preview1">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261112-crop1">
 </head>
 <body data-admin-page="elecom_omnibus_appearance.html" class="admin-framed-shell theme-elecom mobile-appearance-page">
 <nav class="top-navbar d-flex align-items-center gap-3"><div class="admin-frame-brand"><img class="admin-frame-ustp-logo" src="/static/assets/ustp-logo.png" alt="USTP"><img class="admin-frame-logo" src="/static/assets/elecom-header.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
@@ -97,6 +97,15 @@
     </main>
   </div>
 
+  <div class="modal fade" id="appearanceCropModal" tabindex="-1" aria-labelledby="appearanceCropTitle" aria-describedby="appearanceCropHelp" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable"><div class="modal-content">
+      <div class="modal-header"><h5 class="modal-title" id="appearanceCropTitle">Crop image</h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cancel crop"></button></div>
+      <div class="modal-body"><p id="appearanceCropHelp" class="small"></p><div class="appearance-crop-stage"><canvas id="appearanceCropCanvas" tabindex="0" aria-label="Image crop preview. Drag or use arrow keys to reposition. Use the zoom slider to change scale."></canvas></div>
+      <label for="appearanceCropZoom" class="form-label mt-3">Zoom</label><input id="appearanceCropZoom" type="range" class="form-range" min="1" max="4" step="0.01" value="1">
+      <button id="appearanceCropReset" type="button" class="btn btn-sm btn-outline-secondary">Reset crop</button></div>
+      <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-outline-primary" id="appearanceCropOriginal">Keep full image</button><button type="button" class="btn btn-primary" id="appearanceCropApply">Use cropped image</button></div>
+    </div></div>
+  </div>
   <div class="modal fade" id="filingConfirmModal" tabindex="-1" aria-labelledby="filingConfirmTitle" aria-describedby="filingConfirmDescription" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
       <div class="modal-header"><h5 class="modal-title" id="filingConfirmTitle"></h5><button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button></div>
@@ -110,6 +119,7 @@
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261111-omnibus1"></script>
 <div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-emblem" aria-hidden="true"><img src="/static/assets/no_bg_elecom.png?v=20261029-favicon1" alt=""></span><strong>Loading…</strong><p class="admin-loading-detail">Please wait while we open the next page. No need to click again.</p><button type="button" class="btn btn-outline-secondary btn-sm admin-loading-cancel" hidden>Cancel navigation</button></div></div>
 <noscript><span id="admin-page-ready" hidden></span></noscript>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/omnibus_appearance.js?v=20261111-omnibus1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/appearance_image_crop.js?v=20261112-crop1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/omnibus_appearance.js?v=20261112-crop1"></script>
 </body>
 </html>

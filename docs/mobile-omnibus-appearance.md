@@ -1,4 +1,4 @@
-﻿# Dynamic Omnibus Code pages
+# Dynamic Omnibus Code pages
 
 Mobile App Appearance now expands to Filing Cards and Omnibus Code. The existing filing editor remains independent. Both settings belong to the selected election; the current election supplies the mobile Home screen.
 
@@ -11,3 +11,6 @@ Migration 0020_election_omnibus_pages creates election_omnibus_pages. The mobile
 Deploy the web/backend commit, run manage.py migrate, collectstatic --noinput, restart Gunicorn, then hard-refresh the admin page. Build/run the updated mobile app once. Later admin image changes need no APK rebuild. Actual production upload and phone rendering must be checked after deployment.
 
 Checks: Django tests core.test_omnibus_appearance plus existing filing/turnout suites; node frontend/tests/omnibus_appearance.test.cjs and filing_slideshow.test.cjs; Flutter tests omnibus_code_carousel_test.dart and candidate_application_promo_test.dart.
+
+
+Image framing: selecting an upload opens the shared crop dialog. Drag or focus the canvas and use arrow keys to position; adjust Zoom or Reset crop. Filing cards export JPEG at 1600 x 720. Omnibus offers a portrait 1131 x 1600 crop or Keep full image to avoid clipping document edges. Multiple Omnibus selections are framed one at a time; Cancel skips that image. Accepted crops still require Save to publish. The server validates the exported image using the existing upload rules. Cropping is performed locally in the browser, before upload. No migration or APK rebuild is needed for this editor-only crop feature.
