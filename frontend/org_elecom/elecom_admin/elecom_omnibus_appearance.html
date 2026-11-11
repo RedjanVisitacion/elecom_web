@@ -23,7 +23,7 @@
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261109-balanced-logos1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_mobile.css?v=20261031-all-pages5">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261112-mobile-preview1">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261112-omnibus-preview1">
 </head>
 <body data-admin-page="elecom_omnibus_appearance.html" class="admin-framed-shell theme-elecom mobile-appearance-page">
 <nav class="top-navbar d-flex align-items-center gap-3"><div class="admin-frame-brand"><img class="admin-frame-ustp-logo" src="/static/assets/ustp-logo.png" alt="USTP"><img class="admin-frame-logo" src="/static/assets/elecom-header.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
@@ -85,7 +85,7 @@
         <h4>Omnibus Code</h4><p>Upload, replace and arrange the document page images shown in the mobile app.</p>
         <div class="appearance-election"><label for="omnibusElection" class="form-label">Election</label><select id="omnibusElection" class="form-select mb-3" disabled></select>
         <p class="small text-muted">Changes apply to the selected election. The mobile app uses the current election's pages.</p></div>
-        <div class="row g-4 appearance-workspace"><div class="col-xl-7 omnibus-preview-column"><img id="omnibusPreview" alt="Selected Omnibus page" style="width:100%;max-height:65vh;object-fit:contain;background:#eef2f7"></div>
+        <div class="row g-4 appearance-workspace"><div class="col-xl-7 omnibus-preview-column"><div class="omnibus-phone-preview"><strong class="omnibus-mobile-heading">Omnibus Code</strong><div class="omnibus-mobile-pair" id="omnibusPreviewPair"><button type="button" class="omnibus-mobile-card" id="omnibusPreviewFirst"><img id="omnibusPreview" alt="First page preview"></button><button type="button" class="omnibus-mobile-card" id="omnibusPreviewSecond"><img id="omnibusPreviewNext" alt="Second page preview"></button></div><div class="omnibus-preview-dots" id="omnibusPreviewDots" aria-hidden="true"></div><p class="small text-muted mt-2" id="omnibusPreviewCaption" aria-live="polite"></p></div></div>
         <div class="col-xl-5 appearance-editor"><label for="omnibusFiles" class="form-label">Add page images</label><input id="omnibusFiles" class="form-control mb-2" type="file" multiple accept="image/jpeg,image/png,image/webp" disabled>
         <p class="small text-muted">JPG, PNG or WebP, up to 5 MB each and 15 MB per save. Up to 30 pages. Select multiple files to add them in filename order.</p>
         <div class="d-flex gap-2 mb-2"><button id="omnibusUp" class="btn btn-outline-secondary" disabled aria-label="Move page earlier">↑</button><button id="omnibusDown" class="btn btn-outline-secondary" disabled aria-label="Move page later">↓</button><button id="omnibusRemove" class="btn btn-outline-danger" disabled>Remove page</button></div>
@@ -120,6 +120,6 @@
 <div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-emblem" aria-hidden="true"><img src="/static/assets/no_bg_elecom.png?v=20261029-favicon1" alt=""></span><strong>Loading…</strong><p class="admin-loading-detail">Please wait while we open the next page. No need to click again.</p><button type="button" class="btn btn-outline-secondary btn-sm admin-loading-cancel" hidden>Cancel navigation</button></div></div>
 <noscript><span id="admin-page-ready" hidden></span></noscript>
   <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/appearance_image_crop.js?v=20261112-crop1"></script>
-  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/omnibus_appearance.js?v=20261112-crop1"></script>
+  <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/omnibus_appearance.js?v=20261112-omnibus-preview1"></script>
 </body>
 </html>

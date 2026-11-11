@@ -31,9 +31,22 @@
     el('omnibusDown').disabled = !ready || selected >= pages.length - 1;
     el('omnibusRemove').disabled = !ready || pages.length <= 1;
     el('omnibusFiles').disabled = !ready || pages.length >= 30;
-    const preview = el('omnibusPreview'); preview.hidden = !page || !source(page);
-    if (page && source(page)) preview.src = source(page);
-    preview.alt = `Omnibus page ${selected + 1}`;
+    const first = Math.floor(selected / 2) * 2;
+    ['omnibusPreview', 'omnibusPreviewNext'].forEach((id, offset) => {
+      const item = pages[first + offset], image = el(id);
+      const button = el(offset ? 'omnibusPreviewSecond' : 'omnibusPreviewFirst');
+      button.hidden = !item; button.disabled = !ready;
+      button.className = 'omnibus-mobile-card' + (first + offset === selected ? ' is-selected' : '');
+      button.setAttribute('aria-label', `Select page ${first + offset + 1}`);
+      button.setAttribute('aria-pressed', String(first + offset === selected));
+      if (item) { image.src = source(item); image.alt = `Omnibus page ${first + offset + 1}`; }
+    });
+    el('omnibusPreviewPair').className = 'omnibus-mobile-pair' + (pages[first + 1] ? '' : ' has-single-page');
+    el('omnibusPreviewCaption').textContent = `Mobile carousel · Page ${selected + 1} selected · ${pages.length} pages`;
+    const dots = el('omnibusPreviewDots'); dots.replaceChildren();
+    for (let index = 0; index < Math.ceil(pages.length / 2); index++) {
+      const dot = document.createElement('span'); dot.className = index === first / 2 ? 'is-active' : ''; dots.append(dot);
+    }
     const list = el('omnibusPages'); list.replaceChildren();
     pages.forEach((item, index) => {
       const button = document.createElement('button'); button.type = 'button'; button.className = `btn w-100 text-start mb-1 ${index === selected ? 'btn-primary' : 'btn-outline-secondary'}`;
@@ -73,6 +86,9 @@
     input.value = '';
     if (added || (replacing && files.has(pages[selected].id))) changed(); else render();
   };
+  ['omnibusPreviewFirst','omnibusPreviewSecond'].forEach((id,offset) => {
+    el(id).addEventListener('click', () => { const target = Math.floor(selected / 2) * 2 + offset; if (!loading && pages[target]) { selected = target; render(); } });
+  });
   el('omnibusFiles').addEventListener('change', event => readFiles(event.target, false));
   el('omnibusReplace').addEventListener('change', event => readFiles(event.target, true));
   const move = offset => { const target = selected + offset; if (loading || target < 0 || target >= pages.length) return; [pages[selected],pages[target]] = [pages[target],pages[selected]]; selected = target; changed(); };

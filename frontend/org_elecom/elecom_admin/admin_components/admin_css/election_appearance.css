@@ -85,3 +85,21 @@
   #filingAppearancePanel .filing-preview-stage > .d-flex { margin-top:8px !important; }
   #filingAppearancePanel .filing-slide-list { margin-top:0 !important; min-height:0; height:100%; max-height:none; }
 }
+
+/* Match Flutter's 200px-tall, two-page Omnibus carousel at phone width. */
+#omnibusPanel .omnibus-preview-column { background:transparent; align-items:flex-start; padding-top:4px; }
+.omnibus-phone-preview { width:358px; max-width:100%; margin-inline:auto; }
+.omnibus-mobile-heading { display:block; font-size:14px; font-weight:800; color:#2563eb; margin-bottom:10px; }
+.omnibus-mobile-pair { display:flex; gap:8px; height:200px; padding:0 2px; }
+.omnibus-mobile-card { display:block; flex:1; min-width:0; height:200px; padding:0; border:2px solid #0c1e70; border-radius:8px; overflow:hidden; background:#eef2f7; }
+#omnibusPanel .omnibus-mobile-card > img { display:block; width:100% !important; height:100% !important; max-height:none !important; object-fit:cover !important; object-position:center; }
+.omnibus-mobile-card.is-selected { outline:2px solid #2563eb; outline-offset:2px; }
+.omnibus-mobile-pair.has-single-page { justify-content:center; }
+.omnibus-mobile-pair.has-single-page .omnibus-mobile-card { flex:0 0 calc((100% - 8px)/2); }
+.omnibus-mobile-card[hidden] { display:none; }
+.omnibus-preview-dots { display:flex; flex-wrap:wrap; gap:4.5px; justify-content:center; margin-top:8px; }
+.omnibus-preview-dots span { width:5.5px; height:5.5px; border-radius:4px; background:rgba(37,99,235,.3); }
+.omnibus-preview-dots span.is-active { width:11.55px; background:#2563eb; }
+@media (min-width:1200px) and (min-height:600px) {
+  #omnibusPanel .omnibus-preview-column { overflow-y:auto; }
+}
