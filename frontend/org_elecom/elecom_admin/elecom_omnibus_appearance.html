@@ -23,7 +23,7 @@
   <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_dashboard.css?v=20261109-balanced-logos1">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr@4.6.13/dist/flatpickr.min.css">
     <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/admin_mobile.css?v=20261031-all-pages5">
-  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261112-crop1">
+  <link rel="stylesheet" href="/static/org_elecom/elecom_admin/admin_components/admin_css/election_appearance.css?v=20261112-fit1">
 </head>
 <body data-admin-page="elecom_omnibus_appearance.html" class="admin-framed-shell theme-elecom mobile-appearance-page">
 <nav class="top-navbar d-flex align-items-center gap-3"><div class="admin-frame-brand"><img class="admin-frame-ustp-logo" src="/static/assets/ustp-logo.png" alt="USTP"><img class="admin-frame-logo" src="/static/assets/elecom-header.png" alt="ELECOM"><span class="admin-frame-title">Electoral Commission</span></div>
@@ -83,16 +83,16 @@
     <main class="content-area p-3 p-lg-4">
       <section class="card" id="omnibusPanel"><div class="card-body p-3 p-lg-4">
         <h4>Omnibus Code</h4><p>Upload, replace and arrange the document page images shown in the mobile app.</p>
-        <label for="omnibusElection" class="form-label">Election</label><select id="omnibusElection" class="form-select mb-3" disabled></select>
-        <p class="small text-muted">Changes apply to the selected election. The mobile app uses the current election's pages.</p>
-        <div class="row g-4"><div class="col-xl-7"><img id="omnibusPreview" alt="Selected Omnibus page" style="width:100%;max-height:65vh;object-fit:contain;background:#eef2f7"></div>
-        <div class="col-xl-5"><label for="omnibusFiles" class="form-label">Add page images</label><input id="omnibusFiles" class="form-control mb-2" type="file" multiple accept="image/jpeg,image/png,image/webp" disabled>
+        <div class="appearance-election"><label for="omnibusElection" class="form-label">Election</label><select id="omnibusElection" class="form-select mb-3" disabled></select>
+        <p class="small text-muted">Changes apply to the selected election. The mobile app uses the current election's pages.</p></div>
+        <div class="row g-4 appearance-workspace"><div class="col-xl-7 omnibus-preview-column"><img id="omnibusPreview" alt="Selected Omnibus page" style="width:100%;max-height:65vh;object-fit:contain;background:#eef2f7"></div>
+        <div class="col-xl-5 appearance-editor"><label for="omnibusFiles" class="form-label">Add page images</label><input id="omnibusFiles" class="form-control mb-2" type="file" multiple accept="image/jpeg,image/png,image/webp" disabled>
         <p class="small text-muted">JPG, PNG or WebP, up to 5 MB each and 15 MB per save. Up to 30 pages. Select multiple files to add them in filename order.</p>
         <div class="d-flex gap-2 mb-2"><button id="omnibusUp" class="btn btn-outline-secondary" disabled aria-label="Move page earlier">↑</button><button id="omnibusDown" class="btn btn-outline-secondary" disabled aria-label="Move page later">↓</button><button id="omnibusRemove" class="btn btn-outline-danger" disabled>Remove page</button></div>
         <label for="omnibusReplace" class="form-label">Replace selected page</label><input id="omnibusReplace" type="file" class="form-control mb-3" accept="image/jpeg,image/png,image/webp" disabled>
         <div id="omnibusPages" class="filing-slide-list" style="max-height:300px;overflow:auto" role="group" aria-label="Choose a page"></div></div></div>
         <p id="omnibusMessage" role="status" aria-live="polite" class="small mt-3"></p>
-        <div class="d-flex gap-2 flex-wrap border-top pt-3"><button id="omnibusSave" class="btn btn-primary" disabled>Save Omnibus pages</button><button id="omnibusReset" class="btn btn-outline-secondary" disabled>Restore default pages</button></div>
+        <div class="d-flex gap-2 flex-wrap border-top pt-3 appearance-actions"><button id="omnibusSave" class="btn btn-primary" disabled>Save Omnibus pages</button><button id="omnibusReset" class="btn btn-outline-secondary" disabled>Restore default pages</button></div>
       </div></section>
     </main>
   </div>
