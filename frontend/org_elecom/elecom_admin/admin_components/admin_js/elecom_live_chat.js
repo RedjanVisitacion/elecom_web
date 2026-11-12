@@ -149,7 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Header badge
     if (takeoverBadge) {
-      takeoverBadge.style.display = active ? '' : 'none';
+      takeoverBadge.style.display = active || conv.admin_requested ? '' : 'none';
+      takeoverBadge.textContent = active ? 'Admin handling chat' : 'Admin requested';
     }
 
     // Banner above the message feed
@@ -192,6 +193,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const conv = conversations.find(c => c.student_id === activeStudentId);
         if (conv) {
           conv.takeover_active = data.takeover_active;
+          conv.admin_requested = false;
           updateTakeoverUI(conv);
           renderConvList();
         }
@@ -236,6 +238,7 @@ document.addEventListener('DOMContentLoaded', () => {
           </div>
           <div class="d-flex flex-column align-items-end gap-1 flex-shrink-0">
             <span class="chat-conv-time">${relativeTime(c.last_activity)}</span>
+            ${c.admin_requested ? '<span class="badge bg-warning text-dark">Admin requested</span>' : ''}
             ${unread}
           </div>
         </div>`;

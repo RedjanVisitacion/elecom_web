@@ -1174,6 +1174,15 @@ def _ensure_elevote_chat_table() -> None:
             )
             """
         )
+        cur.execute("ALTER TABLE elevote_chat_takeover ADD COLUMN IF NOT EXISTS requested boolean NOT NULL DEFAULT FALSE")
+
+
+def _elevote_support_state(student_id):
+    with connection.cursor() as cur:
+        cur.execute("SELECT active, requested FROM elevote_chat_takeover WHERE student_id = %s", [student_id])
+        row = cur.fetchone()
+    return {"takeover_active": bool(row and row[0]),
+            "admin_requested": bool(row and row[1] and not row[0])}
 
 
 def _elevote_groq_reply(student_id: str, message: str) -> tuple[str, str]:
@@ -1401,12 +1410,8 @@ def elevote_chat_api(request):
             except (ValueError, TypeError):
                 pass
         rows = list(qs.order_by("created_at")[:50])
-        # When polling with since_id, also return takeover state so the
-        # mobile client can detect admin-mode without sending a message.
-        takeover = _is_admin_takeover_active(student_id) if since_id else None
-        resp: dict = {"ok": True, "messages": [_elevote_message_json(row) for row in rows]}
-        if takeover is not None:
-            resp["takeover_active"] = takeover
+        resp = {"ok": True, "messages": [_elevote_message_json(row) for row in rows],
+                **_elevote_support_state(student_id)}
         return JsonResponse(resp)
 
     if request.method == "DELETE":
@@ -1417,6 +1422,22 @@ def elevote_chat_api(request):
         payload = json.loads((request.body or b"{}").decode("utf-8"))
     except Exception:
         payload = {}
+
+    if payload.get("action") == "request_admin":
+        # Lock the conversation state so repeated requests are idempotent and
+        # cannot override an administrator's active takeover.
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                cur.execute("INSERT INTO elevote_chat_takeover (student_id, active) VALUES (%s, FALSE) ON CONFLICT (student_id) DO NOTHING", [student_id])
+                cur.execute("SELECT active, requested FROM elevote_chat_takeover WHERE student_id = %s FOR UPDATE", [student_id])
+                active, requested = cur.fetchone()
+                if not active and not requested:
+                    cur.execute("UPDATE elevote_chat_takeover SET requested = TRUE WHERE student_id = %s", [student_id])
+                    EleVoteChatMessage.objects.create(
+                        student_id=student_id, role="user",
+                        content="I would like an ELECOM admin to take over this chat.")
+            state = _elevote_support_state(student_id)
+        return JsonResponse({"ok": True, **state})
 
     message = str(payload.get("message") or "").strip()
     if not message:
@@ -12348,11 +12369,14 @@ def admin_chat_conversations_api(request):
     try:
         with connection.cursor() as cur:
             cur.execute(
-                "SELECT student_id FROM elevote_chat_takeover WHERE active = TRUE"
+                "SELECT student_id, active, requested FROM elevote_chat_takeover WHERE active = TRUE OR requested = TRUE"
             )
-            takeover_ids = {row[0] for row in cur.fetchall()}
+            states = cur.fetchall()
+            takeover_ids = {row[0] for row in states if row[1]}
+            requested_ids = {row[0] for row in states if row[2] and not row[1]}
     except Exception:
         takeover_ids = set()
+        requested_ids = set()
 
     conversations = []
     for r in rows:
@@ -12366,6 +12390,7 @@ def admin_chat_conversations_api(request):
             "last_activity":   last_activity.isoformat() if last_activity else None,
             "unread_count":    int(r["unread_count"] or 0),
             "takeover_active": r["student_id"] in takeover_ids,
+            "admin_requested": r["student_id"] in requested_ids,
         })
 
     return JsonResponse({"ok": True, "conversations": conversations})
@@ -12509,7 +12534,8 @@ def admin_chat_takeover_api(request):
                 ON CONFLICT (student_id) DO UPDATE
                     SET active    = EXCLUDED.active,
                         taken_at  = EXCLUDED.taken_at,
-                        taken_by  = EXCLUDED.taken_by
+                        taken_by  = EXCLUDED.taken_by,
+                        requested = FALSE
                 """,
                 [student_id, active, admin_id],
             )
