@@ -9934,11 +9934,17 @@ def results_analytics_api(request):
     if not student_id:
         return JsonResponse({"ok": False, "error": "Unauthorized."}, status=401)
 
+    _ensure_election_scoped_tables()
     _ensure_votes_tables()
     _ensure_vote_blocks_table()
     _ensure_validator_tables()
 
-    # Eligible voters: count from student table (fallback to users).
+    # Match the mobile Home election and voter population.
+    election_id = _active_election_id()
+    vote_filter, vote_params = _current_vote_filter("v", election_id)
+    candidate_filter, candidate_params = _current_election_filter("c", election_id)
+
+    # Eligible voters use the same users population as election_window_api.
     eligible_voters = 0
     voted_students = 0
     turnout_pct = 0.0
@@ -9964,23 +9970,11 @@ def results_analytics_api(request):
 
     try:
         with connection.cursor() as cur:
-            # Eligible voters (prefer student table).
-            try:
-                cur.execute("SELECT COUNT(*) FROM student")
-                row = cur.fetchone()
-                eligible_voters = int(row[0] or 0) if row else 0
-            except Exception:
-                eligible_voters = 0
-            if eligible_voters <= 0:
-                try:
-                    cur.execute("SELECT COUNT(*) FROM users WHERE COALESCE(role,'') ILIKE 'student'")
-                    row = cur.fetchone()
-                    eligible_voters = int(row[0] or 0) if row else 0
-                except Exception:
-                    eligible_voters = 0
+            cur.execute("SELECT COUNT(*) FROM users WHERE role = %s", ["student"])
+            row = cur.fetchone()
+            eligible_voters = int(row[0] or 0) if row else 0
 
-            # Total students voted.
-            cur.execute("SELECT COUNT(DISTINCT student_id) FROM votes")
+            cur.execute(f"SELECT COUNT(*) FROM votes v WHERE {vote_filter}", vote_params)
             row = cur.fetchone()
             voted_students = int(row[0] or 0) if row else 0
 
@@ -9989,22 +9983,24 @@ def results_analytics_api(request):
 
             # Participation by program (from users.department).
             cur.execute(
-                """
+                f"""
                 SELECT program_code, COUNT(*) AS cnt
                 FROM (
                     SELECT DISTINCT v.student_id,
                         CASE
-                            WHEN UPPER(COALESCE(u.department,'')) LIKE '%BSIT%' OR UPPER(COALESCE(u.department,'')) LIKE '%INFORMATION TECHNOLOGY%' THEN 'BSIT'
-                            WHEN UPPER(COALESCE(u.department,'')) LIKE '%BTLED%' OR UPPER(COALESCE(u.department,'')) LIKE '%LIVELIHOOD%' THEN 'BTLED'
-                            WHEN UPPER(COALESCE(u.department,'')) LIKE '%BFPT%' OR UPPER(COALESCE(u.department,'')) LIKE '%FOOD PROCESS%' THEN 'BFPT'
+                            WHEN UPPER(COALESCE(u.department,'')) LIKE '%%BSIT%%' OR UPPER(COALESCE(u.department,'')) LIKE '%%INFORMATION TECHNOLOGY%%' THEN 'BSIT'
+                            WHEN UPPER(COALESCE(u.department,'')) LIKE '%%BTLED%%' OR UPPER(COALESCE(u.department,'')) LIKE '%%LIVELIHOOD%%' THEN 'BTLED'
+                            WHEN UPPER(COALESCE(u.department,'')) LIKE '%%BFPT%%' OR UPPER(COALESCE(u.department,'')) LIKE '%%FOOD PROCESS%%' THEN 'BFPT'
                             ELSE 'OTHER'
                         END AS program_code
                     FROM votes v
                     LEFT JOIN users u
                       ON u.student_id::text = v.student_id::text
+                    WHERE {vote_filter}
                 ) x
                 GROUP BY program_code
-                """
+                """,
+                vote_params,
             )
             for code, cnt in (cur.fetchall() or []):
                 c = str(code or "").upper()
@@ -10013,14 +10009,15 @@ def results_analytics_api(request):
 
             # Vote completion: normalize vote_items.position because stored value is often "ORG::Position".
             cur.execute(
-                """
+                f"""
                 WITH pos_catalog AS (
                     SELECT DISTINCT TRIM(position) AS pos
-                    FROM candidates_registration
-                    WHERE COALESCE(TRIM(position), '') <> ''
+                    FROM candidates_registration c
+                    WHERE {candidate_filter} AND COALESCE(TRIM(position), '') <> ''
                 )
                 SELECT COUNT(*) FROM pos_catalog
-                """
+                """,
+                candidate_params,
             )
             row = cur.fetchone()
             total_positions = int(row[0] or 0) if row else 0
@@ -10028,11 +10025,11 @@ def results_analytics_api(request):
             # Most/least voted positions (include zeros for positions with no votes).
             if total_positions > 0:
                 cur.execute(
-                    """
+                    f"""
                     WITH pos AS (
                       SELECT DISTINCT TRIM(position) AS position
-                      FROM candidates_registration
-                      WHERE COALESCE(TRIM(position), '') <> ''
+                      FROM candidates_registration c
+                      WHERE {candidate_filter} AND COALESCE(TRIM(position), '') <> ''
                     ),
                     counts AS (
                       SELECT
@@ -10043,13 +10040,15 @@ def results_analytics_api(request):
                         END AS position,
                         COUNT(*) AS cnt
                       FROM vote_items
+                      WHERE vote_id IN (SELECT v.id FROM votes v WHERE {vote_filter})
                       GROUP BY 1
                     )
                     SELECT p.position, COALESCE(c.cnt, 0) AS cnt
                     FROM pos p
                     LEFT JOIN counts c ON c.position = p.position
                     ORDER BY p.position ASC
-                    """
+                    """,
+                    candidate_params + vote_params,
                 )
                 pos_rows = [(str(r[0] or ""), int(r[1] or 0)) for r in (cur.fetchall() or [])]
                 if pos_rows:
@@ -10075,12 +10074,16 @@ def results_analytics_api(request):
                         least_voted_position = min_positions[0]
 
                 # Skipped positions estimate using distinct positions per vote (avoids representative multi-select inflation).
-                cur.execute("SELECT COUNT(*) FROM votes")
+                cur.execute(f"SELECT COUNT(*) FROM votes v WHERE {vote_filter}", vote_params)
                 row = cur.fetchone()
                 total_votes = int(row[0] or 0) if row else 0
 
                 if total_votes > 0:
-                    cur.execute("SELECT COUNT(DISTINCT (vote_id, position)) FROM vote_items")
+                    cur.execute(
+                        f"SELECT COUNT(DISTINCT (vote_id, position)) FROM vote_items "
+                        f"WHERE vote_id IN (SELECT v.id FROM votes v WHERE {vote_filter})",
+                        vote_params,
+                    )
                     row = cur.fetchone()
                     distinct_vote_positions = int(row[0] or 0) if row else 0
                     expected = total_votes * total_positions
@@ -10089,24 +10092,26 @@ def results_analytics_api(request):
 
             # Peak voting time (hour bucket) using actual vote submission timestamp.
             # Source: votes.created_at, converted to Asia/Manila before hourly grouping.
-            cur.execute("SELECT COUNT(*) FROM votes")
+            cur.execute(f"SELECT COUNT(*) FROM votes v WHERE {vote_filter}", vote_params)
             row = cur.fetchone()
             total_submitted_votes = int(row[0] or 0) if row else 0
 
             if total_submitted_votes >= 3:
                 peak_has_enough_data = True
                 cur.execute(
-                    """
+                    f"""
                     WITH hourly AS (
                         SELECT date_trunc('hour', timezone('Asia/Manila', created_at)) AS bucket,
                                COUNT(*) AS cnt
-                        FROM votes
+                        FROM votes v
+                        WHERE {vote_filter}
                         GROUP BY 1
                     )
                     SELECT bucket, cnt
                     FROM hourly
                     ORDER BY cnt DESC, bucket ASC
-                    """
+                    """,
+                    vote_params,
                 )
                 bucket_rows = cur.fetchall() or []
                 if bucket_rows:
@@ -10263,6 +10268,7 @@ def results_analytics_api(request):
     return JsonResponse(
         {
             "ok": True,
+            "election_id": election_id,
             "turnout": {
                 "eligible_voters": eligible_voters,
                 "voted_students": voted_students,
