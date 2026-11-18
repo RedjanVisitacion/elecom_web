@@ -92,6 +92,32 @@ def developer_users_api(request):
                                        or str(request.session.get('student_id')) == settings.DEVELOPER_STUDENT_ID)
         return JsonResponse({"ok": True, "users": users, "page": page, "has_more": len(rows) > 100, "csrf_token": get_token(request)})
     try:
+        payload = json.loads(request.body)
+    except (ValueError, TypeError, UnicodeDecodeError):
+        return JsonResponse({"ok": False, "error": "Invalid request."}, status=400)
+    if isinstance(payload, dict) and payload.get("action") == "edit_name":
+        try:
+            user_id = int(payload["id"])
+            names = [payload[key].strip() for key in ("first_name", "middle_name", "last_name")]
+            if user_id <= 0 or not names[0] or not names[2] or any(len(n) > 128 or any(ord(c) < 32 for c in n) for n in names):
+                raise ValueError
+        except (ValueError, TypeError, KeyError, AttributeError):
+            return JsonResponse({"ok": False, "error": "Enter a first and last name; each name must be at most 128 characters."}, status=400)
+        with transaction.atomic():
+            with connection.cursor() as cur:
+                denied = _developer_admin(request)
+                if denied is not None:
+                    return denied
+                cur.execute("SELECT student_id FROM users WHERE id = %s FOR UPDATE", [user_id])
+                target = cur.fetchone()
+                if target is None:
+                    return JsonResponse({"ok": False, "error": "Account not found."}, status=404)
+                cur.execute("UPDATE users SET first_name = %s, middle_name = %s, last_name = %s WHERE id = %s", [*names, user_id])
+                if target[0]:
+                    cur.execute("UPDATE student SET first_name = %s, middle_name = %s, last_name = %s WHERE id_number::text = %s", [*names, str(target[0])])
+        logger.info("Admin %s updated name for user %s", request.session.get("student_id"), user_id)
+        return JsonResponse({"ok": True, "message": "Name updated."})
+    try:
         data = json.loads(request.body)
         user_id = int(data['id'])
         role = data.get('role')

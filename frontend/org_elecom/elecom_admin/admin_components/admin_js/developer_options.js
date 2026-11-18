@@ -23,6 +23,31 @@
           const td = document.createElement('td'); td.textContent = text; tr.append(td);
         }
         const action = document.createElement('td');
+        const edit = document.createElement('button');
+        edit.type = 'button'; edit.className = 'btn btn-outline-secondary btn-sm me-2'; edit.textContent = 'Edit name';
+        edit.addEventListener('click', () => {
+          if (busy) return;
+          const dialog = document.getElementById('developerEditNameDialog');
+          const form = document.getElementById('developerEditNameForm');
+          const message = document.getElementById('developerEditNameStatus');
+          const fields = ['first_name', 'middle_name', 'last_name'];
+          fields.forEach(key => { form.elements[key].value = user[key] || ''; });
+          message.textContent = ''; dialog.showModal();
+          form.onsubmit = async event => {
+            event.preventDefault();
+            const save = form.querySelector('[type=submit]'); save.disabled = true; message.textContent = 'Saving…';
+            try {
+              const payload = { action: 'edit_name', id: user.id };
+              fields.forEach(key => { payload[key] = form.elements[key].value.trim(); });
+              const response = await fetch('/api/admin/developer/users/', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrf }, body: JSON.stringify(payload) });
+              const result = await response.json();
+              if (!response.ok || !result.ok) throw new Error(result.error || 'Unable to update name.');
+              dialog.close(); await load(); status.textContent = result.message;
+            } catch (error) { message.textContent = error.message || 'Unable to update name.'; }
+            finally { save.disabled = false; }
+          };
+        });
+        action.append(edit);
         {
           const isAdmin = String(user.role).trim().toLowerCase() === 'admin';
           const button = document.createElement('button'); button.type = 'button';
