@@ -103,18 +103,33 @@ def developer_users_api(request):
                 raise ValueError
         except (ValueError, TypeError, KeyError, AttributeError):
             return JsonResponse({"ok": False, "error": "Enter a first and last name; each name must be at most 128 characters."}, status=400)
+        from .views import _ensure_user_notifications_table
+        from .candidate_push import ensure_candidate_push_tables, queue_candidate_push
+        _ensure_user_notifications_table()
+        ensure_candidate_push_tables()
         with transaction.atomic():
             with connection.cursor() as cur:
                 denied = _developer_admin(request)
                 if denied is not None:
                     return denied
-                cur.execute("SELECT student_id FROM users WHERE id = %s FOR UPDATE", [user_id])
+                cur.execute("""SELECT u.student_id,
+                    COALESCE(NULLIF(u.first_name, ''), (SELECT s.first_name FROM student s WHERE s.id_number::text = u.student_id::text LIMIT 1), ''),
+                    COALESCE(NULLIF(u.middle_name, ''), (SELECT s.middle_name FROM student s WHERE s.id_number::text = u.student_id::text LIMIT 1), ''),
+                    COALESCE(NULLIF(u.last_name, ''), (SELECT s.last_name FROM student s WHERE s.id_number::text = u.student_id::text LIMIT 1), '')
+                    FROM users u WHERE u.id = %s FOR UPDATE""", [user_id])
                 target = cur.fetchone()
                 if target is None:
                     return JsonResponse({"ok": False, "error": "Account not found."}, status=404)
                 cur.execute("UPDATE users SET first_name = %s, middle_name = %s, last_name = %s WHERE id = %s", [*names, user_id])
                 if target[0]:
                     cur.execute("UPDATE student SET first_name = %s, middle_name = %s, last_name = %s WHERE id_number::text = %s", [*names, str(target[0])])
+                    if names != [str(value or '').strip() for value in target[1:]]:
+                        title = "Account name updated"
+                        body = "An ELECOM administrator updated the name on your account. Please review your profile."
+                        cur.execute("""INSERT INTO user_notifications (student_id, type, title, body, created_at, read_at, receipt_id, pinned)
+                            VALUES (%s, 'general', %s, %s, NOW(), NULL, NULL, FALSE) RETURNING id""", [str(target[0]), title, body])
+                        notification_id = cur.fetchone()[0]
+                        queue_candidate_push(notification_id=notification_id, student_id=str(target[0]), title=title, body=body)
         logger.info("Admin %s updated name for user %s", request.session.get("student_id"), user_id)
         return JsonResponse({"ok": True, "message": "Name updated."})
     try:
