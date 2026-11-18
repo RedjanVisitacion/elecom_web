@@ -1,3 +1,4 @@
+from .developer_users_csv import developer_users_csv_api
 from .topbar_appearance import topbar_appearance_api
 from .omnibus_appearance import omnibus_appearance_api
 from .election_appearance import election_appearance_api
@@ -185,6 +186,7 @@ urlpatterns = [
     path('api/admin/page-token/', admin_page_token_api, name='admin_page_token_api'),
     path('api/user/page-token/', student_page_token_api, name='student_page_token_api'),
     path('api/admin/verify-password/', admin_verify_password_api, name='admin_verify_password_api'),
+    path('api/admin/developer/users/csv/', developer_users_csv_api, name='developer_users_csv_api'),
     path('api/admin/developer/users/', developer_users_api, name='developer_users_api'),
     path('api/admin/developer/gallery/', developer_gallery_api, name='developer_gallery_api'),
     path('api/admin/developer/verify-password/', developer_verify_password_api, name='developer_verify_password_api'),

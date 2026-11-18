@@ -104,6 +104,13 @@
             <section id="usersPanel" class="card p-4 border-0" hidden>
                 <h2 class="h5 fw-bold">User Management</h2>
                 <p class="text-muted small">Promoted accounts can sign in to the web admin portal after signing out and signing in again.</p>
+                <div class="d-flex flex-wrap gap-2 mb-3">
+                  <a class="btn btn-outline-success btn-sm" href="/api/admin/developer/users/csv/"><i class="bi bi-filetype-csv"></i> Export CSV</a>
+                  <button id="developerUsersCsvImport" type="button" class="btn btn-outline-primary btn-sm"><i class="bi bi-upload"></i> Import CSV</button>
+                  <a class="btn btn-outline-secondary btn-sm" href="/api/admin/developer/users/csv/?template=1">Download CSV template</a>
+                  <input id="developerUsersCsvFile" type="file" accept=".csv,text/csv" hidden>
+                </div>
+                <p class="small text-muted">Export includes all accounts. Import creates or updates by Student ID (up to 500 rows, UTF-8 CSV, 2 MB). Existing passwords and admin roles are preserved. CSV roles do not grant admin access.</p>
                 <form id="developerUserSearch" class="d-flex gap-2 mb-3"><input id="developerUserQuery" class="form-control" type="search" placeholder="Search name, student ID, email, or role" aria-label="Search users"><button class="btn btn-primary" type="submit">Search</button></form>
                 <p id="developerUsersStatus" class="small" role="status"></p>
                 <div class="table-responsive"><table class="table align-middle"><thead><tr><th>Student ID</th><th>Name</th><th>Email</th><th>Role</th><th>Action</th></tr></thead><tbody id="developerUsersRows"></tbody></table></div>
@@ -112,6 +119,13 @@
         </div>
     </div>
 
+    <div class="modal fade" id="developerUsersCsvModal" tabindex="-1" aria-labelledby="developerUsersCsvTitle" aria-hidden="true">
+      <div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+        <div class="modal-header"><h2 id="developerUsersCsvTitle" class="modal-title fs-5">Import user accounts</h2><button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button></div>
+        <div class="modal-body"><p id="developerUsersCsvSummary"></p><p class="small text-muted">Existing account details will be replaced with CSV values. New student accounts use their Student ID as the initial password, matching the existing account import rule. Existing passwords and administrator roles stay unchanged.</p><p id="developerUsersCsvError" class="text-danger small" role="status"></p></div>
+        <div class="modal-footer"><button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button><button id="developerUsersCsvCommit" type="button" class="btn btn-primary">Import accounts</button></div>
+      </div></div>
+    </div>
     <dialog id="developerEditNameDialog" aria-labelledby="developerEditNameTitle" style="border:0;border-radius:12px;box-shadow:0 8px 40px #0005;max-width:440px;width:90%">
       <form id="developerEditNameForm">
         <h2 id="developerEditNameTitle" class="h5 mb-3">Edit user name</h2>
@@ -128,6 +142,7 @@
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_notifications.js?v=20261110-browser-alerts1"></script>
 <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/admin_user_menu.js?v=20261118-profiledev1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/developer_options.js?v=20261118-editname1"></script>
+    <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/developer_users_csv.js?v=20261119-csv1"></script>
     <script src="/static/org_elecom/elecom_admin/admin_components/admin_js/developer_network_restriction.js?v=20261015-network-restriction1"></script>
 <div id="adminNavigationLoading" class="admin-navigation-loading" role="status" aria-live="polite" aria-atomic="true" tabindex="-1" hidden><div class="admin-navigation-loading-message"><span class="admin-loading-emblem" aria-hidden="true"><img src="/static/assets/no_bg_elecom.png?v=20261029-favicon1" alt=""></span><strong>Loading…</strong><p class="admin-loading-detail">Please wait while we open the next page. No need to click again.</p><button type="button" class="btn btn-outline-secondary btn-sm admin-loading-cancel" hidden>Cancel navigation</button></div></div>
 <noscript><span id="admin-page-ready" hidden></span></noscript>
