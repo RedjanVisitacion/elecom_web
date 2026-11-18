@@ -2,6 +2,8 @@
 import csv
 import io
 import logging
+import hashlib
+import json
 
 from django.core.exceptions import ValidationError
 from django.core.validators import validate_email
@@ -24,9 +26,9 @@ def safe_cell(value):
 def parse_csv(upload):
     if not upload or not upload.name.lower().endswith('.csv'):
         raise ValueError('Choose a CSV file.')
-    content = upload.read(2 * 1024 * 1024 + 1)
-    if len(content) > 2 * 1024 * 1024:
-        raise ValueError('CSV files must be at most 2 MB.')
+    content = upload.read(10 * 1024 * 1024 + 1)
+    if len(content) > 10 * 1024 * 1024:
+        raise ValueError('CSV files must be at most 10 MB.')
     reader = csv.DictReader(io.StringIO(content.decode('utf-8-sig')), strict=True)
     required = set(FIELDS) - {'role', 'middle_name'}
     if not reader.fieldnames or len(set(reader.fieldnames)) != len(reader.fieldnames) or not required.issubset(reader.fieldnames) or set(reader.fieldnames) - set(FIELDS):
@@ -42,8 +44,6 @@ def parse_csv(upload):
                 row[key] = row[key][1:]
         if not any(row.values()):
             continue
-        if len(rows) >= 500:
-            raise ValueError('Import at most 500 accounts at a time.')
         error = _validate_voter_payload(row)
         if error:
             raise ValueError(f'Row {number}: {error}')
@@ -96,6 +96,20 @@ def developer_users_csv_api(request):
         return response
     try:
         rows = parse_csv(request.FILES.get('file'))
+        total = len(rows)
+        digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
+        preview = request.POST.get('preview') == '1'
+        offset = 0
+        if not preview:
+            try:
+                offset = int(request.POST.get('offset', ''))
+            except (TypeError, ValueError):
+                raise ValueError('Refresh the page and preview the CSV before importing.') from None
+            if offset < 0 or offset >= total or offset % 250:
+                raise ValueError('Invalid import batch offset.')
+            if request.POST.get('file_digest') != digest:
+                raise ValueError('The file changed. Preview it again before importing.')
+            rows = rows[offset:offset + 250]
         from .views import _upsert_voter_row
         with transaction.atomic():
             with connection.cursor() as cur:
@@ -107,16 +121,18 @@ def developer_users_csv_api(request):
                 existing = dict(cur.fetchall())
                 if any(count > 1 for count in existing.values()):
                     raise ValueError('An imported Student ID matches multiple accounts. Resolve duplicates first.')
-                if request.POST.get('preview') != '1':
+                if not preview:
                     for row in rows:
                         error = _upsert_voter_row(cur, row)
                         if error:
                             raise ValueError(error)
-        response = JsonResponse({'ok': True, 'created': len(rows) - len(existing), 'updated': len(existing), 'preview': request.POST.get('preview') == '1'})
+        response = JsonResponse({'ok': True, 'created': len(rows) - len(existing), 'updated': len(existing),
+                                 'preview': preview, 'total': total, 'batch_size': 250,
+                                 'file_digest': digest, 'processed': 0 if preview else offset + len(rows)})
         response['Cache-Control'] = 'private, no-store'
         return response
     except (ValueError, UnicodeError, csv.Error) as error:
         return JsonResponse({'ok': False, 'error': str(error)}, status=400)
     except Exception:
         logging.getLogger(__name__).exception('User CSV import failed')
-        return JsonResponse({'ok': False, 'error': 'Import failed. No accounts were changed.'}, status=500)
+        return JsonResponse({'ok': False, 'error': 'This batch failed and was rolled back. Earlier completed batches remain saved.'}, status=500)

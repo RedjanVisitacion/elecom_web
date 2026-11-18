@@ -35,7 +35,40 @@ class UserCsvTests(unittest.TestCase):
         return SimpleUploadedFile('users.csv', stream.getvalue().encode('utf-8-sig'))
 
     def request(self, preview='1'):
-        return SimpleNamespace(method='POST', FILES={'file': self.upload()}, POST={'preview': preview})
+        import hashlib
+        rows = api.parse_csv(self.upload())
+        digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
+        return SimpleNamespace(method='POST', FILES={'file': self.upload()}, POST={'preview': preview, 'offset': '0', 'file_digest': digest})
+
+    def large_upload(self):
+        return self.upload([[str(20230000 + i), 'First', '', 'Last', 'first@example.com', 'BSIT', '1', 'A', '09123456789', 'student'] for i in range(620)])
+
+    def test_large_file_validates_and_batches_250_250_120(self):
+        import hashlib
+        rows = api.parse_csv(self.large_upload())
+        self.assertEqual(len(rows), 620)
+        digest = hashlib.sha256(json.dumps(rows, ensure_ascii=False, sort_keys=True).encode('utf-8')).hexdigest()
+        self.cursor.fetchall.return_value = []
+        with patch.object(api, '_developer_admin', return_value=None), patch.object(api, 'transaction', SimpleNamespace(atomic=nullcontext)):
+            for offset, count, processed in [(0, 250, 250), (250, 250, 500), (500, 120, 620)]:
+                self.upsert.reset_mock()
+                request = SimpleNamespace(method='POST', FILES={'file': self.large_upload()}, POST={'preview': '0', 'offset': str(offset), 'file_digest': digest})
+                response = api.developer_users_csv_api(request)
+                data = json.loads(response.content)
+                self.assertEqual(response.status_code, 200, data)
+                self.assertEqual(data['processed'], processed)
+                self.assertEqual(data['created'], count)
+                self.assertEqual(data['total'], 620)
+                self.assertEqual(self.upsert.call_count, count)
+                self.assertEqual(self.upsert.call_args_list[0].args[1]['student_id'], str(20230000 + offset))
+
+    def test_invalid_offset_or_changed_file_does_not_write(self):
+        for changes in [{'offset': '-1'}, {'offset': '1'}, {'offset': '250'}, {'file_digest': 'changed'}]:
+            request = self.request('0')
+            request.POST.update(changes)
+            with patch.object(api, '_developer_admin', return_value=None):
+                self.assertEqual(api.developer_users_csv_api(request).status_code, 400)
+        self.upsert.assert_not_called()
 
     def test_roles_are_not_imported_and_phone_round_trips(self):
         row = api.parse_csv(self.upload())[0]
