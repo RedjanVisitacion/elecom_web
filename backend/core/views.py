@@ -259,6 +259,7 @@ _ADMIN_PAGE_ALLOWLIST = {
     "elecom_voters.html",
     "elecom_results.html",
     "elecom_reset.html",
+    "elecom_profile_developer.html",
     "elecom_reports.html",
     "elecom_backup_restore.html",
     "elecom_transparency.html",
@@ -314,7 +315,7 @@ def _serve_admin_static_page(request, page: str):
         return forbidden
 
     page = _normalize_admin_page_name(page)
-    if page == 'elecom_reset.html':
+    if page in ('elecom_reset.html', 'elecom_profile_developer.html'):
         from .developer_options import _developer_admin
         forbidden = _developer_admin(request)
         if forbidden is not None:
@@ -4900,7 +4901,7 @@ def admin_secure_page_view(request, token):
         )
 
     page = _normalize_admin_page_name(data.get("page") or "admin_dashboard.html")
-    if page == 'elecom_reset.html':
+    if page in ('elecom_reset.html', 'elecom_profile_developer.html'):
         from .developer_options import _developer_admin
         forbidden = _developer_admin(request)
         if forbidden is not None:

@@ -47,6 +47,7 @@
       "elecom_live_chat.html": ["Live Support Chat"],
       "elecom_voters.html": ["Voters"],
       "elecom_reset.html": ["Developer Options"],
+      "elecom_profile_developer.html": ["Developer Options"],
       "profile.html": ["Profile"],
       "search_results.html": ["Search Candidates"],
     };
@@ -1264,9 +1265,15 @@
       });
     });
 
+    let developerDestination = "elecom_reset.html";
+    document.getElementById("profileDeveloperOptions")?.addEventListener("click", () => {
+      developerDestination = "elecom_profile_developer.html";
+      setAdminPasswordModalOpen(true);
+    });
     if (adminHiddenNotifButton) {
       adminHiddenNotifButton.addEventListener("dblclick", (e) => {
         e.preventDefault();
+        developerDestination = "elecom_reset.html";
         setAdminPasswordModalOpen(true);
       });
     }
@@ -1296,8 +1303,8 @@
           adminPasswordInput?.focus();
           return;
         }
-        const url = await getSecureRouteForPage("elecom_reset.html");
-        window.location.href = url || "/static/org_elecom/elecom_admin/elecom_reset.html";
+        const url = await getSecureRouteForPage(developerDestination);
+        window.location.href = url || `/static/org_elecom/elecom_admin/${developerDestination}`;
       } finally {
         if (adminPasswordContinue) {
           adminPasswordContinue.disabled = false;
